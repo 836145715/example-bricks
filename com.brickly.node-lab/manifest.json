@@ -1,4 +1,5 @@
 {
+  "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.node-lab",
