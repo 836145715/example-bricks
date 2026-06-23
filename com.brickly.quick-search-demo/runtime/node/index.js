@@ -1,11 +1,10 @@
 /* eslint-disable */
 'use strict'
 
-const BRICK_ID = 'com.brickly.quick-search-demo'
-const PROTOCOL_VERSION = '0.1.0'
+const { BricklyRuntime } = require('@syllm/brickly-sdk')
 
-let buffer = ''
-const cancelled = new Set()
+const BRICK_ID = 'com.brickly.quick-search-demo'
+const brick = new BricklyRuntime({ brickId: BRICK_ID })
 
 const DEMO_ITEMS = [
   {
@@ -52,14 +51,6 @@ const ACTION_TITLES = {
   'copy-demo-path': '复制文件路径'
 }
 
-function send(message) {
-  process.stdout.write(JSON.stringify(message) + '\n')
-}
-
-function log(message, details) {
-  process.stderr.write(`[${BRICK_ID}] ${message}${details ? ' ' + JSON.stringify(details) : ''}\n`)
-}
-
 function normalizeQuery(input) {
   return String(input && input.query ? input.query : '').trim().toLocaleLowerCase()
 }
@@ -99,63 +90,8 @@ function actionDemo(input) {
   }
 }
 
-async function handleInvoke(message) {
-  const { id, commandId, input = {} } = message
-  if (cancelled.has(id)) return
-  try {
-    let result
-    if (commandId === 'search-demo') result = searchDemo(input)
-    else if (commandId === 'activate-demo') result = activateDemo(input)
-    else if (commandId === 'action-demo') result = actionDemo(input)
-    else {
-      send({
-        type: 'command.error',
-        id,
-        error: { code: 'COMMAND_NOT_FOUND', message: `Unknown command: ${commandId}` }
-      })
-      return
-    }
-    send({ type: 'command.result', id, result })
-  } catch (error) {
-    send({
-      type: 'command.error',
-      id,
-      error: {
-        code: error && error.code ? error.code : 'INTERNAL_ERROR',
-        message: error && error.message ? error.message : String(error)
-      }
-    })
-  } finally {
-    cancelled.delete(id)
-  }
-}
+brick.onCommand('search-demo', async (_ctx, input = {}) => searchDemo(input))
+brick.onCommand('activate-demo', async (_ctx, input = {}) => activateDemo(input))
+brick.onCommand('action-demo', async (_ctx, input = {}) => actionDemo(input))
 
-function onMessage(message) {
-  if (message.type === 'host.hello') {
-    send({ type: 'runtime.ready', protocolVersion: PROTOCOL_VERSION, brickId: BRICK_ID })
-  } else if (message.type === 'runtime.ping') {
-    send({ type: 'runtime.pong', id: message.id })
-  } else if (message.type === 'command.cancel') {
-    cancelled.add(message.id)
-  } else if (message.type === 'command.invoke') {
-    void handleInvoke(message)
-  } else if (message.type === 'runtime.shutdown') {
-    send({ type: 'runtime.bye' })
-    process.exit(0)
-  }
-}
-
-process.stdin.setEncoding('utf8')
-process.stdin.on('data', (chunk) => {
-  buffer += chunk
-  const lines = buffer.split(/\r?\n/)
-  buffer = lines.pop() || ''
-  for (const line of lines) {
-    if (!line.trim()) continue
-    try {
-      onMessage(JSON.parse(line))
-    } catch (error) {
-      log('invalid message', { error: error && error.message ? error.message : String(error) })
-    }
-  }
-})
+brick.start()

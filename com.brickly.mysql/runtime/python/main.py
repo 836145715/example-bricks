@@ -7,7 +7,7 @@ Production-ready MySQL database plugin with:
 - Transaction support
 - Streaming for large datasets
 
-Protocol: Brickly Plugin Protocol (BPP) over stdio (JSON-lines)
+Runtime protocol is handled by brickly-sdk.
 """
 from __future__ import annotations
 
@@ -21,14 +21,16 @@ from contextlib import contextmanager
 
 import pymysql
 from pymysql.cursors import DictCursor
+from brickly import BppError, BricklyRuntime
 
 BRICK_ID = "com.brickly.mysql"
-PROTOCOL_VERSION = "0.1.0"
 
 # Thread-safe stdout writing
 _stdout_lock = threading.Lock()
 _cancelled: set[str] = set()
 _cancelled_lock = threading.Lock()
+_active: Dict[str, Dict[str, Any]] = {}
+_active_lock = threading.Lock()
 
 # Profile-provided configuration
 _connections: Dict[str, pymysql.Connection] = {}
@@ -39,6 +41,29 @@ PROFILE_CONFIG_ID = "__profile__"
 
 def _send(msg: dict[str, Any]) -> None:
     """Write JSON message to stdout with newline."""
+    req_id = msg.get("id")
+    if isinstance(req_id, str):
+        with _active_lock:
+            active = _active.get(req_id)
+        if active:
+            ctx = active["ctx"]
+            msg_type = msg.get("type")
+            if msg_type == "command.progress":
+                ctx.progress(float(msg.get("progress") or 0), msg.get("message"))
+                return
+            if msg_type == "command.chunk":
+                ctx.chunk(msg.get("chunk"), msg.get("name"))
+                return
+            if msg_type == "command.output":
+                ctx.output(str(msg.get("name") or "output"), msg.get("value"))
+                return
+            if msg_type == "command.result":
+                active["result"] = msg.get("result")
+                return
+            if msg_type == "command.error":
+                error = msg.get("error") if isinstance(msg.get("error"), dict) else {}
+                active["error"] = BppError(str(error.get("code") or "INTERNAL_ERROR"), str(error.get("message") or "Runtime error"))
+                return
     line = json.dumps(msg, ensure_ascii=False, default=str) + "\n"
     with _stdout_lock:
         sys.stdout.write(line)
@@ -450,118 +475,69 @@ def _bpp_error(code: str, message: str) -> _BppError:
     return _BppError(code, message)
 
 
-COMMANDS = {
-    "test-connection": cmd_test_connection,
-    "query": cmd_query,
-    "execute": cmd_execute,
-    "transaction": cmd_transaction,
-}
-
-
-def _handle_invoke(message: dict[str, Any]) -> None:
-    """Handle command invocation."""
-    req_id = message.get("id")
-    command_id = message.get("commandId")
-    inp = message.get("input") or {}
-
-    if not isinstance(req_id, str) or not isinstance(command_id, str):
-        return
-
-    handler = COMMANDS.get(command_id)
-    if handler is None:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": "COMMAND_NOT_FOUND", "message": f"Unknown command: {command_id}"}
-        })
-        return
-
+def _run_command(ctx: Any, handler: Any, inp: dict[str, Any]) -> Any:
+    """Run command through the SDK context while keeping existing business helpers."""
+    req_id = ctx.request_id
+    command_id = ctx.command_id
     _log(f"invoke start id={req_id} command={command_id}")
+    with _active_lock:
+        _active[req_id] = {"ctx": ctx, "result": None, "error": None}
+    ctx.on_cancel(lambda: _mark_cancelled(req_id))
 
     try:
         result = handler(req_id, inp)
-        _send({"type": "command.result", "id": req_id, "result": result})
+        with _active_lock:
+            active = _active.get(req_id)
+            if active is not None and active.get("result") is None:
+                active["result"] = result
+            final_result = active.get("result") if active is not None else result
+            final_error = active.get("error") if active is not None else None
+        if final_error:
+            raise final_error
         _log(f"invoke ok id={req_id}")
+        return final_result
     except _BppError as exc:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": exc.code, "message": exc.message}
-        })
         _log(f"invoke err id={req_id} code={exc.code}")
+        raise BppError(exc.code, exc.message)
     except pymysql.MySQLError as exc:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": "DATABASE_ERROR", "message": f"MySQL error: {exc}"}
-        })
         _log(f"invoke db error id={req_id} {exc}")
+        raise BppError("DATABASE_ERROR", f"MySQL error: {exc}")
     except Exception as exc:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": "INTERNAL_ERROR", "message": f"{type(exc).__name__}: {exc}"}
-        })
         _log(f"invoke crash id={req_id} {type(exc).__name__}: {exc}")
+        raise BppError("INTERNAL_ERROR", f"{type(exc).__name__}: {exc}")
     finally:
         _clear_cancelled(req_id)
+        with _active_lock:
+            _active.pop(req_id, None)
 
 
-def _on_message(message: dict[str, Any]) -> None:
-    """Handle incoming protocol message."""
-    msg_type = message.get("type")
-
-    if msg_type == "host.hello":
-        global _profile_config
-        _profile_config = _config_from_profile(message.get("config"))
-        if _profile_config:
-            _log(f"Profile config loaded for {_profile_config.user}@{_profile_config.host}:{_profile_config.port}")
-        _send({
-            "type": "runtime.ready",
-            "protocolVersion": PROTOCOL_VERSION,
-            "brickId": BRICK_ID
-        })
-    elif msg_type == "runtime.ping":
-        _send({"type": "runtime.pong", "id": message.get("id", "")})
-    elif msg_type == "command.invoke":
-        # Run in worker thread for concurrency
-        threading.Thread(target=_handle_invoke, args=(message,), daemon=True).start()
-    elif msg_type == "command.cancel":
-        rid = message.get("id")
-        if isinstance(rid, str):
-            _mark_cancelled(rid)
-            _log(f"cancel requested id={rid}")
-    elif msg_type == "runtime.shutdown":
-        _send({"type": "runtime.bye"})
-        # Close all connections
-        with _connections_lock:
-            for conn in _connections.values():
-                try:
-                    conn.close()
-                except:
-                    pass
-            _connections.clear()
-        sys.exit(0)
+def _close_connections() -> None:
+    with _connections_lock:
+        for conn in _connections.values():
+            try:
+                conn.close()
+            except Exception:
+                pass
+        _connections.clear()
 
 
-def main() -> None:
-    """Main entry point."""
-    # Main loop: read stdin line by line
-    for raw in sys.stdin:
-        line = raw.strip()
-        if not line:
-            continue
+plugin = BricklyRuntime(BRICK_ID)
 
-        try:
-            message = json.loads(line)
-            _on_message(message)
-        except json.JSONDecodeError as exc:
-            _send({
-                "type": "command.error",
-                "id": "unknown",
-                "error": {"code": "PROTOCOL_ERROR", "message": f"Invalid JSON: {exc}"}
-            })
+
+@plugin.on_ready
+def _load_profile_config() -> None:
+    global _profile_config
+    _profile_config = _config_from_profile(plugin.config)
+    if _profile_config:
+        _log(f"Profile config loaded for {_profile_config.user}@{_profile_config.host}:{_profile_config.port}")
+
+
+plugin.on_command("test-connection", lambda ctx, inp: _run_command(ctx, cmd_test_connection, inp or {}))
+plugin.on_command("query", lambda ctx, inp: _run_command(ctx, cmd_query, inp or {}))
+plugin.on_command("execute", lambda ctx, inp: _run_command(ctx, cmd_execute, inp or {}))
+plugin.on_command("transaction", lambda ctx, inp: _run_command(ctx, cmd_transaction, inp or {}))
+plugin.on_shutdown(_close_connections)
 
 
 if __name__ == "__main__":
-    main()
+    plugin.run()

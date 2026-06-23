@@ -1,0 +1,8 @@
+{
+  "name": "com.brickly.env-test-runtime",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@syllm/brickly-sdk": "^0.1.0"
+  }
+}

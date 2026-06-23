@@ -4,43 +4,10 @@
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const { BricklyRuntime } = require('@syllm/brickly-sdk')
 
 const BRICK_ID = 'com.example.render-gallery'
-let buffer = ''
-let nextHostCallId = 1
-const hostWaiters = new Map()
-
-function send(message) {
-  process.stdout.write(JSON.stringify(message) + '\n')
-}
-
-function sendHostCall(type, payload) {
-  const id = `host_${nextHostCallId++}`
-  send({ type, id, ...payload })
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      hostWaiters.delete(id)
-      reject(new Error(`Host call timed out: ${type}`))
-    }, 10_000)
-    hostWaiters.set(id, { resolve, reject, timer })
-  })
-}
-
-function handleHostResult(message) {
-  if (message.type !== 'host.result' && message.type !== 'host.error') return false
-  const waiter = hostWaiters.get(message.id)
-  if (!waiter) return true
-  clearTimeout(waiter.timer)
-  hostWaiters.delete(message.id)
-  if (message.type === 'host.error') {
-    const err = new Error(message.error?.message || 'Host call failed')
-    err.code = message.error?.code
-    waiter.reject(err)
-  } else {
-    waiter.resolve(message.result)
-  }
-  return true
-}
+const brick = new BricklyRuntime({ brickId: BRICK_ID })
 
 function ensureDir() {
   const dir = path.join(os.tmpdir(), 'brickly-render-gallery')
@@ -123,7 +90,8 @@ function writeVideoPlaceholder(dir) {
 }
 
 async function registerResource(filePath, mimeType, name) {
-  return sendHostCall('host.resource.register', {
+  return brick.transport.hostCall({
+    type: 'host.resource.register',
     resource: {
       filePath,
       mimeType,
@@ -134,7 +102,7 @@ async function registerResource(filePath, mimeType, name) {
   })
 }
 
-async function showAll(id, input) {
+async function showAll(ctx, input) {
   const title = String((input && input.title) || 'Brickly Render Gallery')
   const dir = ensureDir()
   const textFile = writeTextFile(dir, title)
@@ -287,58 +255,16 @@ summarizePackageJson('./package.json')
   let index = 0
   const entries = Object.entries(outputs)
   for (const [name, value] of entries) {
-    send({ type: 'command.progress', id, progress: index / entries.length, message: `output ${name}` })
-    send({ type: 'command.output', id, name, value })
+    ctx.progress(index / entries.length, `output ${name}`)
+    ctx.output(name, value)
     index += 1
   }
-  send({ type: 'command.progress', id, progress: 1, message: 'done' })
-  send({ type: 'command.result', id, result: { ok: true, outputs: entries.length, tempDir: dir } })
+  ctx.progress(1, 'done')
+  return { ok: true, outputs: entries.length, tempDir: dir }
 }
 
-async function singleImage(id) {
-  send({ type: 'command.result', id, result: svgDataUrl('Single Image Output') })
-}
-
-async function handleInvoke(message) {
-  const { id, commandId, input } = message
-  try {
-    if (commandId === 'show-all') await showAll(id, input)
-    else if (commandId === 'single-image') await singleImage(id)
-    else {
-      send({
-        type: 'command.error',
-        id,
-        error: { code: 'COMMAND_NOT_FOUND', message: `Unknown command: ${commandId}` }
-      })
-    }
-  } catch (error) {
-    send({
-      type: 'command.error',
-      id,
-      error: {
-        code: error.code || 'INTERNAL_ERROR',
-        message: error.message || String(error)
-      }
-    })
-  } finally {
-    send({ type: 'command.done', id })
-  }
-}
-
-function handleMessage(message) {
-  if (handleHostResult(message)) return
-  if (message.type === 'host.hello') {
-    send({ type: 'runtime.ready', protocolVersion: '0.1.0', brickId: BRICK_ID })
-    return
-  }
-  if (message.type === 'command.invoke') {
-    void handleInvoke(message)
-    return
-  }
-  if (message.type === 'runtime.shutdown') {
-    send({ type: 'runtime.bye' })
-    process.exit(0)
-  }
+async function singleImage() {
+  return svgDataUrl('Single Image Output')
 }
 
 function escapeXml(value) {
@@ -349,18 +275,7 @@ function escapeXml(value) {
     .replace(/"/g, '&quot;')
 }
 
-process.stdin.setEncoding('utf8')
-process.stdin.on('data', (chunk) => {
-  buffer += chunk
-  let idx
-  while ((idx = buffer.indexOf('\n')) >= 0) {
-    const line = buffer.slice(0, idx).trim()
-    buffer = buffer.slice(idx + 1)
-    if (!line) continue
-    try {
-      handleMessage(JSON.parse(line))
-    } catch (error) {
-      process.stderr.write(`[render-gallery] invalid message: ${error.message}\n`)
-    }
-  }
-})
+brick.onCommand('show-all', async (ctx, input) => showAll(ctx, input))
+brick.onCommand('single-image', async () => singleImage())
+
+brick.start()

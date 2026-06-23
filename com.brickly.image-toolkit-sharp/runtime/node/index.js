@@ -11,6 +11,7 @@
 
 const fs = require('node:fs/promises')
 const path = require('node:path')
+const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 
 let _sharp = null
 function loadSharp() {
@@ -26,13 +27,29 @@ function loadSharp() {
 }
 
 const BRICK_ID = 'com.brickly.image-toolkit-sharp'
-const PROTOCOL_VERSION = '0.1.0'
+const brick = new BricklyRuntime({ brickId: BRICK_ID })
 
-let buffer = ''
 const cancelled = new Set()
+const activeCommands = new Map()
 
 function send(message) {
-  process.stdout.write(JSON.stringify(message) + '\n')
+  const active = activeCommands.get(message.id)
+  if (!active) return
+  if (message.type === 'command.progress') {
+    active.ctx.progress(message.progress, message.message)
+  } else if (message.type === 'command.chunk') {
+    active.ctx.chunk(message.chunk, message.name)
+  } else if (message.type === 'command.output') {
+    active.ctx.output(message.name, message.value)
+  } else if (message.type === 'command.result') {
+    active.result = message.result
+  } else if (message.type === 'command.error') {
+    active.error = new BppError(
+      message.error?.code || 'INTERNAL_ERROR',
+      message.error?.message || 'Runtime error',
+      message.error?.details
+    )
+  }
 }
 
 function log(message, details) {
@@ -734,7 +751,7 @@ async function cmdProcessImage(id, input) {
 }
 
 // ----------------------------------------------------------------------------
-// BPP 协议分发器
+// SDK 命令分发器
 // ----------------------------------------------------------------------------
 
 async function handleInvoke(message) {
@@ -764,43 +781,29 @@ async function handleInvoke(message) {
   }
 }
 
-function onMessage(message) {
-  if (message.type === 'host.hello') {
-    log('收到宿主握手 hello')
-    send({ type: 'runtime.ready', protocolVersion: PROTOCOL_VERSION, brickId: BRICK_ID })
-  } else if (message.type === 'runtime.ping') {
-    send({ type: 'runtime.pong', id: message.id })
-  } else if (message.type === 'command.cancel') {
-    log('收到取消指令', { id: message.id })
-    cancelled.add(message.id)
-  } else if (message.type === 'command.invoke') {
-    handleInvoke(message)
-  } else if (message.type === 'runtime.shutdown') {
-    log('收到停机指令')
-    send({ type: 'runtime.bye' })
-    process.exit(0)
+async function runWithSdk(ctx, input) {
+  const active = { ctx, result: undefined, error: undefined }
+  activeCommands.set(ctx.requestId, active)
+  ctx.onCancel(() => {
+    log('收到取消指令', { id: ctx.requestId })
+    cancelled.add(ctx.requestId)
+  })
+  try {
+    await handleInvoke({ id: ctx.requestId, commandId: ctx.commandId, input })
+    if (active.error) throw active.error
+    return active.result
+  } finally {
+    activeCommands.delete(ctx.requestId)
   }
 }
 
-process.stdin.setEncoding('utf8')
-process.stdout.setDefaultEncoding && process.stdout.setDefaultEncoding('utf8')
-process.stdin.on('data', (chunk) => {
-  buffer += chunk
-  const lines = buffer.split(/\r?\n/)
-  buffer = lines.pop() || ''
-  for (const line of lines) {
-    if (!line.trim()) continue
-    try {
-      onMessage(JSON.parse(line))
-    } catch (error) {
-      send({
-        type: 'command.error',
-        id: 'unknown',
-        error: { code: 'PROTOCOL_ERROR', message: error.message }
-      })
-    }
-  }
+brick.onCommand('process-image', runWithSdk)
+
+brick.onShutdown(() => {
+  log('收到停机指令')
 })
+
+brick.start()
 
 process.on('uncaughtException', (e) => {
   log('发生未捕获异常 uncaughtException', { message: e.message, stack: e.stack })

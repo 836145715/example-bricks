@@ -3,7 +3,7 @@
 Parses DeepSeek shared conversation links, extracts dialog content
 (including thinking process, search references), and saves as local Markdown files.
 
-Protocol: Brickly Plugin Protocol (BPP) over stdio (JSON-lines)
+Runtime protocol is handled by brickly-sdk.
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import requests
+from brickly import BppError, BricklyRuntime
 
 # Force UTF-8 on Windows to avoid GBK mojibake for Chinese characters
 if sys.platform == "win32":
@@ -24,15 +25,39 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 BRICK_ID = "com.brickly.deepseek-reader"
-PROTOCOL_VERSION = "0.1.0"
 DEEPSEEK_API_URL = "https://chat.deepseek.com/api/v0/share/content"
 
 _stdout_lock = threading.Lock()
 _cancelled: set[str] = set()
 _cancelled_lock = threading.Lock()
+_active: dict[str, dict[str, Any]] = {}
+_active_lock = threading.Lock()
 
 
 def _send(msg: dict[str, Any]) -> None:
+    req_id = msg.get("id")
+    if isinstance(req_id, str):
+        with _active_lock:
+            active = _active.get(req_id)
+        if active:
+            ctx = active["ctx"]
+            msg_type = msg.get("type")
+            if msg_type == "command.progress":
+                ctx.progress(float(msg.get("progress") or 0), msg.get("message"))
+                return
+            if msg_type == "command.chunk":
+                ctx.chunk(msg.get("chunk"), msg.get("name"))
+                return
+            if msg_type == "command.output":
+                ctx.output(str(msg.get("name") or "output"), msg.get("value"))
+                return
+            if msg_type == "command.result":
+                active["result"] = msg.get("result")
+                return
+            if msg_type == "command.error":
+                error = msg.get("error") if isinstance(msg.get("error"), dict) else {}
+                active["error"] = BppError(str(error.get("code") or "INTERNAL_ERROR"), str(error.get("message") or "Runtime error"))
+                return
     line = json.dumps(msg, ensure_ascii=False, default=str) + "\n"
     with _stdout_lock:
         sys.stdout.write(line)
@@ -366,105 +391,44 @@ def _write_markdown(
     return title, save_path, len(md_content.encode("utf-8"))
 
 
-COMMANDS = {
-    "save": cmd_save,
-}
-
-
-# —————————————————— Protocol Plumbing ——————————————————
-
-
-def _handle_invoke(message: dict[str, Any]) -> None:
-    req_id = message.get("id")
-    command_id = message.get("commandId")
-    inp = message.get("input") or {}
-
-    if not isinstance(req_id, str) or not isinstance(command_id, str):
-        return
-
-    handler = COMMANDS.get(command_id)
-    if handler is None:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": "COMMAND_NOT_FOUND", "message": f"Unknown command: {command_id}"}
-        })
-        return
-
+def _run_command(ctx: Any, handler: Any, inp: dict[str, Any]) -> Any:
+    req_id = ctx.request_id
+    command_id = ctx.command_id
     _log(f"invoke start id={req_id} command={command_id}")
+    with _active_lock:
+        _active[req_id] = {"ctx": ctx, "result": None, "error": None}
+    ctx.on_cancel(lambda: _mark_cancelled(req_id))
 
     try:
         result = handler(req_id, inp)
-        _send({"type": "command.result", "id": req_id, "result": result})
+        with _active_lock:
+            active = _active.get(req_id)
+            if active is not None and active.get("result") is None:
+                active["result"] = result
+            final_result = active.get("result") if active is not None else result
+            final_error = active.get("error") if active is not None else None
+        if final_error:
+            raise final_error
         _log(f"invoke ok id={req_id}")
+        return final_result
     except _BppError as exc:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": exc.code, "message": exc.message}
-        })
         _log(f"invoke err id={req_id} code={exc.code}")
+        raise BppError(exc.code, exc.message)
     except requests.Timeout as exc:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": "TIMEOUT", "message": f"请求超时: {exc}"}
-        })
+        raise BppError("TIMEOUT", f"请求超时: {exc}")
     except requests.RequestException as exc:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": "INTERNAL_ERROR", "message": f"HTTP 错误: {exc}"}
-        })
+        raise BppError("INTERNAL_ERROR", f"HTTP 错误: {exc}")
     except Exception as exc:
-        _send({
-            "type": "command.error",
-            "id": req_id,
-            "error": {"code": "INTERNAL_ERROR", "message": f"{type(exc).__name__}: {exc}"}
-        })
         _log(f"invoke crash id={req_id} {type(exc).__name__}: {exc}")
+        raise BppError("INTERNAL_ERROR", f"{type(exc).__name__}: {exc}")
     finally:
         _clear_cancelled(req_id)
+        with _active_lock:
+            _active.pop(req_id, None)
 
-
-def _on_message(message: dict[str, Any]) -> None:
-    msg_type = message.get("type")
-
-    if msg_type == "host.hello":
-        _send({
-            "type": "runtime.ready",
-            "protocolVersion": PROTOCOL_VERSION,
-            "brickId": BRICK_ID
-        })
-    elif msg_type == "runtime.ping":
-        _send({"type": "runtime.pong", "id": message.get("id", "")})
-    elif msg_type == "command.invoke":
-        threading.Thread(target=_handle_invoke, args=(message,), daemon=True).start()
-    elif msg_type == "command.cancel":
-        rid = message.get("id")
-        if isinstance(rid, str):
-            _mark_cancelled(rid)
-            _log(f"cancel requested id={rid}")
-    elif msg_type == "runtime.shutdown":
-        _send({"type": "runtime.bye"})
-        sys.exit(0)
-
-
-def main() -> None:
-    for raw in sys.stdin:
-        line = raw.strip()
-        if not line:
-            continue
-        try:
-            message = json.loads(line)
-            _on_message(message)
-        except json.JSONDecodeError as exc:
-            _send({
-                "type": "command.error",
-                "id": "unknown",
-                "error": {"code": "PROTOCOL_ERROR", "message": f"Invalid JSON: {exc}"}
-            })
+plugin = BricklyRuntime(BRICK_ID)
+plugin.on_command("save", lambda ctx, inp: _run_command(ctx, cmd_save, inp or {}))
 
 
 if __name__ == "__main__":
-    main()
+    plugin.run()

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	brickly "github.com/836145715/brickly-sdk-go"
 )
 
 type LogFileConfig struct {
@@ -43,7 +45,15 @@ var (
 	cancelMu      sync.Mutex
 	cancelled     = make(map[string]bool)
 	activeCancels = make(map[string]context.CancelFunc)
+	activeMu      sync.Mutex
+	activeCommands = make(map[string]*activeCommand)
 )
+
+type activeCommand struct {
+	ctx    *brickly.CommandContext
+	result any
+	err    error
+}
 
 // BPP 消息结构
 type invokeMsg struct {
@@ -112,6 +122,10 @@ func logf(format string, args ...any) {
 // -------------------- 协议消息辅助 --------------------
 
 func sendProgress(id string, p float64, message string) {
+	if active := getActiveCommand(id); active != nil {
+		active.ctx.Progress(p, message)
+		return
+	}
 	m := map[string]any{"type": "command.progress", "id": id, "progress": p}
 	if message != "" {
 		m["message"] = message
@@ -120,6 +134,10 @@ func sendProgress(id string, p float64, message string) {
 }
 
 func sendChunk(id string, line GrepLine) {
+	if active := getActiveCommand(id); active != nil {
+		active.ctx.Chunk("logLine", line)
+		return
+	}
 	send(map[string]any{
 		"type":  "command.chunk",
 		"id":    id,
@@ -129,6 +147,10 @@ func sendChunk(id string, line GrepLine) {
 }
 
 func sendSearchState(id string, state SearchStatePayload) {
+	if active := getActiveCommand(id); active != nil {
+		active.ctx.Chunk("searchState", state)
+		return
+	}
 	send(map[string]any{
 		"type":  "command.chunk",
 		"id":    id,
@@ -138,6 +160,10 @@ func sendSearchState(id string, state SearchStatePayload) {
 }
 
 func sendResult(id string, result any) {
+	if active := getActiveCommand(id); active != nil {
+		active.result = result
+		return
+	}
 	m := map[string]any{"type": "command.result", "id": id}
 	if result != nil {
 		m["result"] = result
@@ -146,11 +172,33 @@ func sendResult(id string, result any) {
 }
 
 func sendError(id, code, message string) {
+	if active := getActiveCommand(id); active != nil {
+		active.err = brickly.NewBppError(code, message)
+		return
+	}
 	send(map[string]any{
 		"type":  "command.error",
 		"id":    id,
 		"error": map[string]any{"code": code, "message": message},
 	})
+}
+
+func setActiveCommand(id string, active *activeCommand) {
+	activeMu.Lock()
+	defer activeMu.Unlock()
+	activeCommands[id] = active
+}
+
+func getActiveCommand(id string) *activeCommand {
+	activeMu.Lock()
+	defer activeMu.Unlock()
+	return activeCommands[id]
+}
+
+func deleteActiveCommand(id string) {
+	activeMu.Lock()
+	defer activeMu.Unlock()
+	delete(activeCommands, id)
 }
 
 // -------------------- 取消机制 --------------------
@@ -762,77 +810,57 @@ func intFromInput(value any, fallback int) int {
 	return fallback
 }
 
-// BPP 主入口
+// SDK 主入口
 func main() {
-	scanner := bufio.NewScanner(os.Stdin)
-	// 支持单行最大 8MB
-	scanner.Buffer(make([]byte, 64*1024), 8*1024*1024)
-	logf("started, awaiting host.hello")
+	runtime := brickly.New(brickly.Options{BrickID: brickID})
+	registerCommand := func(commandID string, handler func(string, map[string]any)) {
+		runtime.OnCommand(commandID, func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+			payload := map[string]any{}
+			_ = json.Unmarshal(input, &payload)
+			active := &activeCommand{ctx: ctx}
+			setActiveCommand(ctx.RequestID, active)
+			defer deleteActiveCommand(ctx.RequestID)
+			defer clearCancelled(ctx.RequestID)
 
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var generic map[string]any
-		if err := json.Unmarshal(line, &generic); err != nil {
-			sendError("unknown", "PROTOCOL_ERROR", err.Error())
-			continue
-		}
-		msgType, _ := generic["type"].(string)
-		switch msgType {
-		case "host.hello":
-			send(map[string]any{
-				"type":            "runtime.ready",
-				"protocolVersion": protocolVersion,
-				"brickId":         brickID,
-			})
-		case "runtime.ping":
-			id, _ := generic["id"].(string)
-			send(map[string]any{"type": "runtime.pong", "id": id})
-		case "command.invoke":
-			var inv invokeMsg
-			if err := json.Unmarshal(line, &inv); err != nil {
-				sendError("unknown", "PROTOCOL_ERROR", err.Error())
-				continue
-			}
-			go func(msg invokeMsg) {
-				defer clearCancelled(msg.ID)
-				logf("invoke start id=%s cmd=%s", msg.ID, msg.CommandID)
-				defer logf("invoke end id=%s cmd=%s", msg.ID, msg.CommandID)
-
-				switch msg.CommandID {
-				case "search":
-					handleSearch(msg.ID, msg.Input)
-				case "peek_search_results":
-					handlePeekSearchResults(msg.ID, msg.Input)
-				case "find_search_results":
-					handleFindSearchResults(msg.ID, msg.Input)
-				case "clear_search_results":
-					handleClearSearchResults(msg.ID, msg.Input)
-				case "load_config":
-					handleLoadConfig(msg.ID)
-				case "save_config":
-					handleSaveConfig(msg.ID, msg.Input)
-				case "test_connection":
-					handleTestConnection(msg.ID, msg.Input)
-				case "list_log_files":
-					handleListLogFiles(msg.ID, msg.Input)
-				default:
-					sendError(msg.ID, "COMMAND_NOT_FOUND", "unknown command: "+msg.CommandID)
+			done := make(chan struct{})
+			go func() {
+				select {
+				case <-ctx.Context().Done():
+					markCancelled(ctx.RequestID)
+				case <-done:
 				}
-			}(inv)
-		case "command.cancel":
-			id, _ := generic["id"].(string)
-			markCancelled(id)
-		case "runtime.shutdown":
-			send(map[string]any{"type": "runtime.bye"})
-			os.Exit(0)
-		default:
-			logf("unknown message type: %s", msgType)
+			}()
+			defer close(done)
+
+			logf("invoke start id=%s cmd=%s", ctx.RequestID, commandID)
+			defer logf("invoke end id=%s cmd=%s", ctx.RequestID, commandID)
+			handler(ctx.RequestID, payload)
+			if active.err != nil {
+				return nil, active.err
+			}
+			return active.result, nil
+		})
+	}
+
+	registerCommand("search", handleSearch)
+	registerCommand("peek_search_results", handlePeekSearchResults)
+	registerCommand("find_search_results", handleFindSearchResults)
+	registerCommand("clear_search_results", handleClearSearchResults)
+	registerCommand("save_config", handleSaveConfig)
+	registerCommand("test_connection", handleTestConnection)
+	registerCommand("list_log_files", handleListLogFiles)
+	runtime.OnCommand("load_config", func(ctx *brickly.CommandContext, _ json.RawMessage) (any, error) {
+		active := &activeCommand{ctx: ctx}
+		setActiveCommand(ctx.RequestID, active)
+		defer deleteActiveCommand(ctx.RequestID)
+		logf("invoke start id=%s cmd=load_config", ctx.RequestID)
+		defer logf("invoke end id=%s cmd=load_config", ctx.RequestID)
+		handleLoadConfig(ctx.RequestID)
+		if active.err != nil {
+			return nil, active.err
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		logf("stdin scan err: %v", err)
-	}
+		return active.result, nil
+	})
+
+	runtime.Start()
 }

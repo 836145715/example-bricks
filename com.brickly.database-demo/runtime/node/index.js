@@ -4,8 +4,8 @@
 const fs = require('fs')
 const path = require('path')
 const { randomBytes } = require('crypto')
+const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 
-// Inline nanoid implementation (21 chars, url-safe)
 const nanoid = (size = 21) => {
   const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-'
   const bytes = randomBytes(size)
@@ -17,15 +17,8 @@ const nanoid = (size = 21) => {
 }
 
 const BRICK_ID = 'com.brickly.database-demo'
-const PROTOCOL_VERSION = '0.1.0'
-
-let buffer = ''
-const cancelled = new Set()
+const brick = new BricklyRuntime({ brickId: BRICK_ID })
 const connections = new Map()
-
-function send(message) {
-  process.stdout.write(JSON.stringify(message) + '\n')
-}
 
 function log(message, details) {
   process.stderr.write(`[${BRICK_ID}] ${message}${details ? ' ' + JSON.stringify(details) : ''}\n`)
@@ -64,11 +57,10 @@ function normalizeSeed(seed) {
 function getConnection(connectionId) {
   const conn = connections.get(connectionId)
   if (!conn) {
-    const error = new Error(
+    throw new BppError(
+      'INTERNAL_ERROR',
       `Connection not found: ${connectionId}. Run connect first in the same plugin instance.`
     )
-    error.code = 'CONNECTION_NOT_FOUND'
-    throw error
   }
   conn.lastUsedAt = new Date().toISOString()
   return conn
@@ -82,11 +74,10 @@ function parseSql(sql) {
     /^select\s+(\*|[a-zA-Z0-9_,\s]+)\s+from\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+where\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*('([^']*)'|"([^"]*)"|[^\s]+))?(?:\s+limit\s+(\d+))?$/i
   const m = text.match(re)
   if (!m) {
-    const error = new Error(
+    throw new BppError(
+      'INVALID_INPUT',
       'Only simplified SELECT is supported: select * from users where role = admin limit 10'
     )
-    error.code = 'INVALID_SQL'
-    throw error
   }
   const columns =
     m[1].trim() === '*'
@@ -106,11 +97,10 @@ function executeSelect(conn, sql) {
   const parsed = parseSql(sql)
   const tableRows = conn.tables[parsed.table]
   if (!tableRows) {
-    const error = new Error(
+    throw new BppError(
+      'INVALID_INPUT',
       `Unknown table: ${parsed.table}. Available: ${Object.keys(conn.tables).join(', ')}`
     )
-    error.code = 'TABLE_NOT_FOUND'
-    throw error
   }
   let rows = tableRows.map((row) => ({ ...row }))
   if (parsed.whereColumn) {
@@ -120,11 +110,7 @@ function executeSelect(conn, sql) {
   if (parsed.columns[0] !== '*') {
     rows = rows.map((row) => Object.fromEntries(parsed.columns.map((col) => [col, row[col]])))
   }
-  const columns = rows.length
-    ? Object.keys(rows[0])
-    : parsed.columns[0] === '*'
-      ? []
-      : parsed.columns
+  const columns = rows.length ? Object.keys(rows[0]) : parsed.columns[0] === '*' ? [] : parsed.columns
   return { rows, rowCount: rows.length, columns }
 }
 
@@ -135,13 +121,12 @@ function toCsv(rows) {
     const s = value === null || value === undefined ? '' : String(value)
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  return [
-    columns.join(','),
-    ...rows.map((row) => columns.map((col) => esc(row[col])).join(','))
-  ].join('\n')
+  return [columns.join(','), ...rows.map((row) => columns.map((col) => esc(row[col])).join(','))].join(
+    '\n'
+  )
 }
 
-async function handleConnect(id, input) {
+async function handleConnect(ctx, input) {
   const database = String(input.database || 'demo')
   const connectionId = `conn_${nanoid()}`
   const tables = normalizeSeed(input.seed)
@@ -152,120 +137,74 @@ async function handleConnect(id, input) {
     createdAt: new Date().toISOString(),
     lastUsedAt: new Date().toISOString()
   })
-  send({ type: 'command.output', id, name: 'connectionId', value: connectionId })
-  send({ type: 'command.output', id, name: 'tables', value: Object.keys(tables) })
-  send({ type: 'command.output', id, name: 'status', value: 'connected' })
+  ctx.output('connectionId', connectionId)
+  ctx.output('tables', Object.keys(tables))
+  ctx.output('status', 'connected')
   return { connectionId, tables: Object.keys(tables), status: 'connected' }
 }
 
-async function handleQuery(id, input) {
+async function handleQuery(ctx, input) {
   const conn = getConnection(String(input.connectionId || ''))
   const sql = String(input.sql || '')
-  send({ type: 'command.progress', id, progress: 0.1, message: `connected to ${conn.database}` })
+  ctx.progress(0.1, `connected to ${conn.database}`)
   await sleep(80)
-  if (cancelled.has(id)) throw Object.assign(new Error('Cancelled'), { code: 'CANCELLED' })
-  send({ type: 'command.progress', id, progress: 0.45, message: 'executing query' })
+  if (ctx.isCancelled()) throw new BppError('CANCELLED', 'Cancelled')
+  ctx.progress(0.45, 'executing query')
   const result = executeSelect(conn, sql)
   await sleep(80)
-  send({ type: 'command.output', id, name: 'rows', value: result.rows })
-  send({ type: 'command.output', id, name: 'rowCount', value: result.rowCount })
-  send({ type: 'command.output', id, name: 'columns', value: result.columns })
-  send({ type: 'command.progress', id, progress: 1, message: `${result.rowCount} rows` })
+  ctx.output('rows', result.rows)
+  ctx.output('rowCount', result.rowCount)
+  ctx.output('columns', result.columns)
+  ctx.progress(1, `${result.rowCount} rows`)
   return result
 }
 
-async function handleSaveFile(id, input) {
+async function handleSaveFile(ctx, input) {
   const rows = Array.isArray(input.rows) ? input.rows : []
   const format = String(input.format || 'json').toLowerCase()
   if (!['json', 'csv'].includes(format)) {
-    const error = new Error(`Unsupported format: ${format}`)
-    error.code = 'INVALID_INPUT'
-    throw error
+    throw new BppError('INVALID_INPUT', `Unsupported format: ${format}`)
   }
   const filePath = path.resolve(String(input.path || `database-demo-output.${format}`))
   const content = format === 'csv' ? toCsv(rows) : JSON.stringify(rows, null, 2)
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true })
   await fs.promises.writeFile(filePath, content, 'utf8')
   const bytes = Buffer.byteLength(content, 'utf8')
-  send({ type: 'command.output', id, name: 'filePath', value: filePath })
-  send({ type: 'command.output', id, name: 'bytes', value: bytes })
-  send({ type: 'command.output', id, name: 'format', value: format })
+  ctx.output('filePath', filePath)
+  ctx.output('bytes', bytes)
+  ctx.output('format', format)
   return { filePath, bytes, format }
 }
 
-async function handleClose(id, input) {
+async function handleClose(ctx, input) {
   const connectionId = String(input.connectionId || '')
   const closed = connections.delete(connectionId)
   const result = { closed, remaining: connections.size }
-  send({ type: 'command.output', id, name: 'closed', value: closed })
-  send({ type: 'command.output', id, name: 'remaining', value: connections.size })
+  ctx.output('closed', closed)
+  ctx.output('remaining', connections.size)
   return result
 }
 
-async function handleInvoke(message) {
-  const { id, commandId, input = {} } = message
-  log('invoke start', { id, commandId, connections: connections.size })
-  try {
-    let result
-    if (commandId === 'connect') result = await handleConnect(id, input)
-    else if (commandId === 'query') result = await handleQuery(id, input)
-    else if (commandId === 'save-file') result = await handleSaveFile(id, input)
-    else if (commandId === 'close') result = await handleClose(id, input)
-    else {
-      send({
-        type: 'command.error',
-        id,
-        error: { code: 'COMMAND_NOT_FOUND', message: `Unknown command: ${commandId}` }
-      })
-      return
-    }
-    send({ type: 'command.result', id, result })
-    log('invoke result', { id, commandId })
-  } catch (error) {
-    const code = error && error.code ? error.code : 'INTERNAL_ERROR'
-    send({
-      type: 'command.error',
-      id,
-      error: { code, message: error && error.message ? error.message : String(error) }
-    })
-    log('invoke error', { id, commandId, code })
-  } finally {
-    cancelled.delete(id)
-    log('invoke finish', { id, commandId, connections: connections.size })
-  }
-}
-
-function onMessage(message) {
-  if (message.type === 'host.hello') {
-    send({ type: 'runtime.ready', protocolVersion: PROTOCOL_VERSION, brickId: BRICK_ID })
-  } else if (message.type === 'runtime.ping') {
-    send({ type: 'runtime.pong', id: message.id })
-  } else if (message.type === 'command.cancel') {
-    cancelled.add(message.id)
-  } else if (message.type === 'command.invoke') {
-    void handleInvoke(message)
-  } else if (message.type === 'runtime.shutdown') {
-    connections.clear()
-    send({ type: 'runtime.bye' })
-    process.exit(0)
-  }
-}
-
-process.stdin.setEncoding('utf8')
-process.stdin.on('data', (chunk) => {
-  buffer += chunk
-  const lines = buffer.split(/\r?\n/)
-  buffer = lines.pop() || ''
-  for (const line of lines) {
-    if (!line.trim()) continue
+function register(commandId, handler) {
+  brick.onCommand(commandId, async (ctx, input = {}) => {
+    log('invoke start', { id: ctx.requestId, commandId, connections: connections.size })
     try {
-      onMessage(JSON.parse(line))
-    } catch (error) {
-      send({
-        type: 'command.error',
-        id: 'unknown',
-        error: { code: 'PROTOCOL_ERROR', message: error.message }
-      })
+      const result = await handler(ctx, input)
+      log('invoke result', { id: ctx.requestId, commandId })
+      return result
+    } finally {
+      log('invoke finish', { id: ctx.requestId, commandId, connections: connections.size })
     }
-  }
+  })
+}
+
+register('connect', handleConnect)
+register('query', handleQuery)
+register('save-file', handleSaveFile)
+register('close', handleClose)
+
+brick.onShutdown(() => {
+  connections.clear()
 })
+
+brick.start()

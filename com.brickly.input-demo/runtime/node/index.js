@@ -1,17 +1,9 @@
 /* eslint-disable */
 'use strict'
 
-const BRICK_ID = 'com.brickly.input-demo'
-const PROTOCOL_VERSION = '0.1.0'
+const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 
-let buffer = ''
-let nextHostCall = 1
-const pending = new Map()
-const cancelled = new Set()
-
-function send(message) {
-  process.stdout.write(JSON.stringify(message) + '\n')
-}
+const brick = new BricklyRuntime({ brickId: 'com.brickly.input-demo' })
 
 function log(message, details) {
   process.stderr.write(`[input-demo] ${message}${details ? ' ' + JSON.stringify(details) : ''}\n`)
@@ -21,60 +13,37 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function waitForStart(commandId, delayMs) {
+async function waitForStart(ctx, delayMs) {
   const delay = clampNumber(delayMs, 0, 10000, 0)
   if (delay <= 0) return
   const startedAt = Date.now()
   while (Date.now() - startedAt < delay) {
-    ensureNotCancelled(commandId)
+    ensureNotCancelled(ctx)
     const elapsed = Date.now() - startedAt
-    send({
-      type: 'command.progress',
-      id: commandId,
-      progress: Math.min(elapsed / delay, 0.95),
-      message: `请把焦点切到目标窗口，${Math.ceil((delay - elapsed) / 1000)} 秒后执行`
-    })
+    ctx.progress(
+      Math.min(elapsed / delay, 0.95),
+      `请把焦点切到目标窗口，${Math.ceil((delay - elapsed) / 1000)} 秒后执行`
+    )
     await sleep(Math.min(250, delay - elapsed))
   }
 }
 
-function hostCall(commandId, type, payload) {
-  ensureNotCancelled(commandId)
-  const id = `input-demo-${Date.now()}-${nextHostCall++}`
-  send({ type, id, payload })
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      pending.delete(id)
-      reject(Object.assign(new Error(`${type} timed out`), { code: 'REQUEST_TIMEOUT' }))
-    }, 12000)
-    timer.unref?.()
-    pending.set(id, { resolve, reject, timer })
-  })
+async function keyboardTap(ctx, key, modifiers = []) {
+  ensureNotCancelled(ctx)
+  await ctx.platform.input.keyboardTap({ key, modifiers })
 }
 
-async function keyboardTap(commandId, key, modifiers = []) {
-  await hostCall(commandId, 'host.platform.input.keyboardTap', {
-    key,
-    modifiers
-  })
-}
-
-async function runKeyboardTap(commandId, input) {
+async function runKeyboardTap(ctx, input) {
   const key = nonEmptyString(input.key, 'a')
   const modifiers = parseModifiers(input.modifiers)
   const repeat = Math.floor(clampNumber(input.repeat, 1, 20, 1))
   const intervalMs = clampNumber(input.intervalMs, 20, 2000, 120)
-  await waitForStart(commandId, input.delayMs)
+  await waitForStart(ctx, input.delayMs)
 
   for (let i = 0; i < repeat; i++) {
-    ensureNotCancelled(commandId)
-    await keyboardTap(commandId, key, modifiers)
-    send({
-      type: 'command.progress',
-      id: commandId,
-      progress: (i + 1) / repeat,
-      message: `已发送 ${i + 1}/${repeat}: ${formatKey(key, modifiers)}`
-    })
+    ensureNotCancelled(ctx)
+    await keyboardTap(ctx, key, modifiers)
+    ctx.progress((i + 1) / repeat, `已发送 ${i + 1}/${repeat}: ${formatKey(key, modifiers)}`)
     if (i + 1 < repeat) await sleep(intervalMs)
   }
 
@@ -87,23 +56,18 @@ async function runKeyboardTap(commandId, input) {
   }
 }
 
-async function runTypeText(commandId, input) {
+async function runTypeText(ctx, input) {
   const text = String(input.text ?? 'hello brickly 123')
   const intervalMs = clampNumber(input.intervalMs, 20, 1000, 80)
-  await waitForStart(commandId, input.delayMs)
+  await waitForStart(ctx, input.delayMs)
 
   const taps = [...text].map(charToTap)
   for (let i = 0; i < taps.length; i++) {
-    ensureNotCancelled(commandId)
+    ensureNotCancelled(ctx)
     const tap = taps[i]
-    await keyboardTap(commandId, tap.key, tap.modifiers)
-    send({
-      type: 'command.progress',
-      id: commandId,
-      progress: (i + 1) / taps.length,
-      message: `已输入 ${i + 1}/${taps.length}`
-    })
-    send({ type: 'command.chunk', id: commandId, chunk: tap.display })
+    await keyboardTap(ctx, tap.key, tap.modifiers)
+    ctx.progress((i + 1) / taps.length, `已输入 ${i + 1}/${taps.length}`)
+    ctx.chunk(tap.display)
     if (i + 1 < taps.length) await sleep(intervalMs)
   }
 
@@ -115,29 +79,24 @@ async function runTypeText(commandId, input) {
   }
 }
 
-async function runMouseAction(commandId, input) {
+async function runMouseAction(ctx, input) {
   const action = nonEmptyString(input.action, 'move')
   const x = Math.round(clampNumber(input.x, -10000, 10000, 100))
   const y = Math.round(clampNumber(input.y, -10000, 10000, 100))
-  await waitForStart(commandId, input.delayMs)
+  await waitForStart(ctx, input.delayMs)
 
-  const typeByAction = {
-    move: 'host.platform.input.mouseMove',
-    'left-click': 'host.platform.input.mouseClick',
-    'double-click': 'host.platform.input.mouseDoubleClick',
-    'right-click': 'host.platform.input.mouseRightClick'
+  const actionByName = {
+    move: ctx.platform.input.mouseMove,
+    'left-click': ctx.platform.input.mouseClick,
+    'double-click': ctx.platform.input.mouseDoubleClick,
+    'right-click': ctx.platform.input.mouseRightClick
   }
-  const type = typeByAction[action]
-  if (!type) {
-    throw Object.assign(new Error(`未知鼠标动作: ${action}`), { code: 'INVALID_INPUT' })
+  const run = actionByName[action]
+  if (!run) {
+    throw new BppError('INVALID_INPUT', `未知鼠标动作: ${action}`)
   }
-  await hostCall(commandId, type, { x, y })
-  send({
-    type: 'command.progress',
-    id: commandId,
-    progress: 1,
-    message: `已执行 ${action} @ (${x}, ${y})`
-  })
+  await run({ x, y })
+  ctx.progress(1, `已执行 ${action} @ (${x}, ${y})`)
   return {
     action,
     x,
@@ -179,90 +138,31 @@ function formatKey(key, modifiers) {
   return [...modifiers, key].join('+')
 }
 
-function ensureNotCancelled(commandId) {
-  if (cancelled.has(commandId)) {
-    throw Object.assign(new Error('已取消'), { code: 'CANCELLED' })
+function ensureNotCancelled(ctx) {
+  if (ctx.isCancelled()) {
+    throw new BppError('CANCELLED', '已取消')
   }
 }
 
-function normalizeError(error) {
-  if (error && error.code && error.message) {
-    return { code: String(error.code), message: String(error.message), details: error.details }
-  }
-  return {
-    code: 'INTERNAL_ERROR',
-    message: error && error.message ? String(error.message) : String(error)
-  }
-}
-
-async function handleInvoke(message) {
-  const { id, commandId, input = {} } = message
-  log('invoke start', { id, commandId })
-  try {
-    let result
-    if (commandId === 'keyboard-tap') {
-      result = await runKeyboardTap(id, input)
-    } else if (commandId === 'type-text') {
-      result = await runTypeText(id, input)
-    } else if (commandId === 'mouse-action') {
-      result = await runMouseAction(id, input)
-    } else {
-      throw Object.assign(new Error(`未知命令: ${commandId}`), { code: 'COMMAND_NOT_FOUND' })
-    }
-    send({ type: 'command.result', id, result })
-    log('invoke result', { id, commandId })
-  } catch (error) {
-    send({ type: 'command.error', id, error: normalizeError(error) })
-    log('invoke error', { id, commandId, error: normalizeError(error) })
-  } finally {
-    cancelled.delete(id)
-  }
-}
-
-function resolveHostCall(message) {
-  const item = pending.get(message.id)
-  if (!item) return false
-  clearTimeout(item.timer)
-  pending.delete(message.id)
-  if (message.type === 'host.result') {
-    item.resolve(message.result)
-  } else {
-    item.reject(Object.assign(new Error(message.error?.message || 'host call failed'), {
-      code: message.error?.code || 'INTERNAL_ERROR',
-      details: message.error?.details
-    }))
-  }
-  return true
-}
-
-function onMessage(message) {
-  if (message.type === 'host.hello') {
-    send({ type: 'runtime.ready', protocolVersion: PROTOCOL_VERSION, brickId: BRICK_ID })
-  } else if (message.type === 'runtime.ping') {
-    send({ type: 'runtime.pong', id: message.id })
-  } else if (message.type === 'host.result' || message.type === 'host.error') {
-    resolveHostCall(message)
-  } else if (message.type === 'command.cancel') {
-    cancelled.add(message.id)
-  } else if (message.type === 'command.invoke') {
-    void handleInvoke(message)
-  } else if (message.type === 'runtime.shutdown') {
-    send({ type: 'runtime.bye' })
-    process.exit(0)
-  }
-}
-
-process.stdin.setEncoding('utf8')
-process.stdin.on('data', (chunk) => {
-  buffer += chunk
-  const lines = buffer.split(/\r?\n/)
-  buffer = lines.pop() || ''
-  for (const line of lines) {
-    if (!line.trim()) continue
-    try {
-      onMessage(JSON.parse(line))
-    } catch (error) {
-      log('protocol parse failed', { error: String(error) })
-    }
-  }
+brick.onCommand('keyboard-tap', async (ctx, input = {}) => {
+  log('invoke start', { id: ctx.requestId, commandId: ctx.commandId })
+  const result = await runKeyboardTap(ctx, input)
+  log('invoke result', { id: ctx.requestId, commandId: ctx.commandId })
+  return result
 })
+
+brick.onCommand('type-text', async (ctx, input = {}) => {
+  log('invoke start', { id: ctx.requestId, commandId: ctx.commandId })
+  const result = await runTypeText(ctx, input)
+  log('invoke result', { id: ctx.requestId, commandId: ctx.commandId })
+  return result
+})
+
+brick.onCommand('mouse-action', async (ctx, input = {}) => {
+  log('invoke start', { id: ctx.requestId, commandId: ctx.commandId })
+  const result = await runMouseAction(ctx, input)
+  log('invoke result', { id: ctx.requestId, commandId: ctx.commandId })
+  return result
+})
+
+brick.start()
