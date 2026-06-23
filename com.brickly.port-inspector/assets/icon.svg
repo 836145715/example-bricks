@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Port Inspector">
+  <rect width="64" height="64" rx="14" fill="#0f172a"/>
+  <path d="M16 19h32v10H16zM16 35h32v10H16z" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+  <path d="M23 24h6M23 40h6M36 24h5M36 40h5" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 19v-6M32 51v-6M10 32h6M48 32h6" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+</svg>

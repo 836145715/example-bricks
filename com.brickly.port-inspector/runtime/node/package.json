@@ -1,0 +1,9 @@
+{
+  "name": "com.brickly.port-inspector-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@syllm/brickly-sdk": "^0.1.0"
+  }
+}

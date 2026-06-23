@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reminder</title>
+    <link rel="stylesheet" href="./reminder.css" />
+  </head>
+  <body>
+    <main class="toast" role="status" aria-live="polite">
+      <section class="surface">
+        <div class="header">
+          <div class="mark" aria-hidden="true"><span></span></div>
+          <div class="heading">
+            <span class="label">Reminder</span>
+            <h1 id="title">提醒</h1>
+          </div>
+          <button id="close" class="close" type="button" aria-label="关闭">×</button>
+        </div>
+        <p id="message">该处理这件事了。</p>
+        <footer class="footer">
+          <span id="time" class="time"></span>
+          <span id="countdown" class="countdown"></span>
+        </footer>
+        <div id="bar" class="bar"></div>
+      </section>
+    </main>
+    <script src="./reminder.js"></script>
+  </body>
+</html>

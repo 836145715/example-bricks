@@ -1,0 +1,101 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.py-window-lab",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "Python 窗口 API 实验室",
+    "en": "Python Window API Lab"
+  },
+  "description": {
+    "zh-CN": "Python SDK 版窗口 API 实验室：打开一个控制面板窗口，验证 BrowserWindow / webContents 方法调用。",
+    "en": "Python SDK powered Window API Lab for exercising BrowserWindow and webContents calls."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "python",
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64",
+      "linux-arm64"
+    ],
+    "entry": "runtime/python/main.py",
+    "python": ">=3.10,<3.13",
+    "dependencies": {
+      "kind": "requirements",
+      "path": "requirements.txt"
+    }
+  },
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "queue",
+    "idleTtlMs": 0,
+    "maxLifetimeMs": 0
+  },
+  "permissions": [],
+  "trustLevel": "community",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "window",
+    "browserwindow",
+    "python",
+    "sdk",
+    "demo",
+    "test",
+    "lab"
+  ],
+  "categories": [
+    "utilities",
+    "developer-tools"
+  ],
+  "commands": [
+    {
+      "id": "open-lab",
+      "name": {
+        "zh-CN": "打开 Python 窗口实验室",
+        "en": "Open Python Window Lab"
+      },
+      "description": {
+        "zh-CN": "创建一个带控制面板的子窗口，覆盖 BrowserWindow 各类方法的可视化测试（Python SDK 实现）。",
+        "en": "Spawn a control-panel window to test BrowserWindow APIs interactively (powered by PyPI brickly-sdk)."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "window",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "close-lab",
+      "name": {
+        "zh-CN": "关闭实验室",
+        "en": "Close Lab"
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "closed",
+            "type": "number"
+          }
+        ]
+      }
+    }
+  ]
+}

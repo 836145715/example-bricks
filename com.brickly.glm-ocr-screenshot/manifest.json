@@ -1,0 +1,379 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.glm-ocr-screenshot",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "GLM 截图 OCR 标注",
+    "en": "GLM Screenshot OCR Annotator"
+  },
+  "description": {
+    "zh-CN": "框选屏幕区域截图，调用 GLM OCR，并把识别结果标注回图片。",
+    "en": "Select a screen region, call GLM OCR, and annotate recognized text on the image."
+  },
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "queue",
+    "idleTtlMs": 600000,
+    "restart": "none"
+  },
+  "permissions": [
+    "os.screenshot",
+    "fs.read",
+    "fs.write"
+  ],
+  "hotkeys": [
+    {
+      "id": "capture-annotate",
+      "commandId": "capture-annotate",
+      "name": {
+        "zh-CN": "截图 OCR 标注",
+        "en": "Screenshot OCR Annotate"
+      },
+      "description": {
+        "zh-CN": "触发框选截图、GLM OCR 识别和标注窗口。",
+        "en": "Trigger region capture, GLM OCR, and annotation window."
+      },
+      "defaultBinding": {
+        "win32": {
+          "kind": "accelerator",
+          "accelerator": "Control+Shift+O"
+        },
+        "darwin": {
+          "kind": "accelerator",
+          "accelerator": "Command+Shift+O"
+        }
+      },
+      "enabledByDefault": false
+    }
+  ],
+  "dependencies": {
+    "com.brickly.glm-tools": {
+      "commands": [
+        "ocr"
+      ],
+      "note": "调用 GLM OCR 命令识别截图中的文字。"
+    }
+  },
+  "trustLevel": "community",
+  "config": {
+    "required": false,
+    "fields": [
+      {
+        "name": "hotkeyLanguageType",
+        "label": "热键默认语言类型",
+        "type": "string",
+        "default": "AUTO",
+        "enum": [
+          "CHN_ENG",
+          "AUTO",
+          "ENG",
+          "JAP",
+          "KOR",
+          "FRE",
+          "SPA",
+          "POR",
+          "GER",
+          "ITA",
+          "RUS",
+          "DAN",
+          "DUT",
+          "MAL",
+          "SWE",
+          "IND",
+          "POL",
+          "ROM",
+          "TUR",
+          "GRE",
+          "HUN",
+          "THA",
+          "VIE",
+          "ARA",
+          "HIN"
+        ],
+        "inject": "config"
+      },
+      {
+        "name": "hotkeyProbability",
+        "label": "热键返回置信度",
+        "type": "boolean",
+        "default": false,
+        "inject": "config"
+      },
+      {
+        "name": "hotkeyKeepScreenshot",
+        "label": "热键保留原始截图",
+        "type": "boolean",
+        "default": false,
+        "inject": "config"
+      },
+      {
+        "name": "hotkeyOutputDir",
+        "label": "热键输出目录",
+        "type": "string",
+        "placeholder": "默认写入系统临时目录",
+        "inject": "config"
+      }
+    ]
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "glm",
+    "ocr",
+    "screenshot",
+    "annotation",
+    "image"
+  ],
+  "categories": [
+    "utilities",
+    "image",
+    "data-processing"
+  ],
+  "commands": [
+    {
+      "id": "capture-annotate",
+      "name": {
+        "zh-CN": "框选截图并 OCR 标注",
+        "en": "Capture Region and Annotate OCR"
+      },
+      "description": {
+        "zh-CN": "弹出系统框选截图交互，调用 com.brickly.glm-tools 的 OCR 命令，并在 H5 弹窗中绘制 OCR 文字与位置框。",
+        "en": "Open the OS region screenshot picker, call com.brickly.glm-tools OCR, and draw OCR text boxes in an HTML result window."
+      },
+      "category": "ocr",
+      "io": {
+        "inputs": [
+          {
+            "name": "languageType",
+            "label": "语言类型",
+            "type": "string",
+            "default": "AUTO",
+            "enum": [
+              "CHN_ENG",
+              "AUTO",
+              "ENG",
+              "JAP",
+              "KOR",
+              "FRE",
+              "SPA",
+              "POR",
+              "GER",
+              "ITA",
+              "RUS",
+              "DAN",
+              "DUT",
+              "MAL",
+              "SWE",
+              "IND",
+              "POL",
+              "ROM",
+              "TUR",
+              "GRE",
+              "HUN",
+              "THA",
+              "VIE",
+              "ARA",
+              "HIN"
+            ]
+          },
+          {
+            "name": "probability",
+            "label": "返回置信度",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "outputDir",
+            "label": "输出目录",
+            "type": "string",
+            "placeholder": "默认写入系统临时目录"
+          },
+          {
+            "name": "keepScreenshot",
+            "label": "保留原始截图",
+            "type": "boolean",
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "windowId",
+            "label": "标注窗口 ID",
+            "type": "number"
+          },
+          {
+            "name": "screenshotPath",
+            "label": "原始截图路径",
+            "type": "string"
+          },
+          {
+            "name": "bounds",
+            "label": "截图区域屏幕坐标",
+            "type": "json"
+          },
+          {
+            "name": "wordsText",
+            "label": "识别文本",
+            "type": "string",
+            "format": "text"
+          },
+          {
+            "name": "wordsResult",
+            "label": "OCR 明细",
+            "type": "json"
+          },
+          {
+            "name": "ocrResponse",
+            "label": "OCR 响应",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "框选截图并识别",
+        "streaming": true
+      },
+      "llm": {
+        "requireApproval": "always",
+        "tags": [
+          "glm",
+          "ocr",
+          "screenshot",
+          "image-annotation"
+        ],
+        "hint": "会启动系统截图工具、读取截图文件，并调用 com.brickly.glm-tools 的 OCR 命令上传图片，再打开 H5 弹窗绘制结果。"
+      }
+    },
+    {
+      "id": "capture-text",
+      "name": {
+        "zh-CN": "框选截图并返回 OCR 文本",
+        "en": "Capture Region and Return OCR Text"
+      },
+      "description": {
+        "zh-CN": "弹出系统框选截图交互，调用 com.brickly.glm-tools 的 OCR 命令，并只返回识别文本与 OCR 明细，不打开标注窗口。",
+        "en": "Open the OS region screenshot picker, call com.brickly.glm-tools OCR, and return recognized text and details without opening the annotation window."
+      },
+      "category": "ocr",
+      "hidden": false,
+      "io": {
+        "inputs": [
+          {
+            "name": "languageType",
+            "label": "语言类型",
+            "type": "string",
+            "default": "AUTO",
+            "enum": [
+              "CHN_ENG",
+              "AUTO",
+              "ENG",
+              "JAP",
+              "KOR",
+              "FRE",
+              "SPA",
+              "POR",
+              "GER",
+              "ITA",
+              "RUS",
+              "DAN",
+              "DUT",
+              "MAL",
+              "SWE",
+              "IND",
+              "POL",
+              "ROM",
+              "TUR",
+              "GRE",
+              "HUN",
+              "THA",
+              "VIE",
+              "ARA",
+              "HIN"
+            ]
+          },
+          {
+            "name": "probability",
+            "label": "返回置信度",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "outputDir",
+            "label": "输出目录",
+            "type": "string",
+            "placeholder": "默认写入系统临时目录"
+          },
+          {
+            "name": "keepScreenshot",
+            "label": "保留原始截图",
+            "type": "boolean",
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "screenshotPath",
+            "label": "原始截图路径",
+            "type": "string"
+          },
+          {
+            "name": "bounds",
+            "label": "截图区域屏幕坐标",
+            "type": "json"
+          },
+          {
+            "name": "wordsText",
+            "label": "识别文本",
+            "type": "string",
+            "format": "text"
+          },
+          {
+            "name": "wordsResult",
+            "label": "OCR 明细",
+            "type": "json"
+          },
+          {
+            "name": "ocrResponse",
+            "label": "OCR 响应",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "框选截图并识别",
+        "streaming": true
+      },
+      "llm": {
+        "requireApproval": "always",
+        "tags": [
+          "glm",
+          "ocr",
+          "screenshot",
+          "text"
+        ],
+        "hint": "会启动系统截图工具、读取截图文件，并调用 com.brickly.glm-tools 的 OCR 命令上传图片，只返回识别文本。"
+      }
+    }
+  ]
+}

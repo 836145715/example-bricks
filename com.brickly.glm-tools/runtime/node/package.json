@@ -1,0 +1,16 @@
+{
+  "name": "brickly-glm-tools-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Brickly GLM tools runtime for BigModel tool APIs.",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "dependencies": {
+    "@syllm/brickly-sdk": "^0.1.0"
+  },
+  "scripts": {
+    "test": "node --test \"__tests__/*.test.js\""
+  }
+}

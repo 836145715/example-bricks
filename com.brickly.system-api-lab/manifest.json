@@ -1,0 +1,203 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.system-api-lab",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "System API 实验室",
+    "en": "System API Lab"
+  },
+  "description": {
+    "zh-CN": "用于测试 window.brickly.system.* 与 Node runtime ctx.platform.system.* 的示例 Brick。",
+    "en": "Demo brick for testing window.brickly.system.* and Node runtime ctx.platform.system.*."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "preload": "preload/system-lab-preload.cjs",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "mode": "task",
+    "scope": "owner",
+    "concurrency": "parallel",
+    "restart": "none"
+  },
+  "permissions": [
+    "os.notification",
+    "os.exec",
+    "os.env",
+    "fs.read"
+  ],
+  "hotkeys": [
+    {
+      "id": "log-current-folder-path",
+      "commandId": "log-current-folder-path",
+      "name": {
+        "zh-CN": "打印当前文件夹路径",
+        "en": "Log Current Folder Path"
+      },
+      "description": {
+        "zh-CN": "触发后只读取当前前台文件管理器路径，并输出到 runtime 控制台。",
+        "en": "Read the current foreground file manager path and log it to the runtime console."
+      },
+      "defaultBinding": {
+        "win32": {
+          "kind": "accelerator",
+          "accelerator": "Control+Alt+Shift+P"
+        },
+        "darwin": {
+          "kind": "accelerator",
+          "accelerator": "Command+Alt+Shift+P"
+        }
+      },
+      "enabledByDefault": false
+    }
+  ],
+  "trustLevel": "community",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1160,
+      "height": 780,
+      "resizable": true
+    },
+    "devTools": "always"
+  },
+  "keywords": [
+    "system",
+    "utools",
+    "preload",
+    "runtime",
+    "test",
+    "developer-tools"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "commands": [
+    {
+      "id": "run-system-suite",
+      "name": {
+        "zh-CN": "运行 Runtime System 测试",
+        "en": "Run Runtime System Test"
+      },
+      "description": {
+        "zh-CN": "通过 Node SDK 的 ctx.platform.system.* 顺序调用全部 System API，并返回测试报告。",
+        "en": "Call all System APIs through Node SDK ctx.platform.system.* and return a test report."
+      },
+      "category": "system",
+      "io": {
+        "inputs": [
+          {
+            "name": "notify",
+            "label": "发送通知",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "openExternal",
+            "label": "打开外部链接",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "openPath",
+            "label": "打开临时文件",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "showInFolder",
+            "label": "定位临时文件",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "trash",
+            "label": "移入废纸篓临时文件",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "beep",
+            "label": "播放系统提示音",
+            "type": "boolean",
+            "default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "report",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "运行 Runtime 测试"
+      },
+      "examples": [
+        {
+          "title": "安全默认测试",
+          "input": {
+            "notify": true,
+            "openExternal": false,
+            "openPath": false,
+            "showInFolder": false,
+            "trash": true,
+            "beep": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "log-current-folder-path",
+      "name": {
+        "zh-CN": "打印当前文件夹路径",
+        "en": "Log Current Folder Path"
+      },
+      "description": {
+        "zh-CN": "只调用 readCurrentFolderPath()，并把结果或错误输出到 runtime 控制台。",
+        "en": "Only call readCurrentFolderPath() and log the result or error to the runtime console."
+      },
+      "category": "system",
+      "hidden": true,
+      "io": {
+        "inputs": [],
+        "outputs": []
+      }
+    },
+    {
+      "id": "create-temp-file",
+      "name": {
+        "zh-CN": "创建 System 测试临时文件",
+        "en": "Create System Test Temp File"
+      },
+      "description": {
+        "zh-CN": "创建一个仅用于 shellOpenPath、shellShowItemInFolder、shellTrashItem 测试的临时文本文件。",
+        "en": "Create a temporary text file for shellOpenPath, shellShowItemInFolder and shellTrashItem tests."
+      },
+      "category": "system",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "file",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.go-window-lab",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "Go 窗口 API 实验室",
+    "en": "Go Window API Lab"
+  },
+  "description": {
+    "zh-CN": "Go 版的窗口 API 实验室：使用 brickly-sdk-go 实现，覆盖 100+ 个 BrowserWindow / webContents 方法，验证 Go SDK 与 Node SDK 行为完全一致。",
+    "en": "Go-powered Window API Lab that exercises 100+ BrowserWindow & webContents methods via brickly-sdk-go, proving parity with the Node SDK."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "win-arm64": "bin/win-arm64/brick.exe",
+      "mac-x64": "bin/mac-x64/brick",
+      "mac-arm64": "bin/mac-arm64/brick",
+      "linux-x64": "bin/linux-x64/brick",
+      "linux-arm64": "bin/linux-arm64/brick"
+    }
+  },
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "queue",
+    "idleTtlMs": 0,
+    "maxLifetimeMs": 0,
+    "restart": "on-failure",
+    "maxRestarts": 3,
+    "backoffMs": 2000
+  },
+  "permissions": [],
+  "trustLevel": "verified",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "window",
+    "browserwindow",
+    "go",
+    "demo",
+    "test",
+    "lab"
+  ],
+  "categories": [
+    "utilities",
+    "developer-tools"
+  ],
+  "commands": [
+    {
+      "id": "open-lab",
+      "name": {
+        "zh-CN": "打开 Go 窗口实验室",
+        "en": "Open Go Window Lab"
+      },
+      "description": {
+        "zh-CN": "创建一个带控制面板的子窗口，覆盖 BrowserWindow 各类方法的可视化测试（Go SDK 实现）。",
+        "en": "Spawn a control-panel window to test BrowserWindow APIs interactively (powered by brickly-sdk-go)."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "window",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "close-lab",
+      "name": {
+        "zh-CN": "关闭实验室",
+        "en": "Close Lab"
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "closed",
+            "type": "number"
+          }
+        ]
+      }
+    }
+  ]
+}

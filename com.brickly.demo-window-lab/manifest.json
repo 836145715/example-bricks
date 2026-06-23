@@ -1,0 +1,89 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.demo-window-lab",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "窗口 API 实验室",
+    "en": "Window API Lab"
+  },
+  "description": {
+    "zh-CN": "可视化测试 Brick：开一个带控制面板的子窗口，按钮一键调用 90+ 个 BrowserWindow / webContents API，实时展示窗口状态。",
+    "en": "Visual playground that opens a control-panel window to exercise 90+ BrowserWindow & webContents methods with live state readouts."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "queue",
+    "idleTtlMs": 600000,
+    "restart": "none"
+  },
+  "permissions": [],
+  "trustLevel": "verified",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "window",
+    "browserwindow",
+    "demo",
+    "test",
+    "lab"
+  ],
+  "categories": [
+    "utilities",
+    "developer-tools"
+  ],
+  "commands": [
+    {
+      "id": "open-lab",
+      "name": {
+        "zh-CN": "打开窗口实验室",
+        "en": "Open Window Lab"
+      },
+      "description": {
+        "zh-CN": "创建一个带控制面板的子窗口，覆盖 BrowserWindow 各类方法的可视化测试。",
+        "en": "Spawn a control-panel window to test BrowserWindow APIs interactively."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "window",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "close-lab",
+      "name": {
+        "zh-CN": "关闭实验室",
+        "en": "Close Lab"
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "closed",
+            "type": "number"
+          }
+        ]
+      }
+    }
+  ]
+}

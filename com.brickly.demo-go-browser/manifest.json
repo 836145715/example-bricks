@@ -1,0 +1,119 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.demo-go-browser",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "Go 远程网页浏览器",
+    "en": "Go Remote Web Window"
+  },
+  "description": {
+    "zh-CN": "Go 编写的 native Brick，通过 host.ui.createBrowserWindow 打开任意 https 远程网页（裸协议示例）。",
+    "en": "Native Go plugin demonstrating host.ui.createBrowserWindow with a remote https URL."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "win-arm64": "bin/win-arm64/brick.exe",
+      "mac-x64": "bin/mac-x64/brick",
+      "mac-arm64": "bin/mac-arm64/brick",
+      "linux-x64": "bin/linux-x64/brick",
+      "linux-arm64": "bin/linux-arm64/brick"
+    }
+  },
+  "permissions": [],
+  "trustLevel": "verified",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "go",
+    "native",
+    "demo",
+    "window",
+    "browser"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "commands": [
+    {
+      "id": "open-url",
+      "name": {
+        "zh-CN": "打开网页",
+        "en": "Open URL"
+      },
+      "description": {
+        "zh-CN": "打开一个独立 BrowserWindow 加载指定 URL，返回 windowId。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "url",
+            "label": "URL",
+            "type": "string",
+            "required": true,
+            "default": "https://www.example.com",
+            "placeholder": "https://..."
+          },
+          {
+            "name": "width",
+            "label": "宽",
+            "type": "number",
+            "default": 1200
+          },
+          {
+            "name": "height",
+            "label": "高",
+            "type": "number",
+            "default": 800
+          }
+        ],
+        "outputs": [
+          {
+            "name": "window",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "close-url",
+      "name": {
+        "zh-CN": "关闭网页",
+        "en": "Close URL"
+      },
+      "description": {
+        "zh-CN": "按 windowId 关闭 open-url 创建的窗口。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "windowId",
+            "label": "Window ID",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    }
+  ]
+}

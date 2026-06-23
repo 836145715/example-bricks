@@ -1,0 +1,855 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.glm-tools",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "GLM 工具 API",
+    "en": "GLM Tools API"
+  },
+  "description": {
+    "zh-CN": "接入智谱 BigModel 工具 API：网络搜索、网页阅读、内容安全、文件解析、OCR。",
+    "en": "Call Zhipu BigModel tool APIs: web search, reader, moderation, file parser, and OCR."
+  },
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [
+    "net.https",
+    "fs.read",
+    "os.env"
+  ],
+  "trustLevel": "community",
+  "config": {
+    "required": true,
+    "fields": [
+      {
+        "name": "apiKey",
+        "label": "BigModel API Key",
+        "type": "string",
+        "required": true,
+        "secret": true,
+        "env": "GLM_API_KEY",
+        "inject": "both",
+        "placeholder": "BigModel API Key"
+      },
+      {
+        "name": "baseUrl",
+        "label": "Base URL",
+        "type": "string",
+        "default": "https://open.bigmodel.cn/api",
+        "env": "GLM_BASE_URL",
+        "inject": "both",
+        "placeholder": "https://open.bigmodel.cn/api"
+      },
+      {
+        "name": "defaultSearchEngine",
+        "label": "默认搜索引擎",
+        "type": "string",
+        "default": "search_std",
+        "enum": [
+          "search_std",
+          "search_pro",
+          "search_pro_sogou",
+          "search_pro_quark"
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "glm",
+    "bigmodel",
+    "zhipu",
+    "search",
+    "reader",
+    "ocr",
+    "moderation",
+    "parser"
+  ],
+  "categories": [
+    "ai-models",
+    "developer-tools",
+    "data-processing"
+  ],
+  "commands": [
+    {
+      "id": "web-search",
+      "name": {
+        "zh-CN": "网络搜索",
+        "en": "Web Search"
+      },
+      "description": {
+        "zh-CN": "调用 BigModel /paas/v4/web_search，返回适合大模型处理的网页标题、链接、摘要、站点名、图标和发布时间。",
+        "en": "Call BigModel /paas/v4/web_search and return LLM-friendly web search results."
+      },
+      "category": "tools",
+      "io": {
+        "inputs": [
+          {
+            "name": "searchQuery",
+            "label": "搜索内容",
+            "type": "string",
+            "required": true,
+            "placeholder": "建议不超过 70 个字符"
+          },
+          {
+            "name": "searchEngine",
+            "label": "搜索引擎",
+            "type": "string",
+            "default": "search_std",
+            "enum": [
+              "search_std",
+              "search_pro",
+              "search_pro_sogou",
+              "search_pro_quark"
+            ]
+          },
+          {
+            "name": "searchIntent",
+            "label": "搜索意图识别",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "count",
+            "label": "返回条数",
+            "type": "number",
+            "default": 10,
+            "min": 1,
+            "max": 50,
+            "control": "input"
+          },
+          {
+            "name": "searchDomainFilter",
+            "label": "白名单域名",
+            "type": "string",
+            "placeholder": "www.example.com"
+          },
+          {
+            "name": "searchRecencyFilter",
+            "label": "时间范围",
+            "type": "string",
+            "default": "noLimit",
+            "enum": [
+              "oneDay",
+              "oneWeek",
+              "oneMonth",
+              "oneYear",
+              "noLimit"
+            ]
+          },
+          {
+            "name": "contentSize",
+            "label": "内容长度",
+            "type": "string",
+            "default": "medium",
+            "enum": [
+              "medium",
+              "high"
+            ]
+          },
+          {
+            "name": "requestId",
+            "label": "请求 ID",
+            "type": "string",
+            "placeholder": "可选，6-64 字符"
+          },
+          {
+            "name": "userId",
+            "label": "终端用户 ID",
+            "type": "string",
+            "placeholder": "可选，6-128 字符"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "searchResult",
+            "type": "json"
+          },
+          {
+            "name": "searchIntent",
+            "type": "json"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "搜索"
+      },
+      "examples": [
+        {
+          "title": "搜索近期新闻",
+          "input": {
+            "searchQuery": "GLM-5.1 发布",
+            "searchEngine": "search_std",
+            "searchRecencyFilter": "oneMonth",
+            "count": 5
+          }
+        }
+      ],
+      "llm": {
+        "requireApproval": "high-risk",
+        "tags": [
+          "glm",
+          "web-search",
+          "search"
+        ],
+        "hint": "需要已配置 BigModel API Key。网络调用可能产生平台费用。"
+      }
+    },
+    {
+      "id": "reader",
+      "name": {
+        "zh-CN": "网页阅读",
+        "en": "Web Reader"
+      },
+      "description": {
+        "zh-CN": "调用 BigModel /paas/v4/reader，读取并解析指定 URL 的网页内容，可返回 Markdown 或纯文本。",
+        "en": "Call BigModel /paas/v4/reader to fetch and parse a URL as Markdown or text."
+      },
+      "category": "tools",
+      "io": {
+        "inputs": [
+          {
+            "name": "url",
+            "label": "URL",
+            "type": "string",
+            "required": true,
+            "placeholder": "https://www.example.com"
+          },
+          {
+            "name": "timeout",
+            "label": "超时秒数",
+            "type": "number",
+            "default": 20,
+            "min": 1,
+            "max": 120,
+            "control": "input"
+          },
+          {
+            "name": "noCache",
+            "label": "禁用缓存",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "returnFormat",
+            "label": "返回格式",
+            "type": "string",
+            "default": "markdown",
+            "enum": [
+              "markdown",
+              "text"
+            ]
+          },
+          {
+            "name": "retainImages",
+            "label": "保留图片",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "noGfm",
+            "label": "禁用 GFM",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "keepImgDataUrl",
+            "label": "保留图片 data URL",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "withImagesSummary",
+            "label": "包含图片摘要",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "withLinksSummary",
+            "label": "包含链接摘要",
+            "type": "boolean",
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "content",
+            "type": "string",
+            "format": "markdown"
+          },
+          {
+            "name": "readerResult",
+            "type": "json"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "读取网页"
+      },
+      "llm": {
+        "requireApproval": "high-risk",
+        "tags": [
+          "glm",
+          "reader",
+          "web"
+        ],
+        "hint": "读取外部 URL 前应确认用户意图。"
+      }
+    },
+    {
+      "id": "moderate-content",
+      "name": {
+        "zh-CN": "内容安全",
+        "en": "Moderation"
+      },
+      "description": {
+        "zh-CN": "调用 BigModel /paas/v4/moderations，对文本、图片、音频或视频 URL 进行内容安全审核。",
+        "en": "Call BigModel /paas/v4/moderations to review text, image, audio, or video URLs."
+      },
+      "category": "tools",
+      "io": {
+        "inputs": [
+          {
+            "name": "inputType",
+            "label": "输入类型",
+            "type": "string",
+            "default": "text",
+            "enum": [
+              "text",
+              "image_url",
+              "video_url",
+              "audio_url",
+              "raw_json"
+            ]
+          },
+          {
+            "name": "text",
+            "label": "文本内容",
+            "type": "string",
+            "multiline": true,
+            "placeholder": "文本审核最大 2000 字符"
+          },
+          {
+            "name": "url",
+            "label": "媒体 URL",
+            "type": "string",
+            "placeholder": "图片、音频或视频 URL"
+          },
+          {
+            "name": "inputJson",
+            "label": "原始 input JSON",
+            "type": "json",
+            "description": "inputType=raw_json 时使用，直接作为 API 的 input 字段。"
+          },
+          {
+            "name": "model",
+            "label": "安全模型",
+            "type": "string",
+            "default": "moderation",
+            "enum": [
+              "moderation"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "riskLevel",
+            "type": "string"
+          },
+          {
+            "name": "riskTypes",
+            "type": "json"
+          },
+          {
+            "name": "resultList",
+            "type": "json"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          },
+          {
+            "name": "usage",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "审核"
+      },
+      "llm": {
+        "requireApproval": "high-risk",
+        "tags": [
+          "glm",
+          "moderation",
+          "safety"
+        ],
+        "hint": "用于内容安全审核。多媒体审核要求提供公网可访问 URL。"
+      }
+    },
+    {
+      "id": "parse-file-sync",
+      "name": {
+        "zh-CN": "文件解析（同步）",
+        "en": "File Parser Sync"
+      },
+      "description": {
+        "zh-CN": "调用 BigModel /paas/v4/files/parser/sync，同步上传并解析文档、图片或表格文件。",
+        "en": "Call BigModel /paas/v4/files/parser/sync to synchronously parse a file."
+      },
+      "category": "tools",
+      "io": {
+        "inputs": [
+          {
+            "name": "file",
+            "label": "待解析文件",
+            "type": "file",
+            "description": "与 filePath 二选一。"
+          },
+          {
+            "name": "filePath",
+            "label": "本地文件路径",
+            "type": "string",
+            "description": "与 file 二选一，适合上游节点传入本地路径。"
+          },
+          {
+            "name": "toolType",
+            "label": "解析工具",
+            "type": "string",
+            "default": "prime-sync",
+            "enum": [
+              "prime-sync"
+            ]
+          },
+          {
+            "name": "fileType",
+            "label": "文件类型",
+            "type": "string",
+            "enum": [
+              "WPS",
+              "PDF",
+              "DOCX",
+              "DOC",
+              "XLS",
+              "XLSX",
+              "PPT",
+              "PPTX",
+              "PNG",
+              "JPG",
+              "JPEG",
+              "CSV",
+              "TXT",
+              "MD",
+              "HTML",
+              "BMP",
+              "GIF",
+              "WEBP",
+              "HEIC",
+              "EPS",
+              "ICNS",
+              "IM",
+              "PCX",
+              "PPM",
+              "TIFF",
+              "XBM",
+              "HEIF",
+              "JP2"
+            ]
+          },
+          {
+            "name": "confirmPaidApiCall",
+            "label": "确认付费调用",
+            "type": "boolean",
+            "default": false,
+            "description": "同步文件解析会上传文件并触发 BigModel 计费。必须显式勾选后才会发起请求。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "string"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "content",
+            "type": "string",
+            "format": "markdown"
+          },
+          {
+            "name": "taskId",
+            "type": "string"
+          },
+          {
+            "name": "parsingResultUrl",
+            "type": "string"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          }
+        ],
+        "constraints": [
+          {
+            "rule": "oneOf",
+            "members": [
+              "file",
+              "filePath"
+            ],
+            "message": "请选择文件或填写本地文件路径（二选一）"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "同步解析"
+      },
+      "llm": {
+        "requireApproval": "always",
+        "tags": [
+          "glm",
+          "file-parser",
+          "sync"
+        ],
+        "hint": "同步文件解析会读取本地文件、上传到 BigModel，并可能立即产生费用；必须传 confirmPaidApiCall=true。"
+      }
+    },
+    {
+      "id": "create-file-parse-task",
+      "name": {
+        "zh-CN": "文件解析任务",
+        "en": "Create File Parse Task"
+      },
+      "description": {
+        "zh-CN": "调用 BigModel /paas/v4/files/parser/create，创建异步文件解析任务并返回 task_id。",
+        "en": "Call BigModel /paas/v4/files/parser/create to create an async file parsing task."
+      },
+      "category": "tools",
+      "io": {
+        "inputs": [
+          {
+            "name": "file",
+            "label": "待解析文件",
+            "type": "file",
+            "description": "与 filePath 二选一。"
+          },
+          {
+            "name": "filePath",
+            "label": "本地文件路径",
+            "type": "string",
+            "description": "与 file 二选一，适合上游节点传入本地路径。"
+          },
+          {
+            "name": "toolType",
+            "label": "解析工具",
+            "type": "string",
+            "default": "prime",
+            "enum": [
+              "lite",
+              "expert",
+              "prime"
+            ]
+          },
+          {
+            "name": "fileType",
+            "label": "文件类型",
+            "type": "string",
+            "enum": [
+              "PDF",
+              "DOCX",
+              "DOC",
+              "XLS",
+              "XLSX",
+              "PPT",
+              "PPTX",
+              "PNG",
+              "JPG",
+              "JPEG",
+              "CSV",
+              "TXT",
+              "MD",
+              "HTML",
+              "BMP",
+              "GIF",
+              "WEBP",
+              "HEIC",
+              "EPS",
+              "ICNS",
+              "IM",
+              "PCX",
+              "PPM",
+              "TIFF",
+              "XBM",
+              "HEIF",
+              "JP2"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "success",
+            "type": "boolean"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "taskId",
+            "type": "string"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          }
+        ],
+        "constraints": [
+          {
+            "rule": "oneOf",
+            "members": [
+              "file",
+              "filePath"
+            ],
+            "message": "请选择文件或填写本地文件路径（二选一）"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "创建任务"
+      },
+      "llm": {
+        "requireApproval": "high-risk",
+        "tags": [
+          "glm",
+          "file-parser",
+          "async"
+        ],
+        "hint": "会读取本地文件并上传到 BigModel 文件解析服务。"
+      }
+    },
+    {
+      "id": "get-file-parse-result",
+      "name": {
+        "zh-CN": "解析结果",
+        "en": "File Parse Result"
+      },
+      "description": {
+        "zh-CN": "调用 BigModel /paas/v4/files/parser/result/{taskId}/{format_type}，获取异步文件解析结果。",
+        "en": "Call BigModel file parser result endpoint for an async parsing task."
+      },
+      "category": "tools",
+      "io": {
+        "inputs": [
+          {
+            "name": "taskId",
+            "label": "任务 ID",
+            "type": "string",
+            "required": true,
+            "placeholder": "task_..."
+          },
+          {
+            "name": "formatType",
+            "label": "结果格式",
+            "type": "string",
+            "default": "text",
+            "enum": [
+              "text",
+              "download_link"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "string"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "content",
+            "type": "string",
+            "format": "markdown"
+          },
+          {
+            "name": "parsingResultUrl",
+            "type": "string"
+          },
+          {
+            "name": "taskId",
+            "type": "string"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "获取结果"
+      },
+      "llm": {
+        "requireApproval": "high-risk",
+        "tags": [
+          "glm",
+          "file-parser",
+          "result"
+        ],
+        "hint": "用于查询由 create-file-parse-task 创建的异步解析任务。"
+      }
+    },
+    {
+      "id": "ocr",
+      "hidden": true,
+      "name": {
+        "zh-CN": "OCR 服务",
+        "en": "OCR"
+      },
+      "description": {
+        "zh-CN": "调用 BigModel /paas/v4/files/ocr，上传图片并进行 OCR 识别。",
+        "en": "Call BigModel /paas/v4/files/ocr to upload an image and run OCR."
+      },
+      "category": "tools",
+      "io": {
+        "inputs": [
+          {
+            "name": "imageFile",
+            "label": "图片文件",
+            "type": "file",
+            "accept": "image/*",
+            "description": "与 imagePath 二选一。"
+          },
+          {
+            "name": "imagePath",
+            "label": "本地图片路径",
+            "type": "string",
+            "description": "与 imageFile 二选一，适合上游节点传入本地路径。"
+          },
+          {
+            "name": "toolType",
+            "label": "OCR 工具",
+            "type": "string",
+            "default": "hand_write",
+            "enum": [
+              "hand_write"
+            ]
+          },
+          {
+            "name": "languageType",
+            "label": "语言类型",
+            "type": "string",
+            "default": "AUTO",
+            "enum": [
+              "CHN_ENG",
+              "AUTO",
+              "ENG",
+              "JAP",
+              "KOR",
+              "FRE",
+              "SPA",
+              "POR",
+              "GER",
+              "ITA",
+              "RUS",
+              "DAN",
+              "DUT",
+              "MAL",
+              "SWE",
+              "IND",
+              "POL",
+              "ROM",
+              "TUR",
+              "GRE",
+              "HUN",
+              "THA",
+              "VIE",
+              "ARA",
+              "HIN"
+            ]
+          },
+          {
+            "name": "probability",
+            "label": "返回置信度",
+            "type": "boolean",
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "string"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "wordsText",
+            "type": "string",
+            "format": "text"
+          },
+          {
+            "name": "wordsResult",
+            "type": "json"
+          },
+          {
+            "name": "taskId",
+            "type": "string"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          }
+        ],
+        "constraints": [
+          {
+            "rule": "oneOf",
+            "members": [
+              "imageFile",
+              "imagePath"
+            ],
+            "message": "请选择图片文件或填写本地图片路径（二选一）"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "识别"
+      },
+      "llm": {
+        "exposeToLLM": false,
+        "requireApproval": "always",
+        "tags": [
+          "glm",
+          "ocr",
+          "image"
+        ],
+        "hint": "内部 OCR 能力，会读取本地图片、上传到 BigModel OCR 服务，并可能产生费用。普通用户请优先使用截图 OCR 标注工具。"
+      }
+    }
+  ]
+}

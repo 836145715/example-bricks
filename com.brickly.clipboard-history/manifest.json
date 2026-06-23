@@ -1,0 +1,182 @@
+{
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.clipboard-history",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "剪贴板历史",
+    "en": "Clipboard History"
+  },
+  "description": {
+    "zh-CN": "单体剪贴板历史 Brick：订阅宿主剪贴板事件，持久化历史，并提供自定义界面与查询、删除、收藏能力。",
+    "en": "Single clipboard history Brick with host clipboard event subscription, persistent storage, custom UI, and history management commands."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "clipboard",
+    "history",
+    "productivity",
+    "local"
+  ],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly Examples"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.cjs"
+  },
+  "lifecycle": {
+    "mode": "service",
+    "scope": "profile",
+    "concurrency": "queue",
+    "maxLifetimeMs": 0,
+    "restart": "on-failure",
+    "maxRestarts": 5,
+    "backoffMs": 2000
+  },
+  "permissions": [
+    "resource.get",
+    "event.publish:clipboard-history:changed"
+  ],
+  "subscriptions": [
+    {
+      "event": "clipboard:new-content",
+      "from": "system"
+    }
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 820,
+      "height": 560,
+      "resizable": true
+    }
+  },
+  "commands": [
+    {
+      "id": "list",
+      "name": {
+        "zh-CN": "列出历史",
+        "en": "List History"
+      },
+      "description": "返回当前持久化的剪贴板历史记录数组。",
+      "io": {
+        "inputs": [
+          {
+            "name": "limit",
+            "type": "number",
+            "default": 500,
+            "min": 1,
+            "max": 2000
+          }
+        ],
+        "outputs": [
+          {
+            "name": "items",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "remove",
+      "name": {
+        "zh-CN": "删除一条",
+        "en": "Remove"
+      },
+      "description": "按 id 删除一条历史记录。",
+      "io": {
+        "inputs": [
+          {
+            "name": "id",
+            "type": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "clear",
+      "name": {
+        "zh-CN": "清空历史",
+        "en": "Clear"
+      },
+      "description": "清空历史；keepFavorites=true 时保留收藏。",
+      "io": {
+        "inputs": [
+          {
+            "name": "keepFavorites",
+            "type": "boolean",
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "toggle-favorite",
+      "name": {
+        "zh-CN": "切换收藏",
+        "en": "Toggle Favorite"
+      },
+      "description": "切换某条记录的收藏状态。",
+      "io": {
+        "inputs": [
+          {
+            "name": "id",
+            "type": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "favorite",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "storage-info",
+      "name": {
+        "zh-CN": "存储信息",
+        "en": "Storage Info"
+      },
+      "description": "返回数据目录、媒体目录、历史 JSON 路径、当前条数。",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "info",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "host-start"
+    }
+  ]
+}

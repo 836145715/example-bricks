@@ -1,0 +1,348 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.mysql",
+  "version": "1.0.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "MySQL 数据库",
+    "en": "MySQL Database"
+  },
+  "description": {
+    "zh-CN": "MySQL 数据库 Brick，通过 Brick Profile 管理连接环境，支持连接测试、查询、执行和事务。",
+    "en": "MySQL database plugin using plugin Profiles for connection environments, with test, query, execute, and transaction commands."
+  },
+  "icon": "assets/icon.png",
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "python",
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64",
+      "linux-arm64"
+    ],
+    "entry": "runtime/python/main.py",
+    "python": ">=3.10,<3.13",
+    "dependencies": {
+      "kind": "inline",
+      "specs": [
+        "brickly-sdk==0.1.0",
+        "pymysql>=1.1.0,<2",
+        "cryptography>=41.0.0"
+      ]
+    }
+  },
+  "permissions": [
+    "net.tcp"
+  ],
+  "trustLevel": "community",
+  "config": {
+    "required": true,
+    "fields": [
+      {
+        "name": "host",
+        "label": "主机",
+        "description": "MySQL 服务地址，可以是 IP、localhost 或内网/公网域名。",
+        "type": "string",
+        "required": true,
+        "env": "MYSQL_HOST",
+        "default": "127.0.0.1",
+        "placeholder": "127.0.0.1 或数据库域名"
+      },
+      {
+        "name": "port",
+        "label": "端口",
+        "description": "MySQL 服务端口。常见默认值是 3306。",
+        "type": "number",
+        "required": true,
+        "env": "MYSQL_PORT",
+        "default": 3306,
+        "min": 1,
+        "max": 65535,
+        "control": "input"
+      },
+      {
+        "name": "user",
+        "label": "用户名",
+        "description": "连接 MySQL 使用的账号。",
+        "type": "string",
+        "required": true,
+        "env": "MYSQL_USER",
+        "placeholder": "root"
+      },
+      {
+        "name": "password",
+        "label": "密码",
+        "description": "连接 MySQL 使用的密码。当前 Profile MVP 会以明文 JSON 存储。",
+        "type": "string",
+        "required": true,
+        "secret": true,
+        "env": "MYSQL_PASSWORD",
+        "placeholder": "MySQL 密码"
+      },
+      {
+        "name": "database",
+        "label": "默认数据库",
+        "description": "可选。填写后连接会默认进入该数据库；SQL 中仍可使用 database.table。",
+        "type": "string",
+        "required": false,
+        "env": "MYSQL_DATABASE",
+        "placeholder": "可选，例如 app_db"
+      },
+      {
+        "name": "charset",
+        "label": "字符集",
+        "description": "连接字符集。推荐使用 utf8mb4。",
+        "type": "string",
+        "env": "MYSQL_CHARSET",
+        "default": "utf8mb4",
+        "enum": [
+          "utf8mb4",
+          "utf8",
+          "latin1"
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "mysql",
+    "database",
+    "sql",
+    "crud"
+  ],
+  "categories": [
+    "data-processing",
+    "developer-tools"
+  ],
+  "commands": [
+    {
+      "id": "test-connection",
+      "name": {
+        "zh-CN": "测试连接",
+        "en": "Test Connection"
+      },
+      "description": {
+        "zh-CN": "使用当前 Brick Profile 测试数据库连接是否正常。",
+        "en": "Test the database connection with the selected plugin Profile."
+      },
+      "category": "operation",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "success",
+            "type": "boolean"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "version",
+            "type": "string"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "测试连接"
+      }
+    },
+    {
+      "id": "query",
+      "name": {
+        "zh-CN": "查询",
+        "en": "Query"
+      },
+      "description": {
+        "zh-CN": "使用当前 Brick Profile 执行只读 SQL，返回结果集。支持流式输出大数据集。",
+        "en": "Execute read-only SQL with the selected plugin Profile and return rows. Supports streaming for large datasets."
+      },
+      "category": "operation",
+      "io": {
+        "inputs": [
+          {
+            "name": "sql",
+            "label": "SQL 语句",
+            "type": "string",
+            "required": true,
+            "multiline": true,
+            "placeholder": "SELECT * FROM users WHERE id > 100\nSHOW TABLES\nDESCRIBE users"
+          },
+          {
+            "name": "params",
+            "label": "参数",
+            "type": "json",
+            "required": false,
+            "description": "SQL 参数数组或对象，用于参数化查询，避免把用户输入直接拼接进 SQL。",
+            "placeholder": "[100]"
+          },
+          {
+            "name": "fetchSize",
+            "label": "批大小",
+            "type": "number",
+            "required": false,
+            "default": 1000,
+            "min": 1,
+            "max": 100000,
+            "control": "input"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "rows",
+            "type": "json"
+          },
+          {
+            "name": "rowCount",
+            "type": "number"
+          },
+          {
+            "name": "columns",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true,
+        "submitLabel": "执行查询"
+      },
+      "examples": [
+        {
+          "title": "简单查询",
+          "input": {
+            "sql": "SELECT * FROM users LIMIT 10"
+          }
+        }
+      ]
+    },
+    {
+      "id": "execute",
+      "name": {
+        "zh-CN": "执行",
+        "en": "Execute"
+      },
+      "description": {
+        "zh-CN": "使用当前 Brick Profile 执行 INSERT/UPDATE/DELETE 等写入 SQL，返回影响行数。",
+        "en": "Execute INSERT/UPDATE/DELETE statements with the selected plugin Profile and return affected row count."
+      },
+      "category": "operation",
+      "io": {
+        "inputs": [
+          {
+            "name": "sql",
+            "label": "SQL 语句",
+            "type": "string",
+            "required": true,
+            "multiline": true,
+            "placeholder": "INSERT INTO users (name, email) VALUES (%s, %s)"
+          },
+          {
+            "name": "params",
+            "label": "参数",
+            "type": "json",
+            "required": false,
+            "description": "SQL 参数数组或对象。推荐使用参数化 SQL，不要直接拼接用户输入。",
+            "placeholder": "[\"Alice\", \"alice@example.com\"]"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "affectedRows",
+            "type": "number"
+          },
+          {
+            "name": "lastInsertId",
+            "type": "number"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "执行"
+      },
+      "examples": [
+        {
+          "title": "插入数据",
+          "input": {
+            "sql": "INSERT INTO users (name, email) VALUES (%s, %s)",
+            "params": [
+              "Alice",
+              "alice@example.com"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction",
+      "name": {
+        "zh-CN": "事务",
+        "en": "Transaction"
+      },
+      "description": {
+        "zh-CN": "使用当前 Brick Profile 在事务中执行多条 SQL，全部成功或全部回滚。",
+        "en": "Execute multiple SQL statements in a transaction with the selected plugin Profile; all succeed or all rollback."
+      },
+      "category": "operation",
+      "io": {
+        "inputs": [
+          {
+            "name": "statements",
+            "label": "SQL 语句列表",
+            "type": "json",
+            "required": true,
+            "description": "SQL 语句数组，每项包含 sql 和可选 params。示例：[{\"sql\":\"UPDATE users SET name=%s WHERE id=%s\",\"params\":[\"Alice\",1]}]"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "success",
+            "type": "boolean"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "results",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "执行事务"
+      },
+      "examples": [
+        {
+          "title": "转账事务",
+          "input": {
+            "statements": [
+              {
+                "sql": "UPDATE accounts SET balance = balance - 100 WHERE id = 1",
+                "params": []
+              },
+              {
+                "sql": "UPDATE accounts SET balance = balance + 100 WHERE id = 2",
+                "params": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

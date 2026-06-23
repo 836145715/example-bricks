@@ -1,0 +1,103 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.image-toolkit-sharp",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "万能图片工具箱",
+    "en": "Universal Image Toolkit"
+  },
+  "description": {
+    "zh-CN": "基于 Node.js + Sharp 的高性能图像处理工具，包含压缩、格式转换、水印、尺寸修改、圆角、留白补边、拼接等13项超强功能。",
+    "en": "High-performance image toolkit powered by Node.js + Sharp."
+  },
+  "icon": "assets/icon.png",
+  "keywords": [
+    "image",
+    "sharp",
+    "compress",
+    "convert",
+    "watermark",
+    "toolkit"
+  ],
+  "categories": [
+    "image",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly Team"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "win-x64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [
+    "fs.read",
+    "fs.write"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1200,
+      "height": 820,
+      "resizable": true
+    }
+  },
+  "commands": [
+    {
+      "id": "process-image",
+      "name": {
+        "zh-CN": "处理图片",
+        "en": "Process Image"
+      },
+      "description": "执行单图或多图的高性能图像处理与拼接合并命令。",
+      "category": "transform",
+      "io": {
+        "inputs": [
+          {
+            "name": "action",
+            "type": "string",
+            "required": true,
+            "description": "要执行的图像操作，例如 compress, convert, resize, watermark 等"
+          },
+          {
+            "name": "files",
+            "type": "json",
+            "required": true,
+            "description": "输入的本地文件绝对路径数组"
+          },
+          {
+            "name": "options",
+            "type": "json",
+            "required": true,
+            "description": "传递给 Sharp 各个操作的具体参数 JSON 对象"
+          },
+          {
+            "name": "outputPath",
+            "type": "string",
+            "required": false,
+            "description": "可选的输出绝对路径。如果不填，则默认保存在原文件同目录下并增加适当后缀"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "处理结果详情，包括最终路径、大小及格式信息"
+          }
+        ]
+      }
+    }
+  ]
+}

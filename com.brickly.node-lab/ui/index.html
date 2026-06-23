@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Node 实验室</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src *;"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0f1115;
+        --panel: #181b22;
+        --panel2: #1f232c;
+        --border: #2a2f3a;
+        --text: #e6e8ec;
+        --muted: #8d93a3;
+        --accent: #7c5cff;
+        --ok: #22c55e;
+        --err: #ef4444;
+        --warn: #f59e0b;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #ffffff;
+          --panel: #f5f6f8;
+          --panel2: #ffffff;
+          --border: #e2e4e9;
+          --text: #1a1d24;
+          --muted: #6b7280;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--panel);
+      }
+      header h1 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      header small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      nav.tabs {
+        display: flex;
+        gap: 4px;
+        padding: 8px 18px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+      nav.tabs button {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      nav.tabs button:hover {
+        color: var(--text);
+      }
+      nav.tabs button.active {
+        background: var(--accent);
+        color: #fff;
+      }
+      main {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 18px;
+      }
+      section.tab {
+        display: none;
+      }
+      section.tab.active {
+        display: block;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .card h2 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .card .desc {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 10px;
+        line-height: 1.5;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        align-items: center;
+      }
+      .row label {
+        color: var(--muted);
+        font-size: 12px;
+        width: 70px;
+        flex-shrink: 0;
+      }
+      input[type='text'],
+      select,
+      textarea {
+        flex: 1;
+        background: var(--panel2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-family: 'JetBrains Mono', Consolas, monospace;
+        outline: none;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--accent);
+      }
+      button.action {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      button.action:hover {
+        opacity: 0.9;
+      }
+      button.action.secondary {
+        background: var(--panel2);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      pre.output {
+        background: var(--panel2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-family: 'JetBrains Mono', Consolas, monospace;
+        font-size: 11.5px;
+        line-height: 1.5;
+        max-height: 380px;
+        overflow: auto;
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      pre.output.empty {
+        color: var(--muted);
+      }
+      .status-line {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .status-line.ok {
+        color: var(--ok);
+      }
+      .status-line.err {
+        color: var(--err);
+      }
+      .kv-grid {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 4px 14px;
+        font-size: 12px;
+      }
+      .kv-grid dt {
+        color: var(--muted);
+      }
+      .kv-grid dd {
+        margin: 0;
+        font-family: 'JetBrains Mono', Consolas, monospace;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span style="font-size: 18px">🧪</span>
+      <h1>Node 实验室</h1>
+      <small>演示 UI 应用通过 preload 拿到的 Node.js 能力</small>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="sys">系统信息</button>
+      <button class="tab-btn" data-tab="fs">文件系统</button>
+      <button class="tab-btn" data-tab="net">网络（HTTP / DNS）</button>
+      <button class="tab-btn" data-tab="shell">Shell</button>
+      <button class="tab-btn" data-tab="env">环境变量</button>
+    </nav>
+
+    <main>
+      <!-- 系统信息 -->
+      <section id="tab-sys" class="tab active">
+        <div class="card">
+          <h2>运行时 + 硬件</h2>
+          <div class="desc">
+            通过 <code>os</code> 与 <code>process</code> 读取当前电脑信息。浏览器 JS
+            是永远拿不到这些的。
+          </div>
+          <button class="action" id="btn-sysinfo">读取系统信息</button>
+          <div class="status-line" id="sys-status"></div>
+          <dl class="kv-grid" id="sys-grid" style="margin-top: 12px"></dl>
+        </div>
+      </section>
+
+      <!-- 文件系统 -->
+      <section id="tab-fs" class="tab">
+        <div class="card">
+          <h2>列目录 / 查看文件信息</h2>
+          <div class="desc">
+            输入一个绝对路径。为方便测试，初始值取你的 home 目录。
+          </div>
+          <div class="row">
+            <label>路径</label>
+            <input type="text" id="fs-path" />
+            <button class="action" id="btn-fs-stat">stat</button>
+            <button class="action" id="btn-fs-ls">列目录</button>
+          </div>
+          <pre class="output empty" id="fs-output">（尚未运行）</pre>
+          <div class="status-line" id="fs-status"></div>
+        </div>
+
+        <div class="card">
+          <h2>读 / 写文本文件</h2>
+          <div class="desc">
+            宿主 preload 提供的 <code>window.AIBricks.fs.pickFile</code>
+            能弹原生文件选择器；读到路径后交给 <code>window.nodeLab.fs.readText</code> 读内容。
+            写入直接落在指定路径，请小心使用。
+          </div>
+          <div class="row">
+            <label>文件</label>
+            <input type="text" id="fs-file" placeholder="点击「选择文件」或手动输入绝对路径" />
+            <button class="action secondary" id="btn-fs-pick">选择文件</button>
+            <button class="action" id="btn-fs-read">读取</button>
+          </div>
+          <textarea id="fs-content" rows="8" placeholder="读取到的内容 / 准备写入的内容"></textarea>
+          <div class="row" style="margin-top: 8px">
+            <label></label>
+            <button class="action" id="btn-fs-write">写入</button>
+            <span class="status-line" id="fs-rw-status"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 网络 -->
+      <section id="tab-net" class="tab">
+        <div class="card">
+          <h2>HTTP 请求</h2>
+          <div class="desc">
+            preload 里用 Node 的全局 <code>fetch</code>
+            发请求，完全不受渲染进程的 CORS 限制——能访问任何主机，包括没开 CORS 的
+            API。这就是桌面应用相对纯 Web 的核心优势之一。
+          </div>
+          <div class="row">
+            <label>URL</label>
+            <input
+              type="text"
+              id="http-url"
+              value="https://httpbin.org/get?from=brickly"
+            />
+          </div>
+          <div class="row">
+            <label>方法</label>
+            <select id="http-method" style="max-width: 140px">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>DELETE</option>
+            </select>
+            <button class="action" id="btn-http">发送</button>
+            <span class="status-line" id="http-status"></span>
+          </div>
+          <div class="row">
+            <label>Body</label>
+            <textarea id="http-body" rows="3" placeholder="JSON 字符串，GET 会被忽略"></textarea>
+          </div>
+          <pre class="output empty" id="http-output">（尚未运行）</pre>
+        </div>
+
+        <div class="card">
+          <h2>DNS 解析</h2>
+          <div class="desc">
+            <code>node:dns</code> 里 resolve4 / resolve6 不经过浏览器拦截，
+            能直接查到运营商视角的 A / AAAA 记录。
+          </div>
+          <div class="row">
+            <label>域名</label>
+            <input type="text" id="dns-host" value="www.cloudflare.com" />
+            <button class="action" id="btn-dns">解析</button>
+            <span class="status-line" id="dns-status"></span>
+          </div>
+          <pre class="output empty" id="dns-output">（尚未运行）</pre>
+        </div>
+      </section>
+
+      <!-- Shell -->
+      <section id="tab-shell" class="tab">
+        <div class="card">
+          <h2>执行命令</h2>
+          <div class="desc">
+            通过 <code>child_process.exec</code> 运行任意系统命令。
+            <strong style="color: var(--warn)"
+              >⚠ 这是 Node 应用最危险的能力，生产环境必须做白名单 / 参数校验。</strong
+            >
+            本 demo 只用来演示。
+          </div>
+          <div class="row">
+            <label>命令</label>
+            <input
+              type="text"
+              id="sh-cmd"
+              placeholder="如 dir（Windows）、ls -la（macOS/Linux）"
+            />
+            <button class="action" id="btn-sh">执行</button>
+          </div>
+          <pre class="output empty" id="sh-output">（尚未运行）</pre>
+          <div class="status-line" id="sh-status"></div>
+        </div>
+      </section>
+
+      <!-- 环境变量 -->
+      <section id="tab-env" class="tab">
+        <div class="card">
+          <h2>process.env</h2>
+          <div class="desc">
+            注意：环境变量里可能含凭据（AWS_SECRET / DB_PASSWORD 等），
+            生产应用不要把原始 env 直接展示给用户。
+          </div>
+          <div class="row">
+            <label>过滤</label>
+            <input
+              type="text"
+              id="env-filter"
+              placeholder="留空则显示全部；输入 PATH 则只显示包含 PATH 的 key/value"
+            />
+            <button class="action" id="btn-env">读取</button>
+          </div>
+          <pre class="output empty" id="env-output">（尚未运行）</pre>
+          <div class="status-line" id="env-status"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id)
+
+      if (!window.nodeLab) {
+        document.body.innerHTML =
+          '<div style="padding:30px;color:#ef4444">window.nodeLab 未加载：应用 preload 失败。</div>'
+        throw new Error('no nodeLab')
+      }
+
+      // 初始化文件系统的默认路径
+      $('fs-path').value = window.nodeLab.paths.home()
+
+      // ——— 标签切换 ———
+      for (const b of document.querySelectorAll('.tab-btn')) {
+        b.addEventListener('click', () => {
+          for (const x of document.querySelectorAll('.tab-btn')) x.classList.remove('active')
+          for (const x of document.querySelectorAll('section.tab')) x.classList.remove('active')
+          b.classList.add('active')
+          document.getElementById('tab-' + b.dataset.tab).classList.add('active')
+        })
+      }
+
+      // 通用：把 JSON/字符串塞进 pre
+      function render(pre, data) {
+        pre.classList.remove('empty')
+        pre.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+      }
+
+      function setStatus(el, text, kind) {
+        el.className = 'status-line ' + (kind || '')
+        el.textContent = text
+      }
+
+      async function guard(fn, statusEl) {
+        setStatus(statusEl, '运行中…')
+        const t0 = performance.now()
+        try {
+          const result = await fn()
+          const ms = Math.round(performance.now() - t0)
+          setStatus(statusEl, `成功 · ${ms}ms`, 'ok')
+          return result
+        } catch (err) {
+          setStatus(statusEl, '失败：' + (err?.message ?? String(err)), 'err')
+          throw err
+        }
+      }
+
+      // ——— 系统信息 ———
+      $('btn-sysinfo').onclick = async () => {
+        const info = await guard(() => window.nodeLab.sys.info(), $('sys-status'))
+        const grid = $('sys-grid')
+        grid.innerHTML = Object.entries(info)
+          .map(([k, v]) => {
+            const val = Array.isArray(v) ? v.join(', ') : v
+            return `<dt>${k}</dt><dd>${val}</dd>`
+          })
+          .join('')
+      }
+
+      // ——— 文件系统 ———
+      $('btn-fs-stat').onclick = async () => {
+        try {
+          const r = await guard(
+            () => window.nodeLab.fs.stat($('fs-path').value),
+            $('fs-status')
+          )
+          render($('fs-output'), r)
+        } catch {}
+      }
+      $('btn-fs-ls').onclick = async () => {
+        try {
+          const r = await guard(
+            () => window.nodeLab.fs.listDir($('fs-path').value),
+            $('fs-status')
+          )
+          render($('fs-output'), r)
+        } catch {}
+      }
+      $('btn-fs-pick').onclick = async () => {
+        // 使用宿主 preload 的文件选择对话框 —— 纯 Web 没法弹原生对话框
+        const p = await window.AIBricks.fs.pickFile?.()
+        if (p) $('fs-file').value = p
+      }
+      $('btn-fs-read').onclick = async () => {
+        try {
+          const text = await guard(
+            () => window.nodeLab.fs.readText($('fs-file').value),
+            $('fs-rw-status')
+          )
+          $('fs-content').value = text
+        } catch {}
+      }
+      $('btn-fs-write').onclick = async () => {
+        if (!$('fs-file').value) return setStatus($('fs-rw-status'), '请先选择路径', 'err')
+        if (!confirm('将覆盖写入到:\n' + $('fs-file').value + '\n\n继续？')) return
+        try {
+          const r = await guard(
+            () => window.nodeLab.fs.writeText($('fs-file').value, $('fs-content').value),
+            $('fs-rw-status')
+          )
+          setStatus($('fs-rw-status'), `写入成功 · ${r.bytes} 字节`, 'ok')
+        } catch {}
+      }
+
+      // ——— HTTP ———
+      $('btn-http').onclick = async () => {
+        try {
+          const r = await guard(
+            () =>
+              window.nodeLab.net.http({
+                url: $('http-url').value,
+                method: $('http-method').value,
+                body: $('http-body').value || undefined
+              }),
+            $('http-status')
+          )
+          render(
+            $('http-output'),
+            `HTTP ${r.status} ${r.statusText}  · ${r.durationMs}ms\n` +
+              Object.entries(r.headers)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join('\n') +
+              '\n\n' +
+              r.body
+          )
+        } catch {}
+      }
+
+      // ——— DNS ———
+      $('btn-dns').onclick = async () => {
+        try {
+          const r = await guard(() => window.nodeLab.net.dns($('dns-host').value), $('dns-status'))
+          render($('dns-output'), r)
+        } catch {}
+      }
+
+      // ——— Shell ———
+      $('sh-cmd').value =
+        window.nodeLab.sys.info().platform === 'win32' ? 'ver' : 'uname -a'
+      $('btn-sh').onclick = async () => {
+        try {
+          const r = await guard(
+            () => window.nodeLab.shell.run($('sh-cmd').value),
+            $('sh-status')
+          )
+          render(
+            $('sh-output'),
+            `exit=${r.code}  · ${r.durationMs}ms\n\n` +
+              '[stdout]\n' +
+              r.stdout +
+              (r.stderr ? '\n[stderr]\n' + r.stderr : '')
+          )
+        } catch {}
+      }
+
+      // ——— Env ———
+      $('btn-env').onclick = async () => {
+        try {
+          const r = await guard(
+            () => window.nodeLab.sys.env($('env-filter').value || undefined),
+            $('env-status')
+          )
+          render($('env-output'), r)
+        } catch {}
+      }
+    </script>
+  </body>
+</html>

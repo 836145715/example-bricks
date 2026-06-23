@@ -1,0 +1,323 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.openai",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "OpenAI",
+    "en": "OpenAI"
+  },
+  "description": {
+    "zh-CN": "通过 OpenAI Responses API 或 Chat Completions API 生成文本，支持 Profile 配置 API Key、Base URL、Organization 与 Project。",
+    "en": "Generate text with OpenAI Responses API or Chat Completions API using profile-based API key, base URL, organization, and project settings."
+  },
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [
+    "net.https",
+    "os.env"
+  ],
+  "config": {
+    "required": true,
+    "fields": [
+      {
+        "name": "apiKey",
+        "label": "OpenAI API Key",
+        "type": "string",
+        "required": true,
+        "secret": true,
+        "env": "OPENAI_API_KEY",
+        "inject": "both",
+        "placeholder": "sk-..."
+      },
+      {
+        "name": "baseUrl",
+        "label": "Base URL",
+        "type": "string",
+        "default": "https://api.openai.com/v1",
+        "env": "OPENAI_BASE_URL",
+        "inject": "both",
+        "placeholder": "https://api.openai.com/v1"
+      },
+      {
+        "name": "organization",
+        "label": "Organization",
+        "type": "string",
+        "env": "OPENAI_ORG_ID",
+        "inject": "both",
+        "placeholder": "org_..."
+      },
+      {
+        "name": "project",
+        "label": "Project",
+        "type": "string",
+        "env": "OPENAI_PROJECT_ID",
+        "inject": "both",
+        "placeholder": "proj_..."
+      },
+      {
+        "name": "defaultModel",
+        "label": "Default model",
+        "type": "string",
+        "default": "gpt-5",
+        "placeholder": "gpt-5"
+      }
+    ]
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "openai",
+    "responses",
+    "chat",
+    "llm",
+    "ai"
+  ],
+  "categories": [
+    "ai-models",
+    "developer-tools"
+  ],
+  "commands": [
+    {
+      "id": "responses",
+      "name": {
+        "zh-CN": "Responses API",
+        "en": "Responses API"
+      },
+      "description": {
+        "zh-CN": "调用 OpenAI /v1/responses。适合新项目、状态化对话、多模态输入、工具调用与结构化输出；可用 extraBody 透传高级参数。",
+        "en": "Call OpenAI /v1/responses. Use for new projects, stateful conversations, multimodal input, tool use, and structured outputs; pass advanced parameters through extraBody."
+      },
+      "category": "openai",
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "label": "Input",
+            "type": "string",
+            "required": true,
+            "multiline": true,
+            "placeholder": "Ask the model anything..."
+          },
+          {
+            "name": "model",
+            "label": "Model",
+            "type": "string",
+            "placeholder": "gpt-5"
+          },
+          {
+            "name": "instructions",
+            "label": "Instructions",
+            "type": "string",
+            "multiline": true,
+            "placeholder": "You are a helpful assistant."
+          },
+          {
+            "name": "previousResponseId",
+            "label": "Previous response ID",
+            "type": "string",
+            "placeholder": "resp_..."
+          },
+          {
+            "name": "maxOutputTokens",
+            "label": "Max output tokens",
+            "type": "number",
+            "min": 1,
+            "max": 128000,
+            "control": "input"
+          },
+          {
+            "name": "temperature",
+            "label": "Temperature",
+            "type": "number",
+            "min": 0,
+            "max": 2,
+            "step": 0.1
+          },
+          {
+            "name": "stream",
+            "label": "Stream",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "extraBody",
+            "label": "Extra body",
+            "type": "json",
+            "description": "Optional JSON object merged into the request body for tools, response_format, metadata, reasoning, etc."
+          }
+        ],
+        "outputs": [
+          {
+            "name": "text",
+            "type": "string"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          },
+          {
+            "name": "usage",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true,
+        "submitLabel": "Generate"
+      },
+      "examples": [
+        {
+          "title": "Simple response",
+          "input": {
+            "input": "Write a concise product tagline for a local-first automation app.",
+            "model": "gpt-5"
+          }
+        },
+        {
+          "title": "Structured output",
+          "input": {
+            "input": "Extract name and city from: Ada lives in London.",
+            "extraBody": {
+              "text": {
+                "format": {
+                  "type": "json_object"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "llm": {
+        "requireApproval": "high-risk",
+        "tags": [
+          "openai",
+          "responses",
+          "generation"
+        ],
+        "hint": "Requires an OpenAI API key configured in the selected plugin Profile. Network calls may incur OpenAI API costs."
+      }
+    },
+    {
+      "id": "chat-completions",
+      "name": {
+        "zh-CN": "Chat Completions",
+        "en": "Chat Completions"
+      },
+      "description": {
+        "zh-CN": "调用 OpenAI /v1/chat/completions。适合兼容旧式 messages 工作流；新项目优先使用 Responses API。",
+        "en": "Call OpenAI /v1/chat/completions. Use for compatibility with message-based workflows; prefer Responses API for new projects."
+      },
+      "category": "openai",
+      "io": {
+        "inputs": [
+          {
+            "name": "messages",
+            "label": "Messages",
+            "type": "json",
+            "required": true,
+            "description": "Array of chat messages, for example [{\"role\":\"user\",\"content\":\"Hello\"}]."
+          },
+          {
+            "name": "model",
+            "label": "Model",
+            "type": "string",
+            "placeholder": "gpt-5"
+          },
+          {
+            "name": "maxCompletionTokens",
+            "label": "Max completion tokens",
+            "type": "number",
+            "min": 1,
+            "max": 128000,
+            "control": "input"
+          },
+          {
+            "name": "temperature",
+            "label": "Temperature",
+            "type": "number",
+            "min": 0,
+            "max": 2,
+            "step": 0.1
+          },
+          {
+            "name": "stream",
+            "label": "Stream",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "store",
+            "label": "Store",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "extraBody",
+            "label": "Extra body",
+            "type": "json",
+            "description": "Optional JSON object merged into the request body for tools, response_format, metadata, service_tier, etc."
+          }
+        ],
+        "outputs": [
+          {
+            "name": "text",
+            "type": "string"
+          },
+          {
+            "name": "message",
+            "type": "json"
+          },
+          {
+            "name": "response",
+            "type": "json"
+          },
+          {
+            "name": "usage",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true,
+        "submitLabel": "Generate"
+      },
+      "examples": [
+        {
+          "title": "Simple chat",
+          "input": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "Write one sentence about Brickly."
+              }
+            ],
+            "model": "gpt-5"
+          }
+        }
+      ],
+      "llm": {
+        "requireApproval": "high-risk",
+        "tags": [
+          "openai",
+          "chat-completions",
+          "generation"
+        ],
+        "hint": "Requires an OpenAI API key configured in the selected plugin Profile. Network calls may incur OpenAI API costs."
+      }
+    }
+  ]
+}

@@ -1,0 +1,309 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.local-search",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "本地搜索",
+    "en": "Local Search"
+  },
+  "description": {
+    "zh-CN": "基于 Everything SDK 的 Windows 本地文件搜索 Brick，提供分类、分页、排序和自定义搜索界面。",
+    "en": "Windows local file search powered by Everything SDK with categories, paging, sorting and a custom UI."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "search",
+    "everything",
+    "files",
+    "local"
+  ],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "quickSearch": {
+    "providers": [
+      {
+        "id": "files",
+        "title": {
+          "zh-CN": "本地文件",
+          "en": "Local Files"
+        },
+        "category": "file",
+        "searchCommand": "quick-search",
+        "activateCommand": "quick-search-open",
+        "priority": 64,
+        "timeoutMs": 900,
+        "maxResults": 8,
+        "minQueryLength": 1
+      }
+    ]
+  },
+  "author": {
+    "name": "Brickly"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe"
+    }
+  },
+  "lifecycle": {
+    "mode": "service",
+    "scope": "profile",
+    "concurrency": "queue",
+    "maxLifetimeMs": 0,
+    "restart": "on-failure",
+    "maxRestarts": 3,
+    "backoffMs": 2000
+  },
+  "permissions": [
+    "fs.read",
+    "os.exec"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1040,
+      "height": 680,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
+  "commands": [
+    {
+      "id": "search",
+      "name": {
+        "zh-CN": "搜索文件",
+        "en": "Search Files"
+      },
+      "description": "使用 Everything 索引执行本地文件搜索，支持分类、分页、排序和基础文件元数据。",
+      "category": "search",
+      "io": {
+        "inputs": [
+          {
+            "name": "query",
+            "label": "关键词",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "category",
+            "label": "分类",
+            "type": "string",
+            "default": "all",
+            "enum": [
+              "all",
+              "file",
+              "folder",
+              "excel",
+              "word",
+              "ppt",
+              "pdf",
+              "image",
+              "video",
+              "audio",
+              "archive"
+            ]
+          },
+          {
+            "name": "offset",
+            "label": "偏移",
+            "type": "number",
+            "default": 0,
+            "min": 0
+          },
+          {
+            "name": "limit",
+            "label": "数量",
+            "type": "number",
+            "default": 50,
+            "min": 1,
+            "max": 200
+          },
+          {
+            "name": "sort",
+            "label": "排序",
+            "type": "string",
+            "default": "date_desc",
+            "enum": [
+              "name_asc",
+              "name_desc",
+              "date_asc",
+              "date_desc",
+              "path_asc",
+              "path_desc",
+              "size_asc",
+              "size_desc",
+              "ext_asc",
+              "ext_desc"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "timeoutMs": 10000
+    },
+    {
+      "id": "health",
+      "name": {
+        "zh-CN": "运行状态",
+        "en": "Health"
+      },
+      "description": "检查本地搜索 Brick 的平台、Everything DLL 和 IPC 可用性。",
+      "category": "diagnostics",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      },
+      "timeoutMs": 5000
+    },
+    {
+      "id": "preview",
+      "name": {
+        "zh-CN": "预览文件",
+        "en": "Preview File"
+      },
+      "description": "按受限大小读取文件预览信息，支持文本、图片、PDF、音视频、ZIP、DOCX 和 XLSX。",
+      "category": "files",
+      "permissions": [
+        "fs.read"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "path",
+            "label": "文件路径",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "maxBytes",
+            "label": "最大读取字节数",
+            "type": "number",
+            "default": 20480,
+            "min": 1,
+            "max": 20480
+          },
+          {
+            "name": "maxEntries",
+            "label": "最大归档条目数",
+            "type": "number",
+            "default": 80,
+            "min": 1,
+            "max": 200
+          }
+        ],
+        "outputs": [
+          {
+            "name": "preview",
+            "type": "json"
+          }
+        ]
+      },
+      "timeoutMs": 8000
+    },
+    {
+      "id": "quick-search",
+      "name": {
+        "zh-CN": "快速搜索本地文件",
+        "en": "Quick Search Local Files"
+      },
+      "description": "为宿主快速搜索浮窗返回轻量本地文件结果。",
+      "hidden": true,
+      "category": "quick-search",
+      "io": {
+        "inputs": [
+          {
+            "name": "providerId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "sequence",
+            "type": "number"
+          },
+          {
+            "name": "limit",
+            "type": "number",
+            "default": 8,
+            "min": 1,
+            "max": 20
+          }
+        ],
+        "outputs": [
+          {
+            "name": "results",
+            "type": "json"
+          }
+        ]
+      },
+      "timeoutMs": 1200
+    },
+    {
+      "id": "quick-search-open",
+      "name": {
+        "zh-CN": "打开快速搜索文件",
+        "en": "Open Quick Search File"
+      },
+      "description": "打开或定位宿主快速搜索选中的本地文件结果。",
+      "hidden": true,
+      "category": "quick-search",
+      "permissions": [
+        "os.exec"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "providerId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "result",
+            "type": "json",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      },
+      "timeoutMs": 3000
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    }
+  ]
+}

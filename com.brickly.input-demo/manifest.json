@@ -1,0 +1,270 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.input-demo",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "模拟输入测试",
+    "en": "Input Simulation Demo"
+  },
+  "description": {
+    "zh-CN": "用于测试 host.platform.input.* 的键盘敲击、短文本输入和鼠标动作。",
+    "en": "Demo brick for testing host.platform.input.* keyboard and mouse actions."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [
+    "os.input"
+  ],
+  "trustLevel": "community",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "input",
+    "keyboard",
+    "mouse",
+    "simulate",
+    "测试"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "id": "keyboard-tap",
+      "name": {
+        "zh-CN": "模拟按键",
+        "en": "Keyboard Tap"
+      },
+      "description": {
+        "zh-CN": "延迟后模拟一次或多次键盘敲击。运行后请把焦点切到目标输入框。",
+        "en": "Simulate one or more keyboard taps after a delay."
+      },
+      "category": "input",
+      "io": {
+        "inputs": [
+          {
+            "name": "key",
+            "label": "按键",
+            "type": "string",
+            "required": true,
+            "default": "a",
+            "placeholder": "a / enter / escape / space / f5"
+          },
+          {
+            "name": "modifiers",
+            "label": "修饰键",
+            "type": "string",
+            "default": "",
+            "placeholder": "ctrl, alt, shift, command"
+          },
+          {
+            "name": "repeat",
+            "label": "重复次数",
+            "type": "number",
+            "default": 1,
+            "min": 1,
+            "max": 20,
+            "step": 1
+          },
+          {
+            "name": "delayMs",
+            "label": "开始前延迟 (ms)",
+            "type": "number",
+            "default": 2000,
+            "min": 0,
+            "max": 10000,
+            "step": 100
+          },
+          {
+            "name": "intervalMs",
+            "label": "重复间隔 (ms)",
+            "type": "number",
+            "default": 120,
+            "min": 20,
+            "max": 2000,
+            "step": 20
+          }
+        ],
+        "outputs": [
+          {
+            "name": "report",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true,
+        "submitLabel": "开始按键"
+      },
+      "examples": [
+        {
+          "title": "输入 a",
+          "input": {
+            "key": "a",
+            "modifiers": "",
+            "repeat": 1,
+            "delayMs": 2000,
+            "intervalMs": 120
+          }
+        },
+        {
+          "title": "粘贴快捷键",
+          "input": {
+            "key": "v",
+            "modifiers": "ctrl",
+            "repeat": 1,
+            "delayMs": 2000,
+            "intervalMs": 120
+          }
+        }
+      ]
+    },
+    {
+      "id": "type-text",
+      "name": {
+        "zh-CN": "输入短文本",
+        "en": "Type Text"
+      },
+      "description": {
+        "zh-CN": "把短文本拆成多次 keyboardTap 发送，适合在记事本或输入框中验证效果。",
+        "en": "Type short text by sending a keyboardTap for each character."
+      },
+      "category": "input",
+      "io": {
+        "inputs": [
+          {
+            "name": "text",
+            "label": "文本",
+            "type": "string",
+            "required": true,
+            "default": "hello brickly 123",
+            "placeholder": "hello brickly 123"
+          },
+          {
+            "name": "delayMs",
+            "label": "开始前延迟 (ms)",
+            "type": "number",
+            "default": 2500,
+            "min": 0,
+            "max": 10000,
+            "step": 100
+          },
+          {
+            "name": "intervalMs",
+            "label": "字符间隔 (ms)",
+            "type": "number",
+            "default": 80,
+            "min": 20,
+            "max": 1000,
+            "step": 20
+          }
+        ],
+        "outputs": [
+          {
+            "name": "report",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true,
+        "submitLabel": "开始输入"
+      },
+      "examples": [
+        {
+          "title": "记事本测试",
+          "input": {
+            "text": "hello brickly 123",
+            "delayMs": 2500,
+            "intervalMs": 80
+          }
+        }
+      ]
+    },
+    {
+      "id": "mouse-action",
+      "name": {
+        "zh-CN": "模拟鼠标动作",
+        "en": "Mouse Action"
+      },
+      "description": {
+        "zh-CN": "延迟后把鼠标移动到屏幕坐标，并可执行左键、双击或右键点击。",
+        "en": "Move the mouse to a screen coordinate and optionally click."
+      },
+      "category": "input",
+      "io": {
+        "inputs": [
+          {
+            "name": "action",
+            "label": "动作",
+            "type": "string",
+            "required": true,
+            "default": "move",
+            "enum": [
+              "move",
+              "left-click",
+              "double-click",
+              "right-click"
+            ]
+          },
+          {
+            "name": "x",
+            "label": "屏幕 X",
+            "type": "number",
+            "required": true,
+            "default": 100,
+            "min": -10000,
+            "max": 10000,
+            "step": 1,
+            "control": "input"
+          },
+          {
+            "name": "y",
+            "label": "屏幕 Y",
+            "type": "number",
+            "required": true,
+            "default": 100,
+            "min": -10000,
+            "max": 10000,
+            "step": 1,
+            "control": "input"
+          },
+          {
+            "name": "delayMs",
+            "label": "开始前延迟 (ms)",
+            "type": "number",
+            "default": 2000,
+            "min": 0,
+            "max": 10000,
+            "step": 100
+          }
+        ],
+        "outputs": [
+          {
+            "name": "report",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true,
+        "submitLabel": "执行鼠标动作"
+      }
+    }
+  ]
+}

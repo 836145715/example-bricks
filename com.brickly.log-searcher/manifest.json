@@ -1,0 +1,339 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.log-searcher",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "日志查询工具",
+    "en": "Log Searcher"
+  },
+  "description": {
+    "zh-CN": "基于 Go Runtime + SSH 原生库的日志检索工具，支持本地及远程日志的流式 grep 查询与管理。",
+    "en": "Log search tool powered by Go native runtime and SSH library, supporting local & remote log grep streaming."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "log",
+    "grep",
+    "ssh",
+    "remote",
+    "searcher"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Antigravity"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64",
+      "mac-arm64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "mac-arm64": "bin/mac-arm64/brick"
+    }
+  },
+  "permissions": [
+    "fs.read",
+    "fs.write",
+    "net.tcp"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1100,
+      "height": 760,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
+  "commands": [
+    {
+      "id": "search",
+      "name": "流式搜索日志",
+      "description": {
+        "zh-CN": "检索指定服务器的本地或远程日志，支持文件列表、链式过滤、grep 选项和流式日志行输出。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "serverId",
+            "label": "服务器 ID",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "pattern",
+            "label": "主检索关键词",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "files",
+            "label": "日志文件列表",
+            "type": "json",
+            "required": false,
+            "description": "可选。具体日志文件路径数组；不传时使用服务器配置中已启用的日志路径。"
+          },
+          {
+            "name": "filters",
+            "label": "链式过滤条件",
+            "type": "json",
+            "required": false,
+            "description": "可选。按顺序继续过滤结果的条件数组，每项支持 pattern、regexp、ignoreCase、invert、wordRegexp。等价于 grep 管道的 AND 过滤。"
+          },
+          {
+            "name": "args",
+            "label": "Grep 选项",
+            "type": "json",
+            "required": false,
+            "description": "可选。grep 行为选项：ignoreCase、invert、wordRegexp、regexp、contextA/contextB/contextC、onlyMatch、maxCount、showLineNum、showFilename、fromTail、tailLines。maxCount 表示每文件保留最新 N 条命中并按日志原始顺序输出，不等价于 grep -m。兼容旧调用，也可在 args.filters 传链式过滤。"
+          },
+          {
+            "name": "resultMode",
+            "label": "结果模式",
+            "type": "string",
+            "required": false,
+            "description": "可选。传 store 时结果存储在 Go runtime 内存中，流式输出 searchState 状态，前端通过 peek_search_results 按窗口读取；不传时保持兼容的 logLine 流式输出。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "logLine",
+            "label": "日志行",
+            "type": "json",
+            "description": "流式输出的日志行对象，包含 text、matches、file、isContext、error；file 用于多文件结果分组，error 为可选文件级错误信息，matches 为主检索词及正向链式过滤词在 text 中的高亮区间 [start, end)，单位为 UTF-16 code unit，可直接用于浏览器字符串 slice。"
+          },
+          {
+            "name": "searchState",
+            "label": "存储模式状态",
+            "type": "json",
+            "description": "resultMode=store 时输出的轻量状态对象，包含 runId、tabs、files、status、total、durationMs、truncated 等字段。"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true
+      }
+    },
+    {
+      "id": "peek_search_results",
+      "name": "读取搜索结果窗口",
+      "description": {
+        "zh-CN": "从 Go runtime 内存结果仓库中读取指定服务器、run 和文件 Tab 的窗口数据。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "serverId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "runId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "tabId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "offset",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "limit",
+            "type": "number",
+            "required": false,
+            "description": "默认 100，最大 1000。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "包含 runId、tabId、total、offset、lines、status、message、durationMs、truncated。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "clear_search_results",
+      "name": "清理搜索结果",
+      "description": {
+        "zh-CN": "清理指定服务器在 Go runtime 内存中的搜索结果，并取消该服务器仍在执行的存储模式搜索。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "serverId",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "find_search_results",
+      "name": "定位搜索结果命中",
+      "description": {
+        "zh-CN": "在 Go runtime 内存结果仓库中查找当前文件 Tab 的上一个或下一个文本命中，并返回可滚动定位的行号和高亮区间。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "serverId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "runId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "tabId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "keyword",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "direction",
+            "type": "string",
+            "required": false,
+            "description": "next 或 prev，默认 next。"
+          },
+          {
+            "name": "fromLine",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "fromColumn",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "ignoreCase",
+            "type": "boolean",
+            "required": false,
+            "description": "默认 true。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "包含 runId、tabId、keyword、total、ordinal、lineIndex、start、end、status、message、durationMs、truncated。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "load_config",
+      "name": "读取日志配置",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "config",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "save_config",
+      "name": "保存日志配置",
+      "io": {
+        "inputs": [
+          {
+            "name": "config",
+            "type": "json",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "test_connection",
+      "name": "测试日志连接",
+      "description": {
+        "zh-CN": "测试本地日志路径或 SSH 服务器连接是否可用，可直接传未保存的服务器配置。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "server",
+            "label": "服务器配置",
+            "type": "json",
+            "required": true,
+            "description": "ServerConfig 对象，支持 local 和 ssh；ssh 会尝试实际登录，local 会检查启用的日志路径。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "filesCount",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "list_log_files",
+      "name": "列出日志文件",
+      "io": {
+        "inputs": [
+          {
+            "name": "serverId",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "files",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ]
+}

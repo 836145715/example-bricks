@@ -1,0 +1,176 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.example.render-gallery",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "渲染画廊",
+    "en": "Render Gallery"
+  },
+  "description": {
+    "zh-CN": "覆盖 Markdown、文本、JSON、表格、图片、文件、音频、视频和 resource 输出渲染的示例 Brick。",
+    "en": "Demo plugin covering Markdown, text, JSON, table, image, file, audio, video, and resource renderers."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "demo",
+    "render",
+    "markdown",
+    "image",
+    "file",
+    "resource"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [
+    "resource.register"
+  ],
+  "trustLevel": "community",
+  "ui": {
+    "type": "none"
+  },
+  "commands": [
+    {
+      "id": "show-all",
+      "name": {
+        "zh-CN": "展示全部类型",
+        "en": "Show All Types"
+      },
+      "description": {
+        "zh-CN": "一次性输出所有常用渲染类型，用于检查结果区和多输出 Tab。",
+        "en": "Emit every common renderer type in one command."
+      },
+      "category": "gallery",
+      "io": {
+        "inputs": [
+          {
+            "name": "title",
+            "label": "标题",
+            "type": "string",
+            "required": true,
+            "default": "Brickly Render Gallery"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "markdown",
+            "label": "Markdown",
+            "type": "string",
+            "format": "markdown"
+          },
+          {
+            "name": "text",
+            "label": "纯文本",
+            "type": "string",
+            "format": "text"
+          },
+          {
+            "name": "code",
+            "label": "代码",
+            "type": "string",
+            "format": "code",
+            "language": "javascript"
+          },
+          {
+            "name": "json",
+            "label": "JSON",
+            "type": "json"
+          },
+          {
+            "name": "table",
+            "label": "表格",
+            "type": "json",
+            "format": "table"
+          },
+          {
+            "name": "imageDataUrl",
+            "label": "图片 data URL",
+            "type": "image",
+            "format": "image"
+          },
+          {
+            "name": "imageFile",
+            "label": "图片文件",
+            "type": "image",
+            "format": "image"
+          },
+          {
+            "name": "file",
+            "label": "文件",
+            "type": "file",
+            "format": "file"
+          },
+          {
+            "name": "audio",
+            "label": "音频",
+            "type": "audio",
+            "format": "audio"
+          },
+          {
+            "name": "video",
+            "label": "视频",
+            "type": "video",
+            "format": "video"
+          },
+          {
+            "name": "resource",
+            "label": "Resource",
+            "type": "any",
+            "format": "resource"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": false,
+        "submitLabel": "生成画廊"
+      },
+      "examples": [
+        {
+          "title": "默认画廊",
+          "input": {
+            "title": "Brickly Render Gallery"
+          }
+        }
+      ]
+    },
+    {
+      "id": "single-image",
+      "name": {
+        "zh-CN": "单图预览",
+        "en": "Single Image"
+      },
+      "description": "只返回一张 data URL 图片，方便测试单输出结果区。",
+      "category": "gallery",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "image",
+            "type": "image",
+            "format": "image"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": false,
+        "submitLabel": "生成图片"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
+  <title>万能图片工具箱</title>
+  <style>
+    :root {
+      --bg-color: #0b0e14;
+      --panel-bg: rgba(21, 25, 34, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary-color: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1, #3b82f6);
+      --primary-glow: rgba(99, 102, 241, 0.4);
+      --success-color: #10b981;
+      --error-color: #ef4444;
+      --card-bg: rgba(30, 41, 59, 0.4);
+      --active-bg: rgba(99, 102, 241, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 整体框架 */
+    .container {
+      display: flex;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 左侧功能侧边栏 */
+    .sidebar {
+      width: 200px;
+      background: rgba(15, 18, 25, 0.95);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 12px 6px;
+      gap: 4px;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      font-weight: bold;
+    }
+
+    .sidebar-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.25s ease;
+      font-size: 13.5px;
+      border: 1px solid transparent;
+    }
+
+    .sidebar-menu-item:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .sidebar-menu-item.active {
+      color: #ffffff;
+      background: var(--active-bg);
+      border-color: rgba(99, 102, 241, 0.3);
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+    }
+
+    .sidebar-menu-item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      stroke: currentColor;
+    }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 8px 12px;
+    }
+
+    /* 中间配置区 */
+    .config-panel {
+      width: 340px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .config-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-group {
+      margin-bottom: 20px;
+    }
+
+    .config-label {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: block;
+      font-weight: 500;
+    }
+
+    /* 自定义表单控件 */
+    .input-text, .input-select {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: #ffffff;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .input-text:focus, .input-select:focus {
+      border-color: var(--primary-color);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* 滑块控件 */
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-value {
+      font-size: 13px;
+      font-weight: bold;
+      color: var(--primary-color);
+      background: rgba(99, 102, 241, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .input-range {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+
+    .input-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid var(--primary-color);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.1s ease;
+    }
+
+    .input-range::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .input-range::-webkit-slider-runnable-track {
+      background: linear-gradient(to right, var(--primary-color) 0%, var(--primary-color) var(--val, 50%), rgba(255, 255, 255, 0.1) var(--val, 50%));
+      height: 6px;
+      border-radius: 3px;
+    }
+
+    .form-tip {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .checkbox-input {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.04);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      appearance: none;
+      outline: none;
+    }
+
+    .checkbox-input:checked {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+
+    .checkbox-input:checked::before {
+      content: "✓";
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    /* 右侧主预览面板 */
+    .preview-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #0f1218;
+      position: relative;
+    }
+
+    /* 拖放区域 */
+    .dropzone {
+      flex: 1;
+      margin: 20px;
+      border: 2px dashed rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.01);
+      gap: 16px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--primary-color);
+      background: rgba(99, 102, 241, 0.03);
+      box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.05);
+    }
+
+    .dropzone-icon {
+      width: 54px;
+      height: 54px;
+      stroke: var(--text-muted);
+      stroke-width: 1.5;
+      transition: all 0.3s ease;
+    }
+
+    .dropzone:hover .dropzone-icon {
+      stroke: var(--primary-color);
+      transform: scale(1.1);
+    }
+
+    .btn-select {
+      background: var(--primary-gradient);
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px var(--primary-glow);
+      transition: all 0.2s ease;
+      font-size: 13.5px;
+    }
+
+    .btn-select:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px var(--primary-glow);
+    }
+
+    /* 选中图片预览网格 */
+    .files-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 16px;
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 20px;
+      align-content: start;
+    }
+
+    .file-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 1;
+      group-hover: scale(1.05);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .file-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .file-thumbnail {
+      flex: 1;
+      width: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #090b0f;
+    }
+
+    .file-info {
+      font-size: 11px;
+      margin-top: 6px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      color: var(--text-main);
+    }
+
+    .file-size {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .btn-delete-card {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #ef4444;
+      border: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      backdrop-filter: blur(4px);
+    }
+
+    /* 单图高保真预览带手动裁剪 */
+    .single-preview-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .single-preview-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      background: #090b0f;
+      display: block;
+    }
+
+    /* 裁剪遮罩裁剪框 */
+    .cropper-wrapper {
+      position: absolute;
+      display: none;
+      border: 2px solid #3b82f6;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+      cursor: move;
+      border-radius: 0;
+    }
+
+    .cropper-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #ffffff;
+      border: 2px solid #3b82f6;
+      border-radius: 50%;
+    }
+
+    .h-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+    .h-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+    .h-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+    .h-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+
+    /* 底部操作栏 */
+    .action-bar {
+      height: 68px;
+      background: rgba(15, 18, 25, 0.95);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+    }
+
+    .control-icons {
+      display: flex;
+      gap: 16px;
+    }
+
+    .icon-button {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .icon-button:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .icon-button svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+    }
+
+    .btn-start {
+      background: var(--primary-gradient);
+      color: #ffffff;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 14px var(--primary-glow);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-size: 14.5px;
+    }
+
+    .btn-start:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px var(--primary-glow);
+    }
+
+    .btn-start svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+    }
+
+    /* 进度遮罩 */
+    .progress-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(11, 14, 20, 0.9);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .progress-spinner {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--primary-color);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .progress-bar-container {
+      width: 280px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary-gradient);
+      border-radius: 3px;
+      transition: width 0.15s ease;
+    }
+
+    .progress-text {
+      font-size: 14px;
+      color: var(--text-main);
+      font-weight: bold;
+    }
+
+    .progress-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Toast */
+    .toast {
+      position: absolute;
+      bottom: 84px;
+      right: 24px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      color: white;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-success {
+      background: #059669;
+    }
+
+    .toast-error {
+      background: #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 左侧 13 个功能菜单 -->
+    <div class="sidebar">
+      <div class="sidebar-title">单图操作</div>
+      <div class="sidebar-menu-item active" data-action="compress">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h16v6H4zM4 4h16v6H4zM12 10v4M12 14l-3-3M12 14l3-3"/></svg>
+        <span>图片压缩</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="convert">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.82 2.82 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        <span>格式转换</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="resize">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M21 9H3M21 15H3M12 3v18"/></svg>
+        <span>修改尺寸</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="watermark">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+        <span>添加水印</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="roundedCorners">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4" ry="4"/></svg>
+        <span>添加圆角</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="padding">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M7 7h10v10H7z"/></svg>
+        <span>补边留白</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="crop">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>
+        <span>裁剪区域</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="rotate">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        <span>旋转角度</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="flip">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M22 6L18 12L22 18M2 6l4 6l-4 6"/></svg>
+        <span>镜像翻转</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="manualCrop">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20M12 2v20M5 5h14v14H5z"/></svg>
+        <span>手动裁剪</span>
+      </div>
+
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-title">多图合并</div>
+
+      <div class="sidebar-menu-item" data-action="join">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M12 3v18"/></svg>
+        <span>合并为图片</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="pdf">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
+        <span>合并为 PDF</span>
+      </div>
+      <div class="sidebar-menu-item" data-action="gif">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M12 8v8M8 12h8"/></svg>
+        <span>合并为 GIF</span>
+      </div>
+    </div>
+
+    <!-- 中间动态配置区 -->
+    <div class="config-panel" id="config-panel">
+      <!-- 动态填充的表单项 -->
+    </div>
+
+    <!-- 右侧图片主预览 -->
+    <div class="preview-panel">
+      <!-- 拖放层 -->
+      <div class="dropzone" id="dropzone">
+        <svg class="dropzone-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span style="color: var(--text-muted); font-size: 14.5px;">拖拽本地图片到这里，或</span>
+        <button class="btn-select" id="btn-select-file">选择本地文件</button>
+      </div>
+
+      <!-- 网格多图显示层 -->
+      <div class="files-grid" id="files-grid" style="display:none;"></div>
+
+      <!-- 单图高保真预览与手动裁剪框 -->
+      <div class="single-preview-container" id="single-preview-container" style="display:none;">
+        <img class="single-preview-img" id="single-preview-img" alt="image-preview">
+        <!-- 裁剪遮罩框 -->
+        <div class="cropper-wrapper" id="cropper-box">
+          <div class="cropper-handle h-nw" data-dir="nw"></div>
+          <div class="cropper-handle h-ne" data-dir="ne"></div>
+          <div class="cropper-handle h-sw" data-dir="sw"></div>
+          <div class="cropper-handle h-se" data-dir="se"></div>
+        </div>
+      </div>
+
+      <!-- 进度遮罩 -->
+      <div class="progress-overlay" id="progress-overlay">
+        <div class="progress-spinner"></div>
+        <div class="progress-text" id="progress-percent">正在处理 0%</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-desc" id="progress-desc">初始化后台引擎...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部控制与执行栏 -->
+  <div class="action-bar">
+    <div class="control-icons">
+      <button class="icon-button" id="btn-settings" title="配置说明">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="icon-button" id="btn-open-folder" title="打开输出目录">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </button>
+      <button class="icon-button" id="btn-clear-files" title="清空选择">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      </button>
+    </div>
+
+    <button class="btn-start" id="btn-start-process">
+      <svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span>开始处理</span>
+    </button>
+  </div>
+
+  <!-- Toast 弹窗 -->
+  <div class="toast" id="toast">成功</div>
+
+  <!-- 隐藏的文件选择控件 -->
+  <input type="file" id="hidden-file-input" multiple accept="image/*" style="display:none;">
+
+  <script>
+    // ----------------------------------------------------------------------------
+    // 状态管理与初始化
+    // ----------------------------------------------------------------------------
+    const state = {
+      activeAction: 'compress',
+      files: [], // 各个文件的元数据：{ fileObject, absPath, name, sizeFormatted }
+      lastOutputPath: '',
+      manualCropCoords: { x: 0, y: 0, w: 200, h: 200 }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const dropzone = $('dropzone');
+    const filesGrid = $('files-grid');
+    const singlePreviewContainer = $('single-preview-container');
+    const singlePreviewImg = $('single-preview-img');
+    const hiddenFileInput = $('hidden-file-input');
+
+    // 格式化文件大小
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // ----------------------------------------------------------------------------
+    // UI 表单生成逻辑（对应 13 项功能）
+    // ----------------------------------------------------------------------------
+    const configForms = {
+      compress: `
+        <div class="config-title">图片压缩</div>
+        <div class="config-group slider-container">
+          <div class="slider-header">
+            <span class="config-label">压缩质量</span>
+            <span class="slider-value" id="val-quality">80%</span>
+          </div>
+          <input type="range" class="input-range" id="opt-quality" min="1" max="100" value="80">
+          <div class="form-tip">高数值画质更清晰，文件也越大。建议 75% - 85%。</div>
+        </div>
+        <div class="config-group">
+          <span class="config-label">目标文件大小 (可选)</span>
+          <div style="position:relative; display:flex; align-items:center;">
+            <input type="number" class="input-text" id="opt-targetSize" placeholder="不限" style="padding-right: 40px;">
+            <span style="position:absolute; right:12px; color:var(--text-muted); font-size:13px; font-weight:bold;">KB</span>
+          </div>
+          <div class="form-tip">若填写，后台会通过二分算法自动逼近该目标大小。</div>
+        </div>
+      `,
+      convert: `
+        <div class="config-title">格式转换</div>
+        <div class="config-group">
+          <span class="config-label">目标文件格式</span>
+          <select class="input-select" id="opt-format">
+            <option value="webp" selected>WebP (推荐，极致压缩)</option>
+            <option value="jpeg">JPEG (通用性最好)</option>
+            <option value="png">PNG (无损半透明)</option>
+            <option value="avif">AVIF (次世代编码)</option>
+            <option value="gif">GIF</option>
+          </select>
+        </div>
+        <div class="config-group slider-container" id="convert-quality-container">
+          <div class="slider-header">
+            <span class="config-label">压缩质量</span>
+            <span class="slider-value" id="val-quality">82%</span>
+          </div>
+          <input type="range" class="input-range" id="opt-quality" min="1" max="100" value="82">
+        </div>
+        <div class="config-group checkbox-container" id="convert-lossless-container">
+          <input type="checkbox" class="checkbox-input" id="opt-lossless">
+          <span class="config-label" style="margin-bottom:0;">无损转换 (仅 WebP / AVIF)</span>
+        </div>
+      `,
+      resize: `
+        <div class="config-title">修改尺寸</div>
+        <div class="config-group input-row">
+          <div>
+            <span class="config-label">目标宽度 (px)</span>
+            <input type="number" class="input-text" id="opt-width" placeholder="按原图等比">
+          </div>
+          <div>
+            <span class="config-label">目标高度 (px)</span>
+            <input type="number" class="input-text" id="opt-height" placeholder="按原图等比">
+          </div>
+        </div>
+        <div class="config-group checkbox-container">
+          <input type="checkbox" class="checkbox-input" id="opt-keepRatio" checked>
+          <span class="config-label" style="margin-bottom:0;">保持原始宽高比</span>
+        </div>
+        <div class="config-group slider-container">
+          <div class="slider-header">
+            <span class="config-label">缩放比例</span>
+            <span class="slider-value" id="val-scale">100%</span>
+          </div>
+          <input type="range" class="input-range" id="opt-scale" min="10" max="400" value="100">
+          <div class="form-tip">若设置了缩放比例，宽高数值设置将自动失效。</div>
+        </div>
+        <div class="config-group">
+          <span class="config-label">缩放裁剪模式</span>
+          <select class="input-select" id="opt-fit">
+            <option value="contain" selected>等比适应 (Contain - 留白/不裁剪)</option>
+            <option value="cover">等比铺满 (Cover - 局部裁剪)</option>
+            <option value="fill">强制拉伸 (Fill - 变形)</option>
+          </select>
+        </div>
+        <div class="config-group">
+          <span class="config-label">留白填充颜色</span>
+          <input type="color" class="input-text" id="opt-bg" value="#000000" style="padding: 4px; height: 38px; cursor: pointer;">
+        </div>
+      `,
+      watermark: `
+        <div class="config-title">添加水印</div>
+        <div class="config-group">
+          <span class="config-label">水印类型</span>
+          <select class="input-select" id="opt-wmType">
+            <option value="text" selected>文字水印</option>
+            <option value="image">图片水印</option>
+          </select>
+        </div>
+        
+        <!-- 文字水印专属配置 -->
+        <div id="wm-text-fields">
+          <div class="config-group">
+            <span class="config-label">水印文字</span>
+            <input type="text" class="input-text" id="opt-wmText" value="机密图片，禁止外传">
+          </div>
+          <div class="config-group input-row">
+            <div>
+              <span class="config-label">字体大小 (px)</span>
+              <input type="number" class="input-text" id="opt-fontSize" value="28">
+            </div>
+            <div>
+              <span class="config-label">字体颜色</span>
+              <input type="color" class="input-text" id="opt-color" value="#ffffff" style="padding: 4px; height: 38px; cursor: pointer;">
+            </div>
+          </div>
+          <div class="config-group slider-container">
+            <div class="slider-header">
+              <span class="config-label">旋转角度</span>
+              <span class="slider-value" id="val-angle">-30°</span>
+            </div>
+            <input type="range" class="input-range" id="opt-angle" min="-180" max="180" value="-30">
+          </div>
+        </div>
+
+        <!-- 图片水印专属配置 -->
+        <div id="wm-image-fields" style="display:none;">
+          <div class="config-group">
+            <span class="config-label">水印图片</span>
+            <button class="input-text" id="btn-select-watermark" style="text-align: left; cursor:pointer;">📁 选择本地水印图片...</button>
+            <input type="hidden" id="opt-watermarkFile">
+            <div class="form-tip" id="lbl-watermarkFile" style="word-break: break-all; margin-top:6px;">未选择</div>
+          </div>
+          <div class="config-group slider-container">
+            <div class="slider-header">
+              <span class="config-label">水印占背景宽比例</span>
+              <span class="slider-value" id="val-watermarkScale">20%</span>
+            </div>
+            <input type="range" class="input-range" id="opt-watermarkScale" min="5" max="80" value="20">
+          </div>
+        </div>
+
+        <div class="config-group slider-container">
+          <div class="slider-header">
+            <span class="config-label">透明度 (Opacity)</span>
+            <span class="slider-value" id="val-opacity">0.4</span>
+          </div>
+          <input type="range" class="input-range" id="opt-opacity" min="5" max="100" value="40">
+        </div>
+        <div class="config-group">
+          <span class="config-label">九宫格位置</span>
+          <select class="input-select" id="opt-gravity">
+            <option value="centre" selected>居中对齐</option>
+            <option value="southeast">右下角</option>
+            <option value="southwest">左下角</option>
+            <option value="northeast">右上角</option>
+            <option value="northwest">左上角</option>
+            <option value="north">顶部居中</option>
+            <option value="south">底部居中</option>
+          </select>
+        </div>
+      `,
+      roundedCorners: `
+        <div class="config-title">添加圆角</div>
+        <div class="config-group slider-container">
+          <div class="slider-header">
+            <span class="config-label">圆角半径 (px)</span>
+            <span class="slider-value" id="val-radius">30px</span>
+          </div>
+          <input type="range" class="input-range" id="opt-radius" min="1" max="500" value="30">
+        </div>
+        <div class="config-group">
+          <span class="config-label">圆角留白背景填充</span>
+          <select class="input-select" id="opt-bgType">
+            <option value="transparent" selected>透明背景 (建议保存为PNG/WebP)</option>
+            <option value="solid">纯色填充</option>
+          </select>
+        </div>
+        <div class="config-group" id="corner-color-container" style="display:none;">
+          <span class="config-label">填充背景颜色</span>
+          <input type="color" class="input-text" id="opt-bg" value="#ffffff" style="padding: 4px; height: 38px; cursor: pointer;">
+        </div>
+      `,
+      padding: `
+        <div class="config-title">补边留白</div>
+        <div class="config-group input-row">
+          <div>
+            <span class="config-label">上方留白 (px)</span>
+            <input type="number" class="input-text" id="opt-top" value="30">
+          </div>
+          <div>
+            <span class="config-label">下方留白 (px)</span>
+            <input type="number" class="input-text" id="opt-bottom" value="30">
+          </div>
+        </div>
+        <div class="config-group input-row">
+          <div>
+            <span class="config-label">左侧留白 (px)</span>
+            <input type="number" class="input-text" id="opt-left" value="30">
+          </div>
+          <div>
+            <span class="config-label">右侧留白 (px)</span>
+            <input type="number" class="input-text" id="opt-right" value="30">
+          </div>
+        </div>
+        <div class="config-group">
+          <span class="config-label">留白背景颜色</span>
+          <input type="color" class="input-text" id="opt-bg" value="#ffffff" style="padding: 4px; height: 38px; cursor: pointer;">
+        </div>
+      `,
+      crop: `
+        <div class="config-title">精确裁剪</div>
+        <div class="config-group">
+          <span class="config-label">快捷比例参考</span>
+          <select class="input-select" id="opt-cropRatio">
+            <option value="free" selected>自由剪裁</option>
+            <option value="1:1">正方形 (1:1)</option>
+            <option value="4:3">标准画幅 (4:3)</option>
+            <option value="16:9">宽银幕 (16:9)</option>
+          </select>
+        </div>
+        <div class="config-group input-row">
+          <div>
+            <span class="config-label">起点 X 坐标</span>
+            <input type="number" class="input-text" id="opt-cropX" value="50">
+          </div>
+          <div>
+            <span class="config-label">起点 Y 坐标</span>
+            <input type="number" class="input-text" id="opt-cropY" value="50">
+          </div>
+        </div>
+        <div class="config-group input-row">
+          <div>
+            <span class="config-label">裁剪宽度 (px)</span>
+            <input type="number" class="input-text" id="opt-cropW" value="400">
+          </div>
+          <div>
+            <span class="config-label">裁剪高度 (px)</span>
+            <input type="number" class="input-text" id="opt-cropH" value="300">
+          </div>
+        </div>
+      `,
+      rotate: `
+        <div class="config-title">旋转图片</div>
+        <div class="config-group" style="display:flex; gap:10px;">
+          <button class="input-text" id="btn-r90" style="cursor:pointer; font-weight:bold;">↻ 顺时针90°</button>
+          <button class="input-text" id="btn-r180" style="cursor:pointer; font-weight:bold;">⇄ 旋转180°</button>
+        </div>
+        <div class="config-group slider-container" style="margin-top:16px;">
+          <div class="slider-header">
+            <span class="config-label">自定义旋转度数</span>
+            <span class="slider-value" id="val-angle">0°</span>
+          </div>
+          <input type="range" class="input-range" id="opt-angle" min="-360" max="360" value="0">
+        </div>
+        <div class="config-group">
+          <span class="config-label">空白区背景填充</span>
+          <input type="color" class="input-text" id="opt-bg" value="#000000" style="padding: 4px; height: 38px; cursor: pointer;">
+          <div class="form-tip">旋转产生空隙时的颜色填充。</div>
+        </div>
+      `,
+      flip: `
+        <div class="config-title">镜像翻转</div>
+        <div class="config-group checkbox-container">
+          <input type="checkbox" class="checkbox-input" id="opt-horizontal">
+          <span class="config-label" style="margin-bottom:0; font-size:14px; font-weight:bold;">↔ 水平镜像翻转 (Flop)</span>
+        </div>
+        <div class="config-group checkbox-container" style="margin-top:16px;">
+          <input type="checkbox" class="checkbox-input" id="opt-vertical">
+          <span class="config-label" style="margin-bottom:0; font-size:14px; font-weight:bold;">↕ 垂直对称翻转 (Flip)</span>
+        </div>
+      `,
+      manualCrop: `
+        <div class="config-title">手动裁剪</div>
+        <div class="form-tip" style="font-size:13px; color:var(--text-main); margin-bottom:16px;">
+          请在右侧预览图上<b>直接拖动和缩放裁剪框</b>。下方坐标会自动实时对齐。
+        </div>
+        <div class="config-group input-row">
+          <div>
+            <span class="config-label">起点 X</span>
+            <input type="number" class="input-text" id="opt-cropX" value="0" disabled>
+          </div>
+          <div>
+            <span class="config-label">起点 Y</span>
+            <input type="number" class="input-text" id="opt-cropY" value="0" disabled>
+          </div>
+        </div>
+        <div class="config-group input-row">
+          <div>
+            <span class="config-label">裁剪宽</span>
+            <input type="number" class="input-text" id="opt-cropW" value="200" disabled>
+          </div>
+          <div>
+            <span class="config-label">裁剪高</span>
+            <input type="number" class="input-text" id="opt-cropH" value="200" disabled>
+          </div>
+        </div>
+      `,
+      join: `
+        <div class="config-title">合并为图片</div>
+        <div class="config-group">
+          <span class="config-label">拼接排列方向</span>
+          <select class="input-select" id="opt-direction">
+            <option value="vertical" selected>↕ 垂直长图拼接</option>
+            <option value="horizontal">↔ 水平横向拼接</option>
+          </select>
+        </div>
+        <div class="config-group slider-container">
+          <div class="slider-header">
+            <span class="config-label">图片间隔 (px)</span>
+            <span class="slider-value" id="val-gap">0px</span>
+          </div>
+          <input type="range" class="input-range" id="opt-gap" min="0" max="200" value="0">
+        </div>
+        <div class="config-group">
+          <span class="config-label">间距填充背景颜色</span>
+          <input type="color" class="input-text" id="opt-bg" value="#000000" style="padding: 4px; height: 38px; cursor: pointer;">
+        </div>
+      `,
+      pdf: `
+        <div class="config-title">合并为 PDF</div>
+        <div class="config-group">
+          <span class="config-label">纸张页面设定</span>
+          <select class="input-select" id="opt-pageSize">
+            <option value="auto" selected>自动适应 (与图片尺寸完全一致)</option>
+            <option value="a4">标准 A4 纵向比例</option>
+          </select>
+          <div class="form-tip">支持将选中的多张本地图片合并输出为一个完整的多页 PDF 格式文件。</div>
+        </div>
+      `,
+      gif: `
+        <div class="config-title">合并为 GIF 动画</div>
+        <div class="config-group slider-container">
+          <div class="slider-header">
+            <span class="config-label">帧播放间隔 (ms)</span>
+            <span class="slider-value" id="val-delay">200ms</span>
+          </div>
+          <input type="range" class="input-range" id="opt-delay" min="50" max="2000" step="50" value="200">
+          <div class="form-tip">设置动态 GIF 每一帧图片之间的切换延迟。</div>
+        </div>
+      `
+    };
+
+    // ----------------------------------------------------------------------------
+    // 渲染动态表单与事件监听绑定
+    // ----------------------------------------------------------------------------
+    function renderConfigForm(actionName) {
+      const panel = $('config-panel');
+      panel.innerHTML = configForms[actionName] || '';
+
+      // 绑定滑块实时数值同步
+      const ranges = panel.querySelectorAll('input[type="range"]');
+      ranges.forEach(range => {
+        const updateSliderFill = (r) => {
+          const min = r.min ? parseFloat(r.min) : 0;
+          const max = r.max ? parseFloat(r.max) : 100;
+          const percentage = ((parseFloat(r.value) - min) / (max - min)) * 100;
+          r.style.setProperty('--val', percentage + '%');
+        };
+
+        const valSpan = panel.querySelector(`#val-${range.id.replace('opt-', '')}`);
+        if (valSpan) {
+          const unit = range.id.includes('quality') || range.id.includes('Scale') || range.id.includes('opacity') ? '' : 'px';
+          
+          const updateValue = () => {
+            let displayVal = range.value;
+            if (range.id.includes('quality')) displayVal = range.value + '%';
+            if (range.id.includes('scale')) displayVal = range.value + '%';
+            if (range.id.includes('angle')) displayVal = range.value + '°';
+            if (range.id.includes('opacity')) displayVal = (range.value / 100).toFixed(1);
+            if (range.id.includes('delay')) displayVal = range.value + 'ms';
+            if (range.id.includes('radius')) displayVal = range.value + 'px';
+            if (range.id.includes('gap')) displayVal = range.value + 'px';
+            if (range.id.includes('watermarkScale')) displayVal = range.value + '%';
+
+            valSpan.textContent = displayVal;
+            updateSliderFill(range);
+          };
+
+          range.addEventListener('input', updateValue);
+          updateValue();
+        } else {
+          range.addEventListener('input', () => updateSliderFill(range));
+          updateSliderFill(range);
+        }
+      });
+
+      // 水印类型切换
+      const wmTypeSelect = panel.querySelector('#opt-wmType');
+      if (wmTypeSelect) {
+        wmTypeSelect.addEventListener('change', () => {
+          const textFields = $('wm-text-fields');
+          const imgFields = $('wm-image-fields');
+          if (wmTypeSelect.value === 'text') {
+            textFields.style.display = 'block';
+            imgFields.style.display = 'none';
+          } else {
+            textFields.style.display = 'none';
+            imgFields.style.display = 'block';
+          }
+        });
+
+        // 绑定水印图片选择按钮
+        const btnSelectWm = $('btn-select-watermark');
+        if (btnSelectWm) {
+          btnSelectWm.onclick = async () => {
+            try {
+              // 触发隐藏的临时文件input
+              const tempInput = document.createElement('input');
+              tempInput.type = 'file';
+              tempInput.accept = 'image/*';
+              tempInput.onchange = () => {
+                const file = tempInput.files[0];
+                if (file && window.imageToolkitPreload) {
+                  const absPath = window.imageToolkitPreload.getPathForFile(file);
+                  $('opt-watermarkFile').value = absPath;
+                  $('lbl-watermarkFile').textContent = file.name;
+                  showToast('选择水印成功');
+                }
+              };
+              tempInput.click();
+            } catch (e) {
+              showToast('选择水印失败', 'error');
+            }
+          };
+        }
+      }
+
+      // 圆角背景切换
+      const bgTypeSelect = panel.querySelector('#opt-bgType');
+      if (bgTypeSelect) {
+        bgTypeSelect.addEventListener('change', () => {
+          const colorContainer = $('corner-color-container');
+          colorContainer.style.display = bgTypeSelect.value === 'solid' ? 'block' : 'none';
+        });
+      }
+
+      // 旋转快捷按钮
+      const btnR90 = panel.querySelector('#btn-r90');
+      const btnR180 = panel.querySelector('#btn-r180');
+      if (btnR90 && btnR180) {
+        btnR90.onclick = () => {
+          const slider = $('opt-angle');
+          slider.value = 90;
+          slider.dispatchEvent(new Event('input'));
+        };
+        btnR180.onclick = () => {
+          const slider = $('opt-angle');
+          slider.value = 180;
+          slider.dispatchEvent(new Event('input'));
+        };
+      }
+    }
+
+    // ----------------------------------------------------------------------------
+    // 侧边栏事件切换
+    // ----------------------------------------------------------------------------
+    document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+      item.onclick = () => {
+        document.querySelectorAll('.sidebar-menu-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        state.activeAction = item.dataset.action;
+        
+        renderConfigForm(state.activeAction);
+        updatePreviewVisibility();
+      };
+    });
+
+    // ----------------------------------------------------------------------------
+    // 预览区域渲染与可见性管理
+    // ----------------------------------------------------------------------------
+    function updatePreviewVisibility() {
+      // 如果没有选中的文件，直接展示拖放区
+      if (state.files.length === 0) {
+        dropzone.style.display = 'flex';
+        filesGrid.style.display = 'none';
+        singlePreviewContainer.style.display = 'none';
+        return;
+      }
+
+      dropzone.style.display = 'none';
+
+      // 多图合并功能（合并为图片、PDF、GIF），展示网格网格
+      const multiImageActions = ['join', 'pdf', 'gif'];
+      if (multiImageActions.includes(state.activeAction)) {
+        filesGrid.style.display = 'grid';
+        singlePreviewContainer.style.display = 'none';
+        renderFilesGrid();
+      } else {
+        // 单图处理，展示主图大预览
+        filesGrid.style.display = 'none';
+        singlePreviewContainer.style.display = 'flex';
+        renderSinglePreview();
+      }
+    }
+
+    function renderFilesGrid() {
+      filesGrid.innerHTML = '';
+      state.files.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        
+        const img = document.createElement('img');
+        img.className = 'file-thumbnail';
+        img.src = URL.createObjectURL(item.fileObject);
+        
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'file-info';
+        nameLabel.textContent = item.name;
+
+        const sizeLabel = document.createElement('div');
+        sizeLabel.className = 'file-size';
+        sizeLabel.textContent = item.sizeFormatted;
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'btn-delete-card';
+        btnDelete.textContent = '×';
+        btnDelete.onclick = (e) => {
+          e.stopPropagation();
+          state.files.splice(index, 1);
+          updatePreviewVisibility();
+        };
+
+        card.appendChild(img);
+        card.appendChild(nameLabel);
+        card.appendChild(sizeLabel);
+        card.appendChild(btnDelete);
+        filesGrid.appendChild(card);
+      });
+    }
+
+    function renderSinglePreview() {
+      const primary = state.files[0];
+      if (!primary) return;
+      const objectUrl = URL.createObjectURL(primary.fileObject);
+      singlePreviewImg.src = objectUrl;
+
+      // 手动裁剪框交互逻辑
+      const cropperBox = $('cropper-box');
+      if (state.activeAction === 'manualCrop') {
+        cropperBox.style.display = 'block';
+        initCropperDrag();
+      } else {
+        cropperBox.style.display = 'none';
+      }
+    }
+
+    // ----------------------------------------------------------------------------
+    // 手动裁剪框核心阻尼/坐标计算逻辑
+    // ----------------------------------------------------------------------------
+    function initCropperDrag() {
+      const cropperBox = $('cropper-box');
+      const img = singlePreviewImg;
+
+      // 重置初始裁剪框为居中 200x200
+      let w = 200, h = 200, l = 100, t = 100;
+      
+      const updateBoxPosition = () => {
+        cropperBox.style.width = w + 'px';
+        cropperBox.style.height = h + 'px';
+        cropperBox.style.left = l + 'px';
+        cropperBox.style.top = t + 'px';
+        
+        // 计算转换映射成原图像素绝对坐标
+        const scaleX = img.naturalWidth / img.clientWidth;
+        const scaleY = img.naturalHeight / img.clientHeight;
+
+        // 计算相对于图片的偏移（裁剪框 left / top 应该减去图片的渲染偏移）
+        const cropX = Math.round((l - img.offsetLeft) * scaleX);
+        const cropY = Math.round((t - img.offsetTop) * scaleY);
+        const cropW = Math.round(w * scaleX);
+        const cropH = Math.round(h * scaleY);
+
+        state.manualCropCoords = {
+          x: Math.max(0, cropX),
+          y: Math.max(0, cropY),
+          w: Math.max(1, cropW),
+          h: Math.max(1, cropH)
+        };
+
+        // 同步到表单只读属性中展示
+        const inpX = $('opt-cropX');
+        const inpY = $('opt-cropY');
+        const inpW = $('opt-cropW');
+        const inpH = $('opt-cropH');
+        if (inpX && inpY && inpW && inpH) {
+          inpX.value = state.manualCropCoords.x;
+          inpY.value = state.manualCropCoords.y;
+          inpW.value = state.manualCropCoords.w;
+          inpH.value = state.manualCropCoords.h;
+        }
+      };
+
+      // 容器加载尺寸后做第一次初始化居中计算
+      img.onload = () => {
+        // 图片实际渲染的长宽
+        const cw = img.clientWidth;
+        const ch = img.clientHeight;
+        const ol = img.offsetLeft;
+        const ot = img.offsetTop;
+
+        w = Math.min(cw, 200);
+        h = Math.min(ch, 200);
+        l = ol + Math.round((cw - w) / 2);
+        t = ot + Math.round((ch - h) / 2);
+
+        updateBoxPosition();
+      };
+      
+      // 如果图片已经加载完毕
+      if (img.complete) {
+        img.onload();
+      }
+
+      // 手动裁剪框拖拽移动
+      cropperBox.onmousedown = (e) => {
+        if (e.target.classList.contains('cropper-handle')) return; // 句柄交给缩放处理
+
+        e.preventDefault();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startL = l;
+        const startT = t;
+
+        const onMouseMove = (moveEv) => {
+          const dx = moveEv.clientX - startX;
+          const dy = moveEv.clientY - startY;
+          
+          l = Math.max(img.offsetLeft, Math.min(startL + dx, img.offsetLeft + img.clientWidth - w));
+          t = Math.max(img.offsetTop, Math.min(startT + dy, img.offsetTop + img.clientHeight - h));
+          
+          updateBoxPosition();
+        };
+
+        const onMouseUp = () => {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      };
+
+      // 圆点句柄拖拽缩放
+      document.querySelectorAll('.cropper-handle').forEach(handle => {
+        handle.onmousedown = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const dir = handle.dataset.dir;
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const startW = w;
+          const startH = h;
+          const startL = l;
+          const startT = t;
+
+          const onMouseMove = (moveEv) => {
+            const dx = moveEv.clientX - startX;
+            const dy = moveEv.clientY - startY;
+
+            if (dir === 'se') {
+              w = Math.max(20, Math.min(startW + dx, img.offsetLeft + img.clientWidth - startL));
+              h = Math.max(20, Math.min(startH + dy, img.offsetTop + img.clientHeight - startT));
+            } else if (dir === 'sw') {
+              const possibleW = startW - dx;
+              if (possibleW >= 20 && startL + dx >= img.offsetLeft) {
+                w = possibleW;
+                l = startL + dx;
+              }
+              h = Math.max(20, Math.min(startH + dy, img.offsetTop + img.clientHeight - startT));
+            } else if (dir === 'ne') {
+              w = Math.max(20, Math.min(startW + dx, img.offsetLeft + img.clientWidth - startL));
+              const possibleH = startH - dy;
+              if (possibleH >= 20 && startT + dy >= img.offsetTop) {
+                h = possibleH;
+                t = startT + dy;
+              }
+            } else if (dir === 'nw') {
+              const possibleW = startW - dx;
+              if (possibleW >= 20 && startL + dx >= img.offsetLeft) {
+                w = possibleW;
+                l = startL + dx;
+              }
+              const possibleH = startH - dy;
+              if (possibleH >= 20 && startT + dy >= img.offsetTop) {
+                h = possibleH;
+                t = startT + dy;
+              }
+            }
+
+            updateBoxPosition();
+          };
+
+          const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+          };
+
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        };
+      });
+    }
+
+    // ----------------------------------------------------------------------------
+    // 文件添加与拖放核心逻辑
+    // ----------------------------------------------------------------------------
+    function addFiles(selectedFiles) {
+      if (!selectedFiles || selectedFiles.length === 0) return;
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        let path = '';
+        if (window.imageToolkitPreload) {
+          path = window.imageToolkitPreload.getPathForFile(file);
+        }
+
+        // 防御性去重
+        if (state.files.some(f => f.absPath === path && path !== '')) continue;
+
+        state.files.push({
+          fileObject: file,
+          absPath: path || file.name,
+          name: file.name,
+          sizeFormatted: formatBytes(file.size)
+        });
+      }
+
+      showToast(`已成功载入 ${selectedFiles.length} 张图片`);
+      updatePreviewVisibility();
+    }
+
+    // 隐藏 File 控件点击与拖放事件
+    $('btn-select-file').onclick = () => hiddenFileInput.click();
+    hiddenFileInput.onchange = () => {
+      addFiles(hiddenFileInput.files);
+      hiddenFileInput.value = ''; // 重置以防重复选择同一张无触发
+    };
+
+    dropzone.ondragover = (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    };
+
+    dropzone.ondragleave = () => {
+      dropzone.classList.remove('dragover');
+    };
+
+    dropzone.ondrop = (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      addFiles(e.dataTransfer.files);
+    };
+
+    // 底部工具栏：清空
+    $('btn-clear-files').onclick = () => {
+      state.files = [];
+      updatePreviewVisibility();
+      showToast('已清空文件选择');
+    };
+
+    // 底部工具栏：打开输出文件夹
+    $('btn-open-folder').onclick = async () => {
+      if (!state.lastOutputPath) {
+        showToast('请先至少成功处理一次图片！', 'error');
+        return;
+      }
+      if (window.imageToolkitPreload) {
+        const r = await window.imageToolkitPreload.openFolder(state.lastOutputPath);
+        if (r.ok) {
+          showToast('已成功打开系统输出目录');
+        } else {
+          showToast('打开文件夹失败: ' + r.error, 'error');
+        }
+      } else {
+        showToast('无法调用系统 Shell (Preload 缺失)', 'error');
+      }
+    };
+
+    // 底部工具栏：配置说明
+    $('btn-settings').onclick = () => {
+      alert(`📚 万能图片工具箱使用指南：\n\n1. 支持单图与多图批量/拼合模式，系统会自动判断。\n2. 单图处理：在左侧选择需要的功能，设置中间参数，点击“开始处理”。\n3. 手动裁剪：在选择图片后，可以直接在图片上拖拽裁剪框，后台即刻响应。\n4. 支持格式：PNG、JPG、JPEG、WEBP、AVIF，支持 PDF 与 GIF 的多帧合成。\n5. 处理结果默认保存在原文件同目录下并带有操作标记。`);
+    };
+
+    // ----------------------------------------------------------------------------
+    // 核心流式处理命令分发
+    // ----------------------------------------------------------------------------
+    $('btn-start-process').onclick = () => {
+      if (state.files.length === 0) {
+        showToast('请先选择需要处理的图片！', 'error');
+        return;
+      }
+
+      const filesPaths = state.files.map(f => f.absPath);
+      const options = {};
+
+      // 提取中间参数
+      if (state.activeAction === 'compress') {
+        options.quality = Number($('opt-quality').value);
+        const tSize = $('opt-targetSize').value.trim();
+        if (tSize) options.targetSizeKb = Number(tSize);
+      } else if (state.activeAction === 'convert') {
+        options.format = $('opt-format').value;
+        options.quality = Number($('opt-quality').value);
+        options.lossless = $('opt-lossless').checked;
+      } else if (state.activeAction === 'resize') {
+        const w = $('opt-width').value.trim();
+        const h = $('opt-height').value.trim();
+        if (w) options.width = Number(w);
+        if (h) options.height = Number(h);
+        options.keepRatio = $('opt-keepRatio').checked;
+        options.scale = Number($('opt-scale').value);
+        options.fit = $('opt-fit').value;
+        options.bg = $('opt-bg').value;
+      } else if (state.activeAction === 'watermark') {
+        options.type = $('opt-wmType').value;
+        options.opacity = Number($('opt-opacity').value) / 100;
+        options.gravity = $('opt-gravity').value;
+
+        if (options.type === 'text') {
+          options.text = $('opt-wmText').value;
+          options.fontSize = Number($('opt-fontSize').value);
+          options.color = $('opt-color').value;
+          options.angle = Number($('opt-angle').value);
+        } else {
+          options.watermarkFile = $('opt-watermarkFile').value;
+          options.watermarkScale = Number($('opt-watermarkScale').value);
+          if (!options.watermarkFile) {
+            showToast('请先选择本地水印图片！', 'error');
+            return;
+          }
+        }
+      } else if (state.activeAction === 'roundedCorners') {
+        options.radius = Number($('opt-radius').value);
+        options.bg = $('opt-bgType').value === 'solid' ? $('opt-bg').value : '#00000000';
+      } else if (state.activeAction === 'padding') {
+        options.top = Number($('opt-top').value || 0);
+        options.bottom = Number($('opt-bottom').value || 0);
+        options.left = Number($('opt-left').value || 0);
+        options.right = Number($('opt-right').value || 0);
+        options.bg = $('opt-bg').value;
+      } else if (state.activeAction === 'crop') {
+        options.x = Number($('opt-cropX').value || 0);
+        options.y = Number($('opt-cropY').value || 0);
+        options.width = Number($('opt-cropW').value || 200);
+        options.height = Number($('opt-cropH').value || 200);
+      } else if (state.activeAction === 'manualCrop') {
+        options.x = state.manualCropCoords.x;
+        options.y = state.manualCropCoords.y;
+        options.width = state.manualCropCoords.w;
+        options.height = state.manualCropCoords.h;
+      } else if (state.activeAction === 'rotate') {
+        options.angle = Number($('opt-angle').value);
+        options.bg = $('opt-bg').value;
+      } else if (state.activeAction === 'flip') {
+        options.horizontal = $('opt-horizontal').checked;
+        options.vertical = $('opt-vertical').checked;
+      } else if (state.activeAction === 'join') {
+        options.direction = $('opt-direction').value;
+        options.gap = Number($('opt-gap').value);
+        options.bg = $('opt-bg').value;
+      } else if (state.activeAction === 'pdf') {
+        options.pageSize = $('opt-pageSize').value;
+      } else if (state.activeAction === 'gif') {
+        options.delay = Number($('opt-delay').value);
+      }
+
+      // 打开进度遮罩
+      const overlay = $('progress-overlay');
+      const barFill = $('progress-fill');
+      const txtPercent = $('progress-percent');
+      const txtDesc = $('progress-desc');
+
+      overlay.style.display = 'flex';
+      barFill.style.width = '0%';
+      txtPercent.textContent = '正在启动引擎 0%';
+      txtDesc.textContent = '连接主进程执行沙盒...';
+
+      // 基于流式 SDK 接收后台进度
+      if (window.brickly && typeof window.brickly.stream === 'function') {
+        window.brickly.stream('process-image', {
+          action: state.activeAction,
+          files: filesPaths,
+          options: options
+        }, {
+          onProgress: (progress, message) => {
+            const percent = Math.round(progress * 100);
+            barFill.style.width = percent + '%';
+            txtPercent.textContent = `正在处理 ${percent}%`;
+            if (message) txtDesc.textContent = message;
+          },
+          onResult: (result) => {
+            overlay.style.display = 'none';
+            if (result && result.outputPath) {
+              state.lastOutputPath = result.outputPath;
+              showToast('图片处理并保存成功！');
+              
+              // 弹出成功说明
+              setTimeout(() => {
+                alert(`🎉 处理成功！\n\n- 输出文件：${result.outputPath}\n- 文件大小：${result.sizeKb} KB\n- 分辨率：${result.width || '未知'} × ${result.height || '未知'} (${result.format})`);
+              }, 100);
+            }
+          },
+          onError: (error) => {
+            overlay.style.display = 'none';
+            showToast('处理失败：' + (error.message || '未知错误'), 'error');
+            console.error('Sharp 后端运行错误', error);
+          }
+        });
+      } else {
+        overlay.style.display = 'none';
+        showToast('SDK 未注入，无法调用后台', 'error');
+      }
+    };
+
+    // ----------------------------------------------------------------------------
+    // Toast 提示库
+    // ----------------------------------------------------------------------------
+    let toastTimer = null;
+    function showToast(text, kind = 'success') {
+      const toast = $('toast');
+      toast.textContent = text;
+      toast.className = `toast show toast-${kind}`;
+      
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // ----------------------------------------------------------------------------
+    // 页面初始化
+    // ----------------------------------------------------------------------------
+    renderConfigForm(state.activeAction);
+  </script>
+</body>
+</html>

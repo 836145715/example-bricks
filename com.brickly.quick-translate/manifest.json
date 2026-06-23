@@ -1,0 +1,158 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.quick-translate",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "快速划词翻译",
+    "en": "Quick Translate"
+  },
+  "description": {
+    "zh-CN": "双击 Ctrl 复制当前选中文本并翻译；也支持框选截图后将中文覆盖贴回原位置。",
+    "en": "Double-tap Ctrl to translate selected text, or capture a region and overlay Chinese translation in place."
+  },
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "queue",
+    "idleTtlMs": 600000,
+    "restart": "none"
+  },
+  "permissions": [
+    "os.input",
+    "os.clipboard",
+    "os.screenshot"
+  ],
+  "dependencies": {
+    "com.brickly.openai": {
+      "commands": [
+        "chat-completions"
+      ],
+      "note": "调用 OpenAI Chat Completions API 完成英文到中文翻译。"
+    },
+    "com.brickly.glm-ocr-screenshot": {
+      "commands": [
+        "capture-text"
+      ],
+      "note": "复用 GLM OCR 截图识别能力，为截图翻译提供文字块和框选区域坐标。"
+    }
+  },
+  "hotkeys": [
+    {
+      "id": "translate-selection",
+      "commandId": "translate-selection",
+      "name": {
+        "zh-CN": "翻译选中文本",
+        "en": "Translate Selection"
+      },
+      "description": {
+        "zh-CN": "双击 Ctrl 后尝试复制当前选区，检测到新文本时打开翻译窗口。",
+        "en": "Double-tap Ctrl, copy the current selection, and open the translation window when text is detected."
+      },
+      "defaultBinding": {
+        "default": {
+          "kind": "key-gesture",
+          "key": "Control",
+          "gesture": "double-tap",
+          "maxIntervalMs": 300
+        }
+      }
+    },
+    {
+      "id": "translate-screenshot-overlay",
+      "commandId": "translate-screenshot-overlay",
+      "name": {
+        "zh-CN": "截图覆盖翻译",
+        "en": "Screenshot Overlay Translation"
+      },
+      "description": {
+        "zh-CN": "框选屏幕区域，识别图片文字并把中文译文覆盖显示在原位置，按 Esc 关闭。",
+        "en": "Capture a screen region, OCR and translate it, then overlay the Chinese result in place. Press Esc to close."
+      },
+      "defaultBinding": {
+        "default": {
+          "kind": "accelerator",
+          "accelerator": "Control+Alt+T"
+        },
+        "darwin": {
+          "kind": "accelerator",
+          "accelerator": "Command+Option+T"
+        }
+      }
+    }
+  ],
+  "trustLevel": "verified",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "translate",
+    "translation",
+    "hotkey",
+    "clipboard",
+    "openai",
+    "ocr",
+    "screenshot"
+  ],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "commands": [
+    {
+      "id": "translate-selection",
+      "name": {
+        "zh-CN": "翻译选中文本",
+        "en": "Translate Selected Text"
+      },
+      "description": {
+        "zh-CN": "通过模拟复制检测当前选区，若文本有效则调用 OpenAI 翻译并显示窗口。",
+        "en": "Detect selected text by simulating copy, translate it with OpenAI, and show a result window."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "translate-screenshot-overlay",
+      "name": {
+        "zh-CN": "截图覆盖翻译",
+        "en": "Screenshot Overlay Translation"
+      },
+      "description": {
+        "zh-CN": "框选屏幕区域后调用 GLM OCR 识别文字，再调用 OpenAI 翻译，并用覆盖图片贴回原位置。",
+        "en": "Capture a screen region, OCR it with GLM, translate via OpenAI, and place the translated image over the original region."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "timeoutMs": 180000
+    }
+  ]
+}

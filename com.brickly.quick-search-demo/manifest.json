@@ -1,0 +1,221 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.quick-search-demo",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "快速搜索 Provider 演示",
+    "en": "Quick Search Provider Demo"
+  },
+  "description": {
+    "zh-CN": "用于验证 manifest.quickSearch.providers 的轻量演示 Brick。",
+    "en": "A lightweight demo Brick for validating manifest.quickSearch.providers."
+  },
+  "icon": "assets/icon.svg",
+  "author": {
+    "name": "Brickly"
+  },
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [],
+  "trustLevel": "community",
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "replace",
+    "idleTtlMs": 60000
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "quick-search",
+    "provider",
+    "demo"
+  ],
+  "categories": [
+    "developer-tools",
+    "productivity"
+  ],
+  "quickSearch": {
+    "providers": [
+      {
+        "id": "demo",
+        "title": {
+          "zh-CN": "演示搜索",
+          "en": "Demo Search"
+        },
+        "category": "quick-launch",
+        "searchCommand": "search-demo",
+        "activateCommand": "activate-demo",
+        "actions": [
+          {
+            "id": "open-dashboard",
+            "title": {
+              "zh-CN": "打开 Dashboard",
+              "en": "Open Dashboard"
+            },
+            "command": "action-demo"
+          },
+          {
+            "id": "copy-dashboard-link",
+            "title": {
+              "zh-CN": "复制 Dashboard 链接",
+              "en": "Copy Dashboard Link"
+            },
+            "command": "action-demo"
+          },
+          {
+            "id": "open-provider-contract",
+            "title": {
+              "zh-CN": "查看 Provider 契约",
+              "en": "Open Provider Contract"
+            },
+            "command": "action-demo"
+          },
+          {
+            "id": "reveal-demo-file",
+            "title": {
+              "zh-CN": "在文件夹中显示",
+              "en": "Reveal in Folder"
+            },
+            "command": "action-demo"
+          },
+          {
+            "id": "copy-demo-path",
+            "title": {
+              "zh-CN": "复制文件路径",
+              "en": "Copy File Path"
+            },
+            "command": "action-demo"
+          }
+        ],
+        "priority": 72,
+        "timeoutMs": 800,
+        "maxResults": 5,
+        "minQueryLength": 1
+      }
+    ]
+  },
+  "commands": [
+    {
+      "id": "search-demo",
+      "name": {
+        "zh-CN": "搜索演示结果",
+        "en": "Search Demo Results"
+      },
+      "description": "为快速搜索返回固定演示结果。",
+      "hidden": true,
+      "category": "quick-search",
+      "io": {
+        "inputs": [
+          {
+            "name": "providerId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "sequence",
+            "type": "number"
+          },
+          {
+            "name": "limit",
+            "type": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "results",
+            "type": "json"
+          }
+        ]
+      },
+      "timeoutMs": 1000
+    },
+    {
+      "id": "activate-demo",
+      "name": {
+        "zh-CN": "激活演示结果",
+        "en": "Activate Demo Result"
+      },
+      "description": "接收快速搜索演示结果并返回激活消息。",
+      "hidden": true,
+      "category": "quick-search",
+      "io": {
+        "inputs": [
+          {
+            "name": "providerId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      },
+      "timeoutMs": 1000
+    },
+    {
+      "id": "action-demo",
+      "name": {
+        "zh-CN": "执行演示动作",
+        "en": "Run Demo Action"
+      },
+      "description": "接收快速搜索演示结果和 actionId，并返回动作执行消息。",
+      "hidden": true,
+      "category": "quick-search",
+      "io": {
+        "inputs": [
+          {
+            "name": "providerId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "result",
+            "type": "json"
+          },
+          {
+            "name": "actionId",
+            "type": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      },
+      "timeoutMs": 1000
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    }
+  ]
+}

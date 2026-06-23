@@ -1,0 +1,297 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.net-capture",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "网络抓包",
+    "en": "Network Capture"
+  },
+  "description": {
+    "zh-CN": "基于 SunnyNet 的高性能 HTTP/HTTPS/WebSocket/TCP/UDP 抓包应用，使用 Go runtime 聚合事件，UI 分批增量渲染避免卡顿。",
+    "en": "High-performance SunnyNet based HTTP/HTTPS/WebSocket/TCP/UDP capture app with a Go runtime and batched UI rendering."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "capture",
+    "proxy",
+    "sunnynet",
+    "http",
+    "websocket"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64",
+      "mac-x64",
+      "mac-arm64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "mac-x64": "bin/mac-x64/brick",
+      "mac-arm64": "bin/mac-arm64/brick"
+    }
+  },
+  "lifecycle": {
+    "mode": "service",
+    "scope": "profile",
+    "concurrency": "queue",
+    "maxLifetimeMs": 0,
+    "restart": "on-failure",
+    "maxRestarts": 3,
+    "backoffMs": 2000
+  },
+  "permissions": [
+    "event.publish:net-capture:changed"
+  ],
+  "subscriptions": [],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1180,
+      "height": 760,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
+  "commands": [
+    {
+      "id": "start",
+      "name": {
+        "zh-CN": "开始抓包",
+        "en": "Start Capture"
+      },
+      "description": "启动 SunnyNet 代理抓包服务。",
+      "io": {
+        "inputs": [
+          {
+            "name": "port",
+            "type": "number",
+            "default": 2025
+          },
+          {
+            "name": "installCert",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "setSystemProxy",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "captureTcp",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "captureUdp",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "driverMode",
+            "type": "string",
+            "default": "off"
+          },
+          {
+            "name": "captureAllProcesses",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "stopNetworkOnce",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "processNames",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "processPids",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "maxBodyPreviewBytes",
+            "type": "number",
+            "default": 4096
+          }
+        ],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "stop",
+      "name": {
+        "zh-CN": "停止抓包",
+        "en": "Stop Capture"
+      },
+      "description": "停止 SunnyNet 抓包服务。",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "status",
+      "name": {
+        "zh-CN": "抓包状态",
+        "en": "Capture Status"
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "list",
+      "name": {
+        "zh-CN": "读取会话",
+        "en": "List Sessions"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "since",
+            "type": "number",
+            "default": 0
+          },
+          {
+            "name": "limit",
+            "type": "number",
+            "default": 300
+          },
+          {
+            "name": "query",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "protocol",
+            "type": "string",
+            "default": "all"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "sessions",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "detail",
+      "name": {
+        "zh-CN": "会话详情",
+        "en": "Session Detail"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "id",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "session",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "clear",
+      "name": {
+        "zh-CN": "清空会话",
+        "en": "Clear Sessions"
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "install-cert",
+      "name": {
+        "zh-CN": "安装证书",
+        "en": "Install Certificate"
+      },
+      "description": "调用 SunnyNet 安装根证书，通常需要管理员权限。",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "set-system-proxy",
+      "name": {
+        "zh-CN": "设置系统代理",
+        "en": "Set System Proxy"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "enabled",
+            "type": "boolean",
+            "default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    }
+  ]
+}

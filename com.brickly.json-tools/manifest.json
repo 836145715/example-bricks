@@ -1,0 +1,131 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.json-tools",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": "JSON Tools",
+  "description": "Format, minify and validate JSON through the Brickly BPP demo runtime.",
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [],
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "json",
+    "format",
+    "minify",
+    "developer"
+  ],
+  "categories": [
+    "developer-tools"
+  ],
+  "homepage": "https://ai-bricks.dev/plugins/json-tools",
+  "license": "MIT",
+  "commands": [
+    {
+      "id": "format",
+      "name": "Format",
+      "description": "Pretty-print JSON and stream the formatted text back in chunks.",
+      "category": "transform",
+      "io": {
+        "inputs": [
+          {
+            "name": "json",
+            "label": "JSON",
+            "type": "json",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "formatted",
+            "type": "string"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "格式化",
+        "streaming": true
+      },
+      "examples": [
+        {
+          "title": "简单对象",
+          "input": {
+            "json": "{\"a\":1,\"b\":[2,3]}"
+          }
+        },
+        {
+          "title": "嵌套结构",
+          "input": {
+            "json": "{\"users\":[{\"id\":1,\"name\":\"Ada\"}]}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "minify",
+      "name": "Minify",
+      "description": "Minify JSON into a compact one-line string.",
+      "category": "transform",
+      "io": {
+        "inputs": [
+          {
+            "name": "json",
+            "label": "JSON",
+            "type": "json",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "minified",
+            "type": "string"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "title": "压缩示例",
+          "input": {
+            "json": "{\n  \"hello\": \"world\"\n}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "parse",
+      "name": "Parse",
+      "description": "Parse JSON and return object metadata. Invalid input returns INVALID_INPUT.",
+      "category": "validate",
+      "io": {
+        "inputs": [
+          {
+            "name": "json",
+            "label": "JSON",
+            "type": "json",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ],
+  "icon": "assets/icon.png"
+}

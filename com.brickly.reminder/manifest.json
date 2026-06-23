@@ -1,0 +1,178 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.reminder",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "提醒",
+    "en": "Reminder"
+  },
+  "description": {
+    "zh-CN": "随 Brickly 启动的后台提醒服务，按配置间隔在屏幕右上角弹出提醒窗口。",
+    "en": "A background reminder service that starts with Brickly and shows a top-right popup at the configured interval."
+  },
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "mode": "service",
+    "scope": "profile",
+    "concurrency": "queue",
+    "maxLifetimeMs": 0,
+    "restart": "on-failure",
+    "maxRestarts": 5,
+    "backoffMs": 2000
+  },
+  "permissions": [],
+  "trustLevel": "community",
+  "config": {
+    "required": true,
+    "fields": [
+      {
+        "name": "enabled",
+        "label": "启用提醒",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "name": "intervalMinutes",
+        "label": "提醒间隔(分钟)",
+        "type": "number",
+        "required": true,
+        "default": 30,
+        "min": 1,
+        "max": 1440,
+        "control": "input",
+        "description": "每隔多少分钟提醒一次。"
+      },
+      {
+        "name": "firstDelaySeconds",
+        "label": "首次延迟(秒)",
+        "type": "number",
+        "default": 0,
+        "min": 0,
+        "max": 86400,
+        "control": "input",
+        "description": "启动或重新调度后多久弹出第一次提醒；0 表示一个完整间隔后首次提醒。"
+      },
+      {
+        "name": "title",
+        "label": "标题",
+        "type": "string",
+        "default": "提醒"
+      },
+      {
+        "name": "message",
+        "label": "内容",
+        "type": "string",
+        "required": true,
+        "multiline": true,
+        "default": "该处理这件事了。"
+      },
+      {
+        "name": "autoCloseSeconds",
+        "label": "自动关闭秒数",
+        "type": "number",
+        "default": 12,
+        "min": 0,
+        "max": 120,
+        "control": "input",
+        "description": "0 表示不自动关闭。"
+      }
+    ]
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "reminder",
+    "notification",
+    "timer",
+    "service"
+  ],
+  "categories": [
+    "productivity",
+    "automation"
+  ],
+  "commands": [
+    {
+      "id": "status",
+      "name": {
+        "zh-CN": "提醒状态",
+        "en": "Reminder Status"
+      },
+      "description": {
+        "zh-CN": "查看当前提醒间隔配置和下一次触发时间。",
+        "en": "Show current reminder interval config and next trigger time."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "preview",
+      "name": {
+        "zh-CN": "预览提醒",
+        "en": "Preview Reminder"
+      },
+      "description": {
+        "zh-CN": "立即弹出一次提醒窗口，用来检查展示效果。",
+        "en": "Show the reminder popup immediately to preview the appearance."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "window",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "预览"
+      }
+    },
+    {
+      "id": "reschedule",
+      "name": {
+        "zh-CN": "重新调度",
+        "en": "Reschedule"
+      },
+      "description": {
+        "zh-CN": "按当前 Profile 配置重新启动间隔提醒。",
+        "en": "Restart interval reminders using the current Profile config."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "host-start"
+    }
+  ]
+}

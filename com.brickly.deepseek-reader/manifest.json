@@ -1,0 +1,129 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.deepseek-reader",
+  "version": "0.2.0",
+  "name": {
+    "zh-CN": "DeepSeek Markdown 导出",
+    "en": "DeepSeek Markdown Export"
+  },
+  "description": {
+    "zh-CN": "输入 DeepSeek 分享链接，选择保存目录后导出为 Markdown 文件。",
+    "en": "Export DeepSeek shared conversations to Markdown after choosing a save directory."
+  },
+  "icon": "assets/icon.png",
+  "keywords": [
+    "deepseek",
+    "markdown",
+    "export",
+    "chat"
+  ],
+  "categories": [
+    "utilities",
+    "data-processing"
+  ],
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "runtime": {
+    "type": "python",
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64",
+      "linux-arm64"
+    ],
+    "entry": "runtime/python/main.py",
+    "python": ">=3.10,<3.13",
+    "dependencies": {
+      "kind": "inline",
+      "specs": [
+        "brickly-sdk==0.1.0",
+        "requests>=2.31,<3"
+      ]
+    }
+  },
+  "permissions": [
+    "net.https",
+    "fs.write"
+  ],
+  "trustLevel": "community",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 440,
+      "height": 340,
+      "resizable": false
+    }
+  },
+  "commands": [
+    {
+      "id": "save",
+      "hidden": true,
+      "name": {
+        "zh-CN": "导出 Markdown",
+        "en": "Export Markdown"
+      },
+      "description": {
+        "zh-CN": "获取 DeepSeek 分享会话并保存为本地 Markdown 文件。",
+        "en": "Fetch a DeepSeek shared conversation and save it as local Markdown."
+      },
+      "category": "export",
+      "io": {
+        "inputs": [
+          {
+            "name": "shareId",
+            "label": "分享链接或 ID",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "saveDir",
+            "label": "保存目录",
+            "type": "file",
+            "required": true
+          },
+          {
+            "name": "includeThinking",
+            "label": "包含思考过程",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "timeout",
+            "label": "超时(秒)",
+            "type": "number",
+            "default": 30,
+            "min": 5,
+            "max": 120
+          }
+        ],
+        "outputs": [
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "messageCount",
+            "type": "number"
+          },
+          {
+            "name": "savedTo",
+            "type": "string"
+          },
+          {
+            "name": "bytes",
+            "type": "number"
+          }
+        ]
+      }
+    }
+  ]
+}

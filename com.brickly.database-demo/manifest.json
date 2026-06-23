@@ -1,0 +1,248 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.database-demo",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "数据库操作演示",
+    "en": "Database Demo"
+  },
+  "description": {
+    "zh-CN": "用于验证有状态 Brick 实例生命周期的数据库操作演示：connect -> query -> save-file -> close。",
+    "en": "Stateful database demo for testing plugin instances: connect -> query -> save-file -> close."
+  },
+  "icon": "assets/icon.png",
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [
+    "fs.write:user-documents"
+  ],
+  "trustLevel": "community",
+  "lifecycle": {
+    "mode": "attached",
+    "scope": "owner",
+    "concurrency": "queue",
+    "maxLifetimeMs": 3600000
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "database",
+    "stateful",
+    "workflow",
+    "demo"
+  ],
+  "categories": [
+    "developer-tools",
+    "data-processing"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "id": "connect",
+      "name": {
+        "zh-CN": "连接数据库",
+        "en": "Connect"
+      },
+      "description": "创建一个实例内数据库连接，并返回 connectionId。",
+      "category": "database",
+      "io": {
+        "inputs": [
+          {
+            "name": "database",
+            "label": "数据库名",
+            "type": "string",
+            "default": "demo"
+          },
+          {
+            "name": "seed",
+            "label": "种子数据",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "connectionId",
+            "type": "string"
+          },
+          {
+            "name": "tables",
+            "type": "json"
+          },
+          {
+            "name": "status",
+            "type": "string"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "title": "连接演示库",
+          "input": {
+            "database": "demo"
+          }
+        }
+      ]
+    },
+    {
+      "id": "query",
+      "name": {
+        "zh-CN": "执行查询",
+        "en": "Query"
+      },
+      "description": "在指定 connectionId 上执行简化 SELECT 查询。支持：select * from users limit 10。",
+      "category": "database",
+      "io": {
+        "inputs": [
+          {
+            "name": "connectionId",
+            "label": "连接 ID",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sql",
+            "label": "SQL",
+            "type": "string",
+            "required": true,
+            "default": "select * from users limit 10",
+            "multiline": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "rows",
+            "type": "json"
+          },
+          {
+            "name": "rowCount",
+            "type": "number"
+          },
+          {
+            "name": "columns",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true,
+        "submitLabel": "查询"
+      },
+      "examples": [
+        {
+          "title": "查询用户",
+          "input": {
+            "connectionId": "上一步输出",
+            "sql": "select * from users limit 3"
+          }
+        }
+      ]
+    },
+    {
+      "id": "save-file",
+      "name": {
+        "zh-CN": "保存查询结果",
+        "en": "Save File"
+      },
+      "description": "把 rows 保存为 JSON 或 CSV 文件。",
+      "category": "database",
+      "io": {
+        "inputs": [
+          {
+            "name": "rows",
+            "label": "行数据",
+            "type": "json",
+            "required": true
+          },
+          {
+            "name": "path",
+            "label": "保存路径",
+            "type": "file",
+            "required": true,
+            "default": "database-demo-output.json"
+          },
+          {
+            "name": "format",
+            "label": "格式",
+            "type": "string",
+            "default": "json",
+            "enum": [
+              "json",
+              "csv"
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "filePath",
+            "type": "file"
+          },
+          {
+            "name": "bytes",
+            "type": "number"
+          },
+          {
+            "name": "format",
+            "type": "string"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "title": "保存 JSON",
+          "input": {
+            "rows": [
+              {
+                "id": 1,
+                "name": "Ada"
+              }
+            ],
+            "path": "database-demo-output.json",
+            "format": "json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "close",
+      "name": {
+        "zh-CN": "关闭连接",
+        "en": "Close"
+      },
+      "description": "关闭指定 connectionId。",
+      "category": "database",
+      "io": {
+        "inputs": [
+          {
+            "name": "connectionId",
+            "label": "连接 ID",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "closed",
+            "type": "boolean"
+          },
+          {
+            "name": "remaining",
+            "type": "number"
+          }
+        ]
+      }
+    }
+  ]
+}

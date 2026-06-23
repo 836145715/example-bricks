@@ -1,0 +1,46 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.code-diff",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "代码对比",
+    "en": "Code Diff"
+  },
+  "description": {
+    "zh-CN": "基于 Monaco Editor 的文本与代码对比工具，支持行内对比、差异统计、差异定位、格式化、JSON 重排和深浅主题切换。",
+    "en": "A Monaco Editor based text and code diff tool with inline diff, statistics, navigation, formatting, JSON sorting and light/dark themes."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "diff",
+    "compare",
+    "monaco",
+    "code",
+    "json"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly"
+  },
+  "license": "MIT",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1120,
+      "height": 740,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
+  "runtime": null,
+  "commands": [],
+  "permissions": []
+}

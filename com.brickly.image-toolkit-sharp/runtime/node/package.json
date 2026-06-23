@@ -1,0 +1,13 @@
+{
+  "name": "brickly-image-toolkit-sharp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Brickly image-toolkit-sharp plugin runtime powered by Node + Sharp.",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
+}

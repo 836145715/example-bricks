@@ -1,0 +1,43 @@
+{
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.node-lab",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "Node 实验室",
+    "en": "Node Lab"
+  },
+  "description": {
+    "zh-CN": "演示 UI 应用通过自定义 preload 拿到的 Node.js 能力：文件系统、HTTP、Shell、OS、DNS。",
+    "en": "Showcase Node.js capabilities available to UI apps via custom preload: fs, http, shell, os, dns."
+  },
+  "icon": "assets/icon.png",
+  "keywords": [
+    "demo",
+    "node",
+    "fs",
+    "http",
+    "shell"
+  ],
+  "categories": [
+    "developer-tools"
+  ],
+  "author": {
+    "name": "Brickly Demo"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1100,
+      "height": 780,
+      "resizable": true
+    }
+  },
+  "runtime": null,
+  "commands": [],
+  "permissions": []
+}

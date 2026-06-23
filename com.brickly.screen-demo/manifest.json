@@ -1,0 +1,103 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.screen-demo",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "屏幕取色测试",
+    "en": "Screen API Demo"
+  },
+  "description": {
+    "zh-CN": "用于测试 host.platform.screen.pickColor 和 captureRegion 的最小示例 Brick。",
+    "en": "Minimal demo brick for testing host.platform.screen.pickColor and captureRegion."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": ["any"],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": ["os.screenshot"],
+  "trustLevel": "community",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": ["screen", "screenshot", "color", "取色", "截图"],
+  "categories": ["developer-tools", "utilities"],
+  "commands": [
+    {
+      "id": "pick-color",
+      "name": {
+        "zh-CN": "屏幕取色",
+        "en": "Pick Screen Color"
+      },
+      "description": {
+        "zh-CN": "打开宿主取色器，点击屏幕冻结帧中的一个像素并返回颜色。",
+        "en": "Open the host color picker and return the selected pixel color."
+      },
+      "category": "screen",
+      "io": {
+        "inputs": [
+          {
+            "name": "timeoutMs",
+            "label": "超时时间 (ms)",
+            "type": "number",
+            "default": 120000,
+            "min": 1000,
+            "max": 300000,
+            "step": 1000
+          }
+        ],
+        "outputs": [
+          {
+            "name": "color",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "开始取色"
+      }
+    },
+    {
+      "id": "capture-region",
+      "name": {
+        "zh-CN": "区域截图 Data URL",
+        "en": "Capture Region Data URL"
+      },
+      "description": {
+        "zh-CN": "打开宿主框选截图，返回 PNG Data URL 的摘要信息。",
+        "en": "Open the host region capture overlay and return a PNG Data URL summary."
+      },
+      "category": "screen",
+      "io": {
+        "inputs": [
+          {
+            "name": "timeoutMs",
+            "label": "超时时间 (ms)",
+            "type": "number",
+            "default": 120000,
+            "min": 1000,
+            "max": 300000,
+            "step": 1000
+          }
+        ],
+        "outputs": [
+          {
+            "name": "capture",
+            "type": "image"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "开始截图"
+      }
+    }
+  ]
+}

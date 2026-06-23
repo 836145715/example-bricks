@@ -1,0 +1,45 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.json-editor",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "JSON 编辑器",
+    "en": "JSON Editor"
+  },
+  "description": {
+    "zh-CN": "基于 Monaco 的 JSON 编辑器，支持格式化、压缩、校验、折叠、过滤、复制和常见文本自动转换。",
+    "en": "A Monaco-powered JSON editor with formatting, minifying, validation, folding, filtering, copying and common text conversion."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "json",
+    "editor",
+    "monaco",
+    "developer"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly"
+  },
+  "license": "MIT",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 980,
+      "height": 720,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
+  "runtime": null,
+  "commands": [],
+  "permissions": []
+}

@@ -1,0 +1,151 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.env-test",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "环境变量映射测试",
+    "en": "Env Mapping Test"
+  },
+  "description": {
+    "zh-CN": "用于验证 Profile 字段注入 host.hello.config、runtime 环境变量，以及 inject=config/env/both 的示例 Brick。",
+    "en": "Test plugin for Profile fields injected into host.hello.config, runtime env vars, and inject=config/env/both."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js",
+    "env": {
+      "ENV_TEST_OVERRIDE": "from-runtime-env"
+    }
+  },
+  "permissions": [],
+  "trustLevel": "community",
+  "config": {
+    "required": true,
+    "fields": [
+      {
+        "name": "configOnly",
+        "label": "只进 config",
+        "description": "只会出现在 host.hello.config，不会写入环境变量。",
+        "type": "string",
+        "required": true,
+        "inject": "config",
+        "placeholder": "例如 config-value"
+      },
+      {
+        "name": "fieldEnvOnly",
+        "label": "字段只进环境变量",
+        "description": "配置字段只会写入 ENV_TEST_FIELD_ONLY，不会出现在 host.hello.config。",
+        "type": "string",
+        "required": true,
+        "env": "ENV_TEST_FIELD_ONLY",
+        "inject": "env",
+        "placeholder": "例如 env-value"
+      },
+      {
+        "name": "bothValue",
+        "label": "config + 环境变量",
+        "description": "会同时出现在 host.hello.config.bothValue 和 ENV_TEST_BOTH。",
+        "type": "string",
+        "required": true,
+        "env": "ENV_TEST_BOTH",
+        "inject": "both",
+        "placeholder": "例如 both-value"
+      },
+      {
+        "name": "defaultEnv",
+        "label": "默认环境变量",
+        "description": "不填写时使用默认值，并写入 ENV_TEST_DEFAULT。",
+        "type": "string",
+        "default": "from-default",
+        "env": "ENV_TEST_DEFAULT",
+        "inject": "env"
+      },
+      {
+        "name": "secretToken",
+        "label": "密钥环境变量",
+        "description": "password 输入形态，只写入 ENV_TEST_SECRET。MVP 仍明文落盘。",
+        "type": "string",
+        "required": true,
+        "secret": true,
+        "env": "ENV_TEST_SECRET",
+        "inject": "env",
+        "placeholder": "例如 secret-token"
+      }
+    ],
+    "env": [
+      {
+        "name": "ENV_TEST_ONLY",
+        "description": "独立 Profile 环境变量，只进入 process.env，不进入 host.hello.config。",
+        "required": true
+      },
+      {
+        "name": "ENV_TEST_OVERRIDE",
+        "description": "用于验证 Profile env 覆盖 runtime.env 默认值。",
+        "default": "from-profile-default"
+      },
+      {
+        "name": "ENV_TEST_PROFILE_SECRET",
+        "description": "独立 Profile secret 环境变量，MVP 仍明文落盘。",
+        "required": true,
+        "secret": true
+      }
+    ]
+  },
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "env",
+    "profile",
+    "config",
+    "test"
+  ],
+  "categories": [
+    "developer-tools"
+  ],
+  "commands": [
+    {
+      "id": "inspect",
+      "name": {
+        "zh-CN": "检查注入结果",
+        "en": "Inspect Injection"
+      },
+      "description": {
+        "zh-CN": "回显当前 Profile 注入到 host.hello.config 和 runtime 环境变量的结果。",
+        "en": "Echo how the selected Profile was injected into host.hello.config and runtime env vars."
+      },
+      "category": "test",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "config",
+            "type": "json"
+          },
+          {
+            "name": "env",
+            "type": "json"
+          },
+          {
+            "name": "checks",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "检查注入"
+      }
+    }
+  ]
+}

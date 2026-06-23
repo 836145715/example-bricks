@@ -1,0 +1,163 @@
+{
+  "$schema": "../../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.context-pilot",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "语境领航员",
+    "en": "ContextPilot"
+  },
+  "description": {
+    "zh-CN": "通过划词或截图 OCR 解构英文技术句子，展示翻译、句子主干、短语拆解和表达公式。",
+    "en": "Break down selected or screenshot OCR technical English into translation, sentence skeleton, phrases, and patterns."
+  },
+  "author": {
+    "name": "Brickly",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "replace",
+    "idleTtlMs": 600000,
+    "restart": "none"
+  },
+  "permissions": [
+    "os.input",
+    "os.clipboard",
+    "os.screenshot"
+  ],
+  "dependencies": {
+    "com.brickly.openai": {
+      "commands": [
+        "chat-completions"
+      ],
+      "note": "调用 OpenAI Chat Completions API 对英文技术句子进行协议化 Markdown 解构。"
+    },
+    "com.brickly.glm-ocr-screenshot": {
+      "commands": [
+        "capture-text"
+      ],
+      "note": "截图框选后调用 GLM OCR，并把识别文本交给 ContextPilot 翻译解构。"
+    }
+  },
+  "hotkeys": [
+    {
+      "id": "analyze-selection",
+      "commandId": "analyze-selection",
+      "name": {
+        "zh-CN": "解构选中英文",
+        "en": "Analyze Selection"
+      },
+      "description": {
+        "zh-CN": "双击 Ctrl 后尝试复制当前选区，检测到新文本时打开 ContextPilot 解构面板。",
+        "en": "Double-tap Ctrl, copy the current selection, and open ContextPilot when text is detected."
+      },
+      "defaultBinding": {
+        "default": {
+          "kind": "key-gesture",
+          "key": "Control",
+          "gesture": "double-tap",
+          "maxIntervalMs": 300
+        }
+      }
+    },
+    {
+      "id": "analyze-screenshot",
+      "commandId": "analyze-screenshot",
+      "name": {
+        "zh-CN": "截图 OCR 解构英文",
+        "en": "Analyze Screenshot OCR"
+      },
+      "description": {
+        "zh-CN": "框选截图区域，调用 GLM OCR 识别句子后打开 ContextPilot 解构面板。",
+        "en": "Select a screenshot region, recognize text with GLM OCR, and open the ContextPilot analysis panel."
+      },
+      "defaultBinding": {
+        "win32": {
+          "kind": "accelerator",
+          "accelerator": "Control+Alt+O"
+        },
+        "darwin": {
+          "kind": "accelerator",
+          "accelerator": "Command+Option+O"
+        },
+        "default": {
+          "kind": "accelerator",
+          "accelerator": "Control+Alt+O"
+        }
+      }
+    }
+  ],
+  "trustLevel": "verified",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": [
+    "english",
+    "context",
+    "reader",
+    "grammar",
+    "technical-writing",
+    "openai",
+    "ocr",
+    "screenshot"
+  ],
+  "categories": [
+    "developer-tools",
+    "productivity",
+    "utilities"
+  ],
+  "commands": [
+    {
+      "id": "analyze-selection",
+      "name": {
+        "zh-CN": "解构选中英文",
+        "en": "Analyze Selected Text"
+      },
+      "description": {
+        "zh-CN": "通过模拟复制检测当前选区，若文本有效则调用 OpenAI 输出协议化 Markdown 解构结果。",
+        "en": "Detect selected text by simulating copy, analyze it with OpenAI, and show a protocol Markdown panel."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "analyze-screenshot",
+      "name": {
+        "zh-CN": "截图 OCR 后解构英文",
+        "en": "Analyze Screenshot OCR Text"
+      },
+      "description": {
+        "zh-CN": "框选截图区域，调用 GLM OCR 获取文字，再调用 OpenAI 输出协议化 Markdown 解构结果。",
+        "en": "Select a screenshot region, get text through GLM OCR, analyze it with OpenAI, and show a protocol Markdown panel."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ]
+}
