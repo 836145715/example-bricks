@@ -1,0 +1,296 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.lan-share",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "内网文件共享",
+    "en": "LAN File Share"
+  },
+  "description": {
+    "zh-CN": "选择本机目录一键启动内网 HTTP 文件服务：自动发现内网 IP、生成访问 URL 与二维码，局域网内手机/电脑可浏览下载，支持可选上传、访问码鉴权与实时传输日志。",
+    "en": "Share a local folder over the LAN with one click. Discovers intranet IPs, generates access URLs and a QR code, lets other devices browse and download files, and supports optional upload, access-code auth and a live transfer log."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "file-share",
+    "lan",
+    "intranet",
+    "http",
+    "download",
+    "upload",
+    "qrcode",
+    "local"
+  ],
+  "categories": [
+    "utilities",
+    "productivity"
+  ],
+  "author": {
+    "name": "Brickly Examples"
+  },
+  "license": "MIT",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.cjs"
+  },
+  "lifecycle": {
+    "mode": "service",
+    "scope": "profile",
+    "concurrency": "queue",
+    "maxLifetimeMs": 0,
+    "restart": "on-failure",
+    "maxRestarts": 5,
+    "backoffMs": 2000
+  },
+  "permissions": [
+    "net.http",
+    "net.tcp",
+    "fs.read",
+    "fs.write"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1040,
+      "height": 720,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "auto"
+  },
+  "commands": [
+    {
+      "id": "status",
+      "name": {
+        "zh-CN": "服务状态",
+        "en": "Status"
+      },
+      "description": "返回当前共享服务状态：是否运行、端口、共享目录、访问 URL、配置与最近传输日志。",
+      "category": "network",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "start",
+      "name": {
+        "zh-CN": "启动共享",
+        "en": "Start Sharing"
+      },
+      "description": "按给定配置启动 HTTP 文件服务并绑定到内网地址。",
+      "category": "network",
+      "io": {
+        "inputs": [
+          {
+            "name": "root",
+            "label": "共享目录",
+            "type": "string"
+          },
+          {
+            "name": "port",
+            "label": "端口",
+            "type": "number",
+            "default": 8723,
+            "min": 1,
+            "max": 65535
+          },
+          {
+            "name": "allowUpload",
+            "label": "允许上传",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "accessCode",
+            "label": "访问码",
+            "type": "string",
+            "default": ""
+          }
+        ],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "stop",
+      "name": {
+        "zh-CN": "停止共享",
+        "en": "Stop Sharing"
+      },
+      "description": "停止 HTTP 文件服务并断开所有连接。",
+      "category": "network",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "update-config",
+      "name": {
+        "zh-CN": "更新配置",
+        "en": "Update Config"
+      },
+      "description": "持久化共享目录、端口、上传开关与访问码等配置（不影响正在运行的服务）。",
+      "io": {
+        "inputs": [
+          {
+            "name": "root",
+            "type": "string"
+          },
+          {
+            "name": "port",
+            "type": "number",
+            "min": 1,
+            "max": 65535
+          },
+          {
+            "name": "allowUpload",
+            "type": "boolean"
+          },
+          {
+            "name": "accessCode",
+            "type": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "config",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "default-root",
+      "name": {
+        "zh-CN": "默认目录",
+        "en": "Default Root"
+      },
+      "description": "返回一个推荐的默认共享目录（下载目录或用户主目录）。",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "root",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "list-entries",
+      "name": {
+        "zh-CN": "浏览目录",
+        "en": "List Entries"
+      },
+      "description": "列出共享目录下指定相对子路径中的文件与文件夹，供 UI 预览将要分享的内容。",
+      "io": {
+        "inputs": [
+          {
+            "name": "subPath",
+            "type": "string",
+            "default": ""
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "clear-log",
+      "name": {
+        "zh-CN": "清空日志",
+        "en": "Clear Log"
+      },
+      "description": "清空传输日志。",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "open-folder",
+      "name": {
+        "zh-CN": "打开目录",
+        "en": "Open Folder"
+      },
+      "description": "在系统文件管理器中打开共享目录。",
+      "io": {
+        "inputs": [
+          {
+            "name": "path",
+            "type": "string",
+            "default": ""
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "open-url",
+      "name": {
+        "zh-CN": "浏览器打开",
+        "en": "Open In Browser"
+      },
+      "description": "用系统默认浏览器打开指定访问 URL。",
+      "io": {
+        "inputs": [
+          {
+            "name": "url",
+            "type": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "json"
+          }
+        ]
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    }
+  ],
+  "storage": {
+    "quotaMB": 50
+  }
+}
