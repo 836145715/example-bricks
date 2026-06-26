@@ -35,7 +35,7 @@ let dedupeHits = 0
 let notifyTimer = null
 
 function log(message) {
-  brick.transport.log(message)
+  brick.log.info(message)
 }
 
 function ensureDir() {
