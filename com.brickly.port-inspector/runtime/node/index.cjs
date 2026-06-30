@@ -57,7 +57,7 @@ brick.onCommand('kill', async (ctx, input) => {
 })
 
 brick.onReady(() => {
-  brick.transport.log('ready', runtimeInfo())
+  brick.log.info('ready', runtimeInfo())
 })
 
 brick.start()

@@ -133,7 +133,7 @@ async function safeReadClipboard(ctx) {
   try {
     return await ctx.platform.clipboard.readContent()
   } catch (error) {
-    plugin.transport.log(`read clipboard failed: ${errorMessage(error)}`)
+    plugin.log.warn(`read clipboard failed: ${errorMessage(error)}`)
     return { capturedAt: Date.now() }
   }
 }
@@ -161,7 +161,7 @@ function normalizeOcrText(ocrResult) {
 }
 
 function logClipboardDecision(selection, before, after) {
-  plugin.transport.log(
+  plugin.log.debug(
     [
       `selection=${selection.reason}`,
       `before=${snapshotSummary(before)}`,
@@ -182,7 +182,7 @@ async function restoreClipboard(ctx, snapshot) {
   try {
     await ctx.platform.clipboard.setContent(content)
   } catch (error) {
-    plugin.transport.log(`restore clipboard failed: ${errorMessage(error)}`)
+    plugin.log.warn(`restore clipboard failed: ${errorMessage(error)}`)
   }
 }
 
