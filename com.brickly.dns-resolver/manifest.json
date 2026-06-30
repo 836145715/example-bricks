@@ -1,0 +1,263 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.dns-resolver",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "域名真实 IP 查找",
+    "en": "DNS Real IP Resolver"
+  },
+  "description": {
+    "zh-CN": "通过多个公共 DNS 服务器解析域名的真实 IP 地址，支持 A / AAAA / CNAME / MX / NS / TXT 记类型，对比不同 DNS 来源结果。",
+    "en": "Resolve the real IP address of a domain via multiple public DNS servers. Supports A / AAAA / CNAME / MX / NS / TXT record types and compares results from different DNS sources."
+  },
+  "icon": "assets/icon.svg",
+  "author": {
+    "name": "Brickly"
+  },
+  "license": "MIT",
+  "keywords": [
+    "dns",
+    "domain",
+    "ip",
+    "network",
+    "lookup"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64",
+      "linux-arm64"
+    ],
+    "entry": "runtime/node/index.cjs"
+  },
+  "lifecycle": {
+    "mode": "task",
+    "scope": "profile",
+    "concurrency": "queue"
+  },
+  "permissions": [
+    "net.udp"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1080,
+      "height": 720,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "auto"
+  },
+  "commands": [
+    {
+      "id": "resolve",
+      "name": {
+        "zh-CN": "解析域名",
+        "en": "Resolve Domain"
+      },
+      "description": {
+        "zh-CN": "通过多个公共 DNS 服务器解析域名，返回 A / AAAA / CNAME 等记录及来源 DNS 服务器信息。",
+        "en": "Resolve a domain via multiple public DNS servers, returning A / AAAA / CNAME records with source DNS server info."
+      },
+      "category": "network",
+      "io": {
+        "inputs": [
+          {
+            "name": "domain",
+            "label": "域名",
+            "type": "string",
+            "required": true,
+            "control": "input",
+            "placeholder": "例如 example.com"
+          },
+          {
+            "name": "recordType",
+            "label": "记录类型",
+            "type": "string",
+            "default": "a",
+            "enum": [
+              {
+                "value": "a",
+                "label": "A (IPv4)"
+              },
+              {
+                "value": "aaaa",
+                "label": "AAAA (IPv6)"
+              },
+              {
+                "value": "cname",
+                "label": "CNAME"
+              },
+              {
+                "value": "mx",
+                "label": "MX"
+              },
+              {
+                "value": "ns",
+                "label": "NS"
+              },
+              {
+                "value": "txt",
+                "label": "TXT"
+              }
+            ]
+          },
+          {
+            "name": "dnsServers",
+            "label": "DNS 服务器",
+            "type": "string",
+            "default": "auto",
+            "enum": [
+              {
+                "value": "auto",
+                "label": "自动（全部）"
+              },
+              {
+                "value": "google",
+                "label": "Google 8.8.8.8"
+              },
+              {
+                "value": "cloudflare",
+                "label": "Cloudflare 1.1.1.1"
+              },
+              {
+                "value": "ali",
+                "label": "AliDNS 223.5.5.5"
+              },
+              {
+                "value": "tencent",
+                "label": "DNSPod 119.29.29.29"
+              },
+              {
+                "value": "system",
+                "label": "系统默认"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "title": "解析 example.com 的 A 记录",
+          "input": {
+            "domain": "example.com",
+            "recordType": "A",
+            "dnsServers": "auto"
+          }
+        }
+      ],
+      "llm": {
+        "requireApproval": "never",
+        "tags": [
+          "dns",
+          "domain",
+          "ip",
+          "readonly"
+        ]
+      }
+    },
+    {
+      "id": "resolve-all",
+      "name": {
+        "zh-CN": "全量解析",
+        "en": "Resolve All Records"
+      },
+      "description": {
+        "zh-CN": "一次性解析域名的所有记录类型（A / AAAA / CNAME / MX / NS / TXT），返回完整的 DNS 记录概览。",
+        "en": "Resolve all record types (A / AAAA / CNAME / MX / NS / TXT) for a domain at once, returning a complete DNS overview."
+      },
+      "category": "network",
+      "io": {
+        "inputs": [
+          {
+            "name": "domain",
+            "label": "域名",
+            "type": "string",
+            "required": true,
+            "control": "input",
+            "placeholder": "例如 example.com"
+          },
+          {
+            "name": "dnsServers",
+            "label": "DNS 服务器",
+            "type": "string",
+            "default": "auto",
+            "enum": [
+              {
+                "value": "auto",
+                "label": "自动（全部）"
+              },
+              {
+                "value": "google",
+                "label": "Google 8.8.8.8"
+              },
+              {
+                "value": "cloudflare",
+                "label": "Cloudflare 1.1.1.1"
+              },
+              {
+                "value": "ali",
+                "label": "AliDNS 223.5.5.5"
+              },
+              {
+                "value": "tencent",
+                "label": "DNSPod 119.29.29.29"
+              },
+              {
+                "value": "system",
+                "label": "系统默认"
+              }
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "examples": [
+        {
+          "title": "全量解析 example.com",
+          "input": {
+            "domain": "example.com",
+            "dnsServers": "auto"
+          }
+        }
+      ],
+      "llm": {
+        "requireApproval": "never",
+        "tags": [
+          "dns",
+          "domain",
+          "ip",
+          "readonly"
+        ]
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    }
+  ]
+}
