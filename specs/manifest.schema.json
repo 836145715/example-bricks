@@ -767,7 +767,7 @@
           }
         },
         {
-          "description": "Webview：基于 Electron BrowserWindow 承载自定义 UI。纯 UI 与带 runtime 的 Brick UI 都注入 window.brickly；纯 UI 额外保留 window.AIBricks 兼容旧页面。",
+          "description": "Webview：基于 Electron BrowserWindow 承载自定义 UI。纯 UI 与带 runtime 的 Brick 体验窗均注入受限的 window.brickly（平台 preload/brick.js）。window.AIBricks 仅平台主窗口使用，不注入 Brick 体验窗。可选顶层 manifest.preload 指定附加 preload（相对 Brick 根目录），在平台 preload 之后链式 require；路径须位于 rootDir 内。",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -957,7 +957,7 @@
     },
     "preload": {
       "type": "string",
-      "description": "纯 UI Brick 可选的附加 preload，相对 Brick 根目录。加载器会校验路径必须位于 rootDir 内且文件存在。"
+      "description": "可选的附加 preload 脚本，相对 Brick 根目录（如 preload.cjs）。纯 UI 与带 runtime 的 webview 均可声明。平台先加载 brick.js 注入 window.brickly，再通过 --brickly-brick-preload 链式 require 本脚本；校验路径必须位于 rootDir 内且文件存在。自定义 preload 可 exposeInMainWorld 自有 API，或封装 ipcRenderer 调用平台 channel，不应假设存在 window.AIBricks。"
     },
     "storage": {
       "description": "Brick 级本地存储声明。当前主要用于配额和 schema 元数据，完整隔离存储能力仍在演进中。",
