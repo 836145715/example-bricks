@@ -70,10 +70,13 @@ def _send(msg: dict[str, Any]) -> None:
         sys.stdout.flush()
 
 
+_plugin = None  # set after BricklyRuntime construction
+
+
 def _log(msg: str) -> None:
-    """Write log to stderr."""
-    sys.stderr.write(f"[mysql] {msg}\n")
-    sys.stderr.flush()
+    """Structured log via SDK (runtime.log); never write stderr for business logs."""
+    if _plugin is not None:
+        _plugin.info(msg)
 
 
 def _is_cancelled(req_id: str) -> bool:
@@ -522,6 +525,7 @@ def _close_connections() -> None:
 
 
 plugin = BricklyRuntime(BRICK_ID)
+_plugin = plugin
 
 
 @plugin.on_ready

@@ -53,9 +53,7 @@ function send(message) {
 }
 
 function log(message, details) {
-  process.stderr.write(
-    `[image-toolkit-sharp] ${message}${details ? ' ' + JSON.stringify(details) : ''}\n`
-  )
+  brick.log.info(message, details)
 }
 
 function ensureNotCancelled(id) {
@@ -806,5 +804,5 @@ brick.onShutdown(() => {
 brick.start()
 
 process.on('uncaughtException', (e) => {
-  log('发生未捕获异常 uncaughtException', { message: e.message, stack: e.stack })
+  brick.log.error('发生未捕获异常 uncaughtException', e, { message: e.message, stack: e.stack })
 })

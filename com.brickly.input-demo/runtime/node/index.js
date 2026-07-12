@@ -6,7 +6,7 @@ const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 const brick = new BricklyRuntime({ brickId: 'com.brickly.input-demo' })
 
 function log(message, details) {
-  process.stderr.write(`[input-demo] ${message}${details ? ' ' + JSON.stringify(details) : ''}\n`)
+  brick.log.info(message, details)
 }
 
 function sleep(ms) {

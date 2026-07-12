@@ -6,7 +6,7 @@ const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 const brick = new BricklyRuntime({ brickId: 'com.brickly.json-tools' })
 
 function log(message, details) {
-  process.stderr.write(`[json-tools] ${message}${details ? ` ${JSON.stringify(details)}` : ''}\n`)
+  brick.log.info(message, details)
 }
 
 function parseInput(input) {

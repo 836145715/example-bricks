@@ -64,9 +64,13 @@ def _send(msg: dict[str, Any]) -> None:
         sys.stdout.flush()
 
 
+_plugin = None  # set after BricklyRuntime construction
+
+
 def _log(msg: str) -> None:
-    sys.stderr.write(f"[deepseek-reader] {msg}\n")
-    sys.stderr.flush()
+    """Structured log via SDK (runtime.log); never write stderr for business logs."""
+    if _plugin is not None:
+        _plugin.info(msg)
 
 
 def _is_cancelled(req_id: str) -> bool:
@@ -427,6 +431,7 @@ def _run_command(ctx: Any, handler: Any, inp: dict[str, Any]) -> Any:
             _active.pop(req_id, None)
 
 plugin = BricklyRuntime(BRICK_ID)
+_plugin = plugin
 plugin.on_command("save", lambda ctx, inp: _run_command(ctx, cmd_save, inp or {}))
 
 

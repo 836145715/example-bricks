@@ -50,7 +50,7 @@ function loadState() {
     const parsed = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'))
     return { items: Array.isArray(parsed.items) ? parsed.items : [] }
   } catch (error) {
-    process.stderr.write(`[${BRICK_ID}] load failed: ${error?.message || error}\n`)
+    brick.log.warn(`load failed: ${error?.message || error}`)
     return { items: [] }
   }
 }

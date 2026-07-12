@@ -21,7 +21,7 @@ const brick = new BricklyRuntime({ brickId: BRICK_ID })
 const connections = new Map()
 
 function log(message, details) {
-  process.stderr.write(`[${BRICK_ID}] ${message}${details ? ' ' + JSON.stringify(details) : ''}\n`)
+  brick.log.info(message, details)
 }
 
 function sleep(ms) {

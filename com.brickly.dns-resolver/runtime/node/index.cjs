@@ -2,11 +2,17 @@
 'use strict'
 
 const { BppError, BricklyRuntime } = require('@syllm/brickly-sdk')
-const { resolveDomain, resolveAllRecords, runtimeInfo } = require('./services/dns-resolver.cjs')
+const {
+  resolveDomain,
+  resolveAllRecords,
+  runtimeInfo,
+  setLogger
+} = require('./services/dns-resolver.cjs')
 
 const BRICK_ID = 'com.brickly.dns-resolver'
 
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
+setLogger(brick.log)
 
 function normalizeError(error) {
   if (error instanceof BppError) return error
@@ -37,7 +43,7 @@ brick.onCommand('resolve-all', async (ctx, input) => {
 })
 
 brick.onReady(() => {
-  brick.transport.log('ready', runtimeInfo())
+  brick.log.info('ready', runtimeInfo())
 })
 
 brick.start()

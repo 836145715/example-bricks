@@ -6,6 +6,24 @@ const os = require('node:os')
 const https = require('node:https')
 const { BppError } = require('@syllm/brickly-sdk')
 
+/** @type {{ warn?: Function, error?: Function, info?: Function }} */
+let logger = {}
+
+function setLogger(next) {
+  logger = next && typeof next === 'object' ? next : {}
+}
+
+function logWarn(message, details) {
+  if (typeof logger.warn === 'function') logger.warn(message, details)
+  else if (typeof logger.info === 'function') logger.info(message, details)
+}
+
+function logError(message, details) {
+  if (typeof logger.error === 'function') logger.error(message, details)
+  else if (typeof logger.warn === 'function') logger.warn(message, details)
+  else if (typeof logger.info === 'function') logger.info(message, details)
+}
+
 const DNS_SERVERS = {
   google: { label: 'Google Public DNS', address: '8.8.8.8', doh: 'https://dns.google/resolve' },
   cloudflare: { label: 'Cloudflare DNS', address: '1.1.1.1', doh: 'https://cloudflare-dns.com/dns-query' },
@@ -184,7 +202,10 @@ async function resolveWithServer(domain, recordType, serverInfo) {
     try {
       return await resolveWithDoh(domain, recordType, serverInfo)
     } catch (dohError) {
-      console.error(`[dns-resolver] DoH failed for ${serverInfo.key}: ${dohError.message}, falling back to UDP`)
+      logWarn(`DoH failed for ${serverInfo.key}: ${dohError.message}, falling back to UDP`, {
+        serverKey: serverInfo.key,
+        error: dohError.message
+      })
     }
   }
 
@@ -204,7 +225,7 @@ async function resolveWithServer(domain, recordType, serverInfo) {
       errorStack: error.stack || null,
       elapsedMs
     }
-    console.error('[dns-resolver] resolve failed:', JSON.stringify(errorDetail, null, 2))
+    logError('resolve failed', errorDetail)
     return {
       serverKey: serverInfo.key,
       serverLabel: serverInfo.label,
@@ -338,5 +359,6 @@ module.exports = {
   resolveAllRecords,
   runtimeInfo,
   normalizeDomain,
-  normalizeRecordType
+  normalizeRecordType,
+  setLogger
 }
