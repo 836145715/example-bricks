@@ -268,14 +268,19 @@
         </section>
 
         <section class="card">
-          <h2>6. 平台 brickly（对照）</h2>
-          <div class="desc">平台 API 不走用户门面记账；用于确认窗口身份</div>
+          <h2>6. 平台 brickly + log</h2>
+          <div class="desc">
+            <code>window.brickly.log.*</code> 写入日志中心（scope ≈ brick:本 id）；与 preload · 门面 Trace 不同
+          </div>
           <div class="actions">
             <button type="button" class="secondary" data-act="brick-id">读 brickId</button>
             <button type="button" class="secondary" data-act="manifest">getManifest</button>
+            <button type="button" data-act="log-info">log.info</button>
+            <button type="button" class="warn" data-act="log-warn">log.warn</button>
+            <button type="button" class="danger" data-act="log-error">log.error</button>
           </div>
           <div class="expect">
-            <strong>期望：</strong>有结果；日志中心不应因此多出 preload · brickly.* 用户门面记录
+            <strong>期望：</strong>日志中心出现 brick:com.brickly.preload-api-probe 诊断日志；无 preload · brickly.log
           </div>
         </section>
       </div>
@@ -414,6 +419,27 @@
         },
         async manifest() {
           await run('window.brickly.getManifest', () => window.brickly.getManifest())
+        },
+        async 'log-info'() {
+          await run('window.brickly.log.info', () => {
+            if (!window.brickly?.log) throw new Error('window.brickly.log 不可用（请更新平台 preload）')
+            window.brickly.log.info('probe log.info from pure UI', { t: Date.now(), source: 'preload-api-probe' })
+            return { sent: true, level: 'info' }
+          })
+        },
+        async 'log-warn'() {
+          await run('window.brickly.log.warn', () => {
+            if (!window.brickly?.log) throw new Error('window.brickly.log 不可用')
+            window.brickly.log.warn('probe log.warn', { hint: 'check log center' })
+            return { sent: true, level: 'warn' }
+          })
+        },
+        async 'log-error'() {
+          await run('window.brickly.log.error', () => {
+            if (!window.brickly?.log) throw new Error('window.brickly.log 不可用')
+            window.brickly.log.error('probe log.error', { code: 'PROBE_DEMO' })
+            return { sent: true, level: 'error' }
+          })
         }
       }
 
