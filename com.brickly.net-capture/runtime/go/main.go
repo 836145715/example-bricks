@@ -816,13 +816,14 @@ func publishEvent(event string, payload any) {
 		return
 	}
 	if err := plugin.Events.Publish(event, payload); err != nil {
-		plugin.Logf("publish %s failed: %v", event, err)
+		plugin.Warn("event publish failed", map[string]any{"event": event, "error": err.Error()})
 	}
 }
 
 func logf(format string, args ...any) {
 	if plugin != nil {
-		plugin.Logf(format, args...)
+		// 无 level 的 Logf 已删除；兼容旧 logf 调用点，统一为 info
+		plugin.Info(fmt.Sprintf(format, args...), nil)
 	}
 }
 
@@ -1115,7 +1116,7 @@ func main() {
 		ProtocolVersion: protocolVersion,
 		Stdout:          stdoutguard.ProtocolStdout(),
 	})
-	plugin.Logf("started go=%s sunny=%s", runtime.Version(), public.SunnyVersion)
+	plugin.Info(fmt.Sprintf("started go=%s sunny=%s", runtime.Version(), public.SunnyVersion), nil)
 
 	plugin.OnCommand("start", func(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
 		status, err := capture.start(parseStartOptions(input))

@@ -39,14 +39,15 @@ const (
 )
 
 var (
-	stdoutMu      sync.Mutex
-	stdout        = bufio.NewWriter(os.Stdout)
-	stderr        = bufio.NewWriter(os.Stderr)
-	cancelMu      sync.Mutex
-	cancelled     = make(map[string]bool)
-	activeCancels = make(map[string]context.CancelFunc)
-	activeMu      sync.Mutex
+	stdoutMu       sync.Mutex
+	stdout         = bufio.NewWriter(os.Stdout)
+	cancelMu       sync.Mutex
+	cancelled      = make(map[string]bool)
+	activeCancels  = make(map[string]context.CancelFunc)
+	activeMu       sync.Mutex
 	activeCommands = make(map[string]*activeCommand)
+	// brickRuntime 供包内日志走 runtime.log，禁止 stderr 业务输出
+	brickRuntime *brickly.Runtime
 )
 
 type activeCommand struct {
@@ -103,7 +104,7 @@ type searchInput struct {
 func send(msg map[string]any) {
 	data, err := json.Marshal(msg)
 	if err != nil {
-		logf("marshal err: %v", err)
+		logError("marshal BPP message failed", err, nil)
 		return
 	}
 	stdoutMu.Lock()
@@ -113,10 +114,48 @@ func send(msg map[string]any) {
 	stdout.Flush()
 }
 
-// 往 stderr 写后台调试日志，绝对不能写往 stdout 污染 BPP 消息
-func logf(format string, args ...any) {
-	fmt.Fprintf(stderr, "[log-searcher] "+format+"\n", args...)
-	stderr.Flush()
+// -------------------- 结构化日志（plugin.log.* / runtime.log）--------------------
+// 禁止业务日志写 stderr；宿主会把 stderr 记为 [已废弃] error。
+
+func logDebug(message string, fields map[string]any) {
+	if brickRuntime != nil {
+		brickRuntime.Debug(message, fields)
+	}
+}
+
+func logInfo(message string, fields map[string]any) {
+	if brickRuntime != nil {
+		brickRuntime.Info(message, fields)
+	}
+}
+
+func logWarn(message string, fields map[string]any) {
+	if brickRuntime != nil {
+		brickRuntime.Warn(message, fields)
+	}
+}
+
+func logError(message string, err error, fields map[string]any) {
+	if brickRuntime != nil {
+		brickRuntime.Error(message, err, fields)
+	}
+}
+
+// 若在命令上下文内，优先挂到当前 command Span
+func logWarnOn(requestID, message string, fields map[string]any) {
+	if active := getActiveCommand(requestID); active != nil && active.ctx != nil {
+		active.ctx.Warn(message, fields)
+		return
+	}
+	logWarn(message, fields)
+}
+
+func logErrorOn(requestID, message string, err error, fields map[string]any) {
+	if active := getActiveCommand(requestID); active != nil && active.ctx != nil {
+		active.ctx.Error(message, err, fields)
+		return
+	}
+	logError(message, err, fields)
 }
 
 // -------------------- 协议消息辅助 --------------------
@@ -813,6 +852,8 @@ func intFromInput(value any, fallback int) int {
 // SDK 主入口
 func main() {
 	runtime := brickly.New(brickly.Options{BrickID: brickID})
+	brickRuntime = runtime
+
 	registerCommand := func(commandID string, handler func(string, map[string]any)) {
 		runtime.OnCommand(commandID, func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
 			payload := map[string]any{}
@@ -832,8 +873,7 @@ func main() {
 			}()
 			defer close(done)
 
-			logf("invoke start id=%s cmd=%s", ctx.RequestID, commandID)
-			defer logf("invoke end id=%s cmd=%s", ctx.RequestID, commandID)
+			// 不再打 invoke start/end：宿主 Trace 已覆盖调用生命周期，stderr 噪音无价值
 			handler(ctx.RequestID, payload)
 			if active.err != nil {
 				return nil, active.err
@@ -849,17 +889,8 @@ func main() {
 	registerCommand("save_config", handleSaveConfig)
 	registerCommand("test_connection", handleTestConnection)
 	registerCommand("list_log_files", handleListLogFiles)
-	runtime.OnCommand("load_config", func(ctx *brickly.CommandContext, _ json.RawMessage) (any, error) {
-		active := &activeCommand{ctx: ctx}
-		setActiveCommand(ctx.RequestID, active)
-		defer deleteActiveCommand(ctx.RequestID)
-		logf("invoke start id=%s cmd=load_config", ctx.RequestID)
-		defer logf("invoke end id=%s cmd=load_config", ctx.RequestID)
-		handleLoadConfig(ctx.RequestID)
-		if active.err != nil {
-			return nil, active.err
-		}
-		return active.result, nil
+	registerCommand("load_config", func(id string, _ map[string]any) {
+		handleLoadConfig(id)
 	})
 
 	runtime.Start()

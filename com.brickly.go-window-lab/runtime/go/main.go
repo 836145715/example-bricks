@@ -15,6 +15,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -80,7 +81,7 @@ func openLab() (map[string]any, error) {
 	labMu.Unlock()
 
 	h.On("closed", func(payload map[string]any) {
-		plugin.Logf("lab window closed id=%d", h.ID)
+		plugin.Info(fmt.Sprintf("lab window closed id=%d", h.ID), nil)
 		labMu.Lock()
 		if lab != nil && lab.ID == h.ID {
 			lab = nil
@@ -97,7 +98,7 @@ func closeLab() int {
 		return 0
 	}
 	if err := h.Close(); err != nil {
-		plugin.Logf("closeLab failed: %v", err)
+		plugin.Warn(fmt.Sprintf("closeLab failed: %v", err), nil)
 	}
 	labMu.Lock()
 	lab = nil
@@ -193,7 +194,7 @@ func handleLabMessage(payload any, _ brickly.EventEnvelope) {
 			reply["result"] = v
 		}
 		if sendErr := h.WebContents().Send("lab:result", reply); sendErr != nil {
-			plugin.Logf("reply lab:result failed: %v", sendErr)
+			plugin.Warn(fmt.Sprintf("reply lab:result failed: %v", sendErr), nil)
 		}
 
 	case "lab:query":
@@ -204,7 +205,7 @@ func handleLabMessage(payload any, _ brickly.EventEnvelope) {
 			"at":    time.Now().UnixMilli(),
 		}
 		if sendErr := h.WebContents().Send("lab:state", reply); sendErr != nil {
-			plugin.Logf("reply lab:state failed: %v", sendErr)
+			plugin.Warn(fmt.Sprintf("reply lab:state failed: %v", sendErr), nil)
 		}
 	}
 }
@@ -227,7 +228,7 @@ func main() {
 		go func() {
 			time.Sleep(300 * time.Millisecond)
 			if _, err := openLab(); err != nil {
-				plugin.Logf("auto open failed: %v", err)
+				plugin.Error("auto open failed", err, nil)
 			}
 		}()
 		return nil
@@ -240,3 +241,4 @@ func main() {
 
 	plugin.Start()
 }
+

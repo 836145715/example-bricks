@@ -124,7 +124,7 @@ func RunLocalGrep(ctx context.Context, pattern string, files []string, args Grep
 		file, err := os.Open(filePath)
 		if err != nil {
 			message := fmt.Sprintf("failed to open file %s: %v", filePath, err)
-			logf("%s", message)
+			// 错误已通过 GrepLine 推到 UI，不再 stderr 打日志
 			onLine(GrepLine{
 				Text:  message,
 				File:  filePath,
@@ -321,7 +321,7 @@ func formatLine(filename string, lineNum int, text string, isContext bool, args 
 func grepSingleFile(ctx context.Context, file *os.File, filePath string, filename string, filters []compiledFilter, args GrepArgs, contextA, contextB int, onLine func(line GrepLine)) error {
 	lineSource, err := newSearchLineSource(ctx, file, args)
 	if err != nil {
-		logf("error reading file %s: %v", filename, err)
+		logWarn("读取日志文件失败", map[string]any{"file": filename, "error": err.Error()})
 		return nil
 	}
 	defer lineSource.Close()
@@ -358,7 +358,7 @@ func grepSingleFile(ctx context.Context, file *os.File, filePath string, filenam
 	}
 
 	if err := lineSource.Err(); err != nil {
-		logf("error reading file %s: %v", filename, err)
+		logWarn("读取日志文件过程中出错", map[string]any{"file": filename, "error": err.Error()})
 	}
 
 	return nil

@@ -104,7 +104,8 @@ func runRemoteGrepFile(
 	defer session.Close()
 
 	cmd := buildRemoteGrepCommand(primaryOpts, filterConfigs, []string{targetFile}, args)
-	logf("remote command: %s", cmd)
+	// 远程命令全文可能很长/含路径，仅 debug；需要排障时再开 Debug 级别
+	logDebug("remote grep", map[string]any{"file": targetFile})
 
 	stdoutPipe, err := session.StdoutPipe()
 	if err != nil {
@@ -150,7 +151,7 @@ func runRemoteGrepFile(
 	select {
 	case <-ctx.Done():
 		session.Close()
-		logf("remote search cancelled.")
+		logInfo("远程搜索已取消", map[string]any{"file": targetFile})
 		return ctx.Err()
 	case done := <-doneChan:
 		<-stderrChan // 确保 stderr 读取完毕
@@ -269,7 +270,7 @@ func dialSSHClient(server ServerConfig) (*ssh.Client, error) {
 	}
 
 	addr := net.JoinHostPort(server.Host, strconv.Itoa(port))
-	logf("connecting to remote server %s...", addr)
+	logInfo("连接远程服务器", map[string]any{"addr": addr, "user": server.User})
 
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {

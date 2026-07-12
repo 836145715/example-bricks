@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"runtime"
 
 	"brickly/local-search/internal/everything"
@@ -130,7 +131,7 @@ func main() {
 		ProtocolVersion: protocolVersion,
 		Stdout:          stdoutguard.ProtocolStdout(),
 	})
-	plugin.Logf("started go=%s os=%s arch=%s dll=%s", runtime.Version(), runtime.GOOS, runtime.GOARCH, client.DLLPath())
+	plugin.Info(fmt.Sprintf("started go=%s os=%s arch=%s dll=%s", runtime.Version(), runtime.GOOS, runtime.GOARCH, client.DLLPath()), nil)
 
 	plugin.OnCommand("search", handleSearch)
 	plugin.OnCommand("health", handleHealth)
@@ -140,3 +141,4 @@ func main() {
 
 	plugin.Start()
 }
+
