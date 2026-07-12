@@ -1,0 +1,44 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.preload-api-probe",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "Preload 调用探针",
+    "en": "Preload API Probe"
+  },
+  "description": {
+    "zh-CN": "开发专用：验证自定义 preload 的 exposeApi 调用记录、错误上报与绕过尝试。请对照日志中心中 action 为 preload · … 的 Trace。",
+    "en": "Dev-only probe for preload exposeApi call tracing, error reporting, and bypass attempts. Check log center for preload · … traces."
+  },
+  "icon": "assets/icon.png",
+  "keywords": [
+    "dev",
+    "preload",
+    "trace",
+    "probe",
+    "exposeApi"
+  ],
+  "categories": [
+    "developer-tools"
+  ],
+  "author": {
+    "name": "Brickly Dev"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1080,
+      "height": 820,
+      "resizable": true
+    }
+  },
+  "runtime": null,
+  "commands": [],
+  "permissions": []
+}

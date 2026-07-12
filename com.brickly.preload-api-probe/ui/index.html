@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Preload 调用探针</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0f1115;
+        --panel: #181b22;
+        --panel2: #1f232c;
+        --border: #2a2f3a;
+        --text: #e6e8ec;
+        --muted: #8d93a3;
+        --accent: #7c5cff;
+        --ok: #22c55e;
+        --err: #ef4444;
+        --warn: #f59e0b;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f4f5f7;
+          --panel: #ffffff;
+          --panel2: #f0f1f4;
+          --border: #e2e4e9;
+          --text: #1a1d24;
+          --muted: #6b7280;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      header {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+      header h1 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        font-weight: 650;
+      }
+      header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      main {
+        padding: 16px 18px 28px;
+        display: grid;
+        gap: 12px;
+      }
+      .banner {
+        border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+        background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--text);
+      }
+      .banner code {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 11px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .card h2 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .card .desc {
+        color: var(--muted);
+        font-size: 11.5px;
+        line-height: 1.5;
+        margin-bottom: 10px;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      button {
+        border: 0;
+        border-radius: 7px;
+        padding: 6px 11px;
+        font-size: 12px;
+        cursor: pointer;
+        background: var(--accent);
+        color: #fff;
+      }
+      button.secondary {
+        background: var(--panel2);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      button.warn {
+        background: color-mix(in srgb, var(--warn) 85%, #000);
+      }
+      button.danger {
+        background: color-mix(in srgb, var(--err) 88%, #000);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .expect {
+        margin-top: 8px;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .expect strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      #log {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        min-height: 180px;
+        max-height: 320px;
+        overflow: auto;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 11.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .log-ok {
+        color: var(--ok);
+      }
+      .log-err {
+        color: var(--err);
+      }
+      .log-info {
+        color: var(--muted);
+      }
+      .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--panel2);
+        padding: 3px 9px;
+        font-size: 11px;
+      }
+      .pill.ok {
+        border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
+      }
+      .pill.bad {
+        border-color: color-mix(in srgb, var(--err) 50%, var(--border));
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Preload 调用探针 <span style="color: var(--warn); font-size: 11px">dev</span></h1>
+      <p>
+        纯 UI 工具：验证 <code>bricklyPreload.exposeApi</code> 调用是否进入日志中心（action =
+        <code>preload · …</code>）。请在主窗口打开「日志中心 / Trace」对照。
+      </p>
+    </header>
+    <main>
+      <div class="banner">
+        <div><strong>怎么验：</strong>点下方按钮 → 主窗口日志中心搜 <code>preload ·</code> 或本 brickId。</div>
+        <div>
+          <strong>应有 Trace：</strong>成功/失败的门面方法调用。
+          <strong>不应有 Trace：</strong>preload 加载时静默写临时文件（旁路 Node）。
+        </div>
+        <div class="status-row" style="margin-top: 8px">
+          <span class="pill" id="pill-probe">preloadProbe: …</span>
+          <span class="pill" id="pill-legacy">legacy: …</span>
+          <span class="pill" id="pill-brickly">window.brickly: …</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <h2>1. 成功调用</h2>
+          <div class="desc">应产生 success Trace：preload · preloadProbe.echo / getMeta / nested…</div>
+          <div class="actions">
+            <button type="button" data-act="echo">echo</button>
+            <button type="button" data-act="meta">getMeta</button>
+            <button type="button" data-act="nested">nested.deepPing</button>
+            <button type="button" class="secondary" data-act="async-ok">echoAsync</button>
+            <button type="button" class="secondary" data-act="burst">burst×5</button>
+          </div>
+          <div class="expect"><strong>期望：</strong>每点一次 ≈ 一条 Trace，status=success</div>
+        </section>
+
+        <section class="card">
+          <h2>2. 调用错误</h2>
+          <div class="desc">应产生 failed Trace，带 error.message</div>
+          <div class="actions">
+            <button type="button" class="danger" data-act="fail-sync">failSync</button>
+            <button type="button" class="danger" data-act="fail-async">failAsync</button>
+            <button type="button" class="danger" data-act="fail-nested">nested.deepFail</button>
+          </div>
+          <div class="expect"><strong>期望：</strong>页面 catch 到错误，日志中心 status=failed</div>
+        </section>
+
+        <section class="card">
+          <h2>3. 敏感入参</h2>
+          <div class="desc">args 含 token/password，摘要应脱敏为 [redacted]</div>
+          <div class="actions">
+            <button type="button" class="warn" data-act="login">loginLike(token…)</button>
+          </div>
+          <div class="expect">
+            <strong>期望：</strong>Trace input.args 中 token 不出现明文
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>4. 兼容 / 劫持路径</h2>
+          <div class="desc">preload 里用旧 API contextBridge.exposeInMainWorld 暴露的方法</div>
+          <div class="actions">
+            <button type="button" data-act="legacy">viaContextBridge</button>
+            <button type="button" class="danger" data-act="legacy-fail">failLegacy</button>
+          </div>
+          <div class="expect">
+            <strong>期望：</strong>仍有 Trace；事件字段 source=contextBridge
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>5. 绕过 / 旁路观察</h2>
+          <div class="desc">这些操作本身不会「再记一条调用」，用于读 getMeta.bypassNotes</div>
+          <div class="actions">
+            <button type="button" class="secondary" data-act="meta">查看 bypassNotes</button>
+            <button type="button" class="secondary" data-act="shadow">shadow.second</button>
+            <button type="button" class="secondary" data-act="missing">调不存在的 API</button>
+          </div>
+          <div class="expect">
+            <strong>期望：</strong>加载期 silent fs 无 preload Trace；保留名占用被拒；二次 expose 以最后一次为准
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>6. 平台 brickly（对照）</h2>
+          <div class="desc">平台 API 不走用户门面记账；用于确认窗口身份</div>
+          <div class="actions">
+            <button type="button" class="secondary" data-act="brick-id">读 brickId</button>
+            <button type="button" class="secondary" data-act="manifest">getManifest</button>
+          </div>
+          <div class="expect">
+            <strong>期望：</strong>有结果；日志中心不应因此多出 preload · brickly.* 用户门面记录
+          </div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+          <h2 style="margin: 0">本页运行日志</h2>
+          <button type="button" class="secondary" id="btn-clear">清空</button>
+        </div>
+        <div id="log" class="log-info" style="margin-top: 10px">准备就绪。先点 getMeta 看门禁是否安装。</div>
+      </section>
+    </main>
+    <script>
+      const logEl = document.getElementById('log')
+      const lines = []
+
+      function appendLog(kind, title, detail) {
+        const time = new Date().toLocaleTimeString()
+        const body =
+          detail === undefined
+            ? ''
+            : typeof detail === 'string'
+              ? detail
+              : JSON.stringify(detail, null, 2)
+        lines.push({ kind, text: `[${time}] ${title}${body ? '\n' + body : ''}` })
+        if (lines.length > 80) lines.shift()
+        logEl.innerHTML = lines
+          .map((item) => {
+            const cls = item.kind === 'ok' ? 'log-ok' : item.kind === 'err' ? 'log-err' : 'log-info'
+            return `<div class="${cls}">${escapeHtml(item.text)}</div>`
+          })
+          .join('\n')
+        logEl.scrollTop = logEl.scrollHeight
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+      }
+
+      function probe() {
+        return window.preloadProbe
+      }
+      function legacy() {
+        return window.preloadProbeLegacy
+      }
+      function shadow() {
+        return window.preloadProbeShadow
+      }
+
+      function refreshPills() {
+        const p = probe()
+        const l = legacy()
+        const b = window.brickly
+        setPill('pill-probe', p ? 'preloadProbe: ok' : 'preloadProbe: missing', Boolean(p))
+        setPill('pill-legacy', l ? 'legacy: ok' : 'legacy: missing', Boolean(l))
+        setPill('pill-brickly', b ? `brickly: ${b.brickId || 'ok'}` : 'brickly: missing', Boolean(b))
+      }
+
+      function setPill(id, text, ok) {
+        const el = document.getElementById(id)
+        el.textContent = text
+        el.classList.toggle('ok', ok)
+        el.classList.toggle('bad', !ok)
+      }
+
+      async function run(label, fn) {
+        appendLog('info', `→ ${label}`)
+        try {
+          const result = await fn()
+          appendLog('ok', `✓ ${label}`, result)
+          return result
+        } catch (error) {
+          appendLog('err', `✗ ${label}`, {
+            message: error?.message || String(error),
+            name: error?.name,
+            code: error?.code
+          })
+          throw error
+        }
+      }
+
+      const actions = {
+        async echo() {
+          await run('preloadProbe.echo', () => probe().echo({ hello: 'preload-api-probe', n: 1 }))
+        },
+        async meta() {
+          await run('preloadProbe.getMeta', () => probe().getMeta())
+        },
+        async nested() {
+          await run('preloadProbe.nested.deepPing', () => probe().nested.deepPing('ui'))
+        },
+        async 'async-ok'() {
+          await run('preloadProbe.echoAsync', () => probe().echoAsync('async-ok', 40))
+        },
+        async burst() {
+          await run('preloadProbe.burst', () => probe().burst(5))
+        },
+        async 'fail-sync'() {
+          await run('preloadProbe.failSync', () => probe().failSync('UI 触发同步失败'))
+        },
+        async 'fail-async'() {
+          await run('preloadProbe.failAsync', () => probe().failAsync('UI 触发异步失败', 40))
+        },
+        async 'fail-nested'() {
+          await run('preloadProbe.nested.deepFail', () => probe().nested.deepFail('UI 嵌套失败'))
+        },
+        async login() {
+          await run('preloadProbe.loginLike', () =>
+            probe().loginLike({
+              user: 'probe-user',
+              password: 'super-secret-password',
+              token: 'tok_live_should_be_redacted_123456'
+            })
+          )
+        },
+        async legacy() {
+          await run('preloadProbeLegacy.viaContextBridge', () => legacy().viaContextBridge('from-ui'))
+        },
+        async 'legacy-fail'() {
+          await run('preloadProbeLegacy.failLegacy', () => legacy().failLegacy())
+        },
+        async shadow() {
+          await run('preloadProbeShadow.second', () => shadow().second())
+        },
+        async missing() {
+          await run('missing API', () => {
+            if (!window.noSuchPreloadApi?.fn) throw new Error('window.noSuchPreloadApi 不存在（预期）')
+            return window.noSuchPreloadApi.fn()
+          })
+        },
+        async 'brick-id'() {
+          await run('window.brickly.brickId', () => ({ brickId: window.brickly?.brickId }))
+        },
+        async manifest() {
+          await run('window.brickly.getManifest', () => window.brickly.getManifest())
+        }
+      }
+
+      document.querySelectorAll('[data-act]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const act = btn.getAttribute('data-act')
+          const fn = actions[act]
+          if (!fn) return
+          void fn().catch(() => {})
+        })
+      })
+
+      document.getElementById('btn-clear').addEventListener('click', () => {
+        lines.length = 0
+        logEl.textContent = '已清空'
+      })
+
+      refreshPills()
+      if (!probe()) {
+        appendLog('err', '未找到 window.preloadProbe', '请确认开发工作台已重新加载 bricks，且平台门禁已安装')
+      } else {
+        appendLog('ok', 'preloadProbe 已挂载', '可开始点击用例；对照日志中心 preload · 记录')
+        void actions.meta().catch(() => {})
+      }
+    </script>
+  </body>
+</html>
