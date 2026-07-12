@@ -158,7 +158,7 @@ async function safeReadClipboard(ctx) {
   try {
     return await ctx.platform.clipboard.readContent()
   } catch (error) {
-    plugin.transport.log(`read clipboard failed: ${errorMessage(error)}`)
+    plugin.log.warn(`read clipboard failed: ${errorMessage(error)}`)
     return { capturedAt: Date.now() }
   }
 }
@@ -174,7 +174,7 @@ function selectedTextFromSnapshots(before, after) {
 }
 
 function logClipboardDecision(selection, before, after) {
-  plugin.transport.log(
+  plugin.log.info(
     [
       `selection=${selection.reason}`,
       `before=${snapshotSummary(before)}`,
@@ -195,7 +195,7 @@ async function restoreClipboard(ctx, snapshot) {
   try {
     await ctx.platform.clipboard.setContent(content)
   } catch (error) {
-    plugin.transport.log(`restore clipboard failed: ${errorMessage(error)}`)
+    plugin.log.warn(`restore clipboard failed: ${errorMessage(error)}`)
   }
 }
 
@@ -517,7 +517,7 @@ function normalizeScreenBounds(value) {
 
 function debugLog(label, payload) {
   const message = `[quick-translate][${label}] ${safeJsonStringify(payload)}`
-  plugin.transport.log(escapeNonAscii(message))
+  plugin.log.info(escapeNonAscii(message))
   void appendDebugLog(message)
 }
 
@@ -570,7 +570,7 @@ async function appendDebugLog(message) {
     await fs.mkdir(path.dirname(DEBUG_LOG_FILE), { recursive: true })
     await fs.appendFile(DEBUG_LOG_FILE, `${new Date().toISOString()} ${message}\n`, 'utf8')
   } catch (error) {
-    plugin.transport.log(`[quick-translate][debug-log.write-error] ${escapeNonAscii(errorMessage(error))}`)
+    plugin.log.warn(`[quick-translate][debug-log.write-error] ${escapeNonAscii(errorMessage(error))}`)
   }
 }
 

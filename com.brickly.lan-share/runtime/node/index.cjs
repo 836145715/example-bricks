@@ -20,7 +20,7 @@ const DATA_DIR = path.join(os.homedir(), '.brickly', 'apps', BRICK_ID)
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
 const service = new ShareService({
   dataDir: DATA_DIR,
-  log: (message) => brick.transport.log(`[${BRICK_ID}] ${message}`)
+  log: (message) => brick.log.info(`[${BRICK_ID}] ${message}`)
 })
 
 function normalizeError(error) {
@@ -99,7 +99,7 @@ brick.onCommand(
 
 brick.onReady(async () => {
   await service.loadConfig()
-  brick.transport.log(`[${BRICK_ID}] ready · dataDir=${DATA_DIR}`)
+  brick.log.info(`[${BRICK_ID}] ready · dataDir=${DATA_DIR}`)
 })
 
 brick.onShutdown(async () => {

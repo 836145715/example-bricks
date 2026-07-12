@@ -179,15 +179,15 @@ function summarizeReport(items) {
 }
 
 async function logCurrentFolderPath(ctx) {
-  brick.transport.log('[System API Lab][hotkey] readCurrentFolderPath start', {
+  brick.log.info('[System API Lab][hotkey] readCurrentFolderPath start', {
     invocation: ctx.invocation || null
   })
   try {
     const folderPath = await ctx.platform.system.readCurrentFolderPath()
-    brick.transport.log('[System API Lab][hotkey] current folder path', { folderPath })
+    brick.log.info('[System API Lab][hotkey] current folder path', { folderPath })
   } catch (error) {
     const normalized = normalizeError(error)
-    brick.transport.log('[System API Lab][hotkey] readCurrentFolderPath failed', normalized)
+    brick.log.info('[System API Lab][hotkey] readCurrentFolderPath failed', normalized)
   }
 }
 
@@ -196,7 +196,7 @@ brick.onCommand('log-current-folder-path', logCurrentFolderPath)
 brick.onCommand('run-system-suite', runSystemSuite)
 
 brick.onReady(() => {
-  brick.transport.log('System API Lab runtime ready')
+  brick.log.info('System API Lab runtime ready')
 })
 
 brick.start()

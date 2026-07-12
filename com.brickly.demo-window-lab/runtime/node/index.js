@@ -87,7 +87,7 @@ async function openLab() {
   lab = handle
 
   handle.on('closed', () => {
-    plugin.transport.log(`lab window closed id=${handle.id}`)
+    plugin.log.info(`lab window closed id=${handle.id}`)
     if (lab && lab.id === handle.id) lab = null
   })
 
@@ -99,7 +99,7 @@ async function closeLab() {
   try {
     await lab.close()
   } catch (err) {
-    plugin.transport.log(`closeLab failed: ${err.message}`)
+    plugin.log.warn(`closeLab failed: ${err.message}`)
   }
   lab = null
   return 1
@@ -166,7 +166,7 @@ plugin.events.on('window.message', async (payload) => {
         error: error || null
       })
     } catch (err) {
-      plugin.transport.log(`reply lab:result failed: ${err.message}`)
+      plugin.log.warn(`reply lab:result failed: ${err.message}`)
     }
     return
   }
@@ -176,7 +176,7 @@ plugin.events.on('window.message', async (payload) => {
     try {
       await lab.webContents.send('lab:state', { reqId, state, at: Date.now() })
     } catch (err) {
-      plugin.transport.log(`reply lab:state failed: ${err.message}`)
+      plugin.log.warn(`reply lab:state failed: ${err.message}`)
     }
     return
   }
@@ -188,7 +188,7 @@ plugin.onCommand('close-lab', async () => ({ closed: await closeLab() }))
 plugin.onReady(() => {
   // runtime ready 后延迟一会儿再开窗，确保宿主已就绪
   setTimeout(() => {
-    openLab().catch((err) => plugin.transport.log(`auto open failed: ${err.message}`))
+    openLab().catch((err) => plugin.log.warn(`auto open failed: ${err.message}`))
   }, 300)
 })
 

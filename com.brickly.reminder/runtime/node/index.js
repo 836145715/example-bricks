@@ -66,7 +66,7 @@ function scheduleNext() {
     nextTimer.unref?.()
   } catch (error) {
     lastError = error && error.message ? error.message : String(error)
-    plugin.transport.log(`schedule failed: ${lastError}`)
+    plugin.log.warn(`schedule failed: ${lastError}`)
   }
 
   return statusPayload()
@@ -146,7 +146,7 @@ async function placeTopRight(handle, width, height) {
     const y = Math.round((screen.top || 0) + 20)
     await handle.setBounds({ x, y, width, height })
   } catch (error) {
-    plugin.transport.log(`placeTopRight failed: ${error && error.message ? error.message : error}`)
+    plugin.log.warn(`placeTopRight failed: ${error && error.message ? error.message : error}`)
   }
 }
 
