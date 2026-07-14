@@ -27,9 +27,16 @@ const labHTML = "ui/lab.html"
 var (
 	plugin *brickly.Runtime
 
-	labMu sync.Mutex
-	lab   *brickly.WindowHandle
+	labMu          sync.Mutex
+	lab            *brickly.WindowHandle
+	openLabInflight chan struct{} // 非 nil 表示 open 正在进行；用条件变量语义串行化
+	openLabWaiters  []chan openLabResult
 )
+
+type openLabResult struct {
+	value map[string]any
+	err   error
+}
 
 // queryMethods 是 lab:query 触发时批量调用的查询方法清单。
 // 与 Node 版完全一致；调整时两边同步。
@@ -58,11 +65,57 @@ func currentLab() *brickly.WindowHandle {
 	return lab
 }
 
+func clearLabIfMatch(h *brickly.WindowHandle) {
+	labMu.Lock()
+	defer labMu.Unlock()
+	if lab != nil && h != nil && lab.ID == h.ID {
+		lab = nil
+	}
+}
+
+// openLab 串行化开窗：并发调用共享同一次 create，避免双开。
+// 不在 OnReady 自动调用——否则会与命令面板触发的 open-lab 竞态。
 func openLab() (map[string]any, error) {
+	labMu.Lock()
+	if openLabInflight != nil {
+		// 已有进行中的 open：排队等结果
+		ch := make(chan openLabResult, 1)
+		openLabWaiters = append(openLabWaiters, ch)
+		labMu.Unlock()
+		res := <-ch
+		return res.value, res.err
+	}
+	openLabInflight = make(chan struct{})
+	labMu.Unlock()
+
+	value, err := openLabOnce()
+
+	labMu.Lock()
+	waiters := openLabWaiters
+	openLabWaiters = nil
+	close(openLabInflight)
+	openLabInflight = nil
+	labMu.Unlock()
+
+	for _, ch := range waiters {
+		ch <- openLabResult{value: value, err: err}
+	}
+	return value, err
+}
+
+func openLabOnce() (map[string]any, error) {
 	if h := currentLab(); h != nil && !h.IsClosed() {
-		_ = h.Focus()
+		if err := h.Focus(); err != nil {
+			plugin.Warn(fmt.Sprintf("focus existing lab failed, will recreate: %v", err), nil)
+			clearLabIfMatch(h)
+		} else {
+			return map[string]any{"windowId": h.ID, "reused": true}, nil
+		}
+	}
+	if h := currentLab(); h != nil && !h.IsClosed() {
 		return map[string]any{"windowId": h.ID, "reused": true}, nil
 	}
+
 	h, err := plugin.UI.CreateBrowserWindow(labHTML, brickly.WindowOptions{
 		"width":           980,
 		"height":          720,
@@ -82,11 +135,7 @@ func openLab() (map[string]any, error) {
 
 	h.On("closed", func(payload map[string]any) {
 		plugin.Info(fmt.Sprintf("lab window closed id=%d", h.ID), nil)
-		labMu.Lock()
-		if lab != nil && lab.ID == h.ID {
-			lab = nil
-		}
-		labMu.Unlock()
+		clearLabIfMatch(h)
 	})
 
 	return map[string]any{"windowId": h.ID, "reused": false}, nil
@@ -223,16 +272,7 @@ func main() {
 	// 订阅子窗口消息（lab:op / lab:query 都走 window.message）。
 	plugin.Events.On("window.message", handleLabMessage)
 
-	plugin.OnReady(func() error {
-		// runtime ready 后延迟开窗，给宿主一些时间稳定。
-		go func() {
-			time.Sleep(300 * time.Millisecond)
-			if _, err := openLab(); err != nil {
-				plugin.Error("auto open failed", err, nil)
-			}
-		}()
-		return nil
-	})
+	// 不在 OnReady 自动开窗：避免与命令面板 open-lab 竞态双开。
 
 	plugin.OnShutdown(func() error {
 		closeLab()

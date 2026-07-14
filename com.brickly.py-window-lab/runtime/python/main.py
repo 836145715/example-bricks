@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 import time
 from typing import Any, Optional
 
@@ -59,14 +60,57 @@ QUERY_METHODS = [
 ]
 
 
+_open_lab_lock = threading.Lock()
+_open_lab_inflight: "threading.Condition | None" = None
+_open_lab_result: dict[str, Any] | None = None
+_open_lab_error: BaseException | None = None
+
+
 def open_lab() -> dict[str, Any]:
+    """串行化开窗，避免并发 create 双开。"""
+    global _open_lab_inflight, _open_lab_result, _open_lab_error
+    with _open_lab_lock:
+        if _open_lab_inflight is not None:
+            cond = _open_lab_inflight
+            while _open_lab_inflight is cond:
+                cond.wait()
+            if _open_lab_error is not None:
+                raise _open_lab_error
+            assert _open_lab_result is not None
+            return _open_lab_result
+        _open_lab_inflight = threading.Condition(_open_lab_lock)
+        _open_lab_result = None
+        _open_lab_error = None
+
+    try:
+        result = _open_lab_once()
+        err: BaseException | None = None
+    except BaseException as exc:
+        result = None
+        err = exc
+
+    with _open_lab_lock:
+        _open_lab_result = result
+        _open_lab_error = err
+        cond = _open_lab_inflight
+        _open_lab_inflight = None
+        if cond is not None:
+            cond.notify_all()
+
+    if err is not None:
+        raise err
+    assert result is not None
+    return result
+
+
+def _open_lab_once() -> dict[str, Any]:
     global lab
     if lab and not lab.closed:
         try:
             lab.focus()
+            return {"windowId": lab.id, "reused": True}
         except Exception:
-            pass
-        return {"windowId": lab.id, "reused": True}
+            lab = None
 
     handle = plugin.ui.create_browser_window(
         LAB_HTML,

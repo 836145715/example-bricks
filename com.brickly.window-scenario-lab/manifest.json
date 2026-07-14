@@ -1,0 +1,171 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.window-scenario-lab",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "窗口场景测试台",
+    "en": "Window Scenario Lab"
+  },
+  "description": {
+    "zh-CN": "专门覆盖多窗口场景：单例复用、强制新建、多窗并存、创建时绑定事件、生命周期事件流、跨窗消息、批量套件与关闭策略。",
+    "en": "Window scenario harness: ensure/reuse, spawn-new, multi-window, bind-on-create events, lifecycle stream, cross-window messaging, suite spawn and close policies."
+  },
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": ["any"],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "mode": "cached",
+    "scope": "profile",
+    "concurrency": "queue",
+    "idleTtlMs": 600000,
+    "restart": "none"
+  },
+  "permissions": [],
+  "trustLevel": "verified",
+  "ui": {
+    "type": "none"
+  },
+  "keywords": ["window", "scenario", "multi-window", "lifecycle", "test", "lab"],
+  "categories": ["developer-tools", "utilities"],
+  "commands": [
+    {
+      "id": "open-control",
+      "name": { "zh-CN": "打开控制台（单例）", "en": "Open Control (ensure)" },
+      "description": {
+        "zh-CN": "打开或聚焦场景控制台。控制台是单例：已存在则 focus。",
+        "en": "Open or focus the scenario control panel (singleton ensure)."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "window", "type": "json" }]
+      }
+    },
+    {
+      "id": "open-scenario",
+      "name": { "zh-CN": "打开场景窗口", "en": "Open Scenario Window" },
+      "description": {
+        "zh-CN": "按预设场景打开子窗口。mode=ensure 时同场景复用；mode=new 强制新建。",
+        "en": "Open a child window by scenario preset. mode=ensure reuses same scenario; mode=new always spawns."
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "scenario",
+            "type": "string",
+            "required": false,
+            "default": "standard",
+            "description": "场景 id：standard|compact|frameless|always-on-top|skip-taskbar|fixed|transparent|wide|tall|offset"
+          },
+          {
+            "name": "mode",
+            "type": "string",
+            "required": false,
+            "default": "ensure",
+            "description": "ensure=复用同场景；new=强制新建"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "required": false,
+            "description": "可选自定义标题"
+          }
+        ],
+        "outputs": [{ "name": "window", "type": "json" }]
+      }
+    },
+    {
+      "id": "open-suite",
+      "name": { "zh-CN": "一键套件（多窗）", "en": "Open Scenario Suite" },
+      "description": {
+        "zh-CN": "按 mode 打开一组场景窗口，用于压力/并存测试。",
+        "en": "Open a suite of scenario windows for multi-window stress tests."
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "mode",
+            "type": "string",
+            "required": false,
+            "default": "new",
+            "description": "ensure|new"
+          },
+          {
+            "name": "scenarios",
+            "type": "json",
+            "required": false,
+            "description": "场景 id 数组；默认 core 套件"
+          }
+        ],
+        "outputs": [{ "name": "result", "type": "json" }]
+      }
+    },
+    {
+      "id": "list-win-sessions",
+      "name": { "zh-CN": "列出窗口会话", "en": "List Win Sessions" },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "winSessions", "type": "json" }]
+      }
+    },
+    {
+      "id": "focus-win-session",
+      "name": { "zh-CN": "聚焦窗口", "en": "Focus Win Session" },
+      "io": {
+        "inputs": [{ "name": "windowId", "type": "number", "required": true }],
+        "outputs": [{ "name": "ok", "type": "json" }]
+      }
+    },
+    {
+      "id": "close-win-session",
+      "name": { "zh-CN": "关闭窗口", "en": "Close Win Session" },
+      "io": {
+        "inputs": [{ "name": "windowId", "type": "number", "required": true }],
+        "outputs": [{ "name": "ok", "type": "json" }]
+      }
+    },
+    {
+      "id": "close-all",
+      "name": { "zh-CN": "关闭全部子窗", "en": "Close All Children" },
+      "description": {
+        "zh-CN": "关闭所有场景子窗；默认保留控制台。keepControl=false 时连控制台一起关。",
+        "en": "Close all scenario children; keep control by default."
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "keepControl",
+            "type": "boolean",
+            "required": false,
+            "default": true
+          }
+        ],
+        "outputs": [{ "name": "closed", "type": "number" }]
+      }
+    },
+    {
+      "id": "ping-win-session",
+      "name": { "zh-CN": "Ping 子窗", "en": "Ping Win Session" },
+      "description": {
+        "zh-CN": "向指定子窗发 ping，等待 pong（验证创建时绑定的 message 通道）。",
+        "en": "Ping a child window and wait for pong (validates bind-on-create message path)."
+      },
+      "io": {
+        "inputs": [
+          { "name": "windowId", "type": "number", "required": true },
+          { "name": "text", "type": "string", "required": false, "default": "hello" }
+        ],
+        "outputs": [{ "name": "pong", "type": "json" }]
+      }
+    }
+  ]
+}
