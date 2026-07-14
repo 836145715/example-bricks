@@ -263,11 +263,11 @@ export function App() {
   const [committedPatterns, setCommittedPatterns] = useState<Record<string, string>>({})
   const [committedGrepArgs, setCommittedGrepArgs] = useState<Record<string, GrepArgs>>({})
 
-  // Ctrl+F 查找高亮
-  const [findKeyword, setFindKeyword] = useState('')
-  const [showFindBar, setShowFindBar] = useState(false)
+  // Ctrl+F 查找高亮（按服务器页面独立，切换连接不串词/不串开关）
+  const [findKeywordMap, setFindKeywordMap] = useState<Record<string, string>>({})
+  const [showFindBarMap, setShowFindBarMap] = useState<Record<string, boolean>>({})
   const [findResultMap, setFindResultMap] = useState<Record<string, FindResult | null>>({})
-  const [findLoading, setFindLoading] = useState(false)
+  const [findLoadingMap, setFindLoadingMap] = useState<Record<string, boolean>>({})
   const findInputRef = useRef<HTMLInputElement | null>(null)
 
   const [statusMessage, setStatusMessage] = useState<string>('就绪')
@@ -353,7 +353,8 @@ export function App() {
   const [selectedFilesMap, setSelectedFilesMap] = useState<Record<string, string[]>>({})
   const [isListLoadingMap, setIsListLoadingMap] = useState<Record<string, boolean>>({})
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false)
-  const [fileFilterText, setFileFilterText] = useState<string>('')
+  // 文件名筛选按服务器独立，避免切换连接后仍带着上一页的过滤词
+  const [fileFilterTextMap, setFileFilterTextMap] = useState<Record<string, string>>({})
   const dropdownRef = useRef<HTMLDivElement | null>(null)
 
   // 点击外部自动收起下拉框
@@ -450,6 +451,47 @@ export function App() {
 
   const activeTabId = getActiveResultTab(activeServerId)
   const currentScopeKey = activeServerId ? makeScopeKey(activeServerId, activeTabId) : ''
+  const findKeyword = activeServerId ? (findKeywordMap[activeServerId] ?? '') : ''
+  const showFindBar = activeServerId ? !!showFindBarMap[activeServerId] : false
+  const findLoading = activeServerId ? !!findLoadingMap[activeServerId] : false
+  const fileFilterText = activeServerId ? (fileFilterTextMap[activeServerId] ?? '') : ''
+
+  const setFindKeywordForServer = (serverId: string, keyword: string) => {
+    if (!serverId) return
+    setFindKeywordMap(prev => {
+      if ((prev[serverId] ?? '') === keyword) return prev
+      return { ...prev, [serverId]: keyword }
+    })
+  }
+
+  const setShowFindBarForServer = (serverId: string, open: boolean) => {
+    if (!serverId) return
+    setShowFindBarMap(prev => {
+      if (!!prev[serverId] === open) return prev
+      return { ...prev, [serverId]: open }
+    })
+  }
+
+  const setFindLoadingForServer = (serverId: string, loading: boolean) => {
+    if (!serverId) return
+    setFindLoadingMap(prev => {
+      if (!!prev[serverId] === loading) return prev
+      return { ...prev, [serverId]: loading }
+    })
+  }
+
+  const clearFindStateForServer = (serverId: string, scopeKey?: string) => {
+    if (!serverId) return
+    setShowFindBarForServer(serverId, false)
+    setFindKeywordForServer(serverId, '')
+    setFindLoadingForServer(serverId, false)
+    if (scopeKey) {
+      setFindResultMap(prev => {
+        if (!prev[scopeKey]) return prev
+        return { ...prev, [scopeKey]: null }
+      })
+    }
+  }
 
   const getResultWindow = (scopeKey: string): ResultWindowState | undefined => {
     return resultWindowMap[scopeKey]
@@ -908,7 +950,7 @@ export function App() {
       ? currentFind.start
       : (direction === 'next' ? -1 : Number.MAX_SAFE_INTEGER)
 
-    setFindLoading(true)
+    setFindLoadingForServer(activeServerId, true)
     try {
       const result: FindResult = await window.brickly.invoke('find_search_results', {
         serverId: activeServerId,
@@ -929,7 +971,7 @@ export function App() {
     } catch (err: any) {
       showToast(`查找失败: ${err?.message || String(err)}`)
     } finally {
-      setFindLoading(false)
+      setFindLoadingForServer(activeServerId, false)
     }
   }
 
@@ -996,22 +1038,22 @@ export function App() {
     }
   }, [currentScopeKey])
 
-  // Ctrl+F 查找高亮快捷键
+  // Ctrl+F 查找高亮快捷键（只作用于当前服务器页面）
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!activeServerId) return
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
-        setShowFindBar(true)
+        setShowFindBarForServer(activeServerId, true)
         setTimeout(() => findInputRef.current?.focus(), 0)
       }
       if (e.key === 'Escape' && showFindBar) {
-        setShowFindBar(false)
-        setFindKeyword('')
+        clearFindStateForServer(activeServerId, currentScopeKey)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showFindBar])
+  }, [activeServerId, currentScopeKey, showFindBar])
 
   // Ctrl+F 查找正则（避免逐行重复编译）
   const findRe = React.useMemo(() => {
@@ -1110,6 +1152,7 @@ export function App() {
 
   const handleSelectServer = (srv: ServerConfig) => {
     setActiveServerId(srv.id)
+    setDropdownOpen(false)
     if (configPanelOpen) {
       syncConfigPanelToServer(srv)
     }
@@ -1190,11 +1233,32 @@ export function App() {
       }
     }
 
+    // 清理该服务器页面的独立 UI 状态，避免残留 map 条目
+    const dropServerKey = <T,>(prev: Record<string, T>): Record<string, T> => {
+      if (!(srvId in prev)) return prev
+      const { [srvId]: _, ...rest } = prev
+      return rest
+    }
+    setFindKeywordMap(dropServerKey)
+    setShowFindBarMap(dropServerKey)
+    setFindLoadingMap(dropServerKey)
+    setFileFilterTextMap(dropServerKey)
+    setSearchPatterns(dropServerKey)
+    setExtraFiltersMap(dropServerKey)
+    setGrepArgsMap(dropServerKey)
+    setFindResultMap(prev => {
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([scopeKey]) => !isServerScopeKey(scopeKey, srvId))
+      )
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+
     const next = servers.filter(s => s.id !== srvId)
     saveAppConfig(next)
     if (activeServerId === srvId) {
       const nextActiveServer = next[0] ?? null
       setActiveServerId(nextActiveServer?.id || '')
+      setDropdownOpen(false)
       if (configPanelOpen) {
         syncConfigPanelToServer(nextActiveServer)
       }
@@ -1823,7 +1887,10 @@ export function App() {
                         type="text"
                         placeholder="搜索文件名..."
                         value={fileFilterText}
-                        onChange={(e) => setFileFilterText(e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setFileFilterTextMap(prev => ({ ...prev, [activeServerId]: value }))
+                        }}
                         onClick={(e) => e.stopPropagation()}
                         spellCheck={false}
                       />
@@ -2264,8 +2331,8 @@ export function App() {
               </div>
             )}
 
-            {/* Ctrl+F 查找框 */}
-            {showFindBar && (
+            {/* Ctrl+F 查找框（状态按当前服务器页面隔离） */}
+            {showFindBar && activeServerId && (
               <div className="find-popover">
                 <input
                   ref={findInputRef}
@@ -2273,14 +2340,10 @@ export function App() {
                   type="text"
                   placeholder="查找"
                   value={findKeyword}
-                  onChange={e => setFindKeyword(e.target.value)}
+                  onChange={e => setFindKeywordForServer(activeServerId, e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Escape') {
-                      setShowFindBar(false)
-                      setFindKeyword('')
-                      if (currentScopeKey) {
-                        setFindResultMap(prev => ({ ...prev, [currentScopeKey]: null }))
-                      }
+                      clearFindStateForServer(activeServerId, currentScopeKey)
                     }
                     if (e.key === 'Enter') {
                       e.preventDefault()
@@ -2318,13 +2381,7 @@ export function App() {
                 </button>
                 <button
                   className="find-bar-close"
-                  onClick={() => {
-                    setShowFindBar(false)
-                    setFindKeyword('')
-                    if (currentScopeKey) {
-                      setFindResultMap(prev => ({ ...prev, [currentScopeKey]: null }))
-                    }
-                  }}
+                  onClick={() => clearFindStateForServer(activeServerId, currentScopeKey)}
                   title="关闭"
                   type="button"
                 >
