@@ -128,6 +128,14 @@ export function App() {
       }
     })
 
+    const onFocusRefresh = (): void => {
+      if (!alive || document.visibilityState === 'hidden') return
+      void refresh()
+      void refreshStorageSnapshot()
+    }
+    window.addEventListener('focus', onFocusRefresh)
+    document.addEventListener('visibilitychange', onFocusRefresh)
+
     ;(async () => {
       await refresh()
       try {
@@ -146,6 +154,8 @@ export function App() {
     return () => {
       alive = false
       unsubscribe?.()
+      window.removeEventListener('focus', onFocusRefresh)
+      document.removeEventListener('visibilitychange', onFocusRefresh)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -164,6 +174,10 @@ export function App() {
       if (!silent) setStatusText('抓取剪贴板中...')
       const result = await platform?.clipboard.captureNow()
       setWatcherStatus((current) => ({ ...(current ?? {}), ...(result ?? {}) }))
+      // 宿主 capture 返回时 runtime 通常已 upsert 完成，但 history 事件可能仍在 debounce。
+      // 主动 list 一次，避免只等事件导致页面不刷新。
+      await refresh()
+      void refreshStorageSnapshot()
       const changed = result?.lastEventKind ? `已抓取 ${result.lastEventKind}` : '无新内容'
       setStatusText(result ? statusSummary(result, changed) : changed)
       if (!silent) notify('已强制同步剪贴板')

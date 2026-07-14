@@ -131,9 +131,30 @@ ipcRenderer.on('platform.event.notify', (_event, envelope) => {
   void scheduleList()
 })
 
-ipcRenderer
-  .invoke('platform.event.subscribe', { brickId: BRICK_ID, event: HISTORY_EVENT })
-  .catch((error) => console.warn('[clipboard-history] subscribe history event failed', error))
+// 订阅 history 变更事件。开发工作台场景下 Brick 可能稍晚才注册，失败时短重试。
+let historySubscribed = false
+async function subscribeHistoryEvent(attempt = 0) {
+  if (historySubscribed) return
+  try {
+    await ipcRenderer.invoke('platform.event.subscribe', {
+      brickId: BRICK_ID,
+      event: HISTORY_EVENT
+    })
+    historySubscribed = true
+  } catch (error) {
+    const maxAttempts = 8
+    if (attempt + 1 >= maxAttempts) {
+      console.warn('[clipboard-history] subscribe history event failed', error)
+      return
+    }
+    const delayMs = Math.min(1000, 120 * (attempt + 1))
+    setTimeout(() => {
+      void subscribeHistoryEvent(attempt + 1)
+    }, delayMs)
+  }
+}
+
+void subscribeHistoryEvent()
 
 list()
   .then((items) => {
