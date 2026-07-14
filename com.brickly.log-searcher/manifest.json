@@ -49,6 +49,7 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
+    "windowPolicy": "multi",
     "size": {
       "width": 1100,
       "height": 760,

@@ -800,6 +800,15 @@
                 }
               }
             },
+            "windowPolicy": {
+              "type": "string",
+              "enum": [
+                "single",
+                "multi"
+              ],
+              "default": "single",
+              "description": "体验窗开窗策略。single（默认）：同一 Brick 再开时聚焦已有窗；multi：每次打开新建窗口（适合 JSON 格式化等需要并列对比的工具）。"
+            },
             "devTools": {
               "type": "string",
               "enum": [
