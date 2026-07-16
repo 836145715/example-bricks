@@ -45,7 +45,7 @@ export function App() {
   const toastTimer = useRef<number | null>(null)
   const [selectedResultIndex, setSelectedResultIndex] = useState(0)
 
-  const { files, addFiles, removeFile, clearFiles } = useFiles()
+  const { files, addFiles, removeFile, clearFiles, reorderFiles } = useFiles()
   const { rect: cropRect, setRect: setCropRect } = useManualCrop()
   const {
     process,
@@ -224,6 +224,7 @@ export function App() {
           files={files}
           onAddFiles={handleAddFiles}
           onRemoveFile={removeFile}
+          onReorderFiles={reorderFiles}
           cropMode={cropMode}
           cropRect={cropRect}
           onCropChange={setCropRect}

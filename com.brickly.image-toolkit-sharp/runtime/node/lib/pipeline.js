@@ -147,13 +147,42 @@ async function makePreviewDataUrl (source, format, opts = {}) {
     const maxEdge = opts.maxEdge || (faithful ? 1600 : 1280)
     const maxBytes = opts.maxBytes || (faithful ? 2.5 * 1024 * 1024 : 800 * 1024)
 
-    // Small enough + known web mime: use encoded buffer as-is (true processing look)
     const mime = mimeForFormat(fmt)
+
+    // GIF: always show first frame as still (never tall multi-frame strip)
+    if (fmt === 'gif') {
+      try {
+        const frame = await sharp(input, { animated: true, pages: 1, page: 0 })
+          .rotate()
+          .resize({
+            width: maxEdge,
+            height: maxEdge,
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .png()
+          .toBuffer()
+        return `data:image/png;base64,${frame.toString('base64')}`
+      } catch (_) {
+        const frame = await sharp(input, { animated: false })
+          .resize({
+            width: maxEdge,
+            height: maxEdge,
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .png()
+          .toBuffer()
+        return `data:image/png;base64,${frame.toString('base64')}`
+      }
+    }
+
+    // Small enough + known web mime: use encoded buffer as-is (true processing look)
     if (
       faithful &&
       Buffer.isBuffer(source) &&
       source.length <= maxBytes &&
-      ['jpeg', 'jpg', 'png', 'webp', 'gif'].includes(fmt)
+      ['jpeg', 'jpg', 'png', 'webp'].includes(fmt)
     ) {
       return `data:${mime};base64,${source.toString('base64')}`
     }

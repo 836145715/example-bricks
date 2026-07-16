@@ -113,14 +113,28 @@ async function fileSizeBytes (filePath) {
  * @param {object} stats
  * @param {Buffer | null} [encodedBuffer]
  * @param {boolean} [wantPreview]
- * @param {boolean} [previewOnly] - faithful preview so processing is visible
+ * @param {boolean} [previewOnly]
+ * @param {{ previewBuffer?: Buffer, previewFormat?: string }} [actionExtra]
  */
-async function withPreview (stats, encodedBuffer, wantPreview, previewOnly = false) {
+async function withPreview (
+  stats,
+  encodedBuffer,
+  wantPreview,
+  previewOnly = false,
+  actionExtra = {}
+) {
   if (!wantPreview || !stats) return stats
-  const source = encodedBuffer || (stats.outputPath ? stats.outputPath : null)
+  // Prefer explicit preview frame (e.g. GIF first frame — never show tall strip)
+  const source =
+    actionExtra.previewBuffer ||
+    encodedBuffer ||
+    (stats.outputPath ? stats.outputPath : null)
   if (!source) return stats
-  const previewDataUrl = await makePreviewDataUrl(source, stats.format, {
-    faithful: !!previewOnly || !!stats.previewOnly
+  const fmt = actionExtra.previewFormat || stats.format
+  const previewDataUrl = await makePreviewDataUrl(source, fmt, {
+    faithful: !!previewOnly || !!stats.previewOnly,
+    // GIF preview is a still frame
+    maxEdge: fmt === 'gif' || actionExtra.previewBuffer ? 1200 : undefined
   })
   if (!previewDataUrl) return stats
   return { ...stats, previewDataUrl }
@@ -159,8 +173,11 @@ async function materializeResult (actionResult, outputPath, stripMetadata, opts 
 
   if (actionResult.type === 'pipeline') {
     let pipeline = actionResult.pipeline
-    pipeline = applyStripMetadata(pipeline, stripMetadata)
-    // Encode once to buffer so we can write + preview without reopening the file path.
+    // withMetadata can break animated gif / synthetic canvases
+    const fmtHint = actionResult.format
+    if (fmtHint !== 'gif') {
+      pipeline = applyStripMetadata(pipeline, stripMetadata)
+    }
     const encoded = await pipeline.toBuffer({ resolveWithObject: true })
     const buffer = encoded.data
     const info = encoded.info || {}
@@ -177,28 +194,37 @@ async function materializeResult (actionResult, outputPath, stripMetadata, opts 
       format: info.format || actionResult.format || null,
       previewOnly
     }
-    return withPreview(stats, buffer, wantPreview || previewOnly, previewOnly)
+    return withPreview(stats, buffer, wantPreview || previewOnly, previewOnly, actionResult)
   }
 
   if (actionResult.type === 'buffer') {
     let buffer = actionResult.buffer
-    // Buffer is already encoded; re-encode only when caller asked to strip metadata.
-    if (stripMetadata && Buffer.isBuffer(buffer)) {
+    // Do not re-encode GIF (would flatten animation into still strip)
+    if (
+      stripMetadata &&
+      Buffer.isBuffer(buffer) &&
+      actionResult.format !== 'gif'
+    ) {
       const sharp = loadSharp()
-      // From buffer, not path — no file lock.
       buffer = await sharp(buffer).toBuffer()
     }
     if (!previewOnly) {
       await fs.writeFile(outputPath, buffer)
     }
-    // Size from buffer; try dimensions for UI
     const sizeBytes = buffer.length
     let width = null
     let height = null
     try {
-      const meta = await loadSharp()(buffer).metadata()
+      const meta = await loadSharp()(buffer, {
+        animated: actionResult.format === 'gif',
+        pages: actionResult.format === 'gif' ? -1 : undefined
+      }).metadata()
       width = meta.width || null
-      height = meta.height || null
+      // For animated gif report frame size not stack height
+      height =
+        actionResult.format === 'gif' && meta.pageHeight
+          ? meta.pageHeight
+          : meta.height || null
     } catch (_) {
       /* ignore */
     }
@@ -211,7 +237,13 @@ async function materializeResult (actionResult, outputPath, stripMetadata, opts 
       format: actionResult.format || null,
       previewOnly
     }
-    return withPreview(stats, buffer, wantPreview || previewOnly, previewOnly)
+    return withPreview(
+      stats,
+      buffer,
+      wantPreview || previewOnly,
+      previewOnly,
+      actionResult
+    )
   }
 
   if (actionResult.type === 'written') {

@@ -1,5 +1,12 @@
 import { useRef } from 'react'
-import { CircleNotch, FilePdf, Image as ImageIcon, X } from '@phosphor-icons/react'
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleNotch,
+  FilePdf,
+  Image as ImageIcon,
+  X,
+} from '@phosphor-icons/react'
 import { isMultiAction } from '../config/tools'
 import { formatBytes } from '../lib/format'
 import type {
@@ -19,6 +26,7 @@ interface WorkspaceProps {
   files: LocalFile[]
   onAddFiles: (files: FileList | File[]) => void
   onRemoveFile: (id: string) => void
+  onReorderFiles: (fromIndex: number, toIndex: number) => void
   cropMode: CropMode
   cropRect: CropRect
   onCropChange: (rect: CropRect) => void
@@ -96,6 +104,7 @@ export function Workspace({
   files,
   onAddFiles,
   onRemoveFile,
+  onReorderFiles,
   cropMode: _cropMode,
   cropRect,
   onCropChange,
@@ -178,13 +187,16 @@ export function Workspace({
             >
               {multi ? (
                 <div className="scroll-y h-full p-2">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+                  <p className="mb-2 text-[11px] text-[var(--fg-dim)]">
+                    用上下箭头调整顺序（拼接 / GIF / PDF 按此顺序）
+                  </p>
+                  <div className="flex flex-col gap-2">
                     {files.map((f, i) => (
                       <div
                         key={f.id}
-                        className="group relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--bg-2)]"
+                        className="group flex gap-2 overflow-hidden rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--bg-2)] p-1.5"
                       >
-                        <div className="aspect-[4/3] overflow-hidden bg-[var(--bg-0)]">
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-sm)] bg-[var(--bg-0)]">
                           <img
                             src={f.previewUrl}
                             alt={f.name}
@@ -192,22 +204,47 @@ export function Workspace({
                             draggable={false}
                           />
                         </div>
-                        <div className="flex items-center gap-1 px-1.5 py-1">
-                          <span className="shrink-0 rounded bg-[var(--bg-3)] px-1 font-mono text-[10px] text-[var(--fg-dim)]">
-                            {i + 1}
-                          </span>
-                          <span className="min-w-0 truncate text-[10.5px] text-[var(--fg-muted)]">
-                            {f.name}
-                          </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <span className="shrink-0 rounded bg-[var(--bg-3)] px-1.5 font-mono text-[10px] text-[var(--fg-dim)]">
+                              {i + 1}
+                            </span>
+                            <span className="min-w-0 truncate text-[12px] text-[var(--fg-muted)]">
+                              {f.name}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 font-mono text-[10px] text-[var(--fg-dim)]">
+                            {formatBytes(f.size)}
+                          </div>
+                          <div className="mt-1 flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={i === 0}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded border border-[var(--line)] text-[var(--fg-muted)] hover:border-[var(--ac-line)] hover:text-[var(--ac)] disabled:opacity-30"
+                              title="上移"
+                              onClick={() => onReorderFiles(i, i - 1)}
+                            >
+                              <ArrowUp size={12} weight="bold" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={i >= files.length - 1}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded border border-[var(--line)] text-[var(--fg-muted)] hover:border-[var(--ac-line)] hover:text-[var(--ac)] disabled:opacity-30"
+                              title="下移"
+                              onClick={() => onReorderFiles(i, i + 1)}
+                            >
+                              <ArrowDown size={12} weight="bold" />
+                            </button>
+                            <button
+                              type="button"
+                              className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded border border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--danger)] hover:text-[var(--danger)]"
+                              title="移除"
+                              onClick={() => onRemoveFile(f.id)}
+                            >
+                              <X size={12} weight="bold" />
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition group-hover:opacity-100"
-                          onClick={() => onRemoveFile(f.id)}
-                          aria-label="移除"
-                        >
-                          <X size={12} weight="bold" />
-                        </button>
                       </div>
                     ))}
                   </div>
