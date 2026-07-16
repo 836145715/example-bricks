@@ -124,17 +124,21 @@ async function withPreview (
   actionExtra = {}
 ) {
   if (!wantPreview || !stats) return stats
-  // Prefer explicit preview frame (e.g. GIF first frame — never show tall strip)
-  const source =
-    actionExtra.previewBuffer ||
-    encodedBuffer ||
-    (stats.outputPath ? stats.outputPath : null)
+  // GIF: always use real animated buffer so UI can play it
+  // Other formats: optional still previewBuffer override
+  const isGif = String(stats.format || '').toLowerCase() === 'gif'
+  const source = isGif
+    ? encodedBuffer || (stats.outputPath ? stats.outputPath : null)
+    : actionExtra.previewBuffer ||
+      encodedBuffer ||
+      (stats.outputPath ? stats.outputPath : null)
   if (!source) return stats
-  const fmt = actionExtra.previewFormat || stats.format
+  const fmt = isGif
+    ? 'gif'
+    : actionExtra.previewFormat || stats.format
   const previewDataUrl = await makePreviewDataUrl(source, fmt, {
-    faithful: !!previewOnly || !!stats.previewOnly,
-    // GIF preview is a still frame
-    maxEdge: fmt === 'gif' || actionExtra.previewBuffer ? 1200 : undefined
+    faithful: true,
+    maxBytes: isGif ? 5 * 1024 * 1024 : undefined
   })
   if (!previewDataUrl) return stats
   return { ...stats, previewDataUrl }

@@ -149,8 +149,13 @@ async function makePreviewDataUrl (source, format, opts = {}) {
 
     const mime = mimeForFormat(fmt)
 
-    // GIF: always show first frame as still (never tall multi-frame strip)
+    // Animated GIF: pass through as data:image/gif so the browser plays frames.
+    // Cap size to keep IPC/UI responsive; oversize falls back to first frame still.
     if (fmt === 'gif') {
+      const gifMax = opts.maxBytes || 4 * 1024 * 1024
+      if (Buffer.isBuffer(input) && input.length > 0 && input.length <= gifMax) {
+        return `data:image/gif;base64,${input.toString('base64')}`
+      }
       try {
         const frame = await sharp(input, { animated: true, pages: 1, page: 0 })
           .rotate()
@@ -164,16 +169,7 @@ async function makePreviewDataUrl (source, format, opts = {}) {
           .toBuffer()
         return `data:image/png;base64,${frame.toString('base64')}`
       } catch (_) {
-        const frame = await sharp(input, { animated: false })
-          .resize({
-            width: maxEdge,
-            height: maxEdge,
-            fit: 'inside',
-            withoutEnlargement: true
-          })
-          .png()
-          .toBuffer()
-        return `data:image/png;base64,${frame.toString('base64')}`
+        return null
       }
     }
 

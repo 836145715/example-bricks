@@ -304,7 +304,7 @@ export function Workspace({
                   fileCount={files.length}
                 />
               ) : resultSrc ? (
-                <div className="flex h-full items-center justify-center p-2">
+                <div className="flex h-full flex-col items-center justify-center gap-1 p-2">
                   <img
                     key={resultSrc}
                     src={resultSrc}
@@ -312,6 +312,11 @@ export function Workspace({
                     className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
                     draggable={false}
                   />
+                  {previewHit?.item.format === 'gif' ? (
+                    <span className="shrink-0 text-[10.5px] text-[var(--fg-dim)]">
+                      GIF 动画预览
+                    </span>
+                  ) : null}
                 </div>
               ) : (
                 <EmptyResult
