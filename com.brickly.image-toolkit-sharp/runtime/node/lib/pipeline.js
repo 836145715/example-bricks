@@ -107,10 +107,50 @@ async function statOnDisk (outPath) {
   }
 }
 
+/**
+ * Build a small JPEG data-URL preview for the UI (does not lock path long-term).
+ * Skips PDF and unknown formats. Max edge 1280px.
+ *
+ * @param {string | Buffer} source - absolute path or encoded buffer
+ * @param {string | null | undefined} format
+ * @returns {Promise<string | null>} data:image/jpeg;base64,...
+ */
+async function makePreviewDataUrl (source, format) {
+  const fmt = String(format || '').toLowerCase()
+  if (fmt === 'pdf') return null
+  if (typeof source === 'string') {
+    const lower = source.toLowerCase()
+    if (lower.endsWith('.pdf')) return null
+  }
+
+  try {
+    const sharp = loadSharp()
+    const input =
+      typeof source === 'string' ? await fs.readFile(source) : source
+    if (!Buffer.isBuffer(input) || input.length === 0) return null
+
+    const jpegBuf = await sharp(input, { animated: false, pages: 1 })
+      .rotate()
+      .resize({
+        width: 1280,
+        height: 1280,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({ quality: 72, mozjpeg: true })
+      .toBuffer()
+
+    return `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+  } catch (_) {
+    return null
+  }
+}
+
 module.exports = {
   openImage,
   readFileBuffer,
   applyStripMetadata,
   writeAndStat,
-  statOnDisk
+  statOnDisk,
+  makePreviewDataUrl
 }

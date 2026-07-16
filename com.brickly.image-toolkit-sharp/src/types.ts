@@ -59,8 +59,13 @@ export interface ProcessItem {
   width?: number | null
   height?: number | null
   format?: string | null
+  /** JPEG data-URL thumbnail for UI result preview (optional) */
+  previewDataUrl?: string | null
   error?: ProcessItemError
 }
+
+/** Which image is shown in the main workspace panel */
+export type PreviewMode = 'input' | 'result'
 
 export interface ProcessImageResult {
   items: ProcessItem[]

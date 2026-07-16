@@ -4,7 +4,13 @@ const fs = require('node:fs/promises')
 const path = require('node:path')
 const { getAction } = require('../actions')
 const { resolveOutputPath, ensureUniquePath } = require('./paths')
-const { applyStripMetadata, writeAndStat, statOnDisk, readFileBuffer } = require('./pipeline')
+const {
+  applyStripMetadata,
+  writeAndStat,
+  statOnDisk,
+  readFileBuffer,
+  makePreviewDataUrl
+} = require('./pipeline')
 const { createProgress } = require('./progress')
 const { loadSharp, releaseSharpResources } = require('./sharp-loader')
 const { escapeXml } = require('./svg-escape')
@@ -81,8 +87,26 @@ function okItem (input, stats) {
     sizeKb: stats.sizeKb,
     width: stats.width,
     height: stats.height,
-    format: stats.format
+    format: stats.format,
+    // optional UI preview (data URL), may be absent for pdf / failures
+    previewDataUrl: stats.previewDataUrl || null
   }
+}
+
+/**
+ * Attach a compressed preview for image outputs (not pdf).
+ * @param {object} stats
+ * @param {Buffer | null} [encodedBuffer]
+ * @param {boolean} [wantPreview]
+ */
+async function withPreview (stats, encodedBuffer, wantPreview) {
+  if (!wantPreview || !stats || !stats.outputPath) return stats
+  const previewDataUrl = await makePreviewDataUrl(
+    encodedBuffer || stats.outputPath,
+    stats.format
+  )
+  if (!previewDataUrl) return stats
+  return { ...stats, previewDataUrl }
 }
 
 /**
@@ -101,8 +125,10 @@ async function statExisting (outPath) {
  * @param {{ type: string, pipeline?: import('sharp').Sharp, buffer?: Buffer, outputPath?: string, format?: string }} actionResult
  * @param {string} outputPath
  * @param {boolean} stripMetadata
+ * @param {{ wantPreview?: boolean }} [opts]
  */
-async function materializeResult (actionResult, outputPath, stripMetadata) {
+async function materializeResult (actionResult, outputPath, stripMetadata, opts = {}) {
+  const wantPreview = opts.wantPreview !== false
   if (!actionResult || !actionResult.type) {
     throw Object.assign(new Error('Action returned invalid result'), {
       code: 'INVALID_ACTION_RESULT'
@@ -114,7 +140,21 @@ async function materializeResult (actionResult, outputPath, stripMetadata) {
   if (actionResult.type === 'pipeline') {
     let pipeline = actionResult.pipeline
     pipeline = applyStripMetadata(pipeline, stripMetadata)
-    return writeAndStat(pipeline, outputPath)
+    // Encode once to buffer so we can write + preview without reopening the file path.
+    const encoded = await pipeline.toBuffer({ resolveWithObject: true })
+    const buffer = encoded.data
+    const info = encoded.info || {}
+    await fs.writeFile(outputPath, buffer)
+    const sizeBytes = buffer.length
+    const stats = {
+      outputPath,
+      sizeBytes,
+      sizeKb: Math.round((sizeBytes / 1024) * 100) / 100,
+      width: info.width != null ? info.width : null,
+      height: info.height != null ? info.height : null,
+      format: info.format || actionResult.format || null
+    }
+    return withPreview(stats, buffer, wantPreview)
   }
 
   if (actionResult.type === 'buffer') {
@@ -128,7 +168,7 @@ async function materializeResult (actionResult, outputPath, stripMetadata) {
     await fs.writeFile(outputPath, buffer)
     // Size from buffer; skip sharp(path) metadata re-open
     const sizeBytes = buffer.length
-    return {
+    const stats = {
       outputPath,
       sizeBytes,
       sizeKb: Math.round((sizeBytes / 1024) * 100) / 100,
@@ -136,12 +176,14 @@ async function materializeResult (actionResult, outputPath, stripMetadata) {
       height: null,
       format: actionResult.format || null
     }
+    return withPreview(stats, buffer, wantPreview)
   }
 
   if (actionResult.type === 'written') {
-    // Already on disk (e.g. pdf) — strip not applicable.
+    // Already on disk (e.g. pdf) — strip not applicable; no image preview.
     const writtenPath = actionResult.outputPath || outputPath
-    return statExisting(writtenPath)
+    const stats = await statExisting(writtenPath)
+    return withPreview(stats, null, false)
   }
 
   throw Object.assign(
@@ -207,6 +249,8 @@ async function runProcessImage ({
 
   /** @type {object[]} */
   const items = []
+  // Cap previews to keep BPP payload small on large batches
+  let previewBudget = 8
 
   /**
    * Shared action ctx factory.
@@ -248,7 +292,14 @@ async function runProcessImage ({
         checkCancel()
         report(0.85, '写出结果')
 
-        const stats = await materializeResult(actionResult, outputPath, stripMetadata)
+        const wantPreview = previewBudget > 0 && actionMod.id !== 'pdf'
+        const stats = await materializeResult(
+          actionResult,
+          outputPath,
+          stripMetadata,
+          { wantPreview }
+        )
+        if (stats.previewDataUrl) previewBudget -= 1
         items.push(okItem(inputLabel, stats))
         report(1, '完成')
       } catch (err) {
@@ -284,11 +335,14 @@ async function runProcessImage ({
           })
           const outputPath = await ensureUniquePath(baseOut, overwrite)
 
+          const wantPreview = previewBudget > 0
           const stats = await materializeResult(
             actionResult,
             outputPath,
-            stripMetadata
+            stripMetadata,
+            { wantPreview }
           )
+          if (stats.previewDataUrl) previewBudget -= 1
           items.push(okItem(inputPath, stats))
         } catch (err) {
           if (err && err.code === 'CANCELLED') throw err

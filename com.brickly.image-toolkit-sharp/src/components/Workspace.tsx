@@ -1,12 +1,19 @@
 import { useRef } from 'react'
-import { X } from '@phosphor-icons/react'
+import { Eye, Image as ImageIcon, X } from '@phosphor-icons/react'
 import { isMultiAction } from '../config/tools'
 import { formatBytes } from '../lib/format'
-import type { ActionId, CropMode, CropRect, LocalFile } from '../types'
+import type {
+  ActionId,
+  CropMode,
+  CropRect,
+  LocalFile,
+  PreviewMode,
+  ProcessImageResult,
+  ProcessItem,
+} from '../types'
 import { CropOverlay } from './CropOverlay'
 import { DropZone } from './DropZone'
 import { ResultDrawer } from './ResultDrawer'
-import type { ProcessImageResult } from '../types'
 
 interface WorkspaceProps {
   action: ActionId
@@ -23,6 +30,24 @@ interface WorkspaceProps {
   isRunning: boolean
   progress: number
   progressMessage: string
+  previewMode: PreviewMode
+  onPreviewModeChange: (mode: PreviewMode) => void
+  selectedResultIndex: number
+  onSelectResultIndex: (index: number) => void
+}
+
+function firstPreviewItem(
+  result: ProcessImageResult | null,
+  preferredIndex: number,
+): { item: ProcessItem; index: number } | null {
+  if (!result?.items?.length) return null
+  const preferred = result.items[preferredIndex]
+  if (preferred?.ok && preferred.previewDataUrl) {
+    return { item: preferred, index: preferredIndex }
+  }
+  const idx = result.items.findIndex((i) => i.ok && i.previewDataUrl)
+  if (idx < 0) return null
+  return { item: result.items[idx], index: idx }
 }
 
 export function Workspace({
@@ -40,28 +65,87 @@ export function Workspace({
   isRunning,
   progress,
   progressMessage,
+  previewMode,
+  onPreviewModeChange,
+  selectedResultIndex,
+  onSelectResultIndex,
 }: WorkspaceProps) {
   const imageRef = useRef<HTMLImageElement>(null)
   const multi = isMultiAction(action)
   const showDrop = files.length === 0
   const showGrid = !showDrop && multi
   const showPreview = !showDrop && !multi
-  const cropEnabled = action === 'crop' && cropMode === 'drag' && showPreview
+
+  const previewHit = firstPreviewItem(result, selectedResultIndex)
+  const hasResultPreview = !!previewHit?.item.previewDataUrl
+  const showResultImage =
+    previewMode === 'result' && hasResultPreview && !isRunning
+
+  // Crop only on original input while viewing input
+  const cropEnabled =
+    action === 'crop' &&
+    cropMode === 'drag' &&
+    showPreview &&
+    previewMode === 'input' &&
+    !showResultImage
+
+  const displaySrc = showResultImage
+    ? previewHit!.item.previewDataUrl!
+    : showPreview
+      ? files[0]?.previewUrl
+      : ''
+
+  const statusLabel = showDrop
+    ? '工作区'
+    : showResultImage
+      ? `结果预览 · ${previewHit?.item.format || 'image'}${
+          previewHit?.item.width && previewHit?.item.height
+            ? ` · ${previewHit.item.width}×${previewHit.item.height}`
+            : ''
+        }`
+      : multi
+        ? `${files.length} 张待处理`
+        : `主图 · ${files[0]?.name ?? ''}`
 
   return (
     <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-0)]">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
         <div className="min-w-0 truncate text-[12px] text-[var(--fg-dim)]">
-          {files.length === 0
-            ? '工作区'
-            : multi
-              ? `${files.length} 张待处理`
-              : `主图 · ${files[0]?.name ?? ''}`}
+          {statusLabel}
         </div>
-        {files.length > 0 ? <DropZone onFiles={onAddFiles} compact /> : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {hasResultPreview ? (
+            <div className="flex rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--bg-sunken)] p-0.5">
+              <button
+                type="button"
+                onClick={() => onPreviewModeChange('input')}
+                className={`inline-flex items-center gap-1 rounded-[6px] px-2 py-1 text-[11.5px] font-medium transition ${
+                  previewMode === 'input'
+                    ? 'bg-[var(--bg-2)] text-[var(--ac)]'
+                    : 'text-[var(--fg-dim)] hover:text-[var(--fg-muted)]'
+                }`}
+              >
+                <ImageIcon size={12} />
+                原图
+              </button>
+              <button
+                type="button"
+                onClick={() => onPreviewModeChange('result')}
+                className={`inline-flex items-center gap-1 rounded-[6px] px-2 py-1 text-[11.5px] font-medium transition ${
+                  previewMode === 'result'
+                    ? 'bg-[var(--bg-2)] text-[var(--ac)]'
+                    : 'text-[var(--fg-dim)] hover:text-[var(--fg-muted)]'
+                }`}
+              >
+                <Eye size={12} />
+                结果
+              </button>
+            </div>
+          ) : null}
+          {files.length > 0 ? <DropZone onFiles={onAddFiles} compact /> : null}
+        </div>
       </div>
 
-      {/* flex-1 + min-h-0: pin preview inside remaining height so ProcessBar stays visible */}
       <div className="relative min-h-0 flex-1 overflow-hidden p-3">
         {showDrop ? (
           <div className="h-full min-h-0">
@@ -69,7 +153,7 @@ export function Workspace({
           </div>
         ) : null}
 
-        {showGrid ? (
+        {showGrid && !showResultImage ? (
           <div className="scroll-y h-full min-h-0">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-2">
               {files.map((f) => (
@@ -107,17 +191,12 @@ export function Workspace({
           </div>
         ) : null}
 
-        {showPreview ? (
+        {(showPreview || showResultImage) && displaySrc ? (
           <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2">
-            {/*
-              Parent chain uses min-h-0 + flex-1 so this box has a real height.
-              max-h-full / max-w-full force the image to scale down inside it
-              without growing the layout (keeps ProcessBar visible).
-            */}
             <img
               ref={imageRef}
-              src={files[0].previewUrl}
-              alt={files[0].name}
+              src={displaySrc}
+              alt={showResultImage ? '处理结果' : files[0]?.name || 'preview'}
               className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
               draggable={false}
             />
@@ -128,19 +207,46 @@ export function Workspace({
               enabled={cropEnabled}
               aspectRatio={cropAspect}
             />
-            {files.length > 1 ? (
+            {showResultImage ? (
+              <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
+                处理结果
+                {previewHit?.item.sizeKb != null
+                  ? ` · ${previewHit.item.sizeKb} KB`
+                  : ''}
+              </div>
+            ) : null}
+            {files.length > 1 && !showResultImage ? (
               <div className="absolute bottom-2 left-2 z-10 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
                 另有 {files.length - 1} 张将按相同参数批量处理
               </div>
             ) : null}
-            <button
-              type="button"
-              className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
-              onClick={() => onRemoveFile(files[0].id)}
-              aria-label="移除当前图"
-            >
-              <X size={14} weight="bold" />
-            </button>
+            {!showResultImage && files[0] ? (
+              <button
+                type="button"
+                className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
+                onClick={() => onRemoveFile(files[0].id)}
+                aria-label="移除当前图"
+              >
+                <X size={14} weight="bold" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showGrid && showResultImage ? (
+          <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2">
+            <img
+              src={previewHit!.item.previewDataUrl!}
+              alt="处理结果"
+              className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
+              draggable={false}
+            />
+            <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
+              处理结果
+              {previewHit?.item.sizeKb != null
+                ? ` · ${previewHit.item.sizeKb} KB`
+                : ''}
+            </div>
           </div>
         ) : null}
 
@@ -151,7 +257,9 @@ export function Workspace({
                 <span className="text-[var(--fg-muted)]">
                   {progressMessage || '处理中...'}
                 </span>
-                <span className="font-mono tabular-nums text-[var(--fg)]">{progress}%</span>
+                <span className="font-mono tabular-nums text-[var(--fg)]">
+                  {progress}%
+                </span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-3)]">
                 <div
@@ -168,6 +276,13 @@ export function Workspace({
         result={result}
         lastOutputPath={lastOutputPath}
         onToast={onToast}
+        selectedIndex={selectedResultIndex}
+        onSelectIndex={(idx) => {
+          onSelectResultIndex(idx)
+          if (result?.items[idx]?.ok && result.items[idx].previewDataUrl) {
+            onPreviewModeChange('result')
+          }
+        }}
       />
     </section>
   )

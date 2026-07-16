@@ -15,6 +15,7 @@ import type {
   CommonOptions,
   CropMode,
   OutputStrategy,
+  PreviewMode,
   ToastState,
 } from './types'
 
@@ -41,10 +42,24 @@ export function App() {
   })
   const [toast, setToast] = useState<ToastState | null>(null)
   const toastTimer = useRef<number | null>(null)
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('input')
+  const [selectedResultIndex, setSelectedResultIndex] = useState(0)
 
   const { files, addFiles, removeFile, clearFiles } = useFiles()
   const { rect: cropRect, setRect: setCropRect } = useManualCrop()
   const processState = useProcessImage()
+
+  // After a successful run, jump to result preview when a thumbnail is available
+  useEffect(() => {
+    if (processState.status !== 'success' || !processState.result) return
+    const idx = processState.result.items.findIndex(
+      (i) => i.ok && i.previewDataUrl,
+    )
+    if (idx >= 0) {
+      setSelectedResultIndex(idx)
+      setPreviewMode('result')
+    }
+  }, [processState.status, processState.result])
 
   const showToast = useCallback(
     (message: string, kind: ToastState['kind'] = 'success') => {
@@ -139,7 +154,10 @@ export function App() {
           action={activeAction}
           files={files}
           onAddFiles={handleAddFiles}
-          onRemoveFile={removeFile}
+          onRemoveFile={(id) => {
+            removeFile(id)
+            setPreviewMode('input')
+          }}
           cropMode={cropMode}
           cropRect={cropRect}
           onCropChange={setCropRect}
@@ -150,6 +168,10 @@ export function App() {
           isRunning={processState.isRunning}
           progress={processState.progress}
           progressMessage={processState.progressMessage}
+          previewMode={previewMode}
+          onPreviewModeChange={setPreviewMode}
+          selectedResultIndex={selectedResultIndex}
+          onSelectResultIndex={setSelectedResultIndex}
         />
         <ProcessBar
           fileCount={files.length}
@@ -159,6 +181,8 @@ export function App() {
           canOpenFolder={!!processState.lastOutputPath}
           onClear={() => {
             clearFiles()
+            setPreviewMode('input')
+            setSelectedResultIndex(0)
             showToast('已清空文件列表', 'info')
           }}
           onOpenFolder={handleOpenFolder}

@@ -4,6 +4,7 @@ import {
   CaretUp,
   CheckCircle,
   Copy,
+  Eye,
   FolderOpen,
   WarningCircle,
   XCircle,
@@ -16,15 +17,23 @@ interface ResultDrawerProps {
   result: ProcessImageResult | null
   lastOutputPath: string | null
   onToast: (message: string, kind?: 'success' | 'error' | 'info') => void
+  selectedIndex?: number
+  onSelectIndex?: (index: number) => void
 }
 
-export function ResultDrawer({ result, lastOutputPath, onToast }: ResultDrawerProps) {
+export function ResultDrawer({
+  result,
+  lastOutputPath,
+  onToast,
+  selectedIndex = 0,
+  onSelectIndex,
+}: ResultDrawerProps) {
   const [open, setOpen] = useState(true)
 
   if (!result) {
     return (
       <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-1)] px-3 py-2 text-[11.5px] text-[var(--fg-dim)]">
-        暂无处理结果
+        暂无处理结果 · 处理后可在工作区切换「原图 / 结果」预览
       </div>
     )
   }
@@ -75,10 +84,19 @@ export function ResultDrawer({ result, lastOutputPath, onToast }: ResultDrawerPr
           <ul className="flex flex-col gap-1">
             {items.map((item, idx) => {
               const path = item.ok ? item.outputPath || item.input : item.input
+              const selected = idx === selectedIndex
+              const canPreview = !!(item.ok && item.previewDataUrl)
               return (
                 <li
                   key={`${item.input}-${idx}`}
-                  className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-[var(--bg-sunken)] px-2 py-1.5"
+                  className={`flex items-start gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 transition ${
+                    selected
+                      ? 'bg-[var(--ac-soft)] ring-1 ring-[var(--ac-line)]'
+                      : 'bg-[var(--bg-sunken)]'
+                  } ${canPreview ? 'cursor-pointer hover:bg-[var(--bg-hover)]' : ''}`}
+                  onClick={() => {
+                    if (canPreview) onSelectIndex?.(idx)
+                  }}
                 >
                   {item.ok ? (
                     <CheckCircle
@@ -98,6 +116,12 @@ export function ResultDrawer({ result, lastOutputPath, onToast }: ResultDrawerPr
                       <span className="truncate text-[12px] font-medium text-[var(--fg)]">
                         {basename(path)}
                       </span>
+                      {canPreview ? (
+                        <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] text-[var(--ac)]">
+                          <Eye size={11} />
+                          预览
+                        </span>
+                      ) : null}
                       {item.ok ? (
                         <span className="shrink-0 font-mono text-[10.5px] text-[var(--fg-dim)]">
                           {formatSizeKb(item.sizeKb, item.sizeBytes)}
@@ -113,7 +137,8 @@ export function ResultDrawer({ result, lastOutputPath, onToast }: ResultDrawerPr
                         type="button"
                         className="mt-0.5 flex max-w-full items-center gap-1 text-left font-mono text-[10.5px] text-[var(--fg-dim)] hover:text-[var(--ac)]"
                         title="复制路径"
-                        onClick={async () => {
+                        onClick={async (e) => {
+                          e.stopPropagation()
                           const ok = await copyText(item.outputPath!)
                           onToast(ok ? '路径已复制' : '复制失败', ok ? 'success' : 'error')
                         }}
