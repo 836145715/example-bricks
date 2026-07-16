@@ -58,9 +58,13 @@ export function ResultDrawer({
             {isPreviewOnly ? '内存预览' : '处理结果'}
           </span>
           <span className="truncate font-mono text-[11px] text-[var(--fg-dim)]">
-            {summary.succeeded}/{summary.total} 成功
-            {summary.failed > 0 ? ` · ${summary.failed} 失败` : ''}
-            {isPreviewOnly ? ' · 未落盘' : ''}
+            {isPreviewOnly
+              ? summary.failed > 0
+                ? `${summary.succeeded} 张可预览 · ${summary.failed} 失败 · 未落盘`
+                : `${summary.succeeded} 张可预览 · 未落盘`
+              : `${summary.succeeded}/${summary.total} 成功${
+                  summary.failed > 0 ? ` · ${summary.failed} 失败` : ''
+                }`}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -136,20 +140,26 @@ export function ResultDrawer({
                         </span>
                       ) : null}
                     </div>
-                    {item.ok && item.outputPath ? (
-                      <button
-                        type="button"
-                        className="mt-0.5 flex max-w-full items-center gap-1 text-left font-mono text-[10.5px] text-[var(--fg-dim)] hover:text-[var(--ac)]"
-                        title="复制路径"
-                        onClick={async (e) => {
-                          e.stopPropagation()
-                          const ok = await copyText(item.outputPath!)
-                          onToast(ok ? '路径已复制' : '复制失败', ok ? 'success' : 'error')
-                        }}
-                      >
-                        <Copy size={11} className="shrink-0" />
-                        <span className="truncate">{item.outputPath}</span>
-                      </button>
+                    {item.ok ? (
+                      item.outputPath ? (
+                        <button
+                          type="button"
+                          className="mt-0.5 flex max-w-full items-center gap-1 text-left font-mono text-[10.5px] text-[var(--fg-dim)] hover:text-[var(--ac)]"
+                          title="复制路径"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const ok = await copyText(item.outputPath!)
+                            onToast(ok ? '路径已复制' : '复制失败', ok ? 'success' : 'error')
+                          }}
+                        >
+                          <Copy size={11} className="shrink-0" />
+                          <span className="truncate">{item.outputPath}</span>
+                        </button>
+                      ) : item.previewOnly || isPreviewOnly ? (
+                        <div className="mt-0.5 text-[11px] text-[var(--fg-dim)]">
+                          仅内存预览，未写入磁盘
+                        </div>
+                      ) : null
                     ) : (
                       <div className="mt-0.5 flex items-start gap-1 text-[11px] text-[var(--danger)]">
                         <WarningCircle size={12} className="mt-0.5 shrink-0" />

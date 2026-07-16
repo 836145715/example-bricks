@@ -86,29 +86,46 @@ export function App() {
     [addFiles, showToast],
   )
 
-  // Surface process errors via toast
+  // Toasts: only surface real failures as errors
   useEffect(() => {
     if (processState.status === 'error' && processState.error) {
       showToast(processState.error, 'error')
+      return
     }
-    if (processState.status === 'success' && processState.result) {
-      const { summary } = processState.result
-      const isPreview =
-        processState.lastWasPreviewOnly || !!summary.previewOnly
-      if (isPreview) {
-        if (summary.succeeded > 0) {
-          showToast('预览完成（仅内存，未写入磁盘）')
-        } else {
-          showToast(`预览失败 · ${summary.failed} 项`, 'error')
-        }
-      } else if (summary.failed === 0) {
-        showToast(`全部完成 · ${summary.succeeded} 张`)
-      } else {
+    if (processState.status !== 'success' || !processState.result) return
+
+    const { summary } = processState.result
+    const isPreview =
+      processState.lastWasPreviewOnly || !!summary.previewOnly
+    const hasOk = (summary.succeeded ?? 0) > 0
+    const hasFail = (summary.failed ?? 0) > 0
+
+    if (isPreview) {
+      if (hasOk) {
+        showToast('预览完成（仅内存，未写入磁盘）')
+      } else if (hasFail) {
+        // Only when every preview item failed
+        const firstErr = processState.result.items.find((i) => !i.ok)?.error
         showToast(
-          `完成 ${summary.succeeded} 张，失败 ${summary.failed} 张`,
-          summary.succeeded === 0 ? 'error' : 'info',
+          firstErr?.message
+            ? `预览失败：${firstErr.message}`
+            : `预览失败 · ${summary.failed} 项`,
+          'error',
         )
       }
+      return
+    }
+
+    if (!hasFail) {
+      showToast(`全部完成 · ${summary.succeeded} 张`)
+    } else if (hasOk) {
+      showToast(`完成 ${summary.succeeded} 张，失败 ${summary.failed} 张`, 'info')
+    } else {
+      const firstErr = processState.result.items.find((i) => !i.ok)?.error
+      showToast(
+        firstErr?.message || `处理失败 · ${summary.failed} 张`,
+        'error',
+      )
     }
   }, [
     processState.status,
