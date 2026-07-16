@@ -1,5 +1,7 @@
 'use strict'
 
+const { clampExtract } = require('../lib/crop-bounds')
+
 /**
  * Extract a rectangular region; out-of-bounds values are clamped.
  */
@@ -24,18 +26,22 @@ module.exports = {
 
     const meta = await sharp(inputPath).metadata()
     // 防御性越界裁剪校验
-    const extractLeft = Math.max(0, Math.min(x, (meta.width || w) - 1))
-    const extractTop = Math.max(0, Math.min(y, (meta.height || h) - 1))
-    const extractWidth = Math.max(1, Math.min(w, (meta.width || w) - extractLeft))
-    const extractHeight = Math.max(1, Math.min(h, (meta.height || h) - extractTop))
+    const { left, top, width, height } = clampExtract({
+      x,
+      y,
+      width: w,
+      height: h,
+      imgW: meta.width || w,
+      imgH: meta.height || h
+    })
 
     return {
       type: 'pipeline',
       pipeline: sharp(inputPath).extract({
-        left: extractLeft,
-        top: extractTop,
-        width: extractWidth,
-        height: extractHeight
+        left,
+        top,
+        width,
+        height
       })
     }
   }
