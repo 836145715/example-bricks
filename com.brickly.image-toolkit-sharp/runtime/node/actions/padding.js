@@ -1,19 +1,11 @@
 'use strict'
 
-/**
- * Extend canvas with padding (border / letterbox).
- */
+const { readFileBuffer } = require('../lib/pipeline')
+
 module.exports = {
   id: 'padding',
   mode: 'per-file',
 
-  /**
-   * @param {object} ctx
-   * @param {string} ctx.inputPath
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const { inputPath, options = {} } = ctx
@@ -23,15 +15,10 @@ module.exports = {
     const right = typeof options.right === 'number' ? options.right : 20
     const bg = options.bg || '#ffffff'
 
+    const inputBuf = await readFileBuffer(inputPath)
     return {
       type: 'pipeline',
-      pipeline: sharp(inputPath).extend({
-        top,
-        bottom,
-        left,
-        right,
-        background: bg
-      })
+      pipeline: sharp(inputBuf).extend({ top, bottom, left, right, background: bg })
     }
   }
 }

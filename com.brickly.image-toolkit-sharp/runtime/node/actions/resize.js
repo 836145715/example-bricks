@@ -1,19 +1,11 @@
 'use strict'
 
-/**
- * Resize image by absolute dimensions or scale percentage.
- */
+const { readFileBuffer } = require('../lib/pipeline')
+
 module.exports = {
   id: 'resize',
   mode: 'per-file',
 
-  /**
-   * @param {object} ctx
-   * @param {string} ctx.inputPath
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const { inputPath, options = {} } = ctx
@@ -24,7 +16,8 @@ module.exports = {
     const fit = options.fit || 'contain'
     const bg = options.bg || '#00000000'
 
-    const meta = await sharp(inputPath).metadata()
+    const inputBuf = await readFileBuffer(inputPath)
+    const meta = await sharp(inputBuf).metadata()
     let targetW = width
     let targetH = height
 
@@ -33,10 +26,7 @@ module.exports = {
       targetH = keepRatio ? null : Math.max(1, Math.round((meta.height || 480) * (scale / 100)))
     }
 
-    const resizeOpts = {
-      fit,
-      background: bg
-    }
+    const resizeOpts = { fit, background: bg }
     if (targetW) resizeOpts.width = targetW
     if (targetH) resizeOpts.height = targetH
     if (keepRatio && targetW && targetH) {
@@ -47,7 +37,7 @@ module.exports = {
 
     return {
       type: 'pipeline',
-      pipeline: sharp(inputPath).resize(resizeOpts)
+      pipeline: sharp(inputBuf).resize(resizeOpts)
     }
   }
 }

@@ -1,22 +1,12 @@
 'use strict'
 
 const fs = require('node:fs/promises')
+const { readFileBuffer } = require('../lib/pipeline')
 
-/**
- * Overlay text or image watermark. Text is XML-escaped via ctx.escapeXml.
- */
 module.exports = {
   id: 'watermark',
   mode: 'per-file',
 
-  /**
-   * @param {object} ctx
-   * @param {string} ctx.inputPath
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @param {function} ctx.escapeXml
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const escapeXml = ctx.escapeXml
@@ -29,7 +19,8 @@ module.exports = {
     const opacity = typeof options.opacity === 'number' ? options.opacity : 0.5
     const gravity = options.gravity || 'centre'
 
-    const bgMeta = await sharp(inputPath).metadata()
+    const inputBuf = await readFileBuffer(inputPath)
+    const bgMeta = await sharp(inputBuf).metadata()
     const bgW = bgMeta.width || 800
 
     let overlayBuffer
@@ -38,21 +29,19 @@ module.exports = {
       const fontSize = typeof options.fontSize === 'number' ? options.fontSize : 32
       const color = options.color || '#ffffff'
       const angle = typeof options.angle === 'number' ? options.angle : 0
-
-      // Use unescaped length for layout estimate when options.text is present
       const rawText = options.text || 'Watermark'
       const estimatedW = Math.round(rawText.length * fontSize * 0.75 + 40)
       const estimatedH = Math.round(fontSize * 1.6 + 40)
 
       const textSvg = `
           <svg width="${estimatedW}" height="${estimatedH}">
-            <text x="50%" y="50%" 
-                  font-family="PingFang SC, Microsoft YaHei, sans-serif" 
+            <text x="50%" y="50%"
+                  font-family="PingFang SC, Microsoft YaHei, sans-serif"
                   font-weight="bold"
-                  font-size="${fontSize}" 
-                  fill="${color}" 
-                  fill-opacity="${opacity}" 
-                  text-anchor="middle" 
+                  font-size="${fontSize}"
+                  fill="${color}"
+                  fill-opacity="${opacity}"
+                  text-anchor="middle"
                   dominant-baseline="middle"
                   transform="rotate(${angle}, ${estimatedW / 2}, ${estimatedH / 2})">
               ${text}
@@ -68,7 +57,8 @@ module.exports = {
       const wmScale = typeof options.watermarkScale === 'number' ? options.watermarkScale : 20
       const wmW = Math.max(10, Math.round(bgW * (wmScale / 100)))
 
-      const resizedWmBuffer = await sharp(watermarkFile).resize({ width: wmW }).png().toBuffer()
+      const wmBuf = await readFileBuffer(watermarkFile)
+      const resizedWmBuffer = await sharp(wmBuf).resize({ width: wmW }).png().toBuffer()
 
       const wmMeta = await sharp(resizedWmBuffer).metadata()
       const w = wmMeta.width || wmW
@@ -84,7 +74,7 @@ module.exports = {
 
     return {
       type: 'pipeline',
-      pipeline: sharp(inputPath).composite([{ input: overlayBuffer, gravity }])
+      pipeline: sharp(inputBuf).composite([{ input: overlayBuffer, gravity }])
     }
   }
 }

@@ -1,23 +1,12 @@
 'use strict'
 
 const fs = require('node:fs/promises')
+const { readFileBuffer } = require('../lib/pipeline')
 
-/**
- * Build an animated GIF from multiple frames (stacked tall sheet + pageHeight).
- */
 module.exports = {
   id: 'gif',
   mode: 'multi',
 
-  /**
-   * @param {object} ctx
-   * @param {string} ctx.inputPath - first frame (size reference)
-   * @param {string[]} ctx.files
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @param {function} [ctx.ensureNotCancelled]
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const { inputPath, files, options = {} } = ctx
@@ -26,7 +15,8 @@ module.exports = {
     const delay = typeof options.delay === 'number' ? options.delay : 200
     const primary = inputPath || files[0]
 
-    const firstMeta = await sharp(primary).metadata()
+    const primaryBuf = await readFileBuffer(primary)
+    const firstMeta = await sharp(primaryBuf).metadata()
     const w = firstMeta.width || 500
     const h = firstMeta.height || 500
 
@@ -35,8 +25,9 @@ module.exports = {
       if (typeof ctx.ensureNotCancelled === 'function') ctx.ensureNotCancelled()
       const f = files[i]
       await fs.access(f)
-      const buf = await sharp(f).resize({ width: w, height: h, fit: 'fill' }).png().toBuffer()
-      frameBuffers.push(buf)
+      const buf = await readFileBuffer(f)
+      const frame = await sharp(buf).resize({ width: w, height: h, fit: 'fill' }).png().toBuffer()
+      frameBuffers.push(frame)
     }
 
     const tallBuffer = await sharp({
@@ -47,11 +38,13 @@ module.exports = {
         background: '#00000000'
       }
     })
-      .composite(frameBuffers.map((buf, i) => ({
-        input: buf,
-        left: 0,
-        top: i * h
-      })))
+      .composite(
+        frameBuffers.map((buf, i) => ({
+          input: buf,
+          left: 0,
+          top: i * h
+        }))
+      )
       .png()
       .toBuffer()
 

@@ -4,25 +4,39 @@ const fs = require('node:fs/promises')
 const path = require('node:path')
 const { getAction } = require('../actions')
 const { resolveOutputPath, ensureUniquePath } = require('./paths')
-const { applyStripMetadata, writeAndStat } = require('./pipeline')
+const { applyStripMetadata, writeAndStat, statOnDisk, readFileBuffer } = require('./pipeline')
 const { createProgress } = require('./progress')
-const { loadSharp } = require('./sharp-loader')
+const { loadSharp, releaseSharpResources } = require('./sharp-loader')
 const { escapeXml } = require('./svg-escape')
 const { compileJpegsToPdf } = require('./pdf-compile')
 
 /**
- * Wrap sharp so string file paths get EXIF auto-orient (rotate) when enabled.
- * Buffer / create inputs are left unchanged.
+ * Wrap sharp so:
+ * - string paths are NOT passed to libvips (Windows handle leak).
+ *   Callers should pass Buffer; if a string slips through we still open via
+ *   a sync-incompatible path only for create{} objects / buffers.
+ * - autoOrient applies .rotate() for Buffer/file-less pipelines.
+ *
+ * Prefer reading with readFileBuffer before sharp() in actions.
+ *
  * @param {boolean} autoOrient
  * @returns {() => function}
  */
 function createLoadSharp (autoOrient) {
-  if (!autoOrient) return loadSharp
   return () => {
     const sharp = loadSharp()
     return function sharpWithOrient (input, opts) {
-      const inst = sharp(input, opts)
+      // Never pass filesystem paths into sharp on Windows — locks files.
+      // Actions must use Buffer; defensive: if string, throw clear error.
       if (typeof input === 'string') {
+        const err = new Error(
+          'sharp(path) is disabled to avoid Windows file locks; pass a Buffer'
+        )
+        err.code = 'SHARP_PATH_FORBIDDEN'
+        throw err
+      }
+      const inst = sharp(input, opts)
+      if (autoOrient && Buffer.isBuffer(input)) {
         return inst.rotate()
       }
       return inst
@@ -76,17 +90,8 @@ function okItem (input, stats) {
  * @returns {Promise<{ outputPath: string, sizeBytes: number, sizeKb: number, width: number|null, height: number|null, format: string|null }>}
  */
 async function statExisting (outPath) {
-  const sharp = loadSharp()
-  const finalStat = await fs.stat(outPath)
-  const finalMeta = await sharp(outPath).metadata().catch(() => ({}))
-  return {
-    outputPath: outPath,
-    sizeBytes: finalStat.size,
-    sizeKb: Math.round((finalStat.size / 1024) * 100) / 100,
-    width: finalMeta.width || null,
-    height: finalMeta.height || null,
-    format: finalMeta.format || null
-  }
+  // Do not sharp(outPath) — that re-locks the file on Windows.
+  return statOnDisk(outPath)
 }
 
 /**
@@ -117,11 +122,20 @@ async function materializeResult (actionResult, outputPath, stripMetadata) {
     // Buffer is already encoded; re-encode only when caller asked to strip metadata.
     if (stripMetadata && Buffer.isBuffer(buffer)) {
       const sharp = loadSharp()
-      // Default re-encode drops most metadata (no withMetadata).
+      // From buffer, not path — no file lock.
       buffer = await sharp(buffer).toBuffer()
     }
     await fs.writeFile(outputPath, buffer)
-    return statExisting(outputPath)
+    // Size from buffer; skip sharp(path) metadata re-open
+    const sizeBytes = buffer.length
+    return {
+      outputPath,
+      sizeBytes,
+      sizeKb: Math.round((sizeBytes / 1024) * 100) / 100,
+      width: null,
+      height: null,
+      format: actionResult.format || null
+    }
   }
 
   if (actionResult.type === 'written') {
@@ -214,73 +228,80 @@ async function runProcessImage ({
     }
   }
 
-  if (actionMod.mode === 'multi') {
-    const inputLabel = files.join(',')
-    checkCancel()
-    report(0.1, `执行 ${actionMod.id}`)
-    try {
-      const baseOut = resolveOutputPath({
-        inputPath: files[0],
-        action: actionMod.id,
-        options,
-        output
-      })
-      const outputPath = await ensureUniquePath(baseOut, overwrite)
+  try {
+    if (actionMod.mode === 'multi') {
+      const inputLabel = files.join(',')
       checkCancel()
-      report(0.4, `处理 ${files.length} 个文件`)
-
-      const actionResult = await actionMod.run(buildCtx(files[0], outputPath))
-      checkCancel()
-      report(0.85, '写出结果')
-
-      const stats = await materializeResult(actionResult, outputPath, stripMetadata)
-      items.push(okItem(inputLabel, stats))
-      report(1, '完成')
-    } catch (err) {
-      if (err && err.code === 'CANCELLED') throw err
-      items.push(failItem(inputLabel, err))
-      report(1, '失败')
-    }
-  } else {
-    // per-file: independent try/catch per input
-    const n = files.length
-    for (let i = 0; i < n; i++) {
-      const inputPath = files[i]
-      checkCancel()
-      report((i + 0.5) / n, `处理 ${i + 1}/${n}`)
+      report(0.1, `执行 ${actionMod.id}`)
       try {
-        await fs.access(inputPath)
-        checkCancel()
-
-        // Run first so actions like compress can choose a smaller output format;
-        // then resolve path extension from result.format when present.
-        const actionResult = await actionMod.run(buildCtx(inputPath, ''))
-        checkCancel()
-
-        const pathOptions = { ...options }
-        if (actionResult && actionResult.format) {
-          pathOptions.format = actionResult.format
-        }
         const baseOut = resolveOutputPath({
-          inputPath,
+          inputPath: files[0],
           action: actionMod.id,
-          options: pathOptions,
+          options,
           output
         })
         const outputPath = await ensureUniquePath(baseOut, overwrite)
+        checkCancel()
+        report(0.4, `处理 ${files.length} 个文件`)
 
-        const stats = await materializeResult(
-          actionResult,
-          outputPath,
-          stripMetadata
-        )
-        items.push(okItem(inputPath, stats))
+        const actionResult = await actionMod.run(buildCtx(files[0], outputPath))
+        checkCancel()
+        report(0.85, '写出结果')
+
+        const stats = await materializeResult(actionResult, outputPath, stripMetadata)
+        items.push(okItem(inputLabel, stats))
+        report(1, '完成')
       } catch (err) {
         if (err && err.code === 'CANCELLED') throw err
-        items.push(failItem(inputPath, err))
+        items.push(failItem(inputLabel, err))
+        report(1, '失败')
       }
+    } else {
+      // per-file: independent try/catch per input
+      const n = files.length
+      for (let i = 0; i < n; i++) {
+        const inputPath = files[i]
+        checkCancel()
+        report((i + 0.5) / n, `处理 ${i + 1}/${n}`)
+        try {
+          await fs.access(inputPath)
+          checkCancel()
+
+          // Run first so actions like compress can choose a smaller output format;
+          // then resolve path extension from result.format when present.
+          const actionResult = await actionMod.run(buildCtx(inputPath, ''))
+          checkCancel()
+
+          const pathOptions = { ...options }
+          if (actionResult && actionResult.format) {
+            pathOptions.format = actionResult.format
+          }
+          const baseOut = resolveOutputPath({
+            inputPath,
+            action: actionMod.id,
+            options: pathOptions,
+            output
+          })
+          const outputPath = await ensureUniquePath(baseOut, overwrite)
+
+          const stats = await materializeResult(
+            actionResult,
+            outputPath,
+            stripMetadata
+          )
+          items.push(okItem(inputPath, stats))
+        } catch (err) {
+          if (err && err.code === 'CANCELLED') throw err
+          items.push(failItem(inputPath, err))
+        } finally {
+          // Drop libvips caches between files so Windows can delete/rename
+          releaseSharpResources()
+        }
+      }
+      report(1, '完成')
     }
-    report(1, '完成')
+  } finally {
+    releaseSharpResources()
   }
 
   let succeeded = 0

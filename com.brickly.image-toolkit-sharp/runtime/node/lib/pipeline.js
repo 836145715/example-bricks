@@ -4,15 +4,26 @@ const fs = require('node:fs/promises')
 const { loadSharp } = require('./sharp-loader')
 
 /**
- * Open an image file as a sharp pipeline.
+ * Read file fully into memory so libvips never holds a path-based file handle.
+ * Prefer this over sharp(filePath) on Windows.
+ * @param {string} filePath
+ * @returns {Promise<Buffer>}
+ */
+async function readFileBuffer (filePath) {
+  return fs.readFile(filePath)
+}
+
+/**
+ * Open an image as a sharp pipeline from a path without keeping the path open:
+ * read → buffer → sharp(buffer).
  * @param {string} filePath
  * @param {{ autoOrient?: boolean }} [opts]
- * @returns {import('sharp').Sharp}
+ * @returns {Promise<import('sharp').Sharp>}
  */
-function openImage (filePath, { autoOrient = true } = {}) {
+async function openImage (filePath, { autoOrient = true } = {}) {
   const sharp = loadSharp()
-  let pipeline = sharp(filePath)
-  // .rotate() with no args applies EXIF orientation and clears the tag
+  const buffer = await readFileBuffer(filePath)
+  let pipeline = sharp(buffer)
   if (autoOrient) {
     pipeline = pipeline.rotate()
   }
@@ -20,11 +31,6 @@ function openImage (filePath, { autoOrient = true } = {}) {
 }
 
 /**
- * Optionally strip metadata from a sharp pipeline (sharp 0.33 compatible).
- * When strip is true, rely on sharp's default re-encode path which drops
- * EXIF/ICC/IPTC/XMP unless withMetadata() is called.
- * When strip is false, keep existing metadata via withMetadata().
- *
  * @param {import('sharp').Sharp} pipeline
  * @param {boolean} strip
  * @returns {import('sharp').Sharp}
@@ -33,30 +39,78 @@ function applyStripMetadata (pipeline, strip) {
   if (!strip) {
     return pipeline.withMetadata()
   }
-  // Default sharp re-encode already omits most metadata when withMetadata is not used.
-  // Explicit no-op keeps the pipeline chain clear for callers.
   return pipeline
 }
 
 /**
- * Write pipeline to disk and return size / dimension stats.
+ * Write pipeline to disk. Use toFile() info only — do NOT sharp(outPath) again
+ * (that re-locks the output file on Windows until GC).
+ *
  * @param {import('sharp').Sharp} pipeline
  * @param {string} outPath
  * @returns {Promise<{ outputPath: string, sizeBytes: number, sizeKb: number, width: number|null, height: number|null, format: string|null }>}
  */
 async function writeAndStat (pipeline, outPath) {
-  await pipeline.toFile(outPath)
-  const sharp = loadSharp()
+  // toFile returns { format, width, height, size, ... } and closes the output stream
+  const info = await pipeline.toFile(outPath)
+
+  // Prefer info.size; fall back to stat without opening via sharp
+  let sizeBytes = typeof info.size === 'number' ? info.size : 0
+  if (!sizeBytes) {
+    try {
+      const st = await fs.stat(outPath)
+      sizeBytes = st.size
+    } catch (_) {
+      sizeBytes = 0
+    }
+  }
+
+  return {
+    outputPath: outPath,
+    sizeBytes,
+    sizeKb: Math.round((sizeBytes / 1024) * 100) / 100,
+    width: info.width != null ? info.width : null,
+    height: info.height != null ? info.height : null,
+    format: info.format || null
+  }
+}
+
+/**
+ * Stat a file already on disk without holding a sharp path handle.
+ * Dimensions: decode from buffer then drop references (no path cache).
+ *
+ * @param {string} outPath
+ */
+async function statOnDisk (outPath) {
   const finalStat = await fs.stat(outPath)
-  const finalMeta = await sharp(outPath).metadata().catch(() => ({}))
+  let width = null
+  let height = null
+  let format = null
+  try {
+    const sharp = loadSharp()
+    const buf = await fs.readFile(outPath)
+    const meta = await sharp(buf).metadata()
+    width = meta.width || null
+    height = meta.height || null
+    format = meta.format || null
+    // buf goes out of scope; no path-based handle
+  } catch (_) {
+    /* pdf or non-image */
+  }
   return {
     outputPath: outPath,
     sizeBytes: finalStat.size,
     sizeKb: Math.round((finalStat.size / 1024) * 100) / 100,
-    width: finalMeta.width || null,
-    height: finalMeta.height || null,
-    format: finalMeta.format || null
+    width,
+    height,
+    format
   }
 }
 
-module.exports = { openImage, applyStripMetadata, writeAndStat }
+module.exports = {
+  openImage,
+  readFileBuffer,
+  applyStripMetadata,
+  writeAndStat,
+  statOnDisk
+}

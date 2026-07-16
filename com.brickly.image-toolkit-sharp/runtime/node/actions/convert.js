@@ -1,19 +1,11 @@
 'use strict'
 
-/**
- * Convert image to another format.
- */
+const { readFileBuffer } = require('../lib/pipeline')
+
 module.exports = {
   id: 'convert',
   mode: 'per-file',
 
-  /**
-   * @param {object} ctx
-   * @param {string} ctx.inputPath
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const { inputPath, options = {} } = ctx
@@ -21,21 +13,23 @@ module.exports = {
     const quality = typeof options.quality === 'number' ? options.quality : 82
     const lossless = !!options.lossless
 
-    let pipeline = sharp(inputPath)
+    const inputBuf = await readFileBuffer(inputPath)
+    let pipeline = sharp(inputBuf)
+
     if (format === 'jpeg' || format === 'jpg') {
-      pipeline.jpeg({ quality })
+      pipeline = pipeline.jpeg({ quality, mozjpeg: true })
     } else if (format === 'webp') {
-      pipeline.webp({ quality, lossless })
+      pipeline = pipeline.webp({ quality, lossless })
     } else if (format === 'png') {
-      pipeline.png({ compressionLevel: 9 })
+      pipeline = pipeline.png({ compressionLevel: 9 })
     } else if (format === 'avif') {
-      pipeline.avif({ quality, lossless })
+      pipeline = pipeline.avif({ quality, lossless })
     } else if (format === 'gif') {
-      pipeline.gif()
+      pipeline = pipeline.gif()
     } else {
-      pipeline.toFormat(format, { quality })
+      pipeline = pipeline.toFormat(format, { quality })
     }
 
-    return { type: 'pipeline', pipeline }
+    return { type: 'pipeline', pipeline, format }
   }
 }

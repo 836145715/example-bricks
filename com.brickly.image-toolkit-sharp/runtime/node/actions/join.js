@@ -1,21 +1,12 @@
 'use strict'
 
 const fs = require('node:fs/promises')
+const { readFileBuffer } = require('../lib/pipeline')
 
-/**
- * Join multiple images vertically or horizontally into one canvas.
- */
 module.exports = {
   id: 'join',
   mode: 'multi',
 
-  /**
-   * @param {object} ctx
-   * @param {string[]} ctx.files
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const { files, options = {} } = ctx
@@ -28,19 +19,20 @@ module.exports = {
     const imgMetas = []
     for (const f of files) {
       await fs.access(f)
-      const m = await sharp(f).metadata()
-      imgMetas.push({ file: f, width: m.width || 0, height: m.height || 0 })
+      const buf = await readFileBuffer(f)
+      const m = await sharp(buf).metadata()
+      imgMetas.push({ buffer: buf, width: m.width || 0, height: m.height || 0 })
     }
 
     let finalW = 0
     let finalH = 0
 
     if (direction === 'vertical') {
-      finalW = Math.max(...imgMetas.map(m => m.width))
+      finalW = Math.max(...imgMetas.map((m) => m.width))
       finalH = imgMetas.reduce((sum, m) => sum + m.height, 0) + (files.length - 1) * gap
     } else {
       finalW = imgMetas.reduce((sum, m) => sum + m.width, 0) + (files.length - 1) * gap
-      finalH = Math.max(...imgMetas.map(m => m.height))
+      finalH = Math.max(...imgMetas.map((m) => m.height))
     }
 
     const compositeLayers = []
@@ -61,8 +53,9 @@ module.exports = {
         offset += item.width + gap
       }
 
+      // Buffer input — never path (Windows lock)
       compositeLayers.push({
-        input: item.file,
+        input: item.buffer,
         left,
         top
       })

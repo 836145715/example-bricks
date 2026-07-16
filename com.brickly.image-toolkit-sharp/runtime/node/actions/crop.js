@@ -1,21 +1,12 @@
 'use strict'
 
+const { readFileBuffer } = require('../lib/pipeline')
 const { clampExtract } = require('../lib/crop-bounds')
 
-/**
- * Extract a rectangular region; out-of-bounds values are clamped.
- */
 module.exports = {
   id: 'crop',
   mode: 'per-file',
 
-  /**
-   * @param {object} ctx
-   * @param {string} ctx.inputPath
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const { inputPath, options = {} } = ctx
@@ -24,9 +15,9 @@ module.exports = {
     const w = typeof options.width === 'number' ? options.width : 200
     const h = typeof options.height === 'number' ? options.height : 200
 
-    const meta = await sharp(inputPath).metadata()
-    // 防御性越界裁剪校验
-    const { left, top, width, height } = clampExtract({
+    const inputBuf = await readFileBuffer(inputPath)
+    const meta = await sharp(inputBuf).metadata()
+    const region = clampExtract({
       x,
       y,
       width: w,
@@ -37,12 +28,7 @@ module.exports = {
 
     return {
       type: 'pipeline',
-      pipeline: sharp(inputPath).extract({
-        left,
-        top,
-        width,
-        height
-      })
+      pipeline: sharp(inputBuf).extract(region)
     }
   }
 }

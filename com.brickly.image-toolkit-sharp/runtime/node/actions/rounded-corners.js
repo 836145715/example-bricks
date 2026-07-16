@@ -1,26 +1,19 @@
 'use strict'
 
-/**
- * Apply rounded-corner mask; optional solid background under transparency.
- */
+const { readFileBuffer } = require('../lib/pipeline')
+
 module.exports = {
   id: 'roundedCorners',
   mode: 'per-file',
 
-  /**
-   * @param {object} ctx
-   * @param {string} ctx.inputPath
-   * @param {object} ctx.options
-   * @param {function} ctx.loadSharp
-   * @returns {Promise<{ type: 'pipeline', pipeline: import('sharp').Sharp }>}
-   */
   async run (ctx) {
     const sharp = ctx.loadSharp()
     const { inputPath, options = {} } = ctx
     const radius = typeof options.radius === 'number' ? options.radius : 30
     const bg = options.bg || '#00000000'
 
-    const meta = await sharp(inputPath).metadata()
+    const inputBuf = await readFileBuffer(inputPath)
+    const meta = await sharp(inputBuf).metadata()
     const w = meta.width || 800
     const h = meta.height || 600
 
@@ -31,7 +24,7 @@ module.exports = {
       `
     const maskBuffer = Buffer.from(maskSvg, 'utf8')
 
-    let pipeline = sharp(inputPath).composite([{ input: maskBuffer, blend: 'dest-in' }])
+    let pipeline = sharp(inputBuf).composite([{ input: maskBuffer, blend: 'dest-in' }])
 
     if (bg !== '#00000000' && bg !== 'transparent') {
       const roundedBuffer = await pipeline.png().toBuffer()
