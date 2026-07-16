@@ -1,30 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CropRect } from '../types'
 
 interface CropOverlayProps {
   imageRef: React.RefObject<HTMLImageElement | null>
-  /** Positioning root (must be position:relative and contain the image) */
   containerRef: React.RefObject<HTMLElement | null>
-  rect: CropRect
   onChange: (rect: CropRect) => void
   enabled: boolean
   aspectRatio?: number | null
 }
 
-type HandleDir = 'nw' | 'ne' | 'sw' | 'se'
+type HandleDir = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w'
 
-interface DisplayBox {
+interface Box {
   left: number
   top: number
   width: number
   height: number
 }
 
-/** Image rect relative to container (display pixels). */
-function getImageDisplayBox(
-  img: HTMLImageElement,
-  container: HTMLElement,
-): DisplayBox {
+function imageBox(img: HTMLImageElement, container: HTMLElement): Box {
   const ir = img.getBoundingClientRect()
   const cr = container.getBoundingClientRect()
   return {
@@ -35,261 +29,245 @@ function getImageDisplayBox(
   }
 }
 
-function naturalToDisplay(
-  rect: CropRect,
-  img: HTMLImageElement,
-  container: HTMLElement,
-): DisplayBox {
-  const box = getImageDisplayBox(img, container)
-  const scaleX = box.width / Math.max(1, img.naturalWidth)
-  const scaleY = box.height / Math.max(1, img.naturalHeight)
+function toNatural(box: Box, img: HTMLImageElement, container: HTMLElement): CropRect {
+  const ib = imageBox(img, container)
+  const sx = img.naturalWidth / ib.width
+  const sy = img.naturalHeight / ib.height
   return {
-    left: box.left + rect.x * scaleX,
-    top: box.top + rect.y * scaleY,
-    width: Math.max(8, rect.width * scaleX),
-    height: Math.max(8, rect.height * scaleY),
+    x: Math.max(0, Math.round((box.left - ib.left) * sx)),
+    y: Math.max(0, Math.round((box.top - ib.top) * sy)),
+    width: Math.max(1, Math.round(box.width * sx)),
+    height: Math.max(1, Math.round(box.height * sy)),
   }
 }
 
-function displayToNatural(
-  box: DisplayBox,
-  img: HTMLImageElement,
-  container: HTMLElement,
-): CropRect {
-  const ib = getImageDisplayBox(img, container)
-  const scaleX = img.naturalWidth / Math.max(1, ib.width)
-  const scaleY = img.naturalHeight / Math.max(1, ib.height)
-  return {
-    x: Math.max(0, Math.round((box.left - ib.left) * scaleX)),
-    y: Math.max(0, Math.round((box.top - ib.top) * scaleY)),
-    width: Math.max(1, Math.round(box.width * scaleX)),
-    height: Math.max(1, Math.round(box.height * scaleY)),
-  }
+function clamp(box: Box, img: HTMLImageElement, container: HTMLElement): Box {
+  const ib = imageBox(img, container)
+  let { left, top, width, height } = box
+  width = Math.max(24, Math.min(width, ib.width))
+  height = Math.max(24, Math.min(height, ib.height))
+  left = Math.max(ib.left, Math.min(left, ib.left + ib.width - width))
+  top = Math.max(ib.top, Math.min(top, ib.top + ib.height - height))
+  return { left, top, width, height }
 }
 
+/**
+ * Drag crop overlay. Self-contained display state — does NOT re-read `rect`
+ * from parent on every render (that previously reset the box while dragging).
+ */
 export function CropOverlay({
   imageRef,
   containerRef,
-  rect,
   onChange,
   enabled,
   aspectRatio = null,
 }: CropOverlayProps) {
-  const [box, setBox] = useState<DisplayBox>({
-    left: 0,
-    top: 0,
-    width: 120,
-    height: 120,
-  })
-  const boxRef = useRef(box)
-  boxRef.current = box
-  const initialized = useRef(false)
-  const dragging = useRef(false)
+  const [box, setBox] = useState<Box | null>(null)
+  const boxRef = useRef<Box | null>(null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const aspectRef = useRef(aspectRatio)
+  aspectRef.current = aspectRatio
+  const dragKind = useRef<'move' | HandleDir | null>(null)
+  const dragStart = useRef({ x: 0, y: 0, box: { left: 0, top: 0, width: 0, height: 0 } })
 
-  const syncFromImage = useCallback(
-    (forceInit = false) => {
-      const img = imageRef.current
-      const container = containerRef.current
-      if (!img || !container || !img.naturalWidth || img.clientWidth < 2) return
+  const publish = (next: Box) => {
+    const img = imageRef.current
+    const container = containerRef.current
+    if (!img || !container) return
+    const c = clamp(next, img, container)
+    boxRef.current = c
+    setBox(c)
+    onChangeRef.current(toNatural(c, img, container))
+  }
 
-      if (forceInit || !initialized.current) {
-        const ib = getImageDisplayBox(img, container)
-        let w = Math.min(ib.width * 0.7, Math.max(80, ib.width * 0.6))
-        let h = Math.min(ib.height * 0.7, Math.max(80, ib.height * 0.6))
-        if (aspectRatio && aspectRatio > 0) {
-          if (w / h > aspectRatio) w = h * aspectRatio
-          else h = w / aspectRatio
-          // fit inside image
-          if (w > ib.width) {
-            w = ib.width * 0.9
-            h = w / aspectRatio
-          }
-          if (h > ib.height) {
-            h = ib.height * 0.9
-            w = h * aspectRatio
-          }
-        }
-        const left = ib.left + (ib.width - w) / 2
-        const top = ib.top + (ib.height - h) / 2
-        const next = { left, top, width: w, height: h }
-        setBox(next)
-        boxRef.current = next
-        onChange(displayToNatural(next, img, container))
-        initialized.current = true
-        return
+  const initBox = () => {
+    const img = imageRef.current
+    const container = containerRef.current
+    if (!img || !container || !img.naturalWidth || img.clientWidth < 4) return false
+
+    const ib = imageBox(img, container)
+    let w = ib.width * 0.65
+    let h = ib.height * 0.65
+    const ar = aspectRef.current
+    if (ar && ar > 0) {
+      if (w / h > ar) w = h * ar
+      else h = w / ar
+      if (w > ib.width) {
+        w = ib.width * 0.9
+        h = w / ar
       }
+      if (h > ib.height) {
+        h = ib.height * 0.9
+        w = h * ar
+      }
+    }
+    publish({
+      left: ib.left + (ib.width - w) / 2,
+      top: ib.top + (ib.height - h) / 2,
+      width: w,
+      height: h,
+    })
+    return true
+  }
 
-      if (dragging.current) return
-      const next = naturalToDisplay(rect, img, container)
-      setBox(next)
-      boxRef.current = next
-    },
-    [imageRef, containerRef, onChange, rect, aspectRatio],
-  )
-
+  // Init once when enabled / image loads / aspect changes.
+  // Do NOT re-init on every parent re-render or ResizeObserver tick (that kills drag).
   useEffect(() => {
     if (!enabled) {
-      initialized.current = false
+      setBox(null)
+      boxRef.current = null
       return
     }
+
+    let cancelled = false
+    let done = false
+    const tryInit = () => {
+      if (cancelled || done) return
+      if (initBox()) {
+        done = true
+        return
+      }
+      requestAnimationFrame(tryInit)
+    }
+
     const img = imageRef.current
-    if (!img) return
-
     const onLoad = () => {
-      initialized.current = false
-      requestAnimationFrame(() => syncFromImage(true))
+      done = false
+      tryInit()
     }
-    const onWinResize = () => {
-      if (!dragging.current) syncFromImage(false)
-    }
-
-    if (img.complete && img.naturalWidth) {
-      requestAnimationFrame(() => syncFromImage(true))
-    }
-    img.addEventListener('load', onLoad)
-    window.addEventListener('resize', onWinResize)
-
-    const container = containerRef.current
-    let ro: ResizeObserver | null = null
-    if (container && typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(() => {
-        if (!dragging.current) syncFromImage(false)
-      })
-      ro.observe(container)
-      ro.observe(img)
-    }
+    if (img) img.addEventListener('load', onLoad)
+    tryInit()
 
     return () => {
-      img.removeEventListener('load', onLoad)
-      window.removeEventListener('resize', onWinResize)
-      ro?.disconnect()
+      cancelled = true
+      img?.removeEventListener('load', onLoad)
     }
-  }, [enabled, imageRef, containerRef, syncFromImage])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, aspectRatio, imageRef, containerRef])
 
-  // Re-init when aspect ratio changes
   useEffect(() => {
-    if (!enabled) return
-    initialized.current = false
-    requestAnimationFrame(() => syncFromImage(true))
-  }, [aspectRatio, enabled, syncFromImage])
+    if (!enabled || !box) return
 
-  if (!enabled) return null
+    const onMove = (ev: PointerEvent) => {
+      const kind = dragKind.current
+      if (!kind || !boxRef.current) return
+      const img = imageRef.current
+      const container = containerRef.current
+      if (!img || !container) return
 
-  const clampBox = (next: DisplayBox): DisplayBox => {
-    const img = imageRef.current
-    const container = containerRef.current
-    if (!img || !container) return next
-    const ib = getImageDisplayBox(img, container)
-    let { left, top, width, height } = next
-    width = Math.max(24, Math.min(width, ib.width))
-    height = Math.max(24, Math.min(height, ib.height))
-    left = Math.max(ib.left, Math.min(left, ib.left + ib.width - width))
-    top = Math.max(ib.top, Math.min(top, ib.top + ib.height - height))
-    return { left, top, width, height }
-  }
+      const dx = ev.clientX - dragStart.current.x
+      const dy = ev.clientY - dragStart.current.y
+      const s = dragStart.current.box
+      let left = s.left
+      let top = s.top
+      let width = s.width
+      let height = s.height
+      const ar = aspectRef.current
 
-  const commit = (next: DisplayBox) => {
-    const clamped = clampBox(next)
-    setBox(clamped)
-    boxRef.current = clamped
-    const img = imageRef.current
-    const container = containerRef.current
-    if (img && container) onChange(displayToNatural(clamped, img, container))
-  }
-
-  const onMoveStart = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragging.current = true
-    const startX = e.clientX
-    const startY = e.clientY
-    const start = { ...boxRef.current }
-
-    const onMove = (ev: MouseEvent) => {
-      commit({
-        ...start,
-        left: start.left + (ev.clientX - startX),
-        top: start.top + (ev.clientY - startY),
-      })
-    }
-    const onUp = () => {
-      dragging.current = false
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-    }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  }
-
-  const onResizeStart = (dir: HandleDir, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragging.current = true
-    const startX = e.clientX
-    const startY = e.clientY
-    const start = { ...boxRef.current }
-
-    const onMove = (ev: MouseEvent) => {
-      const dx = ev.clientX - startX
-      const dy = ev.clientY - startY
-      let { left, top, width, height } = start
-
-      if (dir.includes('e')) width = start.width + dx
-      if (dir.includes('s')) height = start.height + dy
-      if (dir.includes('w')) {
-        width = start.width - dx
-        left = start.left + dx
-      }
-      if (dir.includes('n')) {
-        height = start.height - dy
-        top = start.top + dy
-      }
-
-      if (aspectRatio && aspectRatio > 0) {
-        if (dir === 'se' || dir === 'ne') height = width / aspectRatio
-        else if (dir === 'sw' || dir === 'nw') {
-          height = width / aspectRatio
+      if (kind === 'move') {
+        left = s.left + dx
+        top = s.top + dy
+      } else {
+        if (kind.includes('e')) width = s.width + dx
+        if (kind.includes('s')) height = s.height + dy
+        if (kind.includes('w')) {
+          width = s.width - dx
+          left = s.left + dx
         }
-        if (dir === 'nw' || dir === 'sw') left = start.left + start.width - width
-        if (dir === 'nw' || dir === 'ne') top = start.top + start.height - height
+        if (kind.includes('n')) {
+          height = s.height - dy
+          top = s.top + dy
+        }
+        if (ar && ar > 0) {
+          if (kind === 'e' || kind === 'w' || kind === 'se' || kind === 'ne' || kind === 'sw' || kind === 'nw') {
+            if (kind === 'e' || kind === 'w') height = width / ar
+            else if (kind === 'n' || kind === 's') width = height * ar
+            else if (kind === 'se' || kind === 'ne') height = width / ar
+            else width = height * ar
+
+            if (kind === 'nw' || kind === 'sw' || kind === 'w') {
+              left = s.left + s.width - width
+            }
+            if (kind === 'nw' || kind === 'ne' || kind === 'n') {
+              top = s.top + s.height - height
+            }
+          }
+        }
       }
 
-      commit({ left, top, width, height })
+      publish({ left, top, width, height })
     }
+
     const onUp = () => {
-      dragging.current = false
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
+      dragKind.current = null
     }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [enabled, box, imageRef, containerRef])
+
+  if (!enabled || !box) return null
+
+  const startDrag = (kind: 'move' | HandleDir, e: React.PointerEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!boxRef.current) return
+    dragKind.current = kind
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      box: { ...boxRef.current },
+    }
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    } catch {
+      /* ignore */
+    }
   }
 
-  const handles: HandleDir[] = ['nw', 'ne', 'sw', 'se']
-  const handlePos: Record<HandleDir, string> = {
-    nw: 'left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize',
-    ne: 'right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize',
-    sw: 'left-0 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize',
-    se: 'right-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize',
-  }
+  const handles: { dir: HandleDir; className: string }[] = [
+    { dir: 'nw', className: 'left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize' },
+    { dir: 'ne', className: 'right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize' },
+    { dir: 'sw', className: 'left-0 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize' },
+    { dir: 'se', className: 'right-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize' },
+    { dir: 'n', className: 'left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize' },
+    { dir: 's', className: 'left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-ns-resize' },
+    { dir: 'e', className: 'right-0 top-1/2 translate-x-1/2 -translate-y-1/2 cursor-ew-resize' },
+    { dir: 'w', className: 'left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize' },
+  ]
 
   return (
     <div
-      className="pointer-events-auto absolute z-20 border-2 border-[var(--ac)] bg-[var(--ac)]/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+      className="absolute z-30 box-border border-2 border-[var(--ac)] bg-[var(--ac)]/10"
       style={{
         left: box.left,
         top: box.top,
         width: box.width,
         height: box.height,
+        // Dim outside without giant shadow hit-testing quirks
+        boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
         touchAction: 'none',
+        cursor: 'move',
+        userSelect: 'none',
       }}
-      onMouseDown={onMoveStart}
+      onPointerDown={(e) => startDrag('move', e)}
     >
-      {handles.map((dir) => (
+      {handles.map((h) => (
         <span
-          key={dir}
-          className={`absolute h-3.5 w-3.5 rounded-sm border border-[var(--ac-fg)] bg-[var(--ac)] ${handlePos[dir]}`}
-          onMouseDown={(e) => onResizeStart(dir, e)}
+          key={h.dir}
+          className={`absolute z-40 h-4 w-4 rounded-sm border-2 border-white bg-[var(--ac)] shadow ${h.className}`}
+          style={{ touchAction: 'none' }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            startDrag(h.dir, e)
+          }}
         />
       ))}
     </div>

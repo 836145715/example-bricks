@@ -255,7 +255,6 @@ export function Workspace({
             <CropOverlay
               imageRef={imageRef}
               containerRef={cropContainerRef}
-              rect={cropRect}
               onChange={onCropChange}
               enabled={cropEnabled}
               aspectRatio={cropAspect}
