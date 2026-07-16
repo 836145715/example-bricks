@@ -23,7 +23,7 @@ export function ResultDrawer({ result, lastOutputPath, onToast }: ResultDrawerPr
 
   if (!result) {
     return (
-      <div className="border-t border-[var(--line)] bg-[var(--bg-1)] px-3 py-2 text-[11.5px] text-[var(--fg-dim)]">
+      <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-1)] px-3 py-2 text-[11.5px] text-[var(--fg-dim)]">
         暂无处理结果
       </div>
     )
@@ -36,7 +36,7 @@ export function ResultDrawer({ result, lastOutputPath, onToast }: ResultDrawerPr
     null
 
   return (
-    <div className="animate-drawer border-t border-[var(--line)] bg-[var(--bg-1)]">
+    <div className="animate-drawer max-h-[28%] shrink-0 overflow-hidden border-t border-[var(--line)] bg-[var(--bg-1)]">
       <button
         type="button"
         className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"

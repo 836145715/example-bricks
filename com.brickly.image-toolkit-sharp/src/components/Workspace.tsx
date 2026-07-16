@@ -49,9 +49,9 @@ export function Workspace({
   const cropEnabled = action === 'crop' && cropMode === 'drag' && showPreview
 
   return (
-    <section className="relative flex min-w-0 flex-1 flex-col bg-[var(--bg-0)]">
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
-        <div className="text-[12px] text-[var(--fg-dim)]">
+    <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-0)]">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
+        <div className="min-w-0 truncate text-[12px] text-[var(--fg-dim)]">
           {files.length === 0
             ? '工作区'
             : multi
@@ -61,11 +61,16 @@ export function Workspace({
         {files.length > 0 ? <DropZone onFiles={onAddFiles} compact /> : null}
       </div>
 
-      <div className="relative min-h-0 flex-1 p-3">
-        {showDrop ? <DropZone onFiles={onAddFiles} /> : null}
+      {/* flex-1 + min-h-0: pin preview inside remaining height so ProcessBar stays visible */}
+      <div className="relative min-h-0 flex-1 overflow-hidden p-3">
+        {showDrop ? (
+          <div className="h-full min-h-0">
+            <DropZone onFiles={onAddFiles} />
+          </div>
+        ) : null}
 
         {showGrid ? (
-          <div className="scroll-y h-full">
+          <div className="scroll-y h-full min-h-0">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-2">
               {files.map((f) => (
                 <div
@@ -103,12 +108,17 @@ export function Workspace({
         ) : null}
 
         {showPreview ? (
-          <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)]">
+          <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2">
+            {/*
+              Parent chain uses min-h-0 + flex-1 so this box has a real height.
+              max-h-full / max-w-full force the image to scale down inside it
+              without growing the layout (keeps ProcessBar visible).
+            */}
             <img
               ref={imageRef}
               src={files[0].previewUrl}
               alt={files[0].name}
-              className="max-h-full max-w-full object-contain select-none"
+              className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
               draggable={false}
             />
             <CropOverlay
@@ -119,13 +129,13 @@ export function Workspace({
               aspectRatio={cropAspect}
             />
             {files.length > 1 ? (
-              <div className="absolute bottom-2 left-2 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
+              <div className="absolute bottom-2 left-2 z-10 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
                 另有 {files.length - 1} 张将按相同参数批量处理
               </div>
             ) : null}
             <button
               type="button"
-              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
+              className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
               onClick={() => onRemoveFile(files[0].id)}
               aria-label="移除当前图"
             >

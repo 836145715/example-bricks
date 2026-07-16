@@ -130,7 +130,7 @@ export function Shell({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">{children}</div>
+      <div className="flex min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
   )
 }
