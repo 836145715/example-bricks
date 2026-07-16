@@ -80,7 +80,7 @@
             "type": "string",
             "required": true,
             "control": "input",
-            "placeholder": "例如 example.com"
+            "placeholder": "例如 example.com 或完整网址"
           },
           {
             "name": "recordType",
@@ -193,7 +193,7 @@
             "type": "string",
             "required": true,
             "control": "input",
-            "placeholder": "例如 example.com"
+            "placeholder": "例如 example.com 或完整网址"
           },
           {
             "name": "dnsServers",
