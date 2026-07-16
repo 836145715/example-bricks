@@ -4,8 +4,8 @@ const fs = require('node:fs/promises')
 const { readFileBuffer } = require('../lib/pipeline')
 
 /**
- * Multi-frame animated GIF via gifenc (true multi-frame, not a tall strip).
- * Preview uses first frame still image.
+ * Multi-frame animated GIF via gifenc.
+ * UI previews the real GIF via data:image/gif (browser plays animation).
  */
 module.exports = {
   id: 'gif',
@@ -38,7 +38,6 @@ module.exports = {
     const h = Math.max(1, Math.min(800, firstMeta.height || 500))
 
     const gif = GIFEncoder()
-    let firstFramePng = null
 
     for (let i = 0; i < files.length; i++) {
       if (typeof ctx.ensureNotCancelled === 'function') ctx.ensureNotCancelled()
@@ -52,20 +51,11 @@ module.exports = {
         .raw()
         .toBuffer({ resolveWithObject: true })
 
-      if (i === 0) {
-        firstFramePng = await sharp(data, {
-          raw: { width: info.width, height: info.height, channels: 4 }
-        })
-          .png()
-          .toBuffer()
-      }
-
-      // quantize RGBA → palette index
       const palette = quantize(data, 256)
       const index = applyPalette(data, palette)
       gif.writeFrame(index, info.width, info.height, {
         palette,
-        delay: Math.round(delay / 10), // gifenc delay unit: 1/100s
+        delay: Math.round(delay / 10), // gifenc: 1/100s
         dispose: 1
       })
     }
@@ -76,9 +66,7 @@ module.exports = {
     return {
       type: 'buffer',
       buffer: gifBuffer,
-      format: 'gif',
-      previewBuffer: firstFramePng,
-      previewFormat: 'png'
+      format: 'gif'
     }
   }
 }
