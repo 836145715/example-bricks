@@ -1,0 +1,163 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.qr-toolkit",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "二维码工具",
+    "en": "QR Toolkit"
+  },
+  "description": {
+    "zh-CN": "二维码解析与生成：支持拖拽图片、粘贴剪贴板图片、文本生成 PNG，左侧记录最近 50 条历史。",
+    "en": "QR decode and generate: drag-drop images, paste from clipboard, generate PNG from text, with a 50-item local history sidebar."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "qr",
+    "qrcode",
+    "barcode",
+    "decode",
+    "generate",
+    "utilities"
+  ],
+  "categories": [
+    "utilities",
+    "image"
+  ],
+  "author": {
+    "name": "Brickly Team"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "permissions": [
+    "fs.read",
+    "fs.write",
+    "os.clipboard"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1040,
+      "height": 720,
+      "resizable": true
+    },
+    "theme": "dark"
+  },
+  "commands": [
+    {
+      "id": "decode",
+      "name": {
+        "zh-CN": "解析二维码",
+        "en": "Decode QR"
+      },
+      "description": "从本地图片路径或 Base64 图片解析二维码文本。支持 PNG / JPEG。",
+      "category": "transform",
+      "io": {
+        "inputs": [
+          {
+            "name": "filePath",
+            "type": "string",
+            "required": false,
+            "description": "本地图片绝对路径"
+          },
+          {
+            "name": "imageBase64",
+            "type": "string",
+            "required": false,
+            "description": "图片 Base64，可带 data:image/...;base64, 前缀"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "{ ok, text? } 或 { ok:false, error }"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generate",
+      "name": {
+        "zh-CN": "生成二维码",
+        "en": "Generate QR"
+      },
+      "description": "根据文本生成二维码 PNG（dataUrl），可选写入指定目录。",
+      "category": "transform",
+      "io": {
+        "inputs": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": true,
+            "description": "要编码的文本"
+          },
+          {
+            "name": "size",
+            "type": "number",
+            "required": false,
+            "description": "边长像素，默认 256，范围 64-2048"
+          },
+          {
+            "name": "margin",
+            "type": "number",
+            "required": false,
+            "description": "边距模块数，默认 2"
+          },
+          {
+            "name": "errorCorrection",
+            "type": "string",
+            "required": false,
+            "description": "纠错级别 L/M/Q/H，默认 M"
+          },
+          {
+            "name": "moduleStyle",
+            "type": "string",
+            "required": false,
+            "description": "模块样式：square | rounded | dots，默认 square"
+          },
+          {
+            "name": "darkColor",
+            "type": "string",
+            "required": false,
+            "description": "前景色 #RRGGBB 或 #RRGGBBAA，默认 #000000"
+          },
+          {
+            "name": "lightColor",
+            "type": "string",
+            "required": false,
+            "description": "背景色 #RRGGBB 或 #RRGGBBAA（可用透明），默认 #ffffff"
+          },
+          {
+            "name": "output",
+            "type": "json",
+            "required": false,
+            "description": "{ mode: 'memory'|'dir', dir?, fileName? }"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "{ ok, dataUrl, outputPath?, size } 或 { ok:false, error }"
+          }
+        ]
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    }
+  ]
+}
