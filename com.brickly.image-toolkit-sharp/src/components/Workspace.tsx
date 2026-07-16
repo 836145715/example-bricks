@@ -89,11 +89,19 @@ export function Workspace({
 
   const cropEnabled = isCropping && showPreview && !isRunning
 
-  const resultSrc = showResultImage ? previewHit!.item.previewDataUrl! : ''
+  const resultSrc =
+    showResultImage && previewHit?.item.previewDataUrl
+      ? previewHit.item.previewDataUrl
+      : ''
   const inputSrc = files[0]?.previewUrl || ''
-  const displaySrc = showResultImage ? resultSrc : showPreview ? inputSrc : ''
-  // Side-by-side: result view + original (disabled while cropping)
-  const showCompare = showResultImage && !!inputSrc && !!resultSrc
+  // Single pane: 原图 / 结果 via top toggle (no side-by-side)
+  const displaySrc = showResultImage
+    ? resultSrc
+    : showPreview
+      ? inputSrc
+      : showGrid && showResultImage
+        ? resultSrc
+        : ''
 
   const sizeHint = (() => {
     const it = previewHit?.item
@@ -203,43 +211,8 @@ export function Workspace({
           </div>
         ) : null}
 
-        {showCompare ? (
-          <div className="flex h-full min-h-0 w-full gap-2">
-            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)]">
-              <div className="shrink-0 border-b border-[var(--line)] px-2 py-1 text-center text-[11px] font-medium text-[var(--fg-dim)]">
-                原图
-                {files[0] ? ` · ${formatBytes(files[0].size)}` : ''}
-              </div>
-              <div className="flex min-h-0 flex-1 items-center justify-center p-2">
-                <img
-                  src={inputSrc}
-                  alt="原图"
-                  className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
-                  draggable={false}
-                />
-              </div>
-            </div>
-            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--ac-line)] bg-[var(--bg-sunken)]">
-              <div className="shrink-0 border-b border-[var(--ac-line)] bg-[var(--ac-soft)] px-2 py-1 text-center text-[11px] font-semibold text-[var(--ac)]">
-                {previewHit?.item.previewOnly || result?.summary?.previewOnly
-                  ? '预览结果（未落盘）'
-                  : '处理结果'}
-                {sizeHint ? ` · ${sizeHint}` : ''}
-              </div>
-              <div className="flex min-h-0 flex-1 items-center justify-center p-2">
-                <img
-                  key={resultSrc}
-                  src={resultSrc}
-                  alt="处理结果"
-                  className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
-                  draggable={false}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {!showCompare && (showPreview || showResultImage) && displaySrc ? (
+        {/* Single image pane: 原图 or 结果 (switch via top toggle) */}
+        {(showPreview || showResultImage) && displaySrc ? (
           <div
             ref={cropContainerRef}
             className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2"
@@ -267,8 +240,8 @@ export function Workspace({
             {showResultImage ? (
               <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
                 {previewHit?.item.previewOnly || result?.summary?.previewOnly
-                  ? '内存预览'
-                  : '处理结果'}
+                  ? '结果 · 未落盘'
+                  : '结果'}
                 {sizeHint ? ` · ${sizeHint}` : ''}
               </div>
             ) : null}
@@ -287,22 +260,6 @@ export function Workspace({
                 <X size={14} weight="bold" />
               </button>
             ) : null}
-          </div>
-        ) : null}
-
-        {!showCompare && showGrid && showResultImage ? (
-          <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2">
-            <img
-              key={resultSrc}
-              src={resultSrc}
-              alt="处理结果"
-              className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
-              draggable={false}
-            />
-            <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
-              处理结果
-              {sizeHint ? ` · ${sizeHint}` : ''}
-            </div>
           </div>
         ) : null}
 
