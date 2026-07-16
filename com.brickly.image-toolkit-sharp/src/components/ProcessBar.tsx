@@ -1,4 +1,4 @@
-import { CircleNotch, FolderOpen, Trash } from '@phosphor-icons/react'
+import { CircleNotch, Eye, FolderOpen, Trash } from '@phosphor-icons/react'
 
 interface ProcessBarProps {
   fileCount: number
@@ -6,8 +6,11 @@ interface ProcessBarProps {
   progress: number
   progressMessage: string
   canOpenFolder: boolean
+  /** Disable memory preview (e.g. PDF merge) */
+  previewDisabled?: boolean
   onClear: () => void
   onOpenFolder: () => void
+  onPreview: () => void
   onProcess: () => void
 }
 
@@ -17,12 +20,14 @@ export function ProcessBar({
   progress,
   progressMessage,
   canOpenFolder,
+  previewDisabled = false,
   onClear,
   onOpenFolder,
+  onPreview,
   onProcess,
 }: ProcessBarProps) {
-  const label =
-    fileCount <= 0 ? '处理' : fileCount === 1 ? '处理 1 张' : `处理 ${fileCount} 张`
+  const processLabel =
+    fileCount <= 0 ? '处理并保存' : fileCount === 1 ? '处理并保存' : `处理并保存 ${fileCount} 张`
 
   return (
     <footer className="flex h-14 shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--bg-1)]/90 px-3 backdrop-blur-md">
@@ -59,8 +64,31 @@ export function ProcessBar({
               />
             </div>
           </div>
-        ) : null}
+        ) : (
+          <span className="text-[11px] text-[var(--fg-dim)]">
+            预览仅内存处理不落盘 · 处理并保存会写出文件
+          </span>
+        )}
       </div>
+
+      <button
+        type="button"
+        onClick={onPreview}
+        disabled={fileCount === 0 || isRunning || previewDisabled}
+        title={
+          previewDisabled
+            ? '当前操作不支持纯内存预览'
+            : '按当前参数内存预览，不写入磁盘'
+        }
+        className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--ac-line)] bg-[var(--ac-soft)] px-3 text-[13px] font-semibold text-[var(--ac)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
+      >
+        {isRunning ? (
+          <CircleNotch size={16} className="animate-spin" />
+        ) : (
+          <Eye size={16} weight="bold" />
+        )}
+        预览
+      </button>
 
       <button
         type="button"
@@ -74,7 +102,7 @@ export function ProcessBar({
             处理中
           </>
         ) : (
-          label
+          processLabel
         )}
       </button>
     </footer>

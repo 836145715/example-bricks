@@ -82,14 +82,15 @@ function okItem (input, stats) {
   return {
     input,
     ok: true,
-    outputPath: stats.outputPath,
+    outputPath: stats.outputPath || undefined,
     sizeBytes: stats.sizeBytes,
     sizeKb: stats.sizeKb,
     width: stats.width,
     height: stats.height,
     format: stats.format,
     // optional UI preview (data URL), may be absent for pdf / failures
-    previewDataUrl: stats.previewDataUrl || null
+    previewDataUrl: stats.previewDataUrl || null,
+    previewOnly: !!stats.previewOnly
   }
 }
 
@@ -100,11 +101,10 @@ function okItem (input, stats) {
  * @param {boolean} [wantPreview]
  */
 async function withPreview (stats, encodedBuffer, wantPreview) {
-  if (!wantPreview || !stats || !stats.outputPath) return stats
-  const previewDataUrl = await makePreviewDataUrl(
-    encodedBuffer || stats.outputPath,
-    stats.format
-  )
+  if (!wantPreview || !stats) return stats
+  const source = encodedBuffer || (stats.outputPath ? stats.outputPath : null)
+  if (!source) return stats
+  const previewDataUrl = await makePreviewDataUrl(source, stats.format)
   if (!previewDataUrl) return stats
   return { ...stats, previewDataUrl }
 }
@@ -120,22 +120,25 @@ async function statExisting (outPath) {
 
 /**
  * Apply action result: stripMetadata (when applicable) → write → stat.
- * written results skip strip (already on disk).
+ * previewOnly: encode in memory only, never touch the filesystem for output.
  *
  * @param {{ type: string, pipeline?: import('sharp').Sharp, buffer?: Buffer, outputPath?: string, format?: string }} actionResult
  * @param {string} outputPath
  * @param {boolean} stripMetadata
- * @param {{ wantPreview?: boolean }} [opts]
+ * @param {{ wantPreview?: boolean, previewOnly?: boolean }} [opts]
  */
 async function materializeResult (actionResult, outputPath, stripMetadata, opts = {}) {
   const wantPreview = opts.wantPreview !== false
+  const previewOnly = !!opts.previewOnly
   if (!actionResult || !actionResult.type) {
     throw Object.assign(new Error('Action returned invalid result'), {
       code: 'INVALID_ACTION_RESULT'
     })
   }
 
-  await fs.mkdir(path.dirname(outputPath), { recursive: true })
+  if (!previewOnly) {
+    await fs.mkdir(path.dirname(outputPath), { recursive: true })
+  }
 
   if (actionResult.type === 'pipeline') {
     let pipeline = actionResult.pipeline
@@ -144,17 +147,20 @@ async function materializeResult (actionResult, outputPath, stripMetadata, opts 
     const encoded = await pipeline.toBuffer({ resolveWithObject: true })
     const buffer = encoded.data
     const info = encoded.info || {}
-    await fs.writeFile(outputPath, buffer)
+    if (!previewOnly) {
+      await fs.writeFile(outputPath, buffer)
+    }
     const sizeBytes = buffer.length
     const stats = {
-      outputPath,
+      outputPath: previewOnly ? '' : outputPath,
       sizeBytes,
       sizeKb: Math.round((sizeBytes / 1024) * 100) / 100,
       width: info.width != null ? info.width : null,
       height: info.height != null ? info.height : null,
-      format: info.format || actionResult.format || null
+      format: info.format || actionResult.format || null,
+      previewOnly
     }
-    return withPreview(stats, buffer, wantPreview)
+    return withPreview(stats, buffer, wantPreview || previewOnly)
   }
 
   if (actionResult.type === 'buffer') {
@@ -165,21 +171,30 @@ async function materializeResult (actionResult, outputPath, stripMetadata, opts 
       // From buffer, not path — no file lock.
       buffer = await sharp(buffer).toBuffer()
     }
-    await fs.writeFile(outputPath, buffer)
+    if (!previewOnly) {
+      await fs.writeFile(outputPath, buffer)
+    }
     // Size from buffer; skip sharp(path) metadata re-open
     const sizeBytes = buffer.length
     const stats = {
-      outputPath,
+      outputPath: previewOnly ? '' : outputPath,
       sizeBytes,
       sizeKb: Math.round((sizeBytes / 1024) * 100) / 100,
       width: null,
       height: null,
-      format: actionResult.format || null
+      format: actionResult.format || null,
+      previewOnly
     }
-    return withPreview(stats, buffer, wantPreview)
+    return withPreview(stats, buffer, wantPreview || previewOnly)
   }
 
   if (actionResult.type === 'written') {
+    if (previewOnly) {
+      throw Object.assign(
+        new Error('PDF 等写入型操作不支持纯内存预览，请使用「处理」保存'),
+        { code: 'PREVIEW_UNSUPPORTED' }
+      )
+    }
     // Already on disk (e.g. pdf) — strip not applicable; no image preview.
     const writtenPath = actionResult.outputPath || outputPath
     const stats = await statExisting(writtenPath)
@@ -212,9 +227,10 @@ function ensureNotCancelled (isCancelled) {
  * @param {object} [params.options]
  * @param {{ mode?: 'sidecar'|'dir', dir?: string, overwrite?: boolean }} [params.output]
  * @param {{ autoOrient?: boolean, stripMetadata?: boolean }} [params.common]
+ * @param {boolean} [params.previewOnly] - in-memory only; never write output files
  * @param {(p: number, message?: string) => void} [params.onProgress]
  * @param {() => boolean} [params.isCancelled]
- * @returns {Promise<{ items: object[], summary: { total: number, succeeded: number, failed: number } }>}
+ * @returns {Promise<{ items: object[], summary: { total: number, succeeded: number, failed: number, previewOnly?: boolean } }>}
  */
 async function runProcessImage ({
   action,
@@ -222,6 +238,7 @@ async function runProcessImage ({
   options = {},
   output = {},
   common = {},
+  previewOnly = false,
   onProgress,
   isCancelled
 }) {
@@ -250,7 +267,17 @@ async function runProcessImage ({
   /** @type {object[]} */
   const items = []
   // Cap previews to keep BPP payload small on large batches
-  let previewBudget = 8
+  let previewBudget = previewOnly ? 4 : 8
+  // In-memory preview: only first file for per-file actions (fast param tuning)
+  const perFileList =
+    previewOnly && actionMod.mode === 'per-file' ? files.slice(0, 1) : files
+
+  if (previewOnly && actionMod.id === 'pdf') {
+    throw Object.assign(
+      new Error('合并 PDF 不支持纯内存预览，请使用「处理」保存'),
+      { code: 'PREVIEW_UNSUPPORTED' }
+    )
+  }
 
   /**
    * Shared action ctx factory.
@@ -260,15 +287,17 @@ async function runProcessImage ({
   function buildCtx (inputPath, outputPath) {
     return {
       inputPath,
+      // multi actions always need full files list; per-file preview uses slice via perFileList loop
       files,
       options,
-      outputPath,
+      outputPath: previewOnly ? '' : outputPath,
       loadSharp: loadSharpFn,
       escapeXml,
       compileJpegsToPdf,
       ensureNotCancelled: checkCancel,
       autoOrient,
-      stripMetadata
+      stripMetadata,
+      previewOnly
     }
   }
 
@@ -276,28 +305,31 @@ async function runProcessImage ({
     if (actionMod.mode === 'multi') {
       const inputLabel = files.join(',')
       checkCancel()
-      report(0.1, `执行 ${actionMod.id}`)
+      report(0.1, previewOnly ? '内存预览中' : `执行 ${actionMod.id}`)
       try {
-        const baseOut = resolveOutputPath({
-          inputPath: files[0],
-          action: actionMod.id,
-          options,
-          output
-        })
-        const outputPath = await ensureUniquePath(baseOut, overwrite)
+        let outputPath = ''
+        if (!previewOnly) {
+          const baseOut = resolveOutputPath({
+            inputPath: files[0],
+            action: actionMod.id,
+            options,
+            output
+          })
+          outputPath = await ensureUniquePath(baseOut, overwrite)
+        }
         checkCancel()
         report(0.4, `处理 ${files.length} 个文件`)
 
         const actionResult = await actionMod.run(buildCtx(files[0], outputPath))
         checkCancel()
-        report(0.85, '写出结果')
+        report(0.85, previewOnly ? '生成预览' : '写出结果')
 
         const wantPreview = previewBudget > 0 && actionMod.id !== 'pdf'
         const stats = await materializeResult(
           actionResult,
-          outputPath,
+          outputPath || path.join(path.dirname(files[0]), '_preview_placeholder'),
           stripMetadata,
-          { wantPreview }
+          { wantPreview, previewOnly }
         )
         if (stats.previewDataUrl) previewBudget -= 1
         items.push(okItem(inputLabel, stats))
@@ -309,11 +341,11 @@ async function runProcessImage ({
       }
     } else {
       // per-file: independent try/catch per input
-      const n = files.length
+      const n = perFileList.length
       for (let i = 0; i < n; i++) {
-        const inputPath = files[i]
+        const inputPath = perFileList[i]
         checkCancel()
-        report((i + 0.5) / n, `处理 ${i + 1}/${n}`)
+        report((i + 0.5) / n, previewOnly ? `预览 ${i + 1}/${n}` : `处理 ${i + 1}/${n}`)
         try {
           await fs.access(inputPath)
           checkCancel()
@@ -327,20 +359,23 @@ async function runProcessImage ({
           if (actionResult && actionResult.format) {
             pathOptions.format = actionResult.format
           }
-          const baseOut = resolveOutputPath({
-            inputPath,
-            action: actionMod.id,
-            options: pathOptions,
-            output
-          })
-          const outputPath = await ensureUniquePath(baseOut, overwrite)
+          let outputPath = ''
+          if (!previewOnly) {
+            const baseOut = resolveOutputPath({
+              inputPath,
+              action: actionMod.id,
+              options: pathOptions,
+              output
+            })
+            outputPath = await ensureUniquePath(baseOut, overwrite)
+          }
 
           const wantPreview = previewBudget > 0
           const stats = await materializeResult(
             actionResult,
-            outputPath,
+            outputPath || path.join(path.dirname(inputPath), '_preview_placeholder'),
             stripMetadata,
-            { wantPreview }
+            { wantPreview, previewOnly }
           )
           if (stats.previewDataUrl) previewBudget -= 1
           items.push(okItem(inputPath, stats))
@@ -370,7 +405,8 @@ async function runProcessImage ({
     summary: {
       total: items.length,
       succeeded,
-      failed
+      failed,
+      previewOnly: !!previewOnly
     }
   }
 }

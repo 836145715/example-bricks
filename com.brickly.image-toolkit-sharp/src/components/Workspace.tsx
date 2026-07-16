@@ -98,11 +98,11 @@ export function Workspace({
   const statusLabel = showDrop
     ? '工作区'
     : showResultImage
-      ? `结果预览 · ${previewHit?.item.format || 'image'}${
+      ? `${previewHit?.item.previewOnly || result?.summary?.previewOnly ? '内存预览' : '结果预览'} · ${previewHit?.item.format || 'image'}${
           previewHit?.item.width && previewHit?.item.height
             ? ` · ${previewHit.item.width}×${previewHit.item.height}`
             : ''
-        }`
+        }${previewHit?.item.previewOnly || result?.summary?.previewOnly ? ' · 未落盘' : ''}`
       : multi
         ? `${files.length} 张待处理`
         : `主图 · ${files[0]?.name ?? ''}`
@@ -209,7 +209,9 @@ export function Workspace({
             />
             {showResultImage ? (
               <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
-                处理结果
+                {previewHit?.item.previewOnly || result?.summary?.previewOnly
+                  ? '内存预览'
+                  : '处理结果'}
                 {previewHit?.item.sizeKb != null
                   ? ` · ${previewHit.item.sizeKb} KB`
                   : ''}

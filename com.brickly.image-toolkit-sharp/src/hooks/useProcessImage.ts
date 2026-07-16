@@ -20,6 +20,8 @@ export interface UseProcessImageState {
   result: ProcessImageResult | null
   error: string | null
   lastOutputPath: string | null
+  /** Last run was memory-only preview */
+  lastWasPreviewOnly: boolean
 }
 
 export function useProcessImage() {
@@ -30,6 +32,7 @@ export function useProcessImage() {
     result: null,
     error: null,
     lastOutputPath: null,
+    lastWasPreviewOnly: false,
   })
   const runningRef = useRef(false)
 
@@ -41,10 +44,11 @@ export function useProcessImage() {
       progressMessage: '',
       result: null,
       error: null,
+      lastWasPreviewOnly: false,
     }))
   }, [])
 
-  const process = useCallback(
+  const run = useCallback(
     (params: {
       action: ActionId
       files: LocalFile[]
@@ -53,6 +57,7 @@ export function useProcessImage() {
       common: CommonOptions
       cropMode?: CropMode
       cropRect?: CropRect
+      previewOnly?: boolean
       onValidateError?: (message: string) => void
     }) => {
       if (runningRef.current) return
@@ -65,11 +70,17 @@ export function useProcessImage() {
         common,
         cropMode,
         cropRect,
+        previewOnly = false,
         onValidateError,
       } = params
 
       if (files.length === 0) {
         onValidateError?.('请先添加需要处理的图片')
+        return
+      }
+
+      if (previewOnly && action === 'pdf') {
+        onValidateError?.('合并 PDF 不支持纯内存预览，请直接「处理」保存')
         return
       }
 
@@ -80,7 +91,8 @@ export function useProcessImage() {
         }
       }
 
-      if (output.mode === 'dir' && !String(output.dir || '').trim()) {
+      // Preview does not need output directory
+      if (!previewOnly && output.mode === 'dir' && !String(output.dir || '').trim()) {
         onValidateError?.('请指定输出目录，或改用同目录旁路输出')
         return
       }
@@ -93,8 +105,9 @@ export function useProcessImage() {
         ...prev,
         status: 'running',
         progress: 0,
-        progressMessage: '连接处理引擎...',
+        progressMessage: previewOnly ? '内存预览中...' : '连接处理引擎...',
         error: null,
+        lastWasPreviewOnly: previewOnly,
       }))
 
       streamProcessImage(
@@ -102,15 +115,18 @@ export function useProcessImage() {
           action,
           files: paths,
           options,
-          output: {
-            mode: output.mode,
-            dir: output.mode === 'dir' ? output.dir : undefined,
-            overwrite: !!output.overwrite,
-          },
+          output: previewOnly
+            ? undefined
+            : {
+                mode: output.mode,
+                dir: output.mode === 'dir' ? output.dir : undefined,
+                overwrite: !!output.overwrite,
+              },
           common: {
             autoOrient: common.autoOrient,
             stripMetadata: common.stripMetadata,
           },
+          previewOnly,
         },
         {
           onProgress: (p, message) => {
@@ -123,6 +139,8 @@ export function useProcessImage() {
           },
           onResult: (result) => {
             runningRef.current = false
+            const isPreview =
+              previewOnly || !!result.summary?.previewOnly
             const lastOk = [...(result.items || [])]
               .reverse()
               .find((item) => item.ok && item.outputPath)
@@ -131,10 +149,14 @@ export function useProcessImage() {
               ...prev,
               status: 'success',
               progress: 100,
-              progressMessage: '处理完成',
+              progressMessage: isPreview ? '预览完成（未保存）' : '处理完成',
               result,
               error: null,
-              lastOutputPath: lastOk?.outputPath || prev.lastOutputPath,
+              lastWasPreviewOnly: isPreview,
+              // Only update saved path when actually written to disk
+              lastOutputPath: isPreview
+                ? prev.lastOutputPath
+                : lastOk?.outputPath || prev.lastOutputPath,
             }))
           },
           onError: (err) => {
@@ -144,7 +166,8 @@ export function useProcessImage() {
               status: 'error',
               progress: 0,
               progressMessage: '',
-              error: err.message || '处理失败',
+              error: err.message || (previewOnly ? '预览失败' : '处理失败'),
+              lastWasPreviewOnly: previewOnly,
             }))
           },
         },
@@ -153,9 +176,22 @@ export function useProcessImage() {
     [],
   )
 
+  const process = useCallback(
+    (params: Omit<Parameters<typeof run>[0], 'previewOnly'>) =>
+      run({ ...params, previewOnly: false }),
+    [run],
+  )
+
+  const preview = useCallback(
+    (params: Omit<Parameters<typeof run>[0], 'previewOnly'>) =>
+      run({ ...params, previewOnly: true }),
+    [run],
+  )
+
   return {
     ...state,
     process,
+    preview,
     resetResult,
     isRunning: state.status === 'running',
   }

@@ -36,12 +36,14 @@ async function handleProcessImage (ctx, input) {
   })
 
   try {
+    const previewOnly = !!(input && (input.previewOnly || (input.common && input.common.previewOnly)))
     const result = await runProcessImage({
       action: input && input.action,
       files: input && input.files,
       options: (input && input.options) || {},
       output: (input && input.output) || {},
       common: (input && input.common) || {},
+      previewOnly,
       onProgress: (p, message) => {
         try {
           ctx.progress(p, message)
@@ -55,7 +57,8 @@ async function handleProcessImage (ctx, input) {
       id,
       total: result.summary.total,
       succeeded: result.summary.succeeded,
-      failed: result.summary.failed
+      failed: result.summary.failed,
+      previewOnly: !!result.summary.previewOnly
     })
     return result
   } catch (error) {

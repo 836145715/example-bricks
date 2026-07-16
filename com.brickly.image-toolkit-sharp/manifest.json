@@ -95,18 +95,24 @@
             "type": "json",
             "required": false,
             "description": "通用选项：{ autoOrient?: boolean(默认 true), stripMetadata?: boolean(默认 false) }"
+          },
+          {
+            "name": "previewOnly",
+            "type": "boolean",
+            "required": false,
+            "description": "为 true 时仅内存处理并返回 previewDataUrl，不写出任何输出文件（PDF 不支持）"
           }
         ],
         "outputs": [
           {
             "name": "items",
             "type": "json",
-            "description": "逐项结果数组。成功项：{ input, ok:true, outputPath, sizeBytes, sizeKb, width, height, format }；失败项：{ input, ok:false, error:{ code, message } }"
+            "description": "逐项结果。成功：{ input, ok, outputPath?, sizeKb, format, previewDataUrl?, previewOnly? }；失败：{ input, ok:false, error }"
           },
           {
             "name": "summary",
             "type": "json",
-            "description": "汇总：{ total, succeeded, failed }"
+            "description": "汇总：{ total, succeeded, failed, previewOnly? }"
           }
         ]
       }

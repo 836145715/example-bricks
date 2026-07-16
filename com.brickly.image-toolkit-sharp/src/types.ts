@@ -43,6 +43,8 @@ export interface ProcessImageInput {
     autoOrient?: boolean
     stripMetadata?: boolean
   }
+  /** In-memory only: process without writing output files */
+  previewOnly?: boolean
 }
 
 export interface ProcessItemError {
@@ -61,6 +63,8 @@ export interface ProcessItem {
   format?: string | null
   /** JPEG data-URL thumbnail for UI result preview (optional) */
   previewDataUrl?: string | null
+  /** True when result was produced without writing to disk */
+  previewOnly?: boolean
   error?: ProcessItemError
 }
 
@@ -73,6 +77,7 @@ export interface ProcessImageResult {
     total: number
     succeeded: number
     failed: number
+    previewOnly?: boolean
   }
 }
 

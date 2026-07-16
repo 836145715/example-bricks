@@ -33,12 +33,13 @@ export function ResultDrawer({
   if (!result) {
     return (
       <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-1)] px-3 py-2 text-[11.5px] text-[var(--fg-dim)]">
-        暂无处理结果 · 处理后可在工作区切换「原图 / 结果」预览
+        暂无结果 · 可用「预览」内存试效果，或「处理并保存」写出文件
       </div>
     )
   }
 
   const { summary, items } = result
+  const isPreviewOnly = !!summary.previewOnly || items.some((i) => i.ok && i.previewOnly)
   const openDirPath =
     lastOutputPath ||
     items.find((i) => i.ok && i.outputPath)?.outputPath ||
@@ -53,10 +54,13 @@ export function ResultDrawer({
       >
         <div className="flex min-w-0 items-center gap-2">
           <CheckCircle size={15} weight="fill" className="shrink-0 text-[var(--ok)]" />
-          <span className="text-[12.5px] font-semibold text-[var(--fg)]">处理结果</span>
+          <span className="text-[12.5px] font-semibold text-[var(--fg)]">
+            {isPreviewOnly ? '内存预览' : '处理结果'}
+          </span>
           <span className="truncate font-mono text-[11px] text-[var(--fg-dim)]">
             {summary.succeeded}/{summary.total} 成功
             {summary.failed > 0 ? ` · ${summary.failed} 失败` : ''}
+            {isPreviewOnly ? ' · 未落盘' : ''}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">

@@ -49,7 +49,7 @@ export function App() {
   const { rect: cropRect, setRect: setCropRect } = useManualCrop()
   const processState = useProcessImage()
 
-  // After a successful run, jump to result preview when a thumbnail is available
+  // After a successful run / memory preview, jump to result view when thumbnail exists
   useEffect(() => {
     if (processState.status !== 'success' || !processState.result) return
     const idx = processState.result.items.findIndex(
@@ -93,7 +93,15 @@ export function App() {
     }
     if (processState.status === 'success' && processState.result) {
       const { summary } = processState.result
-      if (summary.failed === 0) {
+      const isPreview =
+        processState.lastWasPreviewOnly || !!summary.previewOnly
+      if (isPreview) {
+        if (summary.succeeded > 0) {
+          showToast('预览完成（仅内存，未写入磁盘）')
+        } else {
+          showToast(`预览失败 · ${summary.failed} 项`, 'error')
+        }
+      } else if (summary.failed === 0) {
         showToast(`全部完成 · ${summary.succeeded} 张`)
       } else {
         showToast(
@@ -102,24 +110,36 @@ export function App() {
         )
       }
     }
-  }, [processState.status, processState.error, processState.result, showToast])
+  }, [
+    processState.status,
+    processState.error,
+    processState.result,
+    processState.lastWasPreviewOnly,
+    showToast,
+  ])
 
   const cropAspect = useMemo(
     () => parseAspect(options.cropRatio),
     [options.cropRatio],
   )
 
+  const runParams = {
+    action: activeAction,
+    files,
+    formOptions: options,
+    output,
+    common,
+    cropMode,
+    cropRect,
+    onValidateError: (msg: string) => showToast(msg, 'error'),
+  }
+
   const handleProcess = () => {
-    processState.process({
-      action: activeAction,
-      files,
-      formOptions: options,
-      output,
-      common,
-      cropMode,
-      cropRect,
-      onValidateError: (msg) => showToast(msg, 'error'),
-    })
+    processState.process(runParams)
+  }
+
+  const handlePreview = () => {
+    processState.preview(runParams)
   }
 
   const handleOpenFolder = async () => {
@@ -179,6 +199,7 @@ export function App() {
           progress={processState.progress}
           progressMessage={processState.progressMessage}
           canOpenFolder={!!processState.lastOutputPath}
+          previewDisabled={activeAction === 'pdf'}
           onClear={() => {
             clearFiles()
             setPreviewMode('input')
@@ -186,6 +207,7 @@ export function App() {
             showToast('已清空文件列表', 'info')
           }}
           onOpenFolder={handleOpenFolder}
+          onPreview={handlePreview}
           onProcess={handleProcess}
         />
       </div>
