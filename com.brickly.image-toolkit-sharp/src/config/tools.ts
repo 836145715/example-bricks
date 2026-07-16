@@ -13,8 +13,8 @@ export const TOOLS: ToolMeta[] = [
     id: 'compress',
     label: '压缩',
     group: 'single',
-    description: '按质量或目标大小压缩',
-    defaultOptions: { quality: 80, targetSizeKb: '' },
+    description: '有损压缩；默认自动转 JPEG/WebP 以明显减小体积',
+    defaultOptions: { quality: 70, preferFormat: 'auto', targetSizeKb: '' },
   },
   {
     id: 'convert',
@@ -157,7 +157,8 @@ export function buildActionOptions(
   switch (action) {
     case 'compress': {
       const out: Record<string, unknown> = {
-        quality: Number(form.quality ?? 80),
+        quality: Number(form.quality ?? 70),
+        preferFormat: String(form.preferFormat ?? 'auto'),
       }
       const target = String(form.targetSizeKb ?? '').trim()
       if (target) out.targetSizeKb = Number(target)

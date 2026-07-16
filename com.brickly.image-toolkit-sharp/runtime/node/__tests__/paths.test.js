@@ -143,6 +143,16 @@ describe('resolveOutputPath', () => {
     })
     assert.equal(path.basename(p), 'a_gif_processed.gif')
   })
+
+  it('compress with format jpeg uses .jpg extension', () => {
+    const p = resolveOutputPath({
+      inputPath: 'D:\\pics\\a.png',
+      action: 'compress',
+      options: { format: 'jpeg' },
+      output: { mode: 'sidecar' }
+    })
+    assert.equal(path.basename(p), 'a_compress_processed.jpg')
+  })
 })
 
 describe('ensureUniquePath', () => {

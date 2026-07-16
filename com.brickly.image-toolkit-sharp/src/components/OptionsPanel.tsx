@@ -104,21 +104,42 @@ export function OptionsPanel({
       <div className="scroll-y flex-1 px-3 py-3">
         {action === 'compress' && (
           <>
-            <Field label="压缩质量">
+            <Field
+              label="压缩质量"
+              tip="数值越低体积越小。已压缩过的 JPEG 建议 50-70；仍偏大可填目标 KB。"
+            >
               <Slider
-                value={Number(options.quality ?? 80)}
+                value={Number(options.quality ?? 70)}
                 min={1}
                 max={100}
-                display={`${options.quality ?? 80}%`}
+                display={`${options.quality ?? 70}%`}
                 onChange={(v) => set('quality', v)}
               />
             </Field>
-            <Field label="目标文件大小 (可选)" tip="填写后通过二分逼近目标大小 (KB)">
+            <Field
+              label="输出策略"
+              tip="自动：PNG 照片转 JPEG，带透明转 WebP。仅调 PNG 压缩级别几乎压不动。"
+            >
+              <select
+                className={selectClass}
+                value={String(options.preferFormat ?? 'auto')}
+                onChange={(e) => set('preferFormat', e.target.value)}
+              >
+                <option value="auto">自动 (推荐，明显变小)</option>
+                <option value="jpeg">强制 JPEG</option>
+                <option value="webp">强制 WebP</option>
+                <option value="keep">保持原格式</option>
+              </select>
+            </Field>
+            <Field
+              label="目标文件大小 (可选)"
+              tip="填写后二分逼近目标大小。对 JPEG/WebP 有效，单位 KB。"
+            >
               <div className="relative">
                 <input
                   type="number"
                   className={`${inputClass} pr-10`}
-                  placeholder="不限"
+                  placeholder="例如 500"
                   value={String(options.targetSizeKb ?? '')}
                   onChange={(e) => set('targetSizeKb', e.target.value)}
                 />

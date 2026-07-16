@@ -62,8 +62,13 @@ function resolveOutputPath ({ inputPath, action, options = {}, output = {} }) {
     ext = '.pdf'
   } else if (safeAction === 'gif') {
     ext = '.gif'
-  } else if (safeAction === 'convert' && options.format) {
-    ext = `.${sanitizeFormat(options.format)}`
+  } else if (
+    (safeAction === 'convert' || safeAction === 'compress') &&
+    options.format
+  ) {
+    // compress may switch PNG→JPEG/WebP; ext must follow encoded format
+    const fmt = sanitizeFormat(options.format)
+    ext = `.${fmt === 'jpeg' ? 'jpg' : fmt}`
   } else {
     ext = parsed.ext
   }

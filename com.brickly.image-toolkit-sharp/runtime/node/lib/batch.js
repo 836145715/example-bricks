@@ -250,17 +250,24 @@ async function runProcessImage ({
       report((i + 0.5) / n, `处理 ${i + 1}/${n}`)
       try {
         await fs.access(inputPath)
+        checkCancel()
+
+        // Run first so actions like compress can choose a smaller output format;
+        // then resolve path extension from result.format when present.
+        const actionResult = await actionMod.run(buildCtx(inputPath, ''))
+        checkCancel()
+
+        const pathOptions = { ...options }
+        if (actionResult && actionResult.format) {
+          pathOptions.format = actionResult.format
+        }
         const baseOut = resolveOutputPath({
           inputPath,
           action: actionMod.id,
-          options,
+          options: pathOptions,
           output
         })
         const outputPath = await ensureUniquePath(baseOut, overwrite)
-        checkCancel()
-
-        const actionResult = await actionMod.run(buildCtx(inputPath, outputPath))
-        checkCancel()
 
         const stats = await materializeResult(
           actionResult,
