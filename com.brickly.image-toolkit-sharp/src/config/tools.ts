@@ -72,13 +72,9 @@ export const TOOLS: ToolMeta[] = [
     id: 'crop',
     label: '裁剪',
     group: 'single',
-    description: '数值或拖拽裁剪区域',
+    description: '在预览图上拖拽框选裁剪区域',
     defaultOptions: {
       cropRatio: 'free',
-      x: 50,
-      y: 50,
-      width: 400,
-      height: 300,
     },
   },
   {
@@ -217,12 +213,13 @@ export function buildActionOptions(
         bg: form.bg || '#ffffff',
       }
     case 'crop': {
-      if (cropMode === 'drag' && cropRect) {
+      // Always use drag-selection rect from the preview overlay
+      if (cropRect) {
         return {
           x: cropRect.x,
           y: cropRect.y,
-          width: cropRect.width,
-          height: cropRect.height,
+          width: Math.max(1, cropRect.width),
+          height: Math.max(1, cropRect.height),
         }
       }
       return {

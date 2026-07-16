@@ -55,7 +55,7 @@ export function Workspace({
   files,
   onAddFiles,
   onRemoveFile,
-  cropMode,
+  cropMode: _cropMode,
   cropRect,
   onCropChange,
   cropAspect,
@@ -71,6 +71,7 @@ export function Workspace({
   onSelectResultIndex,
 }: WorkspaceProps) {
   const imageRef = useRef<HTMLImageElement>(null)
+  const cropContainerRef = useRef<HTMLDivElement>(null)
   const multi = isMultiAction(action)
   const showDrop = files.length === 0
   const showGrid = !showDrop && multi
@@ -78,21 +79,20 @@ export function Workspace({
 
   const previewHit = firstPreviewItem(result, selectedResultIndex)
   const hasResultPreview = !!previewHit?.item.previewDataUrl
+  // Crop is drag-only on the original image; never show compare while cropping
+  const isCropping = action === 'crop'
   const showResultImage =
-    previewMode === 'result' && hasResultPreview && !isRunning
+    !isCropping &&
+    previewMode === 'result' &&
+    hasResultPreview &&
+    !isRunning
 
-  // Crop only on original input while viewing input
-  const cropEnabled =
-    action === 'crop' &&
-    cropMode === 'drag' &&
-    showPreview &&
-    previewMode === 'input' &&
-    !showResultImage
+  const cropEnabled = isCropping && showPreview && !isRunning
 
   const resultSrc = showResultImage ? previewHit!.item.previewDataUrl! : ''
   const inputSrc = files[0]?.previewUrl || ''
   const displaySrc = showResultImage ? resultSrc : showPreview ? inputSrc : ''
-  // Side-by-side: result view + we still have the original input image
+  // Side-by-side: result view + original (disabled while cropping)
   const showCompare = showResultImage && !!inputSrc && !!resultSrc
 
   const sizeHint = (() => {
@@ -240,22 +240,31 @@ export function Workspace({
         ) : null}
 
         {!showCompare && (showPreview || showResultImage) && displaySrc ? (
-          <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2">
+          <div
+            ref={cropContainerRef}
+            className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2"
+          >
             <img
               ref={imageRef}
               key={displaySrc}
               src={displaySrc}
               alt={showResultImage ? '处理结果' : files[0]?.name || 'preview'}
-              className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
+              className="pointer-events-none block h-auto w-auto max-h-full max-w-full object-contain select-none"
               draggable={false}
             />
             <CropOverlay
               imageRef={imageRef}
+              containerRef={cropContainerRef}
               rect={cropRect}
               onChange={onCropChange}
               enabled={cropEnabled}
               aspectRatio={cropAspect}
             />
+            {cropEnabled ? (
+              <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
+                拖动框移动 · 四角缩放
+              </div>
+            ) : null}
             {showResultImage ? (
               <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
                 {previewHit?.item.previewOnly || result?.summary?.previewOnly
@@ -264,7 +273,7 @@ export function Workspace({
                 {sizeHint ? ` · ${sizeHint}` : ''}
               </div>
             ) : null}
-            {files.length > 1 && !showResultImage ? (
+            {files.length > 1 && !showResultImage && !cropEnabled ? (
               <div className="absolute bottom-2 left-2 z-10 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
                 另有 {files.length - 1} 张将按相同参数批量处理
               </div>
@@ -272,7 +281,7 @@ export function Workspace({
             {!showResultImage && files[0] ? (
               <button
                 type="button"
-                className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
+                className="absolute right-2 top-2 z-30 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
                 onClick={() => onRemoveFile(files[0].id)}
                 aria-label="移除当前图"
               >

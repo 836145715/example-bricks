@@ -451,115 +451,30 @@ export function OptionsPanel({
 
         {action === 'crop' && (
           <>
-            <div className="mb-3 flex rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--bg-sunken)] p-0.5">
-              {(
-                [
-                  { id: 'numeric', label: '数值' },
-                  { id: 'drag', label: '拖拽' },
-                ] as const
-              ).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => onCropModeChange(m.id)}
-                  className={`flex-1 rounded-[6px] py-1.5 text-[12px] font-medium transition ${
-                    cropMode === m.id
-                      ? 'bg-[var(--bg-2)] text-[var(--ac)] shadow-sm'
-                      : 'text-[var(--fg-dim)] hover:text-[var(--fg-muted)]'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
+            <p className="mb-3 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">
+              在右侧图片上拖动裁剪框，四角可缩放。选好后点预览或处理并保存。
+            </p>
+            <Field label="锁定比例">
+              <select
+                className={selectClass}
+                value={String(options.cropRatio ?? 'free')}
+                onChange={(e) => set('cropRatio', e.target.value)}
+              >
+                <option value="free">自由裁剪</option>
+                <option value="1:1">正方形 1:1</option>
+                <option value="4:3">标准 4:3</option>
+                <option value="16:9">宽银幕 16:9</option>
+              </select>
+            </Field>
+            <div className="rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--bg-sunken)] px-2.5 py-2">
+              <div className="mb-1 text-[11px] font-medium text-[var(--fg-dim)]">当前选区（像素）</div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11.5px] text-[var(--fg-muted)]">
+                <span>X {cropRect.x}</span>
+                <span>Y {cropRect.y}</span>
+                <span>W {cropRect.width}</span>
+                <span>H {cropRect.height}</span>
+              </div>
             </div>
-            {cropMode === 'numeric' ? (
-              <>
-                <Field label="快捷比例">
-                  <select
-                    className={selectClass}
-                    value={String(options.cropRatio ?? 'free')}
-                    onChange={(e) => {
-                      const ratio = e.target.value
-                      const next = { ...options, cropRatio: ratio }
-                      if (ratio === '1:1') {
-                        next.width = 400
-                        next.height = 400
-                      } else if (ratio === '4:3') {
-                        next.width = 400
-                        next.height = 300
-                      } else if (ratio === '16:9') {
-                        next.width = 480
-                        next.height = 270
-                      }
-                      onChange(next)
-                    }}
-                  >
-                    <option value="free">自由裁剪</option>
-                    <option value="1:1">正方形 1:1</option>
-                    <option value="4:3">标准 4:3</option>
-                    <option value="16:9">宽银幕 16:9</option>
-                  </select>
-                </Field>
-                <Row>
-                  <Field label="起点 X">
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={Number(options.x ?? 0)}
-                      onChange={(e) => set('x', Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label="起点 Y">
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={Number(options.y ?? 0)}
-                      onChange={(e) => set('y', Number(e.target.value))}
-                    />
-                  </Field>
-                </Row>
-                <Row>
-                  <Field label="宽度">
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={Number(options.width ?? 400)}
-                      onChange={(e) => set('width', Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label="高度">
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={Number(options.height ?? 300)}
-                      onChange={(e) => set('height', Number(e.target.value))}
-                    />
-                  </Field>
-                </Row>
-              </>
-            ) : (
-              <>
-                <p className="mb-3 text-[12px] leading-relaxed text-[var(--fg-muted)]">
-                  在右侧预览图上拖动和缩放裁剪框。坐标会实时同步。
-                </p>
-                <Row>
-                  <Field label="起点 X">
-                    <input type="number" className={inputClass} value={cropRect.x} disabled />
-                  </Field>
-                  <Field label="起点 Y">
-                    <input type="number" className={inputClass} value={cropRect.y} disabled />
-                  </Field>
-                </Row>
-                <Row>
-                  <Field label="宽度">
-                    <input type="number" className={inputClass} value={cropRect.width} disabled />
-                  </Field>
-                  <Field label="高度">
-                    <input type="number" className={inputClass} value={cropRect.height} disabled />
-                  </Field>
-                </Row>
-              </>
-            )}
           </>
         )}
 

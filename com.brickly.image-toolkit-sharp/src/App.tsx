@@ -31,7 +31,7 @@ export function App() {
   const [options, setOptions] = useState<Record<string, unknown>>(() =>
     getDefaultOptions('compress'),
   )
-  const [cropMode, setCropMode] = useState<CropMode>('numeric')
+  const [cropMode, setCropMode] = useState<CropMode>('drag')
   const [output, setOutput] = useState<OutputStrategy>({
     mode: 'sidecar',
     overwrite: false,
@@ -73,7 +73,11 @@ export function App() {
   const selectAction = useCallback((id: ActionId) => {
     setActiveAction(id)
     setOptions(getDefaultOptions(id))
-    if (id !== 'crop') setCropMode('numeric')
+    // Crop is drag-only; always show original for selection
+    if (id === 'crop') {
+      setCropMode('drag')
+      setPreviewMode('input')
+    }
   }, [])
 
   const handleAddFiles = useCallback(
