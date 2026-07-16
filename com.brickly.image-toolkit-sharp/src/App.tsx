@@ -92,15 +92,17 @@ export function App() {
     [activeAction, files, options, output, common, cropMode, cropRect, showToast],
   )
 
-  // Debounced auto-preview: params / files / crop → memory preview (no disk)
+  // Debounced auto-preview (skip PDF — no useful image preview)
+  // Crop: slightly longer debounce so box isn't fighting network mid-drag
   useEffect(() => {
     if (files.length === 0) return
     if (activeAction === 'pdf') return
 
+    const delay = activeAction === 'crop' ? 550 : AUTO_PREVIEW_MS
     if (autoPreviewTimer.current) window.clearTimeout(autoPreviewTimer.current)
     autoPreviewTimer.current = window.setTimeout(() => {
       preview({ ...runParams, silent: true })
-    }, AUTO_PREVIEW_MS)
+    }, delay)
 
     return () => {
       if (autoPreviewTimer.current) window.clearTimeout(autoPreviewTimer.current)

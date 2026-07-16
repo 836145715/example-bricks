@@ -111,12 +111,17 @@ export function CropOverlay({
     return true
   }
 
-  // Init once when enabled / image loads / aspect changes.
-  // Do NOT re-init on every parent re-render or ResizeObserver tick (that kills drag).
+  // Init once when first enabled / aspect changes / image src loads.
+  // Never clear box just because parent re-rendered (e.g. auto-preview isRunning).
   useEffect(() => {
     if (!enabled) {
-      setBox(null)
-      boxRef.current = null
+      // Soft-disable: hide box but keep last geometry so re-enable can restore
+      return
+    }
+
+    // Already have a box (e.g. stayed mounted through auto-preview) — keep it
+    if (boxRef.current) {
+      setBox(boxRef.current)
       return
     }
 
@@ -133,8 +138,11 @@ export function CropOverlay({
 
     const img = imageRef.current
     const onLoad = () => {
-      done = false
-      tryInit()
+      // Only re-init on real image load if we have no box yet
+      if (!boxRef.current) {
+        done = false
+        tryInit()
+      }
     }
     if (img) img.addEventListener('load', onLoad)
     tryInit()
@@ -145,6 +153,23 @@ export function CropOverlay({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, aspectRatio, imageRef, containerRef])
+
+  // Aspect ratio change (not first mount): force re-center
+  const aspectReady = useRef(false)
+  useEffect(() => {
+    if (!enabled) return
+    if (!aspectReady.current) {
+      aspectReady.current = true
+      return
+    }
+    boxRef.current = null
+    setBox(null)
+    const id = requestAnimationFrame(() => {
+      initBox()
+    })
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspectRatio, enabled])
 
   useEffect(() => {
     if (!enabled || !box) return

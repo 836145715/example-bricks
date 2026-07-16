@@ -65,21 +65,25 @@ export function ProcessBar({
           </div>
         ) : (
           <span className="text-[11px] text-[var(--fg-dim)]">
-            右侧结果随参数自动预览 · 「保存」才写入磁盘
+            {previewDisabled
+              ? 'PDF 无预览 · 直接点「保存」生成文件'
+              : '右侧随参数自动预览 · 「保存」才写磁盘'}
           </span>
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onPreview}
-        disabled={fileCount === 0 || isRunning || previewDisabled}
-        title="立即刷新内存预览"
-        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--line)] px-2.5 text-[12px] text-[var(--fg-muted)] transition hover:border-[var(--ac-line)] hover:text-[var(--ac)] disabled:opacity-40"
-      >
-        <Eye size={14} />
-        刷新预览
-      </button>
+      {!previewDisabled ? (
+        <button
+          type="button"
+          onClick={onPreview}
+          disabled={fileCount === 0 || isRunning}
+          title="立即刷新内存预览"
+          className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--line)] px-2.5 text-[12px] text-[var(--fg-muted)] transition hover:border-[var(--ac-line)] hover:text-[var(--ac)] disabled:opacity-40"
+        >
+          <Eye size={14} />
+          刷新预览
+        </button>
+      ) : null}
 
       <button
         type="button"
