@@ -1,5 +1,6 @@
 'use strict'
 
+const fs = require('node:fs/promises')
 const path = require('node:path')
 
 /**
@@ -45,7 +46,7 @@ function sanitizeFormat (format) {
 
 /**
  * Resolve the output path for an image toolkit action.
- * Conflict-increment naming is left to a later task.
+ * Conflict-increment naming is handled by ensureUniquePath.
  *
  * @param {{ inputPath: string, action: string, options?: object, output?: { mode?: string, dir?: string } }} params
  * @returns {string}
@@ -80,4 +81,40 @@ function resolveOutputPath ({ inputPath, action, options = {}, output = {} }) {
   return path.join(parsed.dir, fileName)
 }
 
-module.exports = { resolveOutputPath, sanitizeBasenameSegment, sanitizeFormat }
+/**
+ * If overwrite is falsy and filePath exists, return `name (1).ext`, `name (2).ext`, ...
+ * If overwrite is truthy (or path free), return filePath unchanged.
+ *
+ * @param {string} filePath
+ * @param {boolean} [overwrite=false]
+ * @returns {Promise<string>}
+ */
+async function ensureUniquePath (filePath, overwrite = false) {
+  if (overwrite) return filePath
+
+  try {
+    await fs.access(filePath)
+  } catch {
+    // does not exist — free to use
+    return filePath
+  }
+
+  const parsed = path.parse(filePath)
+  let i = 1
+  for (;;) {
+    const candidate = path.join(parsed.dir, `${parsed.name} (${i})${parsed.ext}`)
+    try {
+      await fs.access(candidate)
+      i += 1
+    } catch {
+      return candidate
+    }
+  }
+}
+
+module.exports = {
+  resolveOutputPath,
+  ensureUniquePath,
+  sanitizeBasenameSegment,
+  sanitizeFormat
+}
