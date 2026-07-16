@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Eye, Image as ImageIcon, X } from '@phosphor-icons/react'
+import { CircleNotch, Image as ImageIcon, X } from '@phosphor-icons/react'
 import { isMultiAction } from '../config/tools'
 import { formatBytes } from '../lib/format'
 import type {
@@ -7,7 +7,6 @@ import type {
   CropMode,
   CropRect,
   LocalFile,
-  PreviewMode,
   ProcessImageResult,
   ProcessItem,
 } from '../types'
@@ -30,8 +29,6 @@ interface WorkspaceProps {
   isRunning: boolean
   progress: number
   progressMessage: string
-  previewMode: PreviewMode
-  onPreviewModeChange: (mode: PreviewMode) => void
   selectedResultIndex: number
   onSelectResultIndex: (index: number) => void
 }
@@ -50,6 +47,50 @@ function firstPreviewItem(
   return { item: result.items[idx], index: idx }
 }
 
+function PaneShell({
+  title,
+  badge,
+  children,
+  accent,
+}: {
+  title: string
+  badge?: string
+  children: React.ReactNode
+  accent?: boolean
+}) {
+  return (
+    <div
+      className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-lg)] border ${
+        accent
+          ? 'border-[var(--ac-line)] bg-[var(--bg-sunken)]'
+          : 'border-[var(--line)] bg-[var(--bg-sunken)]'
+      }`}
+    >
+      <div
+        className={`flex shrink-0 items-center justify-between gap-2 border-b px-2.5 py-1.5 ${
+          accent
+            ? 'border-[var(--ac-line)] bg-[var(--ac-soft)]'
+            : 'border-[var(--line)] bg-[var(--bg-1)]'
+        }`}
+      >
+        <span
+          className={`text-[12px] font-semibold ${
+            accent ? 'text-[var(--ac)]' : 'text-[var(--fg-muted)]'
+          }`}
+        >
+          {title}
+        </span>
+        {badge ? (
+          <span className="truncate font-mono text-[10.5px] text-[var(--fg-dim)]">
+            {badge}
+          </span>
+        ) : null}
+      </div>
+      <div className="relative min-h-0 flex-1">{children}</div>
+    </div>
+  )
+}
+
 export function Workspace({
   action,
   files,
@@ -65,221 +106,178 @@ export function Workspace({
   isRunning,
   progress,
   progressMessage,
-  previewMode,
-  onPreviewModeChange,
   selectedResultIndex,
   onSelectResultIndex,
 }: WorkspaceProps) {
   const imageRef = useRef<HTMLImageElement>(null)
   const cropContainerRef = useRef<HTMLDivElement>(null)
   const multi = isMultiAction(action)
-  const showDrop = files.length === 0
-  const showGrid = !showDrop && multi
-  const showPreview = !showDrop && !multi
+  const empty = files.length === 0
+  const isCropping = action === 'crop'
 
   const previewHit = firstPreviewItem(result, selectedResultIndex)
-  const hasResultPreview = !!previewHit?.item.previewDataUrl
-  // Crop is drag-only on the original image; never show compare while cropping
-  const isCropping = action === 'crop'
-  const showResultImage =
-    !isCropping &&
-    previewMode === 'result' &&
-    hasResultPreview &&
-    !isRunning
-
-  const cropEnabled = isCropping && showPreview && !isRunning
-
-  const resultSrc =
-    showResultImage && previewHit?.item.previewDataUrl
-      ? previewHit.item.previewDataUrl
-      : ''
+  const resultSrc = previewHit?.item.previewDataUrl || ''
   const inputSrc = files[0]?.previewUrl || ''
-  // Single pane: 原图 / 结果 via top toggle (no side-by-side)
-  const displaySrc = showResultImage
-    ? resultSrc
-    : showPreview
-      ? inputSrc
-      : showGrid && showResultImage
-        ? resultSrc
-        : ''
+  const cropEnabled = isCropping && !empty && !multi && !isRunning
 
   const sizeHint = (() => {
     const it = previewHit?.item
     if (!it?.ok) return ''
     const parts: string[] = []
     if (it.inputSizeKb != null && it.sizeKb != null) {
-      parts.push(`${it.inputSizeKb} KB → ${it.sizeKb} KB`)
+      parts.push(`${it.inputSizeKb} → ${it.sizeKb} KB`)
     } else if (it.sizeKb != null) {
       parts.push(`${it.sizeKb} KB`)
     }
     if (it.format) parts.push(String(it.format).toUpperCase())
     if (it.width && it.height) parts.push(`${it.width}×${it.height}`)
+    if (it.previewOnly || result?.summary?.previewOnly) parts.push('未落盘')
     return parts.join(' · ')
   })()
 
-  const statusLabel = showDrop
-    ? '工作区'
-    : showResultImage
-      ? `${previewHit?.item.previewOnly || result?.summary?.previewOnly ? '内存预览' : '结果预览'}${
-          sizeHint ? ` · ${sizeHint}` : ''
-        }${previewHit?.item.previewOnly || result?.summary?.previewOnly ? ' · 未落盘' : ''}`
-      : multi
-        ? `${files.length} 张待处理`
-        : `主图 · ${files[0]?.name ?? ''}`
+  const originalBadge = files[0]
+    ? `${files[0].name} · ${formatBytes(files[0].size)}`
+    : undefined
 
   return (
     <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg-0)]">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
         <div className="min-w-0 truncate text-[12px] text-[var(--fg-dim)]">
-          {statusLabel}
+          {empty
+            ? '工作区 · 左原图 · 右结果'
+            : multi
+              ? `${files.length} 张 · 预览以第一张为准`
+              : '左原图 · 右结果（调参自动更新）'}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {hasResultPreview ? (
-            <div className="flex rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--bg-sunken)] p-0.5">
-              <button
-                type="button"
-                onClick={() => onPreviewModeChange('input')}
-                className={`inline-flex items-center gap-1 rounded-[6px] px-2 py-1 text-[11.5px] font-medium transition ${
-                  previewMode === 'input'
-                    ? 'bg-[var(--bg-2)] text-[var(--ac)]'
-                    : 'text-[var(--fg-dim)] hover:text-[var(--fg-muted)]'
-                }`}
-              >
-                <ImageIcon size={12} />
-                原图
-              </button>
-              <button
-                type="button"
-                onClick={() => onPreviewModeChange('result')}
-                className={`inline-flex items-center gap-1 rounded-[6px] px-2 py-1 text-[11.5px] font-medium transition ${
-                  previewMode === 'result'
-                    ? 'bg-[var(--bg-2)] text-[var(--ac)]'
-                    : 'text-[var(--fg-dim)] hover:text-[var(--fg-muted)]'
-                }`}
-              >
-                <Eye size={12} />
-                结果
-              </button>
-            </div>
-          ) : null}
-          {files.length > 0 ? <DropZone onFiles={onAddFiles} compact /> : null}
-        </div>
+        {files.length > 0 ? <DropZone onFiles={onAddFiles} compact /> : null}
       </div>
 
       <div className="relative min-h-0 flex-1 overflow-hidden p-3">
-        {showDrop ? (
+        {empty ? (
           <div className="h-full min-h-0">
             <DropZone onFiles={onAddFiles} />
           </div>
-        ) : null}
-
-        {showGrid && !showResultImage ? (
-          <div className="scroll-y h-full min-h-0">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-2">
-              {files.map((f) => (
-                <div
-                  key={f.id}
-                  className="group relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--bg-2)]"
-                >
-                  <div className="aspect-square overflow-hidden bg-[var(--bg-sunken)]">
+        ) : multi ? (
+          <div className="flex h-full min-h-0 flex-col gap-2">
+            <div className="scroll-y min-h-0 max-h-[40%] shrink-0">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
+                {files.map((f) => (
+                  <div
+                    key={f.id}
+                    className="group relative overflow-hidden rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--bg-2)]"
+                  >
+                    <div className="aspect-square overflow-hidden bg-[var(--bg-sunken)]">
+                      <img
+                        src={f.previewUrl}
+                        alt={f.name}
+                        className="h-full w-full object-cover"
+                        draggable={false}
+                      />
+                    </div>
+                    <div className="truncate px-1.5 py-1 text-[10.5px] text-[var(--fg-muted)]">
+                      {f.name}
+                    </div>
+                    <button
+                      type="button"
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition group-hover:opacity-100"
+                      onClick={() => onRemoveFile(f.id)}
+                      aria-label="移除"
+                    >
+                      <X size={12} weight="bold" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex min-h-0 flex-1 gap-2">
+              <PaneShell title="结果" badge={sizeHint || undefined} accent>
+                {resultSrc ? (
+                  <div className="flex h-full items-center justify-center p-2">
                     <img
-                      src={f.previewUrl}
-                      alt={f.name}
-                      className="h-full w-full object-cover"
+                      key={resultSrc}
+                      src={resultSrc}
+                      alt="结果"
+                      className="max-h-full max-w-full object-contain"
                       draggable={false}
                     />
                   </div>
-                  <div className="px-2 py-1.5">
-                    <div className="truncate text-[11.5px] font-medium text-[var(--fg)]">
-                      {f.name}
-                    </div>
-                    <div className="font-mono text-[10px] text-[var(--fg-dim)]">
-                      {formatBytes(f.size)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition group-hover:opacity-100"
-                    onClick={() => onRemoveFile(f.id)}
-                    aria-label="移除"
-                  >
-                    <X size={12} weight="bold" />
-                  </button>
-                </div>
-              ))}
+                ) : (
+                  <EmptyResult isRunning={isRunning} message={progressMessage} progress={progress} />
+                )}
+              </PaneShell>
             </div>
           </div>
-        ) : null}
-
-        {/* Single image pane: 原图 or 结果 (switch via top toggle) */}
-        {(showPreview || showResultImage) && displaySrc ? (
-          <div
-            ref={cropContainerRef}
-            className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2"
-          >
-            <img
-              ref={imageRef}
-              key={displaySrc}
-              src={displaySrc}
-              alt={showResultImage ? '处理结果' : files[0]?.name || 'preview'}
-              className="pointer-events-none block h-auto w-auto max-h-full max-w-full object-contain select-none"
-              draggable={false}
-            />
-            <CropOverlay
-              imageRef={imageRef}
-              containerRef={cropContainerRef}
-              onChange={onCropChange}
-              enabled={cropEnabled}
-              aspectRatio={cropAspect}
-            />
-            {cropEnabled ? (
-              <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
-                拖动框移动 · 四角缩放
-              </div>
-            ) : null}
-            {showResultImage ? (
-              <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
-                {previewHit?.item.previewOnly || result?.summary?.previewOnly
-                  ? '结果 · 未落盘'
-                  : '结果'}
-                {sizeHint ? ` · ${sizeHint}` : ''}
-              </div>
-            ) : null}
-            {files.length > 1 && !showResultImage && !cropEnabled ? (
-              <div className="absolute bottom-2 left-2 z-10 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
-                另有 {files.length - 1} 张将按相同参数批量处理
-              </div>
-            ) : null}
-            {!showResultImage && files[0] ? (
-              <button
-                type="button"
-                className="absolute right-2 top-2 z-30 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
-                onClick={() => onRemoveFile(files[0].id)}
-                aria-label="移除当前图"
+        ) : (
+          /* Default dual pane: original | result */
+          <div className="flex h-full min-h-0 gap-2">
+            <PaneShell title="原图" badge={originalBadge}>
+              <div
+                ref={cropContainerRef}
+                className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden p-2"
               >
-                <X size={14} weight="bold" />
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+                {inputSrc ? (
+                  <>
+                    <img
+                      ref={imageRef}
+                      src={inputSrc}
+                      alt={files[0]?.name || '原图'}
+                      className="pointer-events-none block h-auto w-auto max-h-full max-w-full object-contain select-none"
+                      draggable={false}
+                    />
+                    <CropOverlay
+                      imageRef={imageRef}
+                      containerRef={cropContainerRef}
+                      onChange={onCropChange}
+                      enabled={cropEnabled}
+                      aspectRatio={cropAspect}
+                    />
+                    {cropEnabled ? (
+                      <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-[var(--radius-sm)] bg-black/55 px-2 py-1 text-[11px] text-white/90">
+                        拖动框移动 · 四角缩放
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2 z-30 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white/90 hover:bg-black/70"
+                      onClick={() => onRemoveFile(files[0].id)}
+                      aria-label="移除"
+                    >
+                      <X size={14} weight="bold" />
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </PaneShell>
 
-        {isRunning ? (
-          <div className="absolute inset-3 z-20 flex items-center justify-center rounded-[var(--radius-lg)] bg-[var(--bg-0)]/70 backdrop-blur-[2px]">
-            <div className="w-[min(320px,90%)] rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-2)] px-4 py-3 shadow-xl">
-              <div className="mb-2 flex items-center justify-between text-[12px]">
-                <span className="text-[var(--fg-muted)]">
-                  {progressMessage || '处理中...'}
-                </span>
-                <span className="font-mono tabular-nums text-[var(--fg)]">
-                  {progress}%
-                </span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-3)]">
-                <div
-                  className="h-full rounded-full bg-[var(--ac)] transition-[width] duration-150"
-                  style={{ width: `${progress}%` }}
+            <PaneShell title="结果" badge={sizeHint || undefined} accent>
+              {resultSrc ? (
+                <div className="flex h-full items-center justify-center p-2">
+                  <img
+                    key={resultSrc}
+                    src={resultSrc}
+                    alt="结果"
+                    className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
+                    draggable={false}
+                  />
+                </div>
+              ) : (
+                <EmptyResult
+                  isRunning={isRunning}
+                  message={progressMessage}
+                  progress={progress}
                 />
-              </div>
+              )}
+            </PaneShell>
+          </div>
+        )}
+
+        {isRunning && multi ? (
+          <div className="pointer-events-none absolute bottom-4 right-4 z-20 rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--bg-2)]/95 px-3 py-2 shadow-lg">
+            <div className="flex items-center gap-2 text-[12px] text-[var(--fg-muted)]">
+              <CircleNotch size={14} className="animate-spin text-[var(--ac)]" />
+              <span>
+                {progressMessage || '处理中'} · {progress}%
+              </span>
             </div>
           </div>
         ) : null}
@@ -290,13 +288,44 @@ export function Workspace({
         lastOutputPath={lastOutputPath}
         onToast={onToast}
         selectedIndex={selectedResultIndex}
-        onSelectIndex={(idx) => {
-          onSelectResultIndex(idx)
-          if (result?.items[idx]?.ok && result.items[idx].previewDataUrl) {
-            onPreviewModeChange('result')
-          }
-        }}
+        onSelectIndex={onSelectResultIndex}
       />
     </section>
+  )
+}
+
+function EmptyResult({
+  isRunning,
+  message,
+  progress,
+}: {
+  isRunning: boolean
+  message: string
+  progress: number
+}) {
+  if (isRunning) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+        <CircleNotch size={22} className="animate-spin text-[var(--ac)]" />
+        <p className="text-[12.5px] text-[var(--fg-muted)]">
+          {message || '预览生成中…'}
+        </p>
+        <div className="h-1 w-32 overflow-hidden rounded-full bg-[var(--bg-3)]">
+          <div
+            className="h-full rounded-full bg-[var(--ac)] transition-[width]"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+      <ImageIcon size={28} className="text-[var(--fg-dim)]" weight="duotone" />
+      <p className="text-[13px] font-medium text-[var(--fg-muted)]">结果将显示在这里</p>
+      <p className="max-w-[220px] text-[11.5px] leading-relaxed text-[var(--fg-dim)]">
+        调整左侧参数后会自动预览（不写磁盘）。满意后点「保存」写出文件。
+      </p>
+    </div>
   )
 }

@@ -18,7 +18,6 @@ function normalizeProcessResult(raw: unknown): ProcessImageResult {
     return { items: [], summary: { total: 0, succeeded: 0, failed: 0 } }
   }
   const obj = raw as Record<string, unknown>
-  // Nested: { result: { items, summary } }
   if (obj.result && typeof obj.result === 'object') {
     const inner = obj.result as ProcessImageResult
     if (Array.isArray(inner.items)) return inner
@@ -36,8 +35,23 @@ export interface UseProcessImageState {
   result: ProcessImageResult | null
   error: string | null
   lastOutputPath: string | null
-  /** Last run was memory-only preview */
   lastWasPreviewOnly: boolean
+  /** Suppress success toast (auto-preview) */
+  lastSilent: boolean
+}
+
+export type RunParams = {
+  action: ActionId
+  files: LocalFile[]
+  formOptions: Record<string, unknown>
+  output: OutputStrategy
+  common: CommonOptions
+  cropMode?: CropMode
+  cropRect?: CropRect
+  previewOnly?: boolean
+  /** Auto-preview: no success toast */
+  silent?: boolean
+  onValidateError?: (message: string) => void
 }
 
 export function useProcessImage() {
@@ -49,10 +63,14 @@ export function useProcessImage() {
     error: null,
     lastOutputPath: null,
     lastWasPreviewOnly: false,
+    lastSilent: false,
   })
   const runningRef = useRef(false)
+  const genRef = useRef(0)
 
   const resetResult = useCallback(() => {
+    genRef.current += 1
+    runningRef.current = false
     setState((prev) => ({
       ...prev,
       status: 'idle',
@@ -61,148 +79,141 @@ export function useProcessImage() {
       result: null,
       error: null,
       lastWasPreviewOnly: false,
+      lastSilent: false,
     }))
   }, [])
 
-  const run = useCallback(
-    (params: {
-      action: ActionId
-      files: LocalFile[]
-      formOptions: Record<string, unknown>
-      output: OutputStrategy
-      common: CommonOptions
-      cropMode?: CropMode
-      cropRect?: CropRect
-      previewOnly?: boolean
-      onValidateError?: (message: string) => void
-    }) => {
-      if (runningRef.current) return
+  const run = useCallback((params: RunParams) => {
+    const {
+      action,
+      files,
+      formOptions,
+      output,
+      common,
+      cropMode,
+      cropRect,
+      previewOnly = false,
+      silent = false,
+      onValidateError,
+    } = params
 
-      const {
+    if (files.length === 0) {
+      onValidateError?.('请先添加需要处理的图片')
+      return
+    }
+
+    if (previewOnly && action === 'pdf') {
+      if (!silent) onValidateError?.('合并 PDF 不支持自动预览，请直接保存')
+      return
+    }
+
+    if (action === 'watermark' && formOptions.type === 'image') {
+      if (!String(formOptions.watermarkFile || '').trim()) {
+        if (!silent) onValidateError?.('请先选择本地水印图片')
+        return
+      }
+    }
+
+    if (!previewOnly && output.mode === 'dir' && !String(output.dir || '').trim()) {
+      onValidateError?.('请指定输出目录，或改用同目录旁路输出')
+      return
+    }
+
+    // Save must wait; auto-preview may supersede a previous preview
+    if (runningRef.current && !previewOnly) return
+
+    const options = buildActionOptions(action, formOptions, cropRect, cropMode)
+    const paths = files.map((f) => f.absPath)
+    const gen = ++genRef.current
+
+    runningRef.current = true
+    setState((prev) => ({
+      ...prev,
+      status: 'running',
+      progress: 0,
+      progressMessage: previewOnly ? '更新预览…' : '处理中…',
+      error: null,
+      lastWasPreviewOnly: previewOnly,
+      lastSilent: silent && previewOnly,
+    }))
+
+    streamProcessImage(
+      {
         action,
-        files,
-        formOptions,
-        output,
-        common,
-        cropMode,
-        cropRect,
-        previewOnly = false,
-        onValidateError,
-      } = params
-
-      if (files.length === 0) {
-        onValidateError?.('请先添加需要处理的图片')
-        return
-      }
-
-      if (previewOnly && action === 'pdf') {
-        onValidateError?.('合并 PDF 不支持纯内存预览，请直接「处理」保存')
-        return
-      }
-
-      if (action === 'watermark' && formOptions.type === 'image') {
-        if (!String(formOptions.watermarkFile || '').trim()) {
-          onValidateError?.('请先选择本地水印图片')
-          return
-        }
-      }
-
-      // Preview does not need output directory
-      if (!previewOnly && output.mode === 'dir' && !String(output.dir || '').trim()) {
-        onValidateError?.('请指定输出目录，或改用同目录旁路输出')
-        return
-      }
-
-      const options = buildActionOptions(action, formOptions, cropRect, cropMode)
-      const paths = files.map((f) => f.absPath)
-
-      runningRef.current = true
-      setState((prev) => ({
-        ...prev,
-        status: 'running',
-        progress: 0,
-        progressMessage: previewOnly ? '内存预览中...' : '连接处理引擎...',
-        error: null,
-        lastWasPreviewOnly: previewOnly,
-      }))
-
-      streamProcessImage(
-        {
-          action,
-          files: paths,
-          options,
-          output: previewOnly
-            ? undefined
-            : {
-                mode: output.mode,
-                dir: output.mode === 'dir' ? output.dir : undefined,
-                overwrite: !!output.overwrite,
-              },
-          common: {
-            autoOrient: common.autoOrient,
-            stripMetadata: common.stripMetadata,
-          },
-          previewOnly,
+        files: paths,
+        options,
+        output: previewOnly
+          ? undefined
+          : {
+              mode: output.mode,
+              dir: output.mode === 'dir' ? output.dir : undefined,
+              overwrite: !!output.overwrite,
+            },
+        common: {
+          autoOrient: common.autoOrient,
+          stripMetadata: common.stripMetadata,
         },
-        {
-          onProgress: (p, message) => {
-            const pct = Math.max(0, Math.min(100, Math.round((p ?? 0) * 100)))
-            setState((prev) => ({
-              ...prev,
-              progress: pct,
-              progressMessage: message || prev.progressMessage,
-            }))
-          },
-          onResult: (raw) => {
-            runningRef.current = false
-            // Normalize possible host wrappers: { items, summary } | { result: {...} }
-            const result = normalizeProcessResult(raw)
-            const isPreview =
-              previewOnly || !!result.summary?.previewOnly
-            const lastOk = [...(result.items || [])]
-              .reverse()
-              .find((item) => item.ok && item.outputPath)
-
-            setState((prev) => ({
-              ...prev,
-              status: 'success',
-              progress: 100,
-              progressMessage: isPreview ? '预览完成（未保存）' : '处理完成',
-              result,
-              error: null,
-              lastWasPreviewOnly: isPreview,
-              // Only update saved path when actually written to disk
-              lastOutputPath: isPreview
-                ? prev.lastOutputPath
-                : lastOk?.outputPath || prev.lastOutputPath,
-            }))
-          },
-          onError: (err) => {
-            runningRef.current = false
-            setState((prev) => ({
-              ...prev,
-              status: 'error',
-              progress: 0,
-              progressMessage: '',
-              error: err.message || (previewOnly ? '预览失败' : '处理失败'),
-              lastWasPreviewOnly: previewOnly,
-            }))
-          },
+        previewOnly,
+      },
+      {
+        onProgress: (p, message) => {
+          if (gen !== genRef.current) return
+          const pct = Math.max(0, Math.min(100, Math.round((p ?? 0) * 100)))
+          setState((prev) => ({
+            ...prev,
+            progress: pct,
+            progressMessage: message || prev.progressMessage,
+          }))
         },
-      )
-    },
-    [],
-  )
+        onResult: (raw) => {
+          if (gen !== genRef.current) return
+          runningRef.current = false
+          const result = normalizeProcessResult(raw)
+          const isPreview = previewOnly || !!result.summary?.previewOnly
+          const lastOk = [...(result.items || [])]
+            .reverse()
+            .find((item) => item.ok && item.outputPath)
+
+          setState((prev) => ({
+            ...prev,
+            status: 'success',
+            progress: 100,
+            progressMessage: isPreview ? '预览已更新' : '已保存',
+            result,
+            error: null,
+            lastWasPreviewOnly: isPreview,
+            lastSilent: silent && isPreview,
+            lastOutputPath: isPreview
+              ? prev.lastOutputPath
+              : lastOk?.outputPath || prev.lastOutputPath,
+          }))
+        },
+        onError: (err) => {
+          if (gen !== genRef.current) return
+          runningRef.current = false
+          setState((prev) => ({
+            ...prev,
+            status: 'error',
+            progress: 0,
+            progressMessage: '',
+            error: err.message || (previewOnly ? '预览失败' : '处理失败'),
+            lastWasPreviewOnly: previewOnly,
+            lastSilent: false,
+          }))
+        },
+      },
+    )
+  }, [])
 
   const process = useCallback(
-    (params: Omit<Parameters<typeof run>[0], 'previewOnly'>) =>
-      run({ ...params, previewOnly: false }),
+    (params: Omit<RunParams, 'previewOnly' | 'silent'>) =>
+      run({ ...params, previewOnly: false, silent: false }),
     [run],
   )
 
   const preview = useCallback(
-    (params: Omit<Parameters<typeof run>[0], 'previewOnly'>) =>
-      run({ ...params, previewOnly: true }),
+    (params: Omit<RunParams, 'previewOnly'> & { silent?: boolean }) =>
+      run({ ...params, previewOnly: true, silent: !!params.silent }),
     [run],
   )
 

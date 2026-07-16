@@ -6,7 +6,6 @@ interface ProcessBarProps {
   progress: number
   progressMessage: string
   canOpenFolder: boolean
-  /** Disable memory preview (e.g. PDF merge) */
   previewDisabled?: boolean
   onClear: () => void
   onOpenFolder: () => void
@@ -26,8 +25,8 @@ export function ProcessBar({
   onPreview,
   onProcess,
 }: ProcessBarProps) {
-  const processLabel =
-    fileCount <= 0 ? '处理并保存' : fileCount === 1 ? '处理并保存' : `处理并保存 ${fileCount} 张`
+  const saveLabel =
+    fileCount <= 0 ? '保存' : fileCount === 1 ? '保存' : `保存 ${fileCount} 张`
 
   return (
     <footer className="flex h-14 shrink-0 items-center gap-2 border-t border-[var(--line)] bg-[var(--bg-1)]/90 px-3 backdrop-blur-md">
@@ -66,7 +65,7 @@ export function ProcessBar({
           </div>
         ) : (
           <span className="text-[11px] text-[var(--fg-dim)]">
-            预览仅内存处理不落盘 · 处理并保存会写出文件
+            右侧结果随参数自动预览 · 「保存」才写入磁盘
           </span>
         )}
       </div>
@@ -75,26 +74,18 @@ export function ProcessBar({
         type="button"
         onClick={onPreview}
         disabled={fileCount === 0 || isRunning || previewDisabled}
-        title={
-          previewDisabled
-            ? '当前操作不支持纯内存预览'
-            : '按当前参数内存预览，不写入磁盘'
-        }
-        className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--ac-line)] bg-[var(--ac-soft)] px-3 text-[13px] font-semibold text-[var(--ac)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
+        title="立即刷新内存预览"
+        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--line)] px-2.5 text-[12px] text-[var(--fg-muted)] transition hover:border-[var(--ac-line)] hover:text-[var(--ac)] disabled:opacity-40"
       >
-        {isRunning ? (
-          <CircleNotch size={16} className="animate-spin" />
-        ) : (
-          <Eye size={16} weight="bold" />
-        )}
-        预览
+        <Eye size={14} />
+        刷新预览
       </button>
 
       <button
         type="button"
         onClick={onProcess}
         disabled={fileCount === 0 || isRunning}
-        className="inline-flex h-10 min-w-[120px] shrink-0 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--ac)] px-4 text-[13px] font-semibold text-[var(--ac-fg)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
+        className="inline-flex h-10 min-w-[100px] shrink-0 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--ac)] px-4 text-[13px] font-semibold text-[var(--ac-fg)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-45"
       >
         {isRunning ? (
           <>
@@ -102,7 +93,7 @@ export function ProcessBar({
             处理中
           </>
         ) : (
-          processLabel
+          saveLabel
         )}
       </button>
     </footer>
