@@ -30,16 +30,21 @@ export function ResultDrawer({
 }: ResultDrawerProps) {
   const [open, setOpen] = useState(true)
 
-  if (!result) {
-    return (
-      <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg-1)] px-3 py-2 text-[11.5px] text-[var(--fg-dim)]">
-        暂无结果 · 可用「预览」内存试效果，或「处理并保存」写出文件
-      </div>
-    )
-  }
+  // No bottom strip when empty — frees space for the dual-pane preview
+  if (!result) return null
 
   const { summary, items } = result
-  const isPreviewOnly = !!summary.previewOnly || items.some((i) => i.ok && i.previewOnly)
+  const isPreviewOnly =
+    !!summary.previewOnly || items.some((i) => i.ok && i.previewOnly)
+  const hasFail = (summary.failed ?? 0) > 0
+  const hasSaved = items.some((i) => i.ok && i.outputPath)
+  const multiPick = items.filter((i) => i.ok && i.previewDataUrl).length > 1
+
+  // Successful memory preview only: already shown on the right pane — hide drawer
+  if (isPreviewOnly && !hasFail && !hasSaved && !multiPick) {
+    return null
+  }
+
   const openDirPath =
     lastOutputPath ||
     items.find((i) => i.ok && i.outputPath)?.outputPath ||
@@ -59,11 +64,11 @@ export function ResultDrawer({
           </span>
           <span className="truncate font-mono text-[11px] text-[var(--fg-dim)]">
             {isPreviewOnly
-              ? summary.failed > 0
-                ? `${summary.succeeded} 张可预览 · ${summary.failed} 失败 · 未落盘`
-                : `${summary.succeeded} 张可预览 · 未落盘`
+              ? hasFail
+                ? `${summary.succeeded} 成功 · ${summary.failed} 失败 · 未落盘`
+                : `${summary.succeeded} 张 · 未落盘`
               : `${summary.succeeded}/${summary.total} 成功${
-                  summary.failed > 0 ? ` · ${summary.failed} 失败` : ''
+                  hasFail ? ` · ${summary.failed} 失败` : ''
                 }`}
           </span>
         </div>
