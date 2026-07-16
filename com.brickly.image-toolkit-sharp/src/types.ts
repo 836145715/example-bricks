@@ -58,10 +58,12 @@ export interface ProcessItem {
   outputPath?: string
   sizeBytes?: number
   sizeKb?: number
+  inputSizeBytes?: number
+  inputSizeKb?: number
   width?: number | null
   height?: number | null
   format?: string | null
-  /** JPEG data-URL thumbnail for UI result preview (optional) */
+  /** data-URL of processed image for UI preview (optional) */
   previewDataUrl?: string | null
   /** True when result was produced without writing to disk */
   previewOnly?: boolean

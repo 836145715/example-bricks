@@ -107,15 +107,29 @@ async function statOnDisk (outPath) {
   }
 }
 
+function mimeForFormat (format) {
+  const fmt = String(format || '').toLowerCase()
+  if (fmt === 'jpg' || fmt === 'jpeg') return 'image/jpeg'
+  if (fmt === 'png') return 'image/png'
+  if (fmt === 'webp') return 'image/webp'
+  if (fmt === 'gif') return 'image/gif'
+  if (fmt === 'avif') return 'image/avif'
+  return 'image/jpeg'
+}
+
 /**
- * Build a small JPEG data-URL preview for the UI (does not lock path long-term).
- * Skips PDF and unknown formats. Max edge 1280px.
+ * Build a data-URL for UI preview.
  *
- * @param {string | Buffer} source - absolute path or encoded buffer
+ * - faithful=true (memory preview): keep processed pixels/format as much as possible
+ *   so compress/watermark/rotate effects are actually visible. Only downscale if huge.
+ * - faithful=false (saved-file list thumbs): smaller JPEG thumbnail.
+ *
+ * @param {string | Buffer} source
  * @param {string | null | undefined} format
- * @returns {Promise<string | null>} data:image/jpeg;base64,...
+ * @param {{ faithful?: boolean, maxEdge?: number, maxBytes?: number }} [opts]
+ * @returns {Promise<string | null>}
  */
-async function makePreviewDataUrl (source, format) {
+async function makePreviewDataUrl (source, format, opts = {}) {
   const fmt = String(format || '').toLowerCase()
   if (fmt === 'pdf') return null
   if (typeof source === 'string') {
@@ -129,18 +143,57 @@ async function makePreviewDataUrl (source, format) {
       typeof source === 'string' ? await fs.readFile(source) : source
     if (!Buffer.isBuffer(input) || input.length === 0) return null
 
-    const jpegBuf = await sharp(input, { animated: false, pages: 1 })
-      .rotate()
-      .resize({
-        width: 1280,
-        height: 1280,
-        fit: 'inside',
-        withoutEnlargement: true
-      })
-      .jpeg({ quality: 72, mozjpeg: true })
-      .toBuffer()
+    const faithful = !!opts.faithful
+    const maxEdge = opts.maxEdge || (faithful ? 1600 : 1280)
+    const maxBytes = opts.maxBytes || (faithful ? 2.5 * 1024 * 1024 : 800 * 1024)
 
-    return `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+    // Small enough + known web mime: use encoded buffer as-is (true processing look)
+    const mime = mimeForFormat(fmt)
+    if (
+      faithful &&
+      Buffer.isBuffer(source) &&
+      source.length <= maxBytes &&
+      ['jpeg', 'jpg', 'png', 'webp', 'gif'].includes(fmt)
+    ) {
+      return `data:${mime};base64,${source.toString('base64')}`
+    }
+
+    let pipeline = sharp(input, { animated: false, pages: 1 }).rotate().resize({
+      width: maxEdge,
+      height: maxEdge,
+      fit: 'inside',
+      withoutEnlargement: true
+    })
+
+    // Prefer keeping target format when faithful (e.g. webp compress result stays webp)
+    let outBuf
+    let outMime = 'image/jpeg'
+    if (faithful && (fmt === 'png' || fmt === 'webp' || fmt === 'jpeg' || fmt === 'jpg')) {
+      if (fmt === 'png') {
+        outBuf = await pipeline.png({ compressionLevel: 8 }).toBuffer()
+        outMime = 'image/png'
+      } else if (fmt === 'webp') {
+        outBuf = await pipeline.webp({ quality: 82 }).toBuffer()
+        outMime = 'image/webp'
+      } else {
+        outBuf = await pipeline.jpeg({ quality: 85, mozjpeg: true }).toBuffer()
+        outMime = 'image/jpeg'
+      }
+    } else {
+      outBuf = await pipeline.jpeg({ quality: faithful ? 85 : 72, mozjpeg: true }).toBuffer()
+      outMime = 'image/jpeg'
+    }
+
+    if (outBuf.length > maxBytes && faithful) {
+      // Still too big: force smaller jpeg
+      outBuf = await sharp(outBuf)
+        .resize({ width: 1200, height: 1200, fit: 'inside' })
+        .jpeg({ quality: 75, mozjpeg: true })
+        .toBuffer()
+      outMime = 'image/jpeg'
+    }
+
+    return `data:${outMime};base64,${outBuf.toString('base64')}`
   } catch (_) {
     return null
   }
@@ -152,5 +205,6 @@ module.exports = {
   applyStripMetadata,
   writeAndStat,
   statOnDisk,
-  makePreviewDataUrl
+  makePreviewDataUrl,
+  mimeForFormat
 }

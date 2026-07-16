@@ -13,6 +13,22 @@ import type {
 
 export type ProcessStatus = 'idle' | 'running' | 'success' | 'error'
 
+function normalizeProcessResult(raw: unknown): ProcessImageResult {
+  if (!raw || typeof raw !== 'object') {
+    return { items: [], summary: { total: 0, succeeded: 0, failed: 0 } }
+  }
+  const obj = raw as Record<string, unknown>
+  // Nested: { result: { items, summary } }
+  if (obj.result && typeof obj.result === 'object') {
+    const inner = obj.result as ProcessImageResult
+    if (Array.isArray(inner.items)) return inner
+  }
+  if (Array.isArray(obj.items)) {
+    return obj as unknown as ProcessImageResult
+  }
+  return { items: [], summary: { total: 0, succeeded: 0, failed: 0 } }
+}
+
 export interface UseProcessImageState {
   status: ProcessStatus
   progress: number
@@ -137,8 +153,10 @@ export function useProcessImage() {
               progressMessage: message || prev.progressMessage,
             }))
           },
-          onResult: (result) => {
+          onResult: (raw) => {
             runningRef.current = false
+            // Normalize possible host wrappers: { items, summary } | { result: {...} }
+            const result = normalizeProcessResult(raw)
             const isPreview =
               previewOnly || !!result.summary?.previewOnly
             const lastOk = [...(result.items || [])]

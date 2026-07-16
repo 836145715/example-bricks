@@ -78,13 +78,18 @@ function failItem (input, err) {
  * @param {string} input
  * @param {{ outputPath: string, sizeBytes: number, sizeKb: number, width: number|null, height: number|null, format: string|null }} stats
  */
-function okItem (input, stats) {
+function okItem (input, stats, inputSizeBytes) {
   return {
     input,
     ok: true,
     outputPath: stats.outputPath || undefined,
     sizeBytes: stats.sizeBytes,
     sizeKb: stats.sizeKb,
+    inputSizeBytes: typeof inputSizeBytes === 'number' ? inputSizeBytes : undefined,
+    inputSizeKb:
+      typeof inputSizeBytes === 'number'
+        ? Math.round((inputSizeBytes / 1024) * 100) / 100
+        : undefined,
     width: stats.width,
     height: stats.height,
     format: stats.format,
@@ -94,17 +99,29 @@ function okItem (input, stats) {
   }
 }
 
+async function fileSizeBytes (filePath) {
+  try {
+    const st = await fs.stat(filePath)
+    return st.size
+  } catch {
+    return undefined
+  }
+}
+
 /**
- * Attach a compressed preview for image outputs (not pdf).
+ * Attach a UI data-URL preview for image outputs (not pdf).
  * @param {object} stats
  * @param {Buffer | null} [encodedBuffer]
  * @param {boolean} [wantPreview]
+ * @param {boolean} [previewOnly] - faithful preview so processing is visible
  */
-async function withPreview (stats, encodedBuffer, wantPreview) {
+async function withPreview (stats, encodedBuffer, wantPreview, previewOnly = false) {
   if (!wantPreview || !stats) return stats
   const source = encodedBuffer || (stats.outputPath ? stats.outputPath : null)
   if (!source) return stats
-  const previewDataUrl = await makePreviewDataUrl(source, stats.format)
+  const previewDataUrl = await makePreviewDataUrl(source, stats.format, {
+    faithful: !!previewOnly || !!stats.previewOnly
+  })
   if (!previewDataUrl) return stats
   return { ...stats, previewDataUrl }
 }
@@ -160,7 +177,7 @@ async function materializeResult (actionResult, outputPath, stripMetadata, opts 
       format: info.format || actionResult.format || null,
       previewOnly
     }
-    return withPreview(stats, buffer, wantPreview || previewOnly)
+    return withPreview(stats, buffer, wantPreview || previewOnly, previewOnly)
   }
 
   if (actionResult.type === 'buffer') {
@@ -174,18 +191,27 @@ async function materializeResult (actionResult, outputPath, stripMetadata, opts 
     if (!previewOnly) {
       await fs.writeFile(outputPath, buffer)
     }
-    // Size from buffer; skip sharp(path) metadata re-open
+    // Size from buffer; try dimensions for UI
     const sizeBytes = buffer.length
+    let width = null
+    let height = null
+    try {
+      const meta = await loadSharp()(buffer).metadata()
+      width = meta.width || null
+      height = meta.height || null
+    } catch (_) {
+      /* ignore */
+    }
     const stats = {
       outputPath: previewOnly ? '' : outputPath,
       sizeBytes,
       sizeKb: Math.round((sizeBytes / 1024) * 100) / 100,
-      width: null,
-      height: null,
+      width,
+      height,
       format: actionResult.format || null,
       previewOnly
     }
-    return withPreview(stats, buffer, wantPreview || previewOnly)
+    return withPreview(stats, buffer, wantPreview || previewOnly, previewOnly)
   }
 
   if (actionResult.type === 'written') {
@@ -332,7 +358,8 @@ async function runProcessImage ({
           { wantPreview, previewOnly }
         )
         if (stats.previewDataUrl) previewBudget -= 1
-        items.push(okItem(inputLabel, stats))
+        const inSize = await fileSizeBytes(files[0])
+        items.push(okItem(inputLabel, stats, inSize))
         report(1, '完成')
       } catch (err) {
         if (err && err.code === 'CANCELLED') throw err
@@ -349,6 +376,7 @@ async function runProcessImage ({
         try {
           await fs.access(inputPath)
           checkCancel()
+          const inSize = await fileSizeBytes(inputPath)
 
           // Run first so actions like compress can choose a smaller output format;
           // then resolve path extension from result.format when present.
@@ -378,7 +406,7 @@ async function runProcessImage ({
             { wantPreview, previewOnly }
           )
           if (stats.previewDataUrl) previewBudget -= 1
-          items.push(okItem(inputPath, stats))
+          items.push(okItem(inputPath, stats, inSize))
         } catch (err) {
           if (err && err.code === 'CANCELLED') throw err
           items.push(failItem(inputPath, err))

@@ -102,9 +102,15 @@ export function App() {
 
     if (isPreview) {
       if (hasOk) {
-        showToast('预览完成（仅内存，未写入磁盘）')
+        const hit = processState.result.items.find((i) => i.ok && i.previewDataUrl)
+        if (!hit?.previewDataUrl) {
+          showToast('预览完成，但未返回预览图数据', 'error')
+        } else if (hit.inputSizeKb != null && hit.sizeKb != null) {
+          showToast(`预览完成 · ${hit.inputSizeKb} KB → ${hit.sizeKb} KB（未落盘）`)
+        } else {
+          showToast('预览完成（仅内存，未写入磁盘）')
+        }
       } else if (hasFail) {
-        // Only when every preview item failed
         const firstErr = processState.result.items.find((i) => !i.ok)?.error
         showToast(
           firstErr?.message

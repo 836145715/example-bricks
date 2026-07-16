@@ -89,19 +89,31 @@ export function Workspace({
     previewMode === 'input' &&
     !showResultImage
 
-  const displaySrc = showResultImage
-    ? previewHit!.item.previewDataUrl!
-    : showPreview
-      ? files[0]?.previewUrl
-      : ''
+  const resultSrc = showResultImage ? previewHit!.item.previewDataUrl! : ''
+  const inputSrc = files[0]?.previewUrl || ''
+  const displaySrc = showResultImage ? resultSrc : showPreview ? inputSrc : ''
+  // Side-by-side: result view + we still have the original input image
+  const showCompare = showResultImage && !!inputSrc && !!resultSrc
+
+  const sizeHint = (() => {
+    const it = previewHit?.item
+    if (!it?.ok) return ''
+    const parts: string[] = []
+    if (it.inputSizeKb != null && it.sizeKb != null) {
+      parts.push(`${it.inputSizeKb} KB → ${it.sizeKb} KB`)
+    } else if (it.sizeKb != null) {
+      parts.push(`${it.sizeKb} KB`)
+    }
+    if (it.format) parts.push(String(it.format).toUpperCase())
+    if (it.width && it.height) parts.push(`${it.width}×${it.height}`)
+    return parts.join(' · ')
+  })()
 
   const statusLabel = showDrop
     ? '工作区'
     : showResultImage
-      ? `${previewHit?.item.previewOnly || result?.summary?.previewOnly ? '内存预览' : '结果预览'} · ${previewHit?.item.format || 'image'}${
-          previewHit?.item.width && previewHit?.item.height
-            ? ` · ${previewHit.item.width}×${previewHit.item.height}`
-            : ''
+      ? `${previewHit?.item.previewOnly || result?.summary?.previewOnly ? '内存预览' : '结果预览'}${
+          sizeHint ? ` · ${sizeHint}` : ''
         }${previewHit?.item.previewOnly || result?.summary?.previewOnly ? ' · 未落盘' : ''}`
       : multi
         ? `${files.length} 张待处理`
@@ -191,10 +203,47 @@ export function Workspace({
           </div>
         ) : null}
 
-        {(showPreview || showResultImage) && displaySrc ? (
+        {showCompare ? (
+          <div className="flex h-full min-h-0 w-full gap-2">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)]">
+              <div className="shrink-0 border-b border-[var(--line)] px-2 py-1 text-center text-[11px] font-medium text-[var(--fg-dim)]">
+                原图
+                {files[0] ? ` · ${formatBytes(files[0].size)}` : ''}
+              </div>
+              <div className="flex min-h-0 flex-1 items-center justify-center p-2">
+                <img
+                  src={inputSrc}
+                  alt="原图"
+                  className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
+                  draggable={false}
+                />
+              </div>
+            </div>
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--ac-line)] bg-[var(--bg-sunken)]">
+              <div className="shrink-0 border-b border-[var(--ac-line)] bg-[var(--ac-soft)] px-2 py-1 text-center text-[11px] font-semibold text-[var(--ac)]">
+                {previewHit?.item.previewOnly || result?.summary?.previewOnly
+                  ? '预览结果（未落盘）'
+                  : '处理结果'}
+                {sizeHint ? ` · ${sizeHint}` : ''}
+              </div>
+              <div className="flex min-h-0 flex-1 items-center justify-center p-2">
+                <img
+                  key={resultSrc}
+                  src={resultSrc}
+                  alt="处理结果"
+                  className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
+                  draggable={false}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {!showCompare && (showPreview || showResultImage) && displaySrc ? (
           <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2">
             <img
               ref={imageRef}
+              key={displaySrc}
               src={displaySrc}
               alt={showResultImage ? '处理结果' : files[0]?.name || 'preview'}
               className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
@@ -212,9 +261,7 @@ export function Workspace({
                 {previewHit?.item.previewOnly || result?.summary?.previewOnly
                   ? '内存预览'
                   : '处理结果'}
-                {previewHit?.item.sizeKb != null
-                  ? ` · ${previewHit.item.sizeKb} KB`
-                  : ''}
+                {sizeHint ? ` · ${sizeHint}` : ''}
               </div>
             ) : null}
             {files.length > 1 && !showResultImage ? (
@@ -235,19 +282,18 @@ export function Workspace({
           </div>
         ) : null}
 
-        {showGrid && showResultImage ? (
+        {!showCompare && showGrid && showResultImage ? (
           <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-sunken)] p-2">
             <img
-              src={previewHit!.item.previewDataUrl!}
+              key={resultSrc}
+              src={resultSrc}
               alt="处理结果"
               className="block h-auto w-auto max-h-full max-w-full object-contain select-none"
               draggable={false}
             />
             <div className="absolute left-2 top-2 z-10 rounded-[var(--radius-sm)] bg-[var(--ac)]/90 px-2 py-1 text-[11px] font-semibold text-[var(--ac-fg)]">
               处理结果
-              {previewHit?.item.sizeKb != null
-                ? ` · ${previewHit.item.sizeKb} KB`
-                : ''}
+              {sizeHint ? ` · ${sizeHint}` : ''}
             </div>
           </div>
         ) : null}
