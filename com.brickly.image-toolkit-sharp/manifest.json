@@ -3,15 +3,15 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.image-toolkit-sharp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "万能图片工具箱",
     "en": "Universal Image Toolkit"
   },
   "description": {
-    "zh-CN": "基于 Node.js + Sharp 的高性能图像处理工具，包含压缩、格式转换、水印、尺寸修改、圆角、留白补边、拼接等13项超强功能。",
-    "en": "High-performance image toolkit powered by Node.js + Sharp."
+    "zh-CN": "基于 Node.js + Sharp 的高性能图像工具箱：真批量处理、sidecar/dir 输出策略、EXIF 方向校正、可选去元数据，以及 React Webview UI。",
+    "en": "High-performance image toolkit (Node.js + Sharp): true batch processing, sidecar/dir output strategies, EXIF orientation fix, optional metadata strip, and a React webview UI."
   },
   "icon": "assets/icon.png",
   "keywords": [
@@ -20,6 +20,7 @@
     "compress",
     "convert",
     "watermark",
+    "batch",
     "toolkit"
   ],
   "categories": [
@@ -61,7 +62,7 @@
         "zh-CN": "处理图片",
         "en": "Process Image"
       },
-      "description": "执行单图或多图的高性能图像处理与拼接合并命令。",
+      "description": "真批量图像处理命令。返回 items[] 逐文件结果与 summary 汇总（total/succeeded/failed）。支持 sidecar/dir 输出、EXIF 校正与去元数据。",
       "category": "transform",
       "io": {
         "inputs": [
@@ -69,32 +70,43 @@
             "name": "action",
             "type": "string",
             "required": true,
-            "description": "要执行的图像操作，例如 compress, convert, resize, watermark 等"
+            "description": "图像操作 id，如 compress、convert、resize、watermark、join、pdf、gif、stripMeta 等"
           },
           {
             "name": "files",
             "type": "json",
             "required": true,
-            "description": "输入的本地文件绝对路径数组"
+            "description": "输入本地文件绝对路径数组"
           },
           {
             "name": "options",
             "type": "json",
             "required": true,
-            "description": "传递给 Sharp 各个操作的具体参数 JSON 对象"
+            "description": "传递给各 action 的具体参数对象"
           },
           {
-            "name": "outputPath",
-            "type": "string",
+            "name": "output",
+            "type": "json",
             "required": false,
-            "description": "可选的输出绝对路径。如果不填，则默认保存在原文件同目录下并增加适当后缀"
+            "description": "输出策略：{ mode: 'sidecar'|'dir', dir?: string, overwrite?: boolean }。默认 sidecar（原目录旁路命名）"
+          },
+          {
+            "name": "common",
+            "type": "json",
+            "required": false,
+            "description": "通用选项：{ autoOrient?: boolean(默认 true), stripMetadata?: boolean(默认 false) }"
           }
         ],
         "outputs": [
           {
-            "name": "result",
+            "name": "items",
             "type": "json",
-            "description": "处理结果详情，包括最终路径、大小及格式信息"
+            "description": "逐项结果数组。成功项：{ input, ok:true, outputPath, sizeBytes, sizeKb, width, height, format }；失败项：{ input, ok:false, error:{ code, message } }"
+          },
+          {
+            "name": "summary",
+            "type": "json",
+            "description": "汇总：{ total, succeeded, failed }"
           }
         ]
       }
