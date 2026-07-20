@@ -2,10 +2,21 @@
 'use strict'
 
 const fs = require('node:fs')
-const path = require('node:path')
+const path = require('path')
 
 const bricksRoot = __dirname
 const failures = []
+
+/** 统一最新 Node SDK：vendor 内 0.1.2 tgz（BPP 0.2.0） */
+const LATEST_NODE_SDK = 'file:../../../vendor/syllm-brickly-sdk-0.1.2.tgz'
+
+function isLatestNodeSdk(version) {
+  if (!version || typeof version !== 'string') return false
+  if (version === LATEST_NODE_SDK) return true
+  if (version === '^0.1.2' || version === '0.1.2') return true
+  if (/syllm-brickly-sdk-0\.1\.2\.tgz$/.test(version)) return true
+  return false
+}
 
 for (const brickId of fs.readdirSync(bricksRoot)) {
   const brickDir = path.join(bricksRoot, brickId)
@@ -45,8 +56,10 @@ for (const brickId of fs.readdirSync(bricksRoot)) {
     }
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
     const version = packageJson.dependencies && packageJson.dependencies['@syllm/brickly-sdk']
-    if (version !== '^0.1.0') {
-      failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.1.0`)
+    if (!isLatestNodeSdk(version)) {
+      failures.push(
+        `${relative(packageJsonPath)} must depend on latest @syllm/brickly-sdk (got ${version ?? 'missing'}; expected ${LATEST_NODE_SDK} or ^0.1.2)`
+      )
     }
   }
 }
@@ -56,13 +69,14 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log('OK: Node bricks use @syllm/brickly-sdk without embedded _sdk')
+console.log('OK: Node bricks use latest @syllm/brickly-sdk without embedded _sdk')
 
 function listFiles(dir) {
   const files = []
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory()) {
+      if (entry.name === 'node_modules') continue
       files.push(...listFiles(fullPath))
     } else {
       files.push(fullPath)
