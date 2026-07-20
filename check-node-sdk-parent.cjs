@@ -7,13 +7,14 @@ const path = require('path')
 const bricksRoot = __dirname
 const failures = []
 
-/** 统一最新 Node SDK：vendor 内 0.1.2 tgz（BPP 0.2.0） */
-const LATEST_NODE_SDK = 'file:../../../vendor/syllm-brickly-sdk-0.1.2.tgz'
+/** 统一最新 Node SDK（发布到 npm 后直接装） */
+const LATEST_NODE_SDK = '^0.1.2'
 
 function isLatestNodeSdk(version) {
   if (!version || typeof version !== 'string') return false
-  if (version === LATEST_NODE_SDK) return true
-  if (version === '^0.1.2' || version === '0.1.2') return true
+  // 正式：npm 半版本
+  if (version === LATEST_NODE_SDK || version === '0.1.2') return true
+  // 本地调试兜底（可选）
   if (/syllm-brickly-sdk-0\.1\.2\.tgz$/.test(version)) return true
   return false
 }
@@ -58,7 +59,7 @@ for (const brickId of fs.readdirSync(bricksRoot)) {
     const version = packageJson.dependencies && packageJson.dependencies['@syllm/brickly-sdk']
     if (!isLatestNodeSdk(version)) {
       failures.push(
-        `${relative(packageJsonPath)} must depend on latest @syllm/brickly-sdk (got ${version ?? 'missing'}; expected ${LATEST_NODE_SDK} or ^0.1.2)`
+        `${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@${LATEST_NODE_SDK} (got ${version ?? 'missing'})`
       )
     }
   }
@@ -69,7 +70,7 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log('OK: Node bricks use latest @syllm/brickly-sdk without embedded _sdk')
+console.log(`OK: Node bricks use @syllm/brickly-sdk@${LATEST_NODE_SDK} without embedded _sdk`)
 
 function listFiles(dir) {
   const files = []

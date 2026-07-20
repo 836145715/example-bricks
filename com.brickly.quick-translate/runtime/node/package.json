@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "dependencies": {
-    "@syllm/brickly-sdk": "file:../../../vendor/syllm-brickly-sdk-0.1.2.tgz",
+    "@syllm/brickly-sdk": "^0.1.2",
     "sharp": "^0.34.5"
   }
 }
