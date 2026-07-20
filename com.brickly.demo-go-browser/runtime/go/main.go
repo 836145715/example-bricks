@@ -63,7 +63,7 @@ func main() {
 		if win == nil {
 			return nil, brickly.NewBppError("INVALID_INPUT", "window not found")
 		}
-		if err := win.Close(); err != nil {
+		if _, err := win.Close(); err != nil {
 			return nil, brickly.NewBppError("CLOSE_FAILED", err.Error())
 		}
 		return map[string]any{"ok": true}, nil

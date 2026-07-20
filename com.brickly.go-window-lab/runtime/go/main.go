@@ -146,7 +146,7 @@ func closeLab() int {
 	if h == nil || h.IsClosed() {
 		return 0
 	}
-	if err := h.Close(); err != nil {
+	if _, err := h.Close(); err != nil {
 		plugin.Warn(fmt.Sprintf("closeLab failed: %v", err), nil)
 	}
 	labMu.Lock()
