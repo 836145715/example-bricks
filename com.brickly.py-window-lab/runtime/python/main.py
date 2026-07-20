@@ -4,9 +4,11 @@ import json
 import sys
 import threading
 import time
+import traceback
+from pathlib import Path
 from typing import Any, Optional
 
-from brickly import BricklyRuntime, WindowHandle
+from brickly import BricklyRuntime, WindowHandle, PROTOCOL_VERSION
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -16,6 +18,26 @@ if sys.platform == "win32":
 LAB_HTML = "ui/lab.html"
 plugin = BricklyRuntime("com.brickly.py-window-lab")
 lab: Optional[WindowHandle] = None
+
+# 诊断日志：帮助确认 window.message / web_contents.send 是否在 live 环境生效
+_DEBUG_LOG = Path(__file__).resolve().parents[2] / ".lab-debug.log"
+
+
+def _debug(msg: str, **fields: Any) -> None:
+    try:
+        line = {
+            "ts": int(time.time() * 1000),
+            "msg": msg,
+            **{k: v for k, v in fields.items()},
+        }
+        with _DEBUG_LOG.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(line, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        pass
+    try:
+        plugin.info(f"[lab-debug] {msg}", fields if fields else None)
+    except Exception:
+        pass
 
 QUERY_METHODS = [
     "getBounds",
@@ -108,7 +130,8 @@ def _open_lab_once() -> dict[str, Any]:
     if lab and not lab.closed:
         try:
             lab.focus()
-            return {"windowId": lab.id, "reused": True}
+            _debug("open_lab_reuse", windowId=lab.id, protocol=PROTOCOL_VERSION)
+            return {"windowId": lab.id, "reused": True, "protocolVersion": PROTOCOL_VERSION}
         except Exception:
             lab = None
 
@@ -126,15 +149,58 @@ def _open_lab_once() -> dict[str, Any]:
         },
     )
     lab = handle
+    try:
+        import importlib.metadata as md
 
-    def on_closed(_payload: Any) -> None:
+        sdk_ver = md.version("brickly-sdk")
+    except Exception:
+        sdk_ver = "unknown"
+    _debug(
+        "open_lab_created",
+        windowId=handle.id,
+        protocol=PROTOCOL_VERSION,
+        sdk=sdk_ver,
+    )
+
+    def on_closed(payload: Any) -> None:
         global lab
         plugin.log(f"lab window closed id={handle.id}")
+        cause = payload.get("cause") if isinstance(payload, dict) else None
+        forced = payload.get("forced") if isinstance(payload, dict) else None
+        event_id = payload.get("eventId") if isinstance(payload, dict) else None
+        _debug(
+            "lab_closed",
+            windowId=handle.id,
+            cause=cause,
+            forced=forced,
+            eventId=event_id,
+            payload=payload,
+        )
         if lab and lab.id == handle.id:
             lab = None
 
     handle.on("closed", on_closed)
-    return {"windowId": handle.id, "reused": False}
+    # 额外订阅 runtime 级 closed，避免句柄事件丢失时看不清原因
+    def on_runtime_closed(payload: Any, _env: dict[str, Any]) -> None:
+        if not isinstance(payload, dict):
+            return
+        if int(payload.get("windowId") or -1) != int(handle.id):
+            return
+        _debug(
+            "runtime_window_closed",
+            windowId=payload.get("windowId"),
+            cause=payload.get("cause"),
+            forced=payload.get("forced"),
+            eventId=payload.get("eventId"),
+        )
+
+    plugin.events.on("window.closed", on_runtime_closed)
+    return {
+        "windowId": handle.id,
+        "reused": False,
+        "protocolVersion": PROTOCOL_VERSION,
+        "sdkVersion": sdk_ver,
+    }
 
 
 def close_lab() -> int:
@@ -169,11 +235,54 @@ def query_all_state() -> dict[str, Any]:
     return state
 
 
-def handle_window_message(payload: Any, _envelope: dict[str, Any]) -> None:
-    if not isinstance(payload, dict) or not lab or payload.get("windowId") != lab.id:
+def _payload_window_id(payload: dict[str, Any]) -> Optional[int]:
+    raw = payload.get("windowId")
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    return int(raw)
+
+
+def handle_window_message(payload: Any, envelope: dict[str, Any]) -> None:
+    event_request_id = ""
+    if isinstance(envelope, dict):
+        raw_rid = envelope.get("requestId")
+        if isinstance(raw_rid, str):
+            event_request_id = raw_rid
+
+    if not isinstance(payload, dict):
+        _debug("window.message_ignored", reason="payload_not_dict")
         return
+    if not lab or lab.closed:
+        _debug(
+            "window.message_ignored",
+            reason="lab_missing",
+            channel=payload.get("channel"),
+            payloadWindowId=payload.get("windowId"),
+            eventRequestId=event_request_id,
+        )
+        return
+
+    payload_wid = _payload_window_id(payload)
+    if payload_wid is None or payload_wid != int(lab.id):
+        _debug(
+            "window.message_ignored",
+            reason="window_id_mismatch",
+            payloadWindowId=payload.get("windowId"),
+            labId=lab.id,
+            channel=payload.get("channel"),
+            eventRequestId=event_request_id,
+        )
+        return
+
     channel = payload.get("channel")
     args = payload.get("args") if isinstance(payload.get("args"), list) else []
+    _debug(
+        "window.message",
+        channel=channel,
+        labId=lab.id,
+        eventRequestId=event_request_id,
+        argsPreview=args[:1] if args else [],
+    )
 
     if channel == "lab:op":
         op = args[0] if args and isinstance(args[0], dict) else {}
@@ -186,28 +295,58 @@ def handle_window_message(payload: Any, _envelope: dict[str, Any]) -> None:
             result = safe_json(call_on_lab(name, op_args))
         except Exception as exc:
             error = str(exc)
+            _debug("lab_op_call_failed", name=name, error=error)
+        # 同时写 requestId：事件作用域缺失时仍可从 payload 推导 parentRequestId
+        parent_id = event_request_id or (req_id if isinstance(req_id, str) else "")
+        reply = {
+            "reqId": req_id,
+            "name": name,
+            "ok": error is None,
+            "result": result,
+            "error": error,
+        }
+        if parent_id:
+            reply["requestId"] = parent_id
         try:
-            lab.web_contents.send(
-                "lab:result",
-                {
-                    "reqId": req_id,
-                    "name": name,
-                    "ok": error is None,
-                    "result": result,
-                    "error": error,
-                },
-            )
+            lab.web_contents.send("lab:result", reply)
+            _debug("lab_result_sent", name=name, ok=error is None, parentRequestId=parent_id)
         except Exception as exc:
             plugin.log("reply lab:result failed:", repr(exc))
+            _debug(
+                "lab_result_failed",
+                name=name,
+                error=str(exc),
+                traceback=traceback.format_exc(),
+                parentRequestId=parent_id,
+            )
         return
 
     if channel == "lab:query":
         req_id = args[0].get("reqId") if args and isinstance(args[0], dict) else None
-        state = query_all_state()
         try:
-            lab.web_contents.send("lab:state", {"reqId": req_id, "state": state, "at": int(time.time() * 1000)})
+            state = query_all_state()
+        except Exception as exc:
+            _debug("lab_query_failed", error=str(exc), traceback=traceback.format_exc())
+            return
+        parent_id = event_request_id or (req_id if isinstance(req_id, str) else "")
+        reply: dict[str, Any] = {
+            "reqId": req_id,
+            "state": state,
+            "at": int(time.time() * 1000),
+        }
+        if parent_id:
+            reply["requestId"] = parent_id
+        try:
+            lab.web_contents.send("lab:state", reply)
+            _debug("lab_state_sent", keys=len(state), parentRequestId=parent_id)
         except Exception as exc:
             plugin.log("reply lab:state failed:", repr(exc))
+            _debug(
+                "lab_state_failed",
+                error=str(exc),
+                traceback=traceback.format_exc(),
+                parentRequestId=parent_id,
+            )
 
 
 plugin.events.on("window.message", handle_window_message)

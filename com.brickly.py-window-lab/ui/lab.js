@@ -20,6 +20,11 @@
   if (!window.brickly || typeof window.brickly.sendToParent !== 'function') {
     logEl.innerHTML =
       '<li class="err">window.brickly preload 不可用，无法与 runtime 通信</li>'
+    if (winInfo) {
+      winInfo.textContent = 'preload 不可用'
+      winInfo.style.color = '#f87171'
+    }
+    document.body.style.outline = '3px solid #f87171'
     return
   }
   winInfo.textContent = `window#${window.brickly.windowId} · ${window.brickly.brickId}`
@@ -50,12 +55,38 @@
     while (logEl.children.length > 200) logEl.removeChild(logEl.lastChild)
   }
 
+  if (!window.brickly.windowId) {
+    appendLog(
+      '<span class="err">windowId=0：子窗口身份 identify 失败，sendToParent 可能被宿主丢弃</span>'
+    )
+  }
+
+  const pendingTimers = new Map()
+
+  function armTimeout(reqId, label) {
+    clearTimeout(pendingTimers.get(reqId))
+    const timer = setTimeout(() => {
+      pendingTimers.delete(reqId)
+      appendLog(
+        `<span class="err">⏱ 无回包</span> <span class="name">${label}</span> · runtime 未在 3s 内回复 lab:result/lab:state（看 .lab-debug.log）`
+      )
+    }, 3000)
+    pendingTimers.set(reqId, timer)
+  }
+
+  function clearPending(reqId) {
+    const timer = pendingTimers.get(reqId)
+    if (timer) clearTimeout(timer)
+    pendingTimers.delete(reqId)
+  }
+
   function sendOp(name, args) {
     const reqId = nextId('op')
     window.brickly.sendToParent('lab:op', { reqId, name, args: args || [] })
     appendLog(
       `→ <span class="name">${name}</span>(${JSON.stringify(args || [])})`
     )
+    armTimeout(reqId, name)
     return reqId
   }
 
@@ -63,11 +94,13 @@
     const reqId = nextId('q')
     window.brickly.sendToParent('lab:query', { reqId })
     appendLog('→ <span class="name">query state</span>')
+    armTimeout(reqId, 'query state')
   }
 
   // —— 接收 runtime 回包 ——
   window.brickly.on('lab:result', (payload) => {
     if (!payload) return
+    if (payload.reqId) clearPending(payload.reqId)
     const { name, ok, result, error } = payload
     if (ok) {
       const r = result === null || result === undefined ? 'ok' : JSON.stringify(result)
@@ -85,6 +118,7 @@
 
   window.brickly.on('lab:state', (payload) => {
     if (!payload || !payload.state) return
+    if (payload.reqId) clearPending(payload.reqId)
     const { state, at } = payload
     stateAt.textContent = '@ ' + new Date(at).toLocaleTimeString()
     const rows = Object.entries(state).map(([k, v]) => {

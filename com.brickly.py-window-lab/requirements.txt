@@ -1,2 +1,1 @@
-# monorepo 最新 Python SDK（BPP PROTOCOL 0.2.0）；发布到 PyPI 后可改回 brickly-sdk==x.y.z
--e ../../ai-bricks/Brickly/packages/brickly-sdk-python
+brickly-sdk==0.1.3

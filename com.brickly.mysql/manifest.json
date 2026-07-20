@@ -30,15 +30,7 @@
       "linux-arm64"
     ],
     "entry": "runtime/python/main.py",
-    "python": ">=3.10,<3.13",
-    "dependencies": {
-      "kind": "inline",
-      "specs": [
-        "brickly-sdk==0.1.0",
-        "pymysql>=1.1.0,<2",
-        "cryptography>=41.0.0"
-      ]
-    }
+    "python": ">=3.10,<3.13"
   },
   "permissions": [
     "net.tcp"

@@ -29,11 +29,7 @@
       "linux-arm64"
     ],
     "entry": "runtime/python/main.py",
-    "python": ">=3.10,<3.13",
-    "dependencies": {
-      "kind": "requirements",
-      "path": "requirements.txt"
-    }
+    "python": ">=3.10,<3.13"
   },
   "lifecycle": {
     "mode": "cached",
