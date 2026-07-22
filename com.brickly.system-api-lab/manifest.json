@@ -27,10 +27,7 @@
     "entry": "runtime/node/index.js"
   },
   "lifecycle": {
-    "mode": "task",
-    "scope": "owner",
-    "concurrency": "parallel",
-    "restart": "none"
+    "state": "stateless"
   },
   "permissions": [
     "os.notification",
@@ -159,7 +156,8 @@
             "beep": true
           }
         }
-      ]
+      ],
+      "execution": "parallel"
     },
     {
       "id": "log-current-folder-path",
@@ -176,7 +174,8 @@
       "io": {
         "inputs": [],
         "outputs": []
-      }
+      },
+      "execution": "parallel"
     },
     {
       "id": "create-temp-file",
@@ -197,7 +196,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "parallel"
     }
   ]
 }

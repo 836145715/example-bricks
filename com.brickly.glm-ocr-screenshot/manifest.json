@@ -30,11 +30,8 @@
     "entry": "runtime/node/index.js"
   },
   "lifecycle": {
-    "mode": "cached",
-    "scope": "profile",
-    "concurrency": "queue",
-    "idleTtlMs": 600000,
-    "restart": "none"
+    "state": "stateless",
+    "idleTimeoutMs": 600000
   },
   "permissions": [
     "os.screenshot",
@@ -263,7 +260,8 @@
           "image-annotation"
         ],
         "hint": "会启动系统截图工具、读取截图文件，并调用 com.brickly.glm-tools 的 OCR 命令上传图片，再打开 H5 弹窗绘制结果。"
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "capture-text",
@@ -373,7 +371,8 @@
           "text"
         ],
         "hint": "会启动系统截图工具、读取截图文件，并调用 com.brickly.glm-tools 的 OCR 命令上传图片，只返回识别文本。"
-      }
+      },
+      "execution": "queue"
     }
   ]
 }

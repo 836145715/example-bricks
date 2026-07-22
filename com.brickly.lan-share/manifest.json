@@ -40,13 +40,12 @@
     "entry": "runtime/node/index.cjs"
   },
   "lifecycle": {
-    "mode": "service",
-    "scope": "profile",
-    "concurrency": "queue",
-    "maxLifetimeMs": 0,
-    "restart": "on-failure",
-    "maxRestarts": 5,
-    "backoffMs": 2000
+    "state": "stateful",
+    "service": {
+      "restart": "on-failure",
+      "maxAttempts": 5,
+      "backoffMs": 2000
+    }
   },
   "permissions": [
     "net.http",
@@ -82,7 +81,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "start",
@@ -126,7 +126,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "stop",
@@ -144,7 +145,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "update-config",
@@ -180,7 +182,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "default-root",
@@ -197,7 +200,8 @@
             "type": "string"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "list-entries",
@@ -220,7 +224,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "clear-log",
@@ -237,7 +242,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "open-folder",
@@ -260,7 +266,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "open-url",
@@ -282,7 +289,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     }
   ],
   "triggers": [

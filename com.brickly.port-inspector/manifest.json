@@ -42,11 +42,10 @@
     "entry": "runtime/node/index.cjs"
   },
   "lifecycle": {
-    "mode": "service",
-    "scope": "profile",
-    "concurrency": "queue",
-    "restart": "none",
-    "maxLifetimeMs": 0
+    "state": "stateful",
+    "service": {
+      "restart": "none"
+    }
   },
   "permissions": [
     "os.exec"
@@ -131,7 +130,8 @@
           "process",
           "readonly"
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "list",
@@ -204,7 +204,8 @@
           "process",
           "readonly"
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "details",
@@ -253,7 +254,8 @@
           "process",
           "readonly"
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "kill",
@@ -309,7 +311,8 @@
           "process",
           "dangerous"
         ]
-      }
+      },
+      "execution": "queue"
     }
   ],
   "triggers": [

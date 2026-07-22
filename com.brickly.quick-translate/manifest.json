@@ -26,11 +26,8 @@
     "entry": "runtime/node/index.js"
   },
   "lifecycle": {
-    "mode": "cached",
-    "scope": "profile",
-    "concurrency": "queue",
-    "idleTtlMs": 600000,
-    "restart": "none"
+    "state": "stateless",
+    "idleTimeoutMs": 600000
   },
   "permissions": [
     "os.input",
@@ -131,7 +128,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "translate-screenshot-overlay",
@@ -152,7 +150,8 @@
           }
         ]
       },
-      "timeoutMs": 180000
+      "timeoutMs": 180000,
+      "execution": "queue"
     }
   ]
 }

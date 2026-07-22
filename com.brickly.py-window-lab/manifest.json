@@ -36,11 +36,8 @@
     }
   },
   "lifecycle": {
-    "mode": "cached",
-    "scope": "profile",
-    "concurrency": "queue",
-    "idleTtlMs": 0,
-    "maxLifetimeMs": 0
+    "state": "stateless",
+    "idleTimeoutMs": 0
   },
   "permissions": [],
   "trustLevel": "community",
@@ -79,7 +76,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "close-lab",
@@ -95,7 +93,8 @@
             "type": "number"
           }
         ]
-      }
+      },
+      "execution": "queue"
     }
   ]
 }

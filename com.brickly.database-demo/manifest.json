@@ -30,10 +30,7 @@
   ],
   "trustLevel": "community",
   "lifecycle": {
-    "mode": "attached",
-    "scope": "owner",
-    "concurrency": "queue",
-    "maxLifetimeMs": 3600000
+    "state": "stateful"
   },
   "ui": {
     "type": "none"
@@ -94,7 +91,8 @@
             "database": "demo"
           }
         }
-      ]
+      ],
+      "execution": "queue"
     },
     {
       "id": "query",
@@ -148,7 +146,8 @@
             "sql": "select * from users limit 3"
           }
         }
-      ]
+      ],
+      "execution": "queue"
     },
     {
       "id": "save-file",
@@ -213,7 +212,8 @@
             "format": "json"
           }
         }
-      ]
+      ],
+      "execution": "queue"
     },
     {
       "id": "close",
@@ -242,7 +242,8 @@
             "type": "number"
           }
         ]
-      }
+      },
+      "execution": "queue"
     }
   ]
 }

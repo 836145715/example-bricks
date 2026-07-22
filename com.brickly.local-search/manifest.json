@@ -57,13 +57,12 @@
     }
   },
   "lifecycle": {
-    "mode": "service",
-    "scope": "profile",
-    "concurrency": "queue",
-    "maxLifetimeMs": 0,
-    "restart": "on-failure",
-    "maxRestarts": 3,
-    "backoffMs": 2000
+    "state": "stateful",
+    "service": {
+      "restart": "on-failure",
+      "maxAttempts": 3,
+      "backoffMs": 2000
+    }
   },
   "permissions": [
     "fs.read",
@@ -157,7 +156,8 @@
           }
         ]
       },
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "execution": "queue"
     },
     {
       "id": "health",
@@ -176,7 +176,8 @@
           }
         ]
       },
-      "timeoutMs": 5000
+      "timeoutMs": 5000,
+      "execution": "queue"
     },
     {
       "id": "preview",
@@ -221,7 +222,8 @@
           }
         ]
       },
-      "timeoutMs": 8000
+      "timeoutMs": 8000,
+      "execution": "queue"
     },
     {
       "id": "quick-search",
@@ -261,7 +263,8 @@
           }
         ]
       },
-      "timeoutMs": 1200
+      "timeoutMs": 1200,
+      "execution": "queue"
     },
     {
       "id": "quick-search-open",
@@ -298,7 +301,8 @@
           }
         ]
       },
-      "timeoutMs": 3000
+      "timeoutMs": 3000,
+      "execution": "queue"
     }
   ],
   "triggers": [

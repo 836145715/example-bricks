@@ -44,13 +44,12 @@
     }
   },
   "lifecycle": {
-    "mode": "service",
-    "scope": "profile",
-    "concurrency": "queue",
-    "maxLifetimeMs": 0,
-    "restart": "on-failure",
-    "maxRestarts": 3,
-    "backoffMs": 2000
+    "state": "stateful",
+    "service": {
+      "restart": "on-failure",
+      "maxAttempts": 3,
+      "backoffMs": 2000
+    }
   },
   "permissions": [
     "event.publish:net-capture:changed"
@@ -139,7 +138,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "stop",
@@ -156,7 +156,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "status",
@@ -172,7 +173,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "list",
@@ -209,7 +211,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "detail",
@@ -231,7 +234,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "clear",
@@ -247,7 +251,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "install-cert",
@@ -264,7 +269,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "set-system-proxy",
@@ -286,7 +292,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     }
   ],
   "triggers": [

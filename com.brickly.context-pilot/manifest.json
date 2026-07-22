@@ -26,11 +26,8 @@
     "entry": "runtime/node/index.js"
   },
   "lifecycle": {
-    "mode": "cached",
-    "scope": "profile",
-    "concurrency": "replace",
-    "idleTtlMs": 600000,
-    "restart": "none"
+    "state": "stateless",
+    "idleTimeoutMs": 600000
   },
   "permissions": [
     "os.input",
@@ -137,7 +134,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "replace"
     },
     {
       "id": "analyze-screenshot",
@@ -157,7 +155,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "replace"
     }
   ]
 }

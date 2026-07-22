@@ -26,13 +26,12 @@
     "entry": "runtime/node/index.js"
   },
   "lifecycle": {
-    "mode": "service",
-    "scope": "profile",
-    "concurrency": "queue",
-    "maxLifetimeMs": 0,
-    "restart": "on-failure",
-    "maxRestarts": 5,
-    "backoffMs": 2000
+    "state": "stateful",
+    "service": {
+      "restart": "on-failure",
+      "maxAttempts": 5,
+      "backoffMs": 2000
+    }
   },
   "permissions": [],
   "trustLevel": "community",
@@ -124,7 +123,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "preview",
@@ -147,7 +147,8 @@
       },
       "ui": {
         "submitLabel": "预览"
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "reschedule",
@@ -167,7 +168,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     }
   ],
   "triggers": [

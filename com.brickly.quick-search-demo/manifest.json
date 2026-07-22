@@ -27,10 +27,8 @@
   "permissions": [],
   "trustLevel": "community",
   "lifecycle": {
-    "mode": "cached",
-    "scope": "profile",
-    "concurrency": "replace",
-    "idleTtlMs": 60000
+    "state": "stateless",
+    "idleTimeoutMs": 60000
   },
   "ui": {
     "type": "none"
@@ -140,7 +138,8 @@
           }
         ]
       },
-      "timeoutMs": 1000
+      "timeoutMs": 1000,
+      "execution": "replace"
     },
     {
       "id": "activate-demo",
@@ -173,7 +172,8 @@
           }
         ]
       },
-      "timeoutMs": 1000
+      "timeoutMs": 1000,
+      "execution": "replace"
     },
     {
       "id": "action-demo",
@@ -210,7 +210,8 @@
           }
         ]
       },
-      "timeoutMs": 1000
+      "timeoutMs": 1000,
+      "execution": "replace"
     }
   ],
   "triggers": [

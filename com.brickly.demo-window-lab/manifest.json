@@ -26,11 +26,8 @@
     "entry": "runtime/node/index.js"
   },
   "lifecycle": {
-    "mode": "cached",
-    "scope": "profile",
-    "concurrency": "queue",
-    "idleTtlMs": 600000,
-    "restart": "none"
+    "state": "stateless",
+    "idleTimeoutMs": 600000
   },
   "permissions": [],
   "trustLevel": "verified",
@@ -67,7 +64,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "close-lab",
@@ -83,7 +81,8 @@
             "type": "number"
           }
         ]
-      }
+      },
+      "execution": "queue"
     }
   ]
 }

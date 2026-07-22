@@ -42,9 +42,7 @@
     "entry": "runtime/node/index.cjs"
   },
   "lifecycle": {
-    "mode": "task",
-    "scope": "profile",
-    "concurrency": "queue"
+    "state": "stateless"
   },
   "permissions": [
     "net.udp"
@@ -172,7 +170,8 @@
           "ip",
           "readonly"
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "resolve-all",
@@ -252,7 +251,8 @@
           "ip",
           "readonly"
         ]
-      }
+      },
+      "execution": "queue"
     }
   ],
   "triggers": [

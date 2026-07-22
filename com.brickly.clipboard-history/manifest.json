@@ -37,13 +37,12 @@
     "entry": "runtime/node/index.cjs"
   },
   "lifecycle": {
-    "mode": "service",
-    "scope": "profile",
-    "concurrency": "queue",
-    "maxLifetimeMs": 0,
-    "restart": "on-failure",
-    "maxRestarts": 5,
-    "backoffMs": 2000
+    "state": "stateful",
+    "service": {
+      "restart": "on-failure",
+      "maxAttempts": 5,
+      "backoffMs": 2000
+    }
   },
   "permissions": [
     "resource.get",
@@ -88,7 +87,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "remove",
@@ -110,7 +110,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "clear",
@@ -133,7 +134,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "toggle-favorite",
@@ -155,7 +157,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     },
     {
       "id": "storage-info",
@@ -172,7 +175,8 @@
             "type": "json"
           }
         ]
-      }
+      },
+      "execution": "queue"
     }
   ],
   "triggers": [
