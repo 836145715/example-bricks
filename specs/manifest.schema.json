@@ -261,7 +261,7 @@
               ]
             },
             "dependencies": {
-              "description": "type=python 专用：依赖来源。requirements 走 `uv pip install -r`，pyproject 走 `uv sync`，inline 直接列依赖 spec。",
+              "description": "type=python 专用：依赖来源（可选）。省略时若根目录存在 requirements.txt，则自动按该文件安装。requirements 走 `uv pip install -r`，pyproject 走 `uv sync`，inline 直接列依赖 spec（不推荐新 Brick 使用）。",
               "oneOf": [
                 {
                   "type": "object",
@@ -395,72 +395,59 @@
       ]
     },
     "lifecycle": {
-      "description": "Brick 实例由宿主管理；调用方只持有 Lease。mode 表达实例生命长度，scope 表达复用边界。",
+      "description": "工具生命周期：state 表达无状态/有状态；service 仅 stateful 下表示宿主持有的后台服务。详见 docs/superpowers/specs/2026-07-22-runtime-lifecycle-simplification-constitution.md。",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "mode": {
+        "state": {
           "type": "string",
           "enum": [
-            "task",
-            "attached",
-            "cached",
-            "service"
+            "stateless",
+            "stateful"
           ],
-          "default": "task",
-          "description": "task 每次调用独立实例；attached 绑定 owner；cached 空闲后回收；service 由宿主管理后台实例。"
+          "default": "stateless",
+          "description": "stateless：无状态，可按 brick/profile 复用进程并空闲回收；stateful：有状态，跟使用会话或服务。"
         },
-        "scope": {
-          "type": "string",
-          "enum": [
-            "profile",
-            "owner"
-          ],
-          "description": "profile 表示同 Brick 同配置复用；owner 表示同 Brick 同配置同调用方复用。"
-        },
-        "concurrency": {
-          "type": "string",
-          "enum": [
-            "queue",
-            "parallel",
-            "reject",
-            "replace"
-          ],
-          "description": "同一实例内并发调用策略。"
-        },
-        "idleTtlMs": {
+        "idleTimeoutMs": {
           "type": "integer",
           "minimum": 0,
-          "description": "cached 实例最后一个 Lease 释放后的空闲回收时间。"
+          "description": "仅 stateless：无占用且无 in-flight 后的空闲回收时间；0 表示立即关闭。默认 600000。"
         },
-        "restart": {
-          "type": "string",
-          "enum": [
-            "none",
-            "on-failure",
-            "always"
-          ],
-          "description": "异常退出后的宿主重启策略。"
-        },
-        "maxRestarts": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "最大自动重启次数，默认 5。"
-        },
-        "backoffMs": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "初始重启退避毫秒，默认 2000。"
-        },
-        "healthyAfterMs": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "持续运行多久后将连续崩溃计数归零。"
-        },
-        "maxLifetimeMs": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "最大生命周期。到期后平台关闭实例。"
+        "service": {
+          "description": "仅 stateful：声明为宿主持有的全局后台服务。",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "autoStart": {
+              "type": "boolean",
+              "default": false,
+              "description": "宿主启动时是否预热；与 triggers.host-start 无关。"
+            },
+            "restart": {
+              "type": "string",
+              "enum": [
+                "none",
+                "on-failure"
+              ],
+              "default": "on-failure",
+              "description": "非主动停止时的异常重启策略。"
+            },
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "最大自动重启次数，默认 5。"
+            },
+            "backoffMs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "初始重启退避毫秒，默认 2000。"
+            },
+            "healthyAfterMs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "持续运行多久后将连续崩溃计数归零。"
+            }
+          }
         }
       }
     },
@@ -562,7 +549,7 @@
       ]
     },
     "subscriptions": {
-      "description": "Brick 订阅的宿主中转事件。仅 lifecycle.mode=service 或声明 event trigger 的 Brick 会被事件自动唤醒；payload 应保持轻量，大内容通过 resourceId 按需拉取。",
+      "description": "Brick 订阅的宿主中转事件。仅 lifecycle.service 或声明 event trigger 的 Brick 会被事件自动唤醒；payload 应保持轻量，大内容通过 resourceId 按需拉取。",
       "type": "array",
       "uniqueItems": true,
       "items": {
@@ -1218,6 +1205,17 @@
             "ocr",
             "format"
           ]
+        },
+        "execution": {
+          "description": "同一实例内该命令的并发策略（不属于 lifecycle）。默认 queue。",
+          "type": "string",
+          "enum": [
+            "queue",
+            "parallel",
+            "reject",
+            "replace"
+          ],
+          "default": "queue"
         },
         "name": {
           "description": "命令展示名称，支持本地化对象。",
