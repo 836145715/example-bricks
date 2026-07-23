@@ -4,6 +4,6 @@
   "private": true,
   "type": "commonjs",
   "dependencies": {
-    "@syllm/brickly-sdk": "../../../../ai-bricks/Brickly/packages/brickly-sdk-node/syllm-brickly-sdk-0.2.0.tgz"
+    "@syllm/brickly-sdk": "^0.2.0"
   }
 }

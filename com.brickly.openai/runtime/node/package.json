@@ -8,7 +8,7 @@
     "node": ">=18.17.0"
   },
   "dependencies": {
-    "@syllm/brickly-sdk": "../../../../ai-bricks/Brickly/packages/brickly-sdk-node/syllm-brickly-sdk-0.2.0.tgz",
+    "@syllm/brickly-sdk": "^0.2.0",
     "openai": "^6.14.0"
   }
 }

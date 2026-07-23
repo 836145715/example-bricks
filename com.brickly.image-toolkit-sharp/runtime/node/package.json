@@ -8,7 +8,7 @@
     "node": ">=18.17.0"
   },
   "dependencies": {
-    "@syllm/brickly-sdk": "../../../../ai-bricks/Brickly/packages/brickly-sdk-node/syllm-brickly-sdk-0.2.0.tgz",
+    "@syllm/brickly-sdk": "^0.2.0",
     "gifenc": "^1.0.3",
     "sharp": "^0.33.5"
   }

@@ -11,7 +11,7 @@
     "test": "node --test __tests__/decode-generate.test.js"
   },
   "dependencies": {
-    "@syllm/brickly-sdk": "../../../../ai-bricks/Brickly/packages/brickly-sdk-node/syllm-brickly-sdk-0.2.0.tgz",
+    "@syllm/brickly-sdk": "^0.2.0",
     "jpeg-js": "^0.4.4",
     "jsqr": "^1.4.0",
     "pngjs": "^7.0.0",
