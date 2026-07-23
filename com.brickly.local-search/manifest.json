@@ -24,24 +24,6 @@
     "productivity",
     "utilities"
   ],
-  "quickSearch": {
-    "providers": [
-      {
-        "id": "files",
-        "title": {
-          "zh-CN": "本地文件",
-          "en": "Local Files"
-        },
-        "category": "file",
-        "searchCommand": "quick-search",
-        "activateCommand": "quick-search-open",
-        "priority": 64,
-        "timeoutMs": 900,
-        "maxResults": 8,
-        "minQueryLength": 1
-      }
-    ]
-  },
   "author": {
     "name": "Brickly"
   },
@@ -59,6 +41,7 @@
   "lifecycle": {
     "state": "stateful",
     "service": {
+      "autoStart": false,
       "restart": "on-failure",
       "maxAttempts": 3,
       "backoffMs": 2000
@@ -309,5 +292,23 @@
     {
       "type": "manual"
     }
-  ]
+  ],
+  "quickSearch": {
+    "providers": [
+      {
+        "id": "files",
+        "title": {
+          "zh-CN": "本地文件",
+          "en": "Local Files"
+        },
+        "category": "file",
+        "searchCommand": "quick-search",
+        "activateCommand": "quick-search-open",
+        "priority": 64,
+        "timeoutMs": 900,
+        "maxResults": 8,
+        "minQueryLength": 1
+      }
+    ]
+  }
 }

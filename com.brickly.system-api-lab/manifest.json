@@ -13,6 +13,18 @@
     "zh-CN": "用于测试 window.brickly.system.* 与 Node runtime ctx.platform.system.* 的示例 Brick。",
     "en": "Demo brick for testing window.brickly.system.* and Node runtime ctx.platform.system.*."
   },
+  "keywords": [
+    "system",
+    "utools",
+    "preload",
+    "runtime",
+    "test",
+    "developer-tools"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
   "author": {
     "name": "Brickly Demo",
     "publicKey": "ed25519:QUJDRA=="
@@ -27,38 +39,14 @@
     "entry": "runtime/node/index.js"
   },
   "lifecycle": {
-    "state": "stateless"
+    "state": "stateless",
+    "idleTimeoutMs": 0
   },
   "permissions": [
     "os.notification",
     "os.exec",
     "os.env",
     "fs.read"
-  ],
-  "hotkeys": [
-    {
-      "id": "log-current-folder-path",
-      "commandId": "log-current-folder-path",
-      "name": {
-        "zh-CN": "打印当前文件夹路径",
-        "en": "Log Current Folder Path"
-      },
-      "description": {
-        "zh-CN": "触发后只读取当前前台文件管理器路径，并输出到 runtime 控制台。",
-        "en": "Read the current foreground file manager path and log it to the runtime console."
-      },
-      "defaultBinding": {
-        "win32": {
-          "kind": "accelerator",
-          "accelerator": "Control+Alt+Shift+P"
-        },
-        "darwin": {
-          "kind": "accelerator",
-          "accelerator": "Command+Alt+Shift+P"
-        }
-      },
-      "enabledByDefault": false
-    }
   ],
   "trustLevel": "community",
   "ui": {
@@ -71,18 +59,6 @@
     },
     "devTools": "always"
   },
-  "keywords": [
-    "system",
-    "utools",
-    "preload",
-    "runtime",
-    "test",
-    "developer-tools"
-  ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
   "commands": [
     {
       "id": "run-system-suite",
@@ -198,6 +174,31 @@
         ]
       },
       "execution": "parallel"
+    }
+  ],
+  "hotkeys": [
+    {
+      "id": "log-current-folder-path",
+      "commandId": "log-current-folder-path",
+      "name": {
+        "zh-CN": "打印当前文件夹路径",
+        "en": "Log Current Folder Path"
+      },
+      "description": {
+        "zh-CN": "触发后只读取当前前台文件管理器路径，并输出到 runtime 控制台。",
+        "en": "Read the current foreground file manager path and log it to the runtime console."
+      },
+      "defaultBinding": {
+        "win32": {
+          "kind": "accelerator",
+          "accelerator": "Control+Alt+Shift+P"
+        },
+        "darwin": {
+          "kind": "accelerator",
+          "accelerator": "Command+Alt+Shift+P"
+        }
+      },
+      "enabledByDefault": false
     }
   ]
 }

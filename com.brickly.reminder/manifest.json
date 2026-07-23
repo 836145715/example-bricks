@@ -13,6 +13,16 @@
     "zh-CN": "随 Brickly 启动的后台提醒服务，按配置间隔在屏幕右上角弹出提醒窗口。",
     "en": "A background reminder service that starts with Brickly and shows a top-right popup at the configured interval."
   },
+  "keywords": [
+    "reminder",
+    "notification",
+    "timer",
+    "service"
+  ],
+  "categories": [
+    "productivity",
+    "automation"
+  ],
   "author": {
     "name": "Brickly",
     "publicKey": "ed25519:QUJDRA=="
@@ -28,6 +38,7 @@
   "lifecycle": {
     "state": "stateful",
     "service": {
+      "autoStart": true,
       "restart": "on-failure",
       "maxAttempts": 5,
       "backoffMs": 2000
@@ -94,16 +105,6 @@
   "ui": {
     "type": "none"
   },
-  "keywords": [
-    "reminder",
-    "notification",
-    "timer",
-    "service"
-  ],
-  "categories": [
-    "productivity",
-    "automation"
-  ],
   "commands": [
     {
       "id": "status",
@@ -170,11 +171,6 @@
         ]
       },
       "execution": "queue"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "host-start"
     }
   ]
 }

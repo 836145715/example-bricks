@@ -4,6 +4,7 @@
   "kind": "brick",
   "id": "com.brickly.lan-share",
   "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "内网文件共享",
     "en": "LAN File Share"
@@ -31,7 +32,6 @@
     "name": "Brickly Examples"
   },
   "license": "MIT",
-  "apiVersion": ">=0.1.0 <1.0.0",
   "runtime": {
     "type": "node",
     "platforms": [
@@ -42,6 +42,7 @@
   "lifecycle": {
     "state": "stateful",
     "service": {
+      "autoStart": false,
       "restart": "on-failure",
       "maxAttempts": 5,
       "backoffMs": 2000

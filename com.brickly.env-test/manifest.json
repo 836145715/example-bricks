@@ -13,6 +13,15 @@
     "zh-CN": "用于验证 Profile 字段注入 host.hello.config、runtime 环境变量，以及 inject=config/env/both 的示例 Brick。",
     "en": "Test plugin for Profile fields injected into host.hello.config, runtime env vars, and inject=config/env/both."
   },
+  "keywords": [
+    "env",
+    "profile",
+    "config",
+    "test"
+  ],
+  "categories": [
+    "developer-tools"
+  ],
   "author": {
     "name": "Brickly Demo",
     "publicKey": "ed25519:QUJDRA=="
@@ -27,6 +36,9 @@
     "env": {
       "ENV_TEST_OVERRIDE": "from-runtime-env"
     }
+  },
+  "lifecycle": {
+    "state": "stateless"
   },
   "permissions": [],
   "trustLevel": "community",
@@ -105,15 +117,6 @@
   "ui": {
     "type": "none"
   },
-  "keywords": [
-    "env",
-    "profile",
-    "config",
-    "test"
-  ],
-  "categories": [
-    "developer-tools"
-  ],
   "commands": [
     {
       "id": "inspect",

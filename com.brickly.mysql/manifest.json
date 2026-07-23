@@ -14,6 +14,16 @@
     "en": "MySQL database plugin using plugin Profiles for connection environments, with test, query, execute, and transaction commands."
   },
   "icon": "assets/icon.png",
+  "keywords": [
+    "mysql",
+    "database",
+    "sql",
+    "crud"
+  ],
+  "categories": [
+    "data-processing",
+    "developer-tools"
+  ],
   "author": {
     "name": "Brickly",
     "publicKey": "ed25519:QUJDRA=="
@@ -39,6 +49,9 @@
         "cryptography>=41.0.0"
       ]
     }
+  },
+  "lifecycle": {
+    "state": "stateful"
   },
   "permissions": [
     "net.tcp"
@@ -115,16 +128,6 @@
   "ui": {
     "type": "none"
   },
-  "keywords": [
-    "mysql",
-    "database",
-    "sql",
-    "crud"
-  ],
-  "categories": [
-    "data-processing",
-    "developer-tools"
-  ],
   "commands": [
     {
       "id": "test-connection",

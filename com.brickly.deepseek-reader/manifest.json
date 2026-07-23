@@ -4,6 +4,7 @@
   "kind": "brick",
   "id": "com.brickly.deepseek-reader",
   "version": "0.2.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "DeepSeek Markdown 导出",
     "en": "DeepSeek Markdown Export"
@@ -28,7 +29,6 @@
     "publicKey": "ed25519:QUJDRA=="
   },
   "license": "MIT",
-  "apiVersion": ">=0.1.0 <1.0.0",
   "runtime": {
     "type": "python",
     "platforms": [
@@ -48,6 +48,9 @@
         "requests>=2.31,<3"
       ]
     }
+  },
+  "lifecycle": {
+    "state": "stateless"
   },
   "permissions": [
     "net.https",

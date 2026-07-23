@@ -38,6 +38,9 @@
     ],
     "entry": "runtime/node/index.js"
   },
+  "lifecycle": {
+    "state": "stateless"
+  },
   "permissions": [
     "fs.read",
     "fs.write",

@@ -13,6 +13,17 @@
     "zh-CN": "通过 OpenAI Responses API 或 Chat Completions API 生成文本，支持 Profile 配置 API Key、Base URL、Organization 与 Project。",
     "en": "Generate text with OpenAI Responses API or Chat Completions API using profile-based API key, base URL, organization, and project settings."
   },
+  "keywords": [
+    "openai",
+    "responses",
+    "chat",
+    "llm",
+    "ai"
+  ],
+  "categories": [
+    "ai-models",
+    "developer-tools"
+  ],
   "author": {
     "name": "Brickly",
     "publicKey": "ed25519:QUJDRA=="
@@ -24,6 +35,9 @@
       "any"
     ],
     "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "state": "stateless"
   },
   "permissions": [
     "net.https",
@@ -79,17 +93,6 @@
   "ui": {
     "type": "none"
   },
-  "keywords": [
-    "openai",
-    "responses",
-    "chat",
-    "llm",
-    "ai"
-  ],
-  "categories": [
-    "ai-models",
-    "developer-tools"
-  ],
   "commands": [
     {
       "id": "responses",

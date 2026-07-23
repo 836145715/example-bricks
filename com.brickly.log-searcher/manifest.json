@@ -41,6 +41,9 @@
       "mac-arm64": "bin/mac-arm64/brick"
     }
   },
+  "lifecycle": {
+    "state": "stateless"
+  },
   "permissions": [
     "fs.read",
     "fs.write",

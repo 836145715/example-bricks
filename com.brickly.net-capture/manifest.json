@@ -46,6 +46,7 @@
   "lifecycle": {
     "state": "stateful",
     "service": {
+      "autoStart": false,
       "restart": "on-failure",
       "maxAttempts": 3,
       "backoffMs": 2000

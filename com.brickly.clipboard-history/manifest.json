@@ -4,6 +4,7 @@
   "kind": "brick",
   "id": "com.brickly.clipboard-history",
   "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "剪贴板历史",
     "en": "Clipboard History"
@@ -28,7 +29,6 @@
   },
   "license": "MIT",
   "preload": "preload.cjs",
-  "apiVersion": ">=0.1.0 <1.0.0",
   "runtime": {
     "type": "node",
     "platforms": [
@@ -39,6 +39,7 @@
   "lifecycle": {
     "state": "stateful",
     "service": {
+      "autoStart": true,
       "restart": "on-failure",
       "maxAttempts": 5,
       "backoffMs": 2000
@@ -177,11 +178,6 @@
         ]
       },
       "execution": "queue"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "host-start"
     }
   ]
 }

@@ -51,7 +51,7 @@
 ## 设计说明
 
 - UI 和 runtime 共用同一份测试意图，便于观察 `window.brickly.system.*` 与 `ctx.platform.system.*` 是否对齐。
-- Runtime 使用 `lifecycle.mode: "task"`，每次测试都启动新的 runtime 进程，避免诊断结果被旧缓存代码影响。
+- Runtime 使用 `lifecycle.state: "stateless"` + `idleTimeoutMs: 0`，无占用后立即回收进程，避免诊断结果被旧缓存代码影响。
 - `shellTrashItem()` 只作用于示例创建的临时文件，避免影响用户真实文件。
 - 测试面板只按实际调用结果展示状态：成功就是 `ok`，失败就是 `error`。平台差异通过返回值或错误码判断，不在面板里伪装成通过。
 - 未勾选的副作用测试不会写入报告列表，避免把“未执行”展示成第三种状态。

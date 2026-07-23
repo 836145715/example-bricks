@@ -13,6 +13,17 @@
     "zh-CN": "Go 编写的 native Brick，通过 host.ui.createBrowserWindow 打开任意 https 远程网页（裸协议示例）。",
     "en": "Native Go plugin demonstrating host.ui.createBrowserWindow with a remote https URL."
   },
+  "keywords": [
+    "go",
+    "native",
+    "demo",
+    "window",
+    "browser"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
   "author": {
     "name": "Brickly Demo",
     "publicKey": "ed25519:QUJDRA=="
@@ -32,22 +43,14 @@
       "linux-arm64": "bin/linux-arm64/brick"
     }
   },
+  "lifecycle": {
+    "state": "stateless"
+  },
   "permissions": [],
   "trustLevel": "verified",
   "ui": {
     "type": "none"
   },
-  "keywords": [
-    "go",
-    "native",
-    "demo",
-    "window",
-    "browser"
-  ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
   "commands": [
     {
       "id": "open-url",

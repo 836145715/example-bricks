@@ -13,6 +13,21 @@
     "zh-CN": "接入智谱 BigModel 工具 API：网络搜索、网页阅读、内容安全、文件解析、OCR。",
     "en": "Call Zhipu BigModel tool APIs: web search, reader, moderation, file parser, and OCR."
   },
+  "keywords": [
+    "glm",
+    "bigmodel",
+    "zhipu",
+    "search",
+    "reader",
+    "ocr",
+    "moderation",
+    "parser"
+  ],
+  "categories": [
+    "ai-models",
+    "developer-tools",
+    "data-processing"
+  ],
   "author": {
     "name": "Brickly",
     "publicKey": "ed25519:QUJDRA=="
@@ -24,6 +39,9 @@
       "any"
     ],
     "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "state": "stateless"
   },
   "permissions": [
     "net.https",
@@ -70,21 +88,6 @@
   "ui": {
     "type": "none"
   },
-  "keywords": [
-    "glm",
-    "bigmodel",
-    "zhipu",
-    "search",
-    "reader",
-    "ocr",
-    "moderation",
-    "parser"
-  ],
-  "categories": [
-    "ai-models",
-    "developer-tools",
-    "data-processing"
-  ],
   "commands": [
     {
       "id": "web-search",

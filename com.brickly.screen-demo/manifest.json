@@ -13,6 +13,17 @@
     "zh-CN": "用于测试 host.platform.screen.pickColor 和 captureRegion 的最小示例 Brick。",
     "en": "Minimal demo brick for testing host.platform.screen.pickColor and captureRegion."
   },
+  "keywords": [
+    "screen",
+    "screenshot",
+    "color",
+    "取色",
+    "截图"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
   "author": {
     "name": "Brickly Demo",
     "publicKey": "ed25519:QUJDRA=="
@@ -20,16 +31,21 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
-    "platforms": ["any"],
+    "platforms": [
+      "any"
+    ],
     "entry": "runtime/node/index.js"
   },
-  "permissions": ["os.screenshot"],
+  "lifecycle": {
+    "state": "stateless"
+  },
+  "permissions": [
+    "os.screenshot"
+  ],
   "trustLevel": "community",
   "ui": {
     "type": "none"
   },
-  "keywords": ["screen", "screenshot", "color", "取色", "截图"],
-  "categories": ["developer-tools", "utilities"],
   "commands": [
     {
       "id": "pick-color",

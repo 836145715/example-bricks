@@ -13,24 +13,6 @@
     "zh-CN": "用于测试 host.platform.input.* 的键盘敲击、短文本输入和鼠标动作。",
     "en": "Demo brick for testing host.platform.input.* keyboard and mouse actions."
   },
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "runtime": {
-    "type": "node",
-    "platforms": [
-      "any"
-    ],
-    "entry": "runtime/node/index.js"
-  },
-  "permissions": [
-    "os.input"
-  ],
-  "trustLevel": "community",
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "input",
     "keyboard",
@@ -42,7 +24,28 @@
     "developer-tools",
     "utilities"
   ],
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
   "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "state": "stateless"
+  },
+  "permissions": [
+    "os.input"
+  ],
+  "trustLevel": "community",
+  "ui": {
+    "type": "none"
+  },
   "commands": [
     {
       "id": "keyboard-tap",

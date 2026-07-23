@@ -7,21 +7,7 @@
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": "JSON Tools",
   "description": "Format, minify and validate JSON through the Brickly BPP demo runtime.",
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "runtime": {
-    "type": "node",
-    "platforms": [
-      "any"
-    ],
-    "entry": "runtime/node/index.js"
-  },
-  "permissions": [],
-  "ui": {
-    "type": "none"
-  },
+  "icon": "assets/icon.png",
   "keywords": [
     "json",
     "format",
@@ -31,8 +17,25 @@
   "categories": [
     "developer-tools"
   ],
-  "homepage": "https://ai-bricks.dev/plugins/json-tools",
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
   "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.js"
+  },
+  "lifecycle": {
+    "state": "stateless"
+  },
+  "permissions": [],
+  "ui": {
+    "type": "none"
+  },
   "commands": [
     {
       "id": "format",
@@ -127,5 +130,5 @@
       }
     }
   ],
-  "icon": "assets/icon.png"
+  "homepage": "https://ai-bricks.dev/plugins/json-tools"
 }

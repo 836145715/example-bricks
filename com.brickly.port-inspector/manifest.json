@@ -14,10 +14,6 @@
     "en": "Inspect local port ownership, show process name, PID, port and connection state, and terminate a process after confirmation."
   },
   "icon": "assets/icon.svg",
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
   "keywords": [
     "port",
     "process",
@@ -29,6 +25,10 @@
     "developer-tools",
     "utilities"
   ],
+  "author": {
+    "name": "Brickly"
+  },
+  "license": "MIT",
   "runtime": {
     "type": "node",
     "platforms": [
@@ -44,6 +44,7 @@
   "lifecycle": {
     "state": "stateful",
     "service": {
+      "autoStart": false,
       "restart": "none"
     }
   },
