@@ -3,6 +3,6 @@
   "private": true,
   "main": "index.js",
   "dependencies": {
-    "@syllm/brickly-sdk": "../../../../ai-bricks/Brickly/packages/brickly-sdk-node/syllm-brickly-sdk-0.1.2.tgz"
+    "@syllm/brickly-sdk": "../../../../ai-bricks/Brickly/packages/brickly-sdk-node/syllm-brickly-sdk-0.2.0.tgz"
   }
 }
