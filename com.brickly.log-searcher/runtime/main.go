@@ -35,7 +35,7 @@ type ServerConfig struct {
 
 const (
 	brickID         = "com.brickly.log-searcher"
-	protocolVersion = "0.1.0"
+	protocolVersion = "0.2.0"
 )
 
 var (

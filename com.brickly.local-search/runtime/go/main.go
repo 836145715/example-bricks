@@ -16,7 +16,7 @@ import (
 
 const (
 	brickID         = "com.brickly.local-search"
-	protocolVersion = "0.1.0"
+	protocolVersion = "0.2.0"
 )
 
 var (

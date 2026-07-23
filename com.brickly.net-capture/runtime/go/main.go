@@ -26,7 +26,7 @@ import (
 
 const (
 	brickID           = "com.brickly.net-capture"
-	protocolVersion   = "0.1.0"
+	protocolVersion = "0.2.0"
 	changeEvent       = "net-capture:changed"
 	defaultPort       = 2025
 	maxSessions       = 12000

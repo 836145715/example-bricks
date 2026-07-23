@@ -47,7 +47,7 @@ child.stderr.on('data', (chunk) => {
 })
 
 async function main() {
-  send({ type: 'host.hello', protocolVersion: '0.1.0' })
+  send({ type: 'host.hello', protocolVersion: '0.2.0' })
   const health = await waitFor('health-1')
   console.log(JSON.stringify(health.result || health.error, null, 2))
   const sample = path.join(os.tmpdir(), 'brickly-local-search-preview-smoke.txt')

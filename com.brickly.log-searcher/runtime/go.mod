@@ -10,4 +10,4 @@ require (
 require golang.org/x/sys v0.15.0 // indirect
 
 // 使用 monorepo 内带 Info/Warn/Error 结构化日志的 SDK
-replace github.com/836145715/brickly-sdk-go => ../../../ai-bricks/Brickly/packages/brickly-sdk-go
+replace github.com/836145715/brickly-sdk-go => /Users/xuan/brick-project/ai-bricks/Brickly/packages/brickly-sdk-go

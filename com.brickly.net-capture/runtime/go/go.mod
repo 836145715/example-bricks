@@ -6,7 +6,7 @@ require github.com/qtgolang/SunnyNet v1.4.5
 
 require github.com/836145715/brickly-sdk-go v0.1.0
 
-replace github.com/836145715/brickly-sdk-go => ../../../../ai-bricks/Brickly/packages/brickly-sdk-go
+replace github.com/836145715/brickly-sdk-go => /Users/xuan/brick-project/ai-bricks/Brickly/packages/brickly-sdk-go
 
 require (
 	github.com/Trisia/gosysproxy v1.1.0 // indirect
