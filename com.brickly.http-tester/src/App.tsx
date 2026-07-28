@@ -221,7 +221,7 @@ export function App() {
           <div className="flex items-center gap-1.5 shrink-0">
             <Input
               type="number"
-              min={1000}
+              min={1}
               max={120000}
               step={1000}
               value={timeoutMs}
