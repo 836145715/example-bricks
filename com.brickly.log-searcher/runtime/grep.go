@@ -96,6 +96,19 @@ func primaryFilter(filters []compiledFilter) *compiledFilter {
 
 // 本地 Grep 执行器
 func RunLocalGrep(ctx context.Context, pattern string, files []string, args GrepArgs, onLine func(line GrepLine)) error {
+	return runLocalGrepWithFileLifecycle(ctx, pattern, files, args, nil, nil, onLine)
+}
+
+// runLocalGrepWithFileLifecycle keeps sequential file IO while reporting each file's boundary.
+func runLocalGrepWithFileLifecycle(
+	ctx context.Context,
+	pattern string,
+	files []string,
+	args GrepArgs,
+	onFileStart func(filePath string),
+	onFileDone func(filePath string),
+	onLine func(line GrepLine),
+) error {
 	// 1. 展开本地通配符与目录路径
 	targetFiles, err := ExpandLocalPaths(files)
 	if err != nil {
@@ -120,6 +133,9 @@ func RunLocalGrep(ctx context.Context, pattern string, files []string, args Grep
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		if onFileStart != nil {
+			onFileStart(filePath)
+		}
 
 		file, err := os.Open(filePath)
 		if err != nil {
@@ -130,6 +146,9 @@ func RunLocalGrep(ctx context.Context, pattern string, files []string, args Grep
 				File:  filePath,
 				Error: message,
 			})
+			if onFileDone != nil {
+				onFileDone(filePath)
+			}
 			continue
 		}
 
@@ -138,6 +157,9 @@ func RunLocalGrep(ctx context.Context, pattern string, files []string, args Grep
 		file.Close()
 		if err != nil {
 			return err
+		}
+		if onFileDone != nil {
+			onFileDone(filePath)
 		}
 	}
 

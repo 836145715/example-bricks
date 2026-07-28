@@ -720,6 +720,11 @@ func handleStoredSearch(id string, targetServer ServerConfig, search searchInput
 			emitState(line.Error != "")
 		}
 	}
+	finishFile := func(tabID string) {
+		if searchResults.FinishFile(search.ServerID, runID, tabID, searchStatusSuccess, "") {
+			emitState(true)
+		}
+	}
 
 	var searchErr error
 	if targetServer.Type == "local" {
@@ -727,9 +732,9 @@ func handleStoredSearch(id string, targetServer ServerConfig, search searchInput
 			searchResults.SetTabs(search.ServerID, runID, expanded)
 			emitState(true)
 		}
-		searchErr = runStoredLocalGrep(ctx, search.ServerID, runID, search.Pattern, search.LogPaths, search.Args, appendLine)
+		searchErr = runStoredLocalGrep(ctx, search.ServerID, runID, search.Pattern, search.LogPaths, search.Args, appendLine, finishFile)
 	} else if targetServer.Type == "ssh" {
-		searchErr = runStoredRemoteGrep(ctx, targetServer, search, runID, appendLine)
+		searchErr = runStoredRemoteGrep(ctx, targetServer, search, runID, appendLine, finishFile)
 	} else {
 		sendError(id, "UNKNOWN_SERVER_TYPE", "Unknown server type: "+targetServer.Type)
 		return
@@ -760,26 +765,42 @@ func handleStoredSearch(id string, targetServer ServerConfig, search searchInput
 	sendResult(id, map[string]any{"completed": true, "runId": runID})
 }
 
-func runStoredLocalGrep(ctx context.Context, serverID, runID, pattern string, logPaths []string, args GrepArgs, onLine func(line GrepLine)) error {
-	return RunLocalGrep(ctx, pattern, logPaths, args, func(line GrepLine) {
+func runStoredLocalGrep(
+	ctx context.Context,
+	serverID, runID, pattern string,
+	logPaths []string,
+	args GrepArgs,
+	onLine func(line GrepLine),
+	onFileDone func(tabID string),
+) error {
+	return runLocalGrepWithFileLifecycle(ctx, pattern, logPaths, args, func(tabID string) {
+		searchResults.StartFile(serverID, runID, tabID)
+	}, onFileDone, func(line GrepLine) {
 		tabID := line.File
 		if tabID == "" {
 			tabID = fallbackResultsScope
 		}
-		searchResults.StartFile(serverID, runID, tabID)
 		onLine(line)
 	})
 }
 
-func runStoredRemoteGrep(ctx context.Context, targetServer ServerConfig, search searchInput, runID string, onLine func(line GrepLine)) error {
-	return RunRemoteGrepWithFiles(ctx, targetServer, search.Pattern, search.LogPaths, search.Args, func(files []string) {
+func runStoredRemoteGrep(
+	ctx context.Context,
+	targetServer ServerConfig,
+	search searchInput,
+	runID string,
+	onLine func(line GrepLine),
+	onFileDone func(tabID string),
+) error {
+	return runRemoteGrepWithFileLifecycle(ctx, targetServer, search.Pattern, search.LogPaths, search.Args, func(files []string) {
 		searchResults.SetTabs(search.ServerID, runID, files)
-	}, func(line GrepLine) {
+	}, func(tabID string) {
+		searchResults.StartFile(search.ServerID, runID, tabID)
+	}, onFileDone, func(line GrepLine) {
 		tabID := line.File
 		if tabID == "" {
 			tabID = fallbackResultsScope
 		}
-		searchResults.StartFile(search.ServerID, runID, tabID)
 		onLine(line)
 	})
 }

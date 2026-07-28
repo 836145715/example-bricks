@@ -65,6 +65,7 @@
     {
       "id": "search",
       "name": "流式搜索日志",
+      "execution": "parallel",
       "description": {
         "zh-CN": "检索指定服务器的本地或远程日志，支持文件列表、链式过滤、grep 选项和流式日志行输出。"
       },
@@ -133,6 +134,7 @@
     {
       "id": "peek_search_results",
       "name": "读取搜索结果窗口",
+      "execution": "parallel",
       "description": {
         "zh-CN": "从 Go runtime 内存结果仓库中读取指定服务器、run 和文件 Tab 的窗口数据。"
       },
@@ -177,6 +179,7 @@
     {
       "id": "clear_search_results",
       "name": "清理搜索结果",
+      "execution": "parallel",
       "description": {
         "zh-CN": "清理指定服务器在 Go runtime 内存中的搜索结果，并取消该服务器仍在执行的存储模式搜索。"
       },
@@ -199,6 +202,7 @@
     {
       "id": "find_search_results",
       "name": "定位搜索结果命中",
+      "execution": "parallel",
       "description": {
         "zh-CN": "在 Go runtime 内存结果仓库中查找当前文件 Tab 的上一个或下一个文本命中，并返回可滚动定位的行号和高亮区间。"
       },
@@ -259,6 +263,7 @@
     {
       "id": "load_config",
       "name": "读取日志配置",
+      "execution": "parallel",
       "io": {
         "inputs": [],
         "outputs": [
@@ -291,6 +296,7 @@
     {
       "id": "test_connection",
       "name": "测试日志连接",
+      "execution": "parallel",
       "description": {
         "zh-CN": "测试本地日志路径或 SSH 服务器连接是否可用，可直接传未保存的服务器配置。"
       },
@@ -323,6 +329,7 @@
     {
       "id": "list_log_files",
       "name": "列出日志文件",
+      "execution": "parallel",
       "io": {
         "inputs": [
           {

@@ -22,6 +22,20 @@ func RunRemoteGrep(ctx context.Context, server ServerConfig, pattern string, fil
 }
 
 func RunRemoteGrepWithFiles(ctx context.Context, server ServerConfig, pattern string, files []string, args GrepArgs, onFiles func(files []string), onLine func(line GrepLine)) error {
+	return runRemoteGrepWithFileLifecycle(ctx, server, pattern, files, args, onFiles, nil, nil, onLine)
+}
+
+func runRemoteGrepWithFileLifecycle(
+	ctx context.Context,
+	server ServerConfig,
+	pattern string,
+	files []string,
+	args GrepArgs,
+	onFiles func(files []string),
+	onFileStart func(filePath string),
+	onFileDone func(filePath string),
+	onLine func(line GrepLine),
+) error {
 	// 1. 建立 SSH 物理连接
 	client, err := dialSSHClient(server)
 	if err != nil {
@@ -68,6 +82,9 @@ func RunRemoteGrepWithFiles(ctx context.Context, server ServerConfig, pattern st
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		if onFileStart != nil {
+			onFileStart(targetFile)
+		}
 
 		grepErr := runRemoteGrepFile(ctx, client, targetFile, primaryOpts, filterConfigs, args, outputParser, highlightFilters, highlighter, onLine)
 		if grepErr != nil {
@@ -79,6 +96,9 @@ func RunRemoteGrepWithFiles(ctx context.Context, server ServerConfig, pattern st
 				File:  targetFile,
 				Error: grepErr.Error(),
 			})
+		}
+		if onFileDone != nil {
+			onFileDone(targetFile)
 		}
 	}
 

@@ -103,3 +103,59 @@ func TestLocalTestConnectionPathExpansion(t *testing.T) {
 		t.Fatalf("ExpandLocalPaths() = %v, want %q", files, logFile)
 	}
 }
+
+func TestStoredLocalSearchFinalizesEachFileBeforeTheNextFile(t *testing.T) {
+	dir := t.TempDir()
+	firstFile := filepath.Join(dir, "first.log")
+	secondFile := filepath.Join(dir, "second.log")
+	for path, content := range map[string]string{
+		firstFile:  "first error\n",
+		secondFile: "second error\n",
+	} {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	store := newResultStore()
+	runID := store.StartRun("server", []string{firstFile, secondFile})
+	var snapshots []SearchStatePayload
+
+	err := runLocalGrepWithFileLifecycle(
+		context.Background(),
+		"error",
+		[]string{firstFile, secondFile},
+		GrepArgs{},
+		func(filePath string) {
+			store.StartFile("server", runID, filePath)
+		},
+		func(filePath string) {
+			store.FinishFile("server", runID, filePath, searchStatusSuccess, "")
+			state, ok := store.State("server", runID)
+			if !ok {
+				t.Fatal("search state should exist")
+			}
+			snapshots = append(snapshots, state)
+		},
+		func(line GrepLine) {
+			store.AppendLine("server", runID, line.File, line)
+		},
+	)
+	if err != nil {
+		t.Fatalf("runLocalGrepWithFileLifecycle() error = %v", err)
+	}
+	if len(snapshots) != 2 {
+		t.Fatalf("completed snapshots = %d, want 2", len(snapshots))
+	}
+
+	firstComplete := snapshots[0]
+	if firstComplete.Files[0].Status != searchStatusSuccess {
+		t.Fatalf("first file status = %q, want %q", firstComplete.Files[0].Status, searchStatusSuccess)
+	}
+	if firstComplete.Files[0].Total != 1 {
+		t.Fatalf("first file total = %d, want 1", firstComplete.Files[0].Total)
+	}
+	if firstComplete.Files[1].Status != searchStatusQueued {
+		t.Fatalf("second file status = %q, want %q before its turn", firstComplete.Files[1].Status, searchStatusQueued)
+	}
+}
