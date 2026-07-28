@@ -1,0 +1,221 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.hold-probe",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "占用探针",
+    "en": "Hold Probe"
+  },
+  "description": {
+    "zh-CN": "查询 Windows 上文件或文件夹当前被哪些进程占用，查看进程详情，并在确认后结束进程。",
+    "en": "Probe which Windows processes hold a file or folder, inspect details, and terminate after confirmation."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "file",
+    "folder",
+    "lock",
+    "process",
+    "windows",
+    "hold",
+    "probe"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64",
+      "win-arm64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "win-arm64": "bin/win-arm64/brick.exe"
+    }
+  },
+  "lifecycle": {
+    "state": "stateless"
+  },
+  "permissions": [
+    "fs.read",
+    "os.exec"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1040,
+      "height": 700,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
+  "commands": [
+    {
+      "id": "probe",
+      "name": {
+        "zh-CN": "探测占用",
+        "en": "Probe Holders"
+      },
+      "description": {
+        "zh-CN": "探测指定文件或文件夹被哪些 Windows 进程占用。",
+        "en": "Find Windows processes currently holding a file or folder."
+      },
+      "category": "process",
+      "permissions": [
+        "fs.read"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "path",
+            "label": "路径",
+            "type": "string",
+            "required": true,
+            "placeholder": "C:\\path\\to\\file-or-folder"
+          },
+          {
+            "name": "deep",
+            "label": "深度扫描",
+            "type": "boolean",
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "llm": {
+        "requireApproval": "never",
+        "tags": [
+          "file",
+          "folder",
+          "process",
+          "readonly"
+        ]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "process-info",
+      "name": {
+        "zh-CN": "进程详情",
+        "en": "Process Info"
+      },
+      "description": {
+        "zh-CN": "读取进程可执行路径、命令行与启动时间。",
+        "en": "Read executable path, command line and start time for a process."
+      },
+      "category": "process",
+      "permissions": [
+        "os.exec"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "pid",
+            "label": "PID",
+            "type": "number",
+            "required": true,
+            "min": 1,
+            "step": 1,
+            "control": "input"
+          },
+          {
+            "name": "startKey",
+            "label": "启动标识",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "llm": {
+        "requireApproval": "never",
+        "tags": [
+          "process",
+          "readonly"
+        ]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "stop",
+      "name": {
+        "zh-CN": "结束进程",
+        "en": "Stop Process"
+      },
+      "description": {
+        "zh-CN": "结束指定进程以释放占用；执行前必须审批。",
+        "en": "Stop a process to release the hold; approval is always required."
+      },
+      "category": "process",
+      "permissions": [
+        "os.exec"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "pid",
+            "label": "PID",
+            "type": "number",
+            "required": true,
+            "min": 1,
+            "step": 1,
+            "control": "input"
+          },
+          {
+            "name": "startKey",
+            "label": "启动标识",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "force",
+            "label": "强制结束",
+            "type": "boolean",
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "llm": {
+        "requireApproval": "always",
+        "tags": [
+          "process",
+          "dangerous"
+        ]
+      },
+      "execution": "queue"
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    }
+  ]
+}
