@@ -14,10 +14,16 @@ $env:GOOS = "windows"
 $env:GOARCH = "amd64"
 $env:CGO_ENABLED = "0"
 
-& go build -trimpath -ldflags "-s -w" -o $outFile .
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "go build failed"
-    exit 1
+Push-Location $srcDir
+try {
+    & go build -trimpath -ldflags "-s -w" -o $outFile .
+    if ($LASTEXITCODE -ne 0) {
+        throw "go build failed"
+    }
+}
+finally {
+    Pop-Location
+    Remove-Item Env:GOOS, Env:GOARCH, Env:CGO_ENABLED -ErrorAction SilentlyContinue
 }
 
 Write-Host "Build success. Size: $((Get-Item $outFile).Length) bytes" -ForegroundColor Green
