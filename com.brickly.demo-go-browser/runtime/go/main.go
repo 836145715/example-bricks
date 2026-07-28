@@ -42,6 +42,11 @@ func main() {
 		windowsMu.Lock()
 		windows[win.ID] = win
 		windowsMu.Unlock()
+		win.On("closed", func(_ map[string]any) {
+			windowsMu.Lock()
+			delete(windows, win.ID)
+			windowsMu.Unlock()
+		})
 		result := map[string]any{"windowId": win.ID, "url": url}
 		ctx.Output("window", result)
 		return result, nil
@@ -58,15 +63,21 @@ func main() {
 
 		windowsMu.Lock()
 		win := windows[int64(wid)]
-		delete(windows, int64(wid))
 		windowsMu.Unlock()
 		if win == nil {
 			return nil, brickly.NewBppError("INVALID_INPUT", "window not found")
 		}
-		if err := win.Close(); err != nil {
+		result, err := win.Close()
+		if err != nil {
 			return nil, brickly.NewBppError("CLOSE_FAILED", err.Error())
 		}
-		return map[string]any{"ok": true}, nil
+		closed := result.Status == brickly.WindowCloseClosed || result.Status == brickly.WindowCloseNotFound
+		if closed {
+			windowsMu.Lock()
+			delete(windows, int64(wid))
+			windowsMu.Unlock()
+		}
+		return map[string]any{"ok": closed, "status": result.Status}, nil
 	})
 
 	runtime.Start()

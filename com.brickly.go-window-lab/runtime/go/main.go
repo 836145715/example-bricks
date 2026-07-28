@@ -146,13 +146,16 @@ func closeLab() int {
 	if h == nil || h.IsClosed() {
 		return 0
 	}
-	if err := h.Close(); err != nil {
+	result, err := h.Close()
+	if err != nil {
 		plugin.Warn(fmt.Sprintf("closeLab failed: %v", err), nil)
+		return 0
 	}
-	labMu.Lock()
-	lab = nil
-	labMu.Unlock()
-	return 1
+	if result.Status == brickly.WindowCloseClosed || result.Status == brickly.WindowCloseNotFound {
+		clearLabIfMatch(h)
+		return 1
+	}
+	return 0
 }
 
 // callOnLab 调用 lab 窗口上的一个白名单方法。method 形如 "maximize" 或
