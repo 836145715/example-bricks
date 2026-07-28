@@ -1,0 +1,121 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.http-tester",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "HTTP 请求测试",
+    "en": "HTTP Request Tester"
+  },
+  "description": {
+    "zh-CN": "轻量 HTTP 调试工具：编辑方法、URL、Query、Headers、Body，查看状态码、耗时与响应内容。",
+    "en": "Lightweight HTTP debugger: edit method, URL, query, headers and body; inspect status, timing and response."
+  },
+  "icon": "assets/icon.svg",
+  "author": { "name": "Brickly" },
+  "license": "MIT",
+  "keywords": ["http", "request", "api", "rest", "debug"],
+  "categories": ["developer-tools", "utilities"],
+  "runtime": {
+    "type": "node",
+    "platforms": ["any"],
+    "entry": "runtime/node/index.cjs"
+  },
+  "lifecycle": { "state": "stateless" },
+  "permissions": ["net.http", "net.https"],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": { "width": 1200, "height": 800, "resizable": true },
+    "devTools": "debug-only",
+    "theme": "auto"
+  },
+  "commands": [
+    {
+      "id": "send",
+      "name": { "zh-CN": "发送请求", "en": "Send Request" },
+      "description": {
+        "zh-CN": "向指定 URL 发送 HTTP 请求，返回状态码、耗时、响应头与响应体。非 2xx 仍返回完整响应。",
+        "en": "Send an HTTP request and return status, timing, headers and body. Non-2xx responses are still returned."
+      },
+      "category": "network",
+      "io": {
+        "inputs": [
+          {
+            "name": "method",
+            "label": "方法",
+            "type": "string",
+            "required": true,
+            "default": "GET",
+            "enum": [
+              { "value": "GET", "label": "GET" },
+              { "value": "POST", "label": "POST" },
+              { "value": "PUT", "label": "PUT" },
+              { "value": "PATCH", "label": "PATCH" },
+              { "value": "DELETE", "label": "DELETE" },
+              { "value": "HEAD", "label": "HEAD" },
+              { "value": "OPTIONS", "label": "OPTIONS" }
+            ]
+          },
+          {
+            "name": "url",
+            "label": "URL",
+            "type": "string",
+            "required": true,
+            "control": "input",
+            "placeholder": "https://httpbin.org/get"
+          },
+          {
+            "name": "headers",
+            "label": "请求头 (JSON 对象)",
+            "type": "json",
+            "default": {}
+          },
+          {
+            "name": "query",
+            "label": "Query (JSON 对象)",
+            "type": "json",
+            "default": {}
+          },
+          {
+            "name": "body",
+            "label": "Body",
+            "type": "string",
+            "default": "",
+            "multiline": true
+          },
+          {
+            "name": "timeoutMs",
+            "label": "超时 (ms)",
+            "type": "number",
+            "default": 30000,
+            "min": 1,
+            "max": 120000
+          }
+        ],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "examples": [
+        {
+          "title": "GET httpbin",
+          "input": {
+            "method": "GET",
+            "url": "https://httpbin.org/get",
+            "headers": { "Accept": "application/json" },
+            "query": {},
+            "body": "",
+            "timeoutMs": 30000
+          }
+        }
+      ],
+      "llm": {
+        "requireApproval": "never",
+        "tags": ["http", "network", "debug"]
+      },
+      "execution": "queue"
+    }
+  ],
+  "triggers": [{ "type": "manual" }]
+}

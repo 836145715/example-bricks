@@ -1,0 +1,9 @@
+{
+  "name": "com.brickly.http-tester-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@syllm/brickly-sdk": "^0.2.0"
+  }
+}
