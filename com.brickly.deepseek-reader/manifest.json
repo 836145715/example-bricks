@@ -44,7 +44,7 @@
     "dependencies": {
       "kind": "inline",
       "specs": [
-        "brickly-sdk==0.1.0",
+        "brickly-sdk==0.2.0",
         "requests>=2.31,<3"
       ]
     }
