@@ -43,9 +43,7 @@
     "state": "stateful",
     "service": {
       "autoStart": false,
-      "restart": "on-failure",
-      "maxAttempts": 5,
-      "backoffMs": 2000
+      "restart": "none"
     }
   },
   "permissions": [

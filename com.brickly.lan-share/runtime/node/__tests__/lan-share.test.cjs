@@ -193,6 +193,23 @@ test('ShareService 配置持久化与启停', async (t) => {
   assert.equal(stopped.running, false)
 })
 
+test('ShareService 空访问码保留已保存值且重复停止幂等', async (t) => {
+  const dataDir = await makeTempDir('lan-share-code-')
+  const service = new ShareService({ dataDir })
+
+  t.after(async () => {
+    await fsp.rm(dataDir, { recursive: true, force: true })
+  })
+
+  await service.updateConfig({ accessCode: 'secret' })
+  await service.updateConfig({ accessCode: '   ' })
+  assert.equal(service.status().hasAccessCode, true)
+
+  await service.stop()
+  await service.stop()
+  assert.equal(service.status().running, false)
+})
+
 /**
  * 用端口 0 启动 FileServer 并返回底层 http.Server，便于读取系统分配的真实端口。
  * FileServer.start 内部固定绑定 0.0.0.0，端口 0 由系统分配。

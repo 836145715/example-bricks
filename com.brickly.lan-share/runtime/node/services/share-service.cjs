@@ -234,7 +234,9 @@ function sanitizePartial(partial) {
     result.port = partial.port
   }
   if (typeof partial.allowUpload === 'boolean') result.allowUpload = partial.allowUpload
-  if (typeof partial.accessCode === 'string') result.accessCode = partial.accessCode
+  if (typeof partial.accessCode === 'string' && partial.accessCode.trim()) {
+    result.accessCode = partial.accessCode.trim()
+  }
   return result
 }
 
