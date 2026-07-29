@@ -1,5 +1,10 @@
 import { createStoppedStatus, toRuntimeConfig, type ShareSettings } from './share-settings'
-import type { BrickServiceRecord, ShareConfigInput, ShareStatus } from './types'
+import type {
+  BrickServiceRecord,
+  BrickServiceStatus,
+  ShareConfigInput,
+  ShareStatus
+} from './types'
 
 export interface ShareLifecycleApi {
   getServiceStatus(): Promise<BrickServiceRecord>
@@ -18,6 +23,14 @@ export interface ShareSnapshot {
 export interface StopShareResult {
   snapshot: ShareSnapshot
   warning?: string
+}
+
+export function isServiceActive(status: BrickServiceStatus): boolean {
+  return status === 'running' || isServiceTransitioning(status)
+}
+
+export function isServiceTransitioning(status: BrickServiceStatus): boolean {
+  return status === 'starting' || status === 'restarting' || status === 'stopping'
 }
 
 export async function loadShareSnapshot(

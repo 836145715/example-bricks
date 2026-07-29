@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { FolderOpen, Loader2, Play, Save, Square } from 'lucide-react'
 import { openFolder } from '../brickly'
-import type { ShareConfigInput, ShareStatus } from '../types'
+import { isServiceActive } from '../share-lifecycle'
+import type { BrickServiceStatus, ShareConfigInput, ShareStatus } from '../types'
 
 interface ControlPanelProps {
   status: ShareStatus
+  serviceStatus: BrickServiceStatus
   busy: boolean
   onStart: (config: ShareConfigInput) => void
   onStop: () => void
@@ -15,7 +17,14 @@ interface ControlPanelProps {
  * 共享控制面板：编辑共享目录、端口、上传开关与访问码，并启动/停止服务。
  * 服务运行时锁定配置项，避免与正在运行的实例不一致。
  */
-export function ControlPanel({ status, busy, onStart, onStop, onSave }: ControlPanelProps) {
+export function ControlPanel({
+  status,
+  serviceStatus,
+  busy,
+  onStart,
+  onStop,
+  onSave
+}: ControlPanelProps) {
   const [root, setRoot] = useState(status.root)
   const [port, setPort] = useState(String(status.port))
   const [allowUpload, setAllowUpload] = useState(status.allowUpload)
@@ -30,14 +39,18 @@ export function ControlPanel({ status, busy, onStart, onStop, onSave }: ControlP
     setAllowUpload(status.allowUpload)
   }, [status.root, status.port, status.allowUpload, dirty])
 
-  const locked = status.running || busy
+  const serviceActive = isServiceActive(serviceStatus)
+  const locked = serviceActive || busy
 
-  const collectConfig = (): ShareConfigInput => ({
-    root: root.trim(),
-    port: Number(port) || status.port,
-    allowUpload,
-    accessCode
-  })
+  const collectConfig = (): ShareConfigInput => {
+    const config: ShareConfigInput = {
+      root: root.trim(),
+      port: Number(port) || status.port,
+      allowUpload
+    }
+    if (accessCode.trim()) config.accessCode = accessCode.trim()
+    return config
+  }
 
   const handleStart = () => {
     onStart(collectConfig())
@@ -52,7 +65,7 @@ export function ControlPanel({ status, busy, onStart, onStop, onSave }: ControlP
     <section className="panel control-panel">
       <header className="panel-head">
         <h2>共享设置</h2>
-        {status.running && <span className="lock-hint">运行中，停止后可修改</span>}
+        {serviceActive && <span className="lock-hint">服务运行中，停止后可修改</span>}
       </header>
 
       <label className="field">
@@ -129,7 +142,7 @@ export function ControlPanel({ status, busy, onStart, onStop, onSave }: ControlP
       </label>
 
       <div className="control-actions">
-        {status.running ? (
+        {serviceActive ? (
           <button className="btn danger" onClick={onStop} disabled={busy}>
             {busy ? <Loader2 size={16} className="spin" /> : <Square size={16} />} 停止共享
           </button>

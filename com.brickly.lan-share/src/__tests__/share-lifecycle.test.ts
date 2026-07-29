@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  isServiceActive,
+  isServiceTransitioning,
   loadShareSnapshot,
   startShareLifecycle,
   stopShareLifecycle,
@@ -84,6 +86,23 @@ function fakeApi(options: FakeOptions) {
   }
   return { api, calls }
 }
+
+test('UI 将运行和过渡中的宿主状态视为服务活跃', () => {
+  for (const status of ['running', 'starting', 'restarting', 'stopping'] as const) {
+    assert.equal(isServiceActive(status), true, status)
+  }
+  for (const status of ['stopped', 'crashed', 'error'] as const) {
+    assert.equal(isServiceActive(status), false, status)
+  }
+})
+
+test('UI 仅在宿主过渡状态持续快速轮询', () => {
+  for (const status of ['starting', 'restarting', 'stopping'] as const) {
+    assert.equal(isServiceTransitioning(status), true, status)
+  }
+  assert.equal(isServiceTransitioning('running'), false)
+  assert.equal(isServiceTransitioning('stopped'), false)
+})
 
 test('停止状态初始化不会唤起 runtime', async () => {
   const { api, calls } = fakeApi({ service: 'stopped' })

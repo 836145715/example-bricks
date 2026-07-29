@@ -2,71 +2,124 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   clearLog as clearLogApi,
   fetchStatus,
+  getBrickServiceStatus,
+  startBrickService,
   startShare,
-  stopShare,
-  updateConfig
+  stopBrickService,
+  stopShare
 } from '../brickly'
-import type { ShareConfigInput, ShareStatus } from '../types'
+import {
+  isServiceActive,
+  isServiceTransitioning,
+  loadShareSnapshot,
+  startShareLifecycle,
+  stopShareLifecycle,
+  type ShareLifecycleApi,
+  type ShareSnapshot
+} from '../share-lifecycle'
+import {
+  createStoppedStatus,
+  loadShareSettings,
+  saveShareSettings,
+  type ShareSettings
+} from '../share-settings'
+import type { BrickServiceStatus, ShareConfigInput } from '../types'
 
 const POLL_INTERVAL_MS = 1500
 
+type ControllerOperation = 'starting' | 'stopping' | 'working' | null
+
 interface ControllerState {
-  status: ShareStatus | null
+  snapshot: ShareSnapshot | null
   loading: boolean
-  busy: boolean
+  operation: ControllerOperation
   error: string
 }
 
-/**
- * 共享服务控制器。
- *
- * 负责加载初始状态、在服务运行期间轮询刷新状态（传输日志、连接），
- * 并向 UI 暴露启动 / 停止 / 更新配置 / 清空日志等动作。
- */
+const lifecycleApi: ShareLifecycleApi = {
+  getServiceStatus: getBrickServiceStatus,
+  startService: startBrickService,
+  stopService: stopBrickService,
+  fetchStatus,
+  startShare,
+  stopShare
+}
+
+/** 绑定宿主 service 与 HTTP 共享服务，并只在宿主运行时访问 runtime。 */
 export function useShareController() {
   const [state, setState] = useState<ControllerState>({
-    status: null,
+    snapshot: null,
     loading: true,
-    busy: false,
+    operation: null,
     error: ''
   })
+  const mountedRef = useRef(false)
+  const snapshotRef = useRef<ShareSnapshot | null>(null)
+  const settingsRef = useRef<ShareSettings>(loadShareSettings(window.localStorage))
+  const operationRef = useRef<Promise<void> | null>(null)
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const applyStatus = useCallback((status: ShareStatus) => {
-    setState((prev) => ({ ...prev, status, error: '' }))
+  const applySnapshot = useCallback((snapshot: ShareSnapshot, error = '') => {
+    snapshotRef.current = snapshot
+    if (snapshot.service.status === 'running') {
+      settingsRef.current = saveShareSettings(
+        window.localStorage,
+        snapshot.status,
+        snapshot.status.hasAccessCode
+      )
+    }
+    if (!mountedRef.current) return
+    setState((previous) => ({
+      ...previous,
+      snapshot,
+      loading: false,
+      error: error || errorForSnapshot(snapshot)
+    }))
   }, [])
 
   const refresh = useCallback(async () => {
     try {
-      const status = await fetchStatus()
-      applyStatus(status)
+      const snapshot = await loadShareSnapshot(lifecycleApi, settingsRef.current)
+      applySnapshot(snapshot)
     } catch (error) {
-      setState((prev) => ({ ...prev, error: messageOf(error) }))
+      if (mountedRef.current) {
+        setState((previous) => ({ ...previous, loading: false, error: messageOf(error) }))
+      }
     }
-  }, [applyStatus])
+  }, [applySnapshot])
 
-  // 初次加载状态。
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const status = await fetchStatus()
-        if (!cancelled) setState({ status, loading: false, busy: false, error: '' })
-      } catch (error) {
-        if (!cancelled) setState({ status: null, loading: false, busy: false, error: messageOf(error) })
-      }
-    })()
+    mountedRef.current = true
+    void loadShareSnapshot(lifecycleApi, settingsRef.current)
+      .then((snapshot) => {
+        if (!cancelled) applySnapshot(snapshot)
+      })
+      .catch((error) => {
+        if (!cancelled && mountedRef.current) {
+          setState((previous) => ({
+            ...previous,
+            loading: false,
+            error: messageOf(error)
+          }))
+        }
+      })
+
     return () => {
       cancelled = true
+      mountedRef.current = false
     }
-  }, [])
+  }, [applySnapshot])
 
-  // 运行期间轮询刷新。
+  const serviceStatus = state.snapshot?.service.status
+  const shouldPoll =
+    serviceStatus === 'running' ||
+    (serviceStatus !== undefined && isServiceTransitioning(serviceStatus))
+
   useEffect(() => {
-    const running = state.status?.running ?? false
-    if (running && !pollTimer.current) {
-      pollTimer.current = setInterval(refresh, POLL_INTERVAL_MS)
-    } else if (!running && pollTimer.current) {
+    if (shouldPoll && !pollTimer.current) {
+      pollTimer.current = setInterval(() => void refresh(), POLL_INTERVAL_MS)
+    } else if (!shouldPoll && pollTimer.current) {
       clearInterval(pollTimer.current)
       pollTimer.current = null
     }
@@ -76,47 +129,110 @@ export function useShareController() {
         pollTimer.current = null
       }
     }
-  }, [state.status?.running, refresh])
+  }, [refresh, shouldPoll])
 
-  const runAction = useCallback(async (action: () => Promise<ShareStatus | void>) => {
-    setState((prev) => ({ ...prev, busy: true, error: '' }))
-    try {
-      const result = await action()
-      if (result) {
-        setState((prev) => ({ ...prev, status: result, busy: false }))
-      } else {
-        await refresh()
-        setState((prev) => ({ ...prev, busy: false }))
+  const runAction = useCallback(
+    (operation: Exclude<ControllerOperation, null>, action: () => Promise<void>) => {
+      if (operationRef.current) return operationRef.current
+      if (mountedRef.current) {
+        setState((previous) => ({ ...previous, operation, error: '' }))
       }
-    } catch (error) {
-      setState((prev) => ({ ...prev, busy: false, error: messageOf(error) }))
-    }
-  }, [refresh])
+
+      const promise = (async () => {
+        try {
+          await action()
+        } catch (error) {
+          if (mountedRef.current) {
+            setState((previous) => ({ ...previous, error: messageOf(error) }))
+          }
+        } finally {
+          operationRef.current = null
+          if (mountedRef.current) {
+            setState((previous) => ({ ...previous, operation: null }))
+          }
+        }
+      })()
+      operationRef.current = promise
+      return promise
+    },
+    []
+  )
 
   const start = useCallback(
-    (config: ShareConfigInput) => runAction(() => startShare(config)),
-    [runAction]
-  )
-  const stop = useCallback(() => runAction(() => stopShare()), [runAction])
-  const saveConfig = useCallback(
-    (config: ShareConfigInput) => runAction(async () => {
-      await updateConfig(config)
-      return fetchStatus()
-    }),
-    [runAction]
-  )
-  const clearLog = useCallback(
-    () => runAction(async () => {
-      await clearLogApi()
-      return fetchStatus()
-    }),
-    [runAction]
+    (config: ShareConfigInput) => {
+      const root = config.root?.trim() ?? ''
+      if (!root) {
+        setState((previous) => ({ ...previous, error: '请先填写共享目录。' }))
+        return
+      }
+      const port = Number(config.port)
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        setState((previous) => ({ ...previous, error: '端口必须是 1 到 65535 之间的整数。' }))
+        return
+      }
+
+      void runAction('starting', async () => {
+        const current = snapshotRef.current
+        const hasAccessCode = current?.status.hasAccessCode ?? settingsRef.current.hasAccessCode
+        settingsRef.current = saveShareSettings(
+          window.localStorage,
+          { ...config, root, port },
+          hasAccessCode
+        )
+        const snapshot = await startShareLifecycle(
+          lifecycleApi,
+          { ...config, root, port },
+          settingsRef.current
+        )
+        applySnapshot(snapshot)
+      })
+    },
+    [applySnapshot, runAction]
   )
 
+  const stop = useCallback(() => {
+    void runAction('stopping', async () => {
+      const result = await stopShareLifecycle(lifecycleApi, settingsRef.current)
+      applySnapshot(result.snapshot, result.warning)
+    })
+  }, [applySnapshot, runAction])
+
+  const saveConfig = useCallback(
+    (config: ShareConfigInput) => {
+      const current = snapshotRef.current
+      if (!current || isServiceActive(current.service.status)) return
+      settingsRef.current = saveShareSettings(
+        window.localStorage,
+        config,
+        current.status.hasAccessCode
+      )
+      applySnapshot({
+        service: current.service,
+        status: createStoppedStatus(settingsRef.current)
+      })
+    },
+    [applySnapshot]
+  )
+
+  const clearLog = useCallback(() => {
+    void runAction('working', async () => {
+      const service = await getBrickServiceStatus()
+      if (service.status !== 'running') {
+        applySnapshot({ service, status: createStoppedStatus(settingsRef.current) })
+        return
+      }
+      await clearLogApi()
+      const snapshot = await loadShareSnapshot(lifecycleApi, settingsRef.current)
+      applySnapshot(snapshot)
+    })
+  }, [applySnapshot, runAction])
+
   return {
-    status: state.status,
+    status: state.snapshot?.status ?? null,
+    serviceStatus: state.snapshot?.service.status ?? null,
     loading: state.loading,
-    busy: state.busy,
+    busy: state.operation !== null,
+    operation: state.operation,
     error: state.error,
     refresh,
     start,
@@ -124,6 +240,16 @@ export function useShareController() {
     saveConfig,
     clearLog
   }
+}
+
+function errorForSnapshot(snapshot: ShareSnapshot): string {
+  if (snapshot.service.status === 'error' || snapshot.service.status === 'crashed') {
+    return snapshot.service.lastError || '宿主服务启动异常。'
+  }
+  if (snapshot.service.status === 'running' && !snapshot.status.running) {
+    return '宿主进程正在运行，但 HTTP 共享尚未启动。'
+  }
+  return ''
 }
 
 function messageOf(error: unknown): string {
