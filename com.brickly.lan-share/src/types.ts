@@ -49,10 +49,36 @@ export interface ListEntriesResult {
   error?: string
 }
 
+export type BrickServiceStatus =
+  | 'stopped'
+  | 'starting'
+  | 'running'
+  | 'restarting'
+  | 'stopping'
+  | 'crashed'
+  | 'error'
+
+export interface BrickServiceRecord {
+  brickId: string
+  status: BrickServiceStatus
+  instanceId?: string
+  lastError?: string
+}
+
 export interface BricklyApi {
   brickId: string
   instanceId?: string
   invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
+  service: {
+    getStatus(): Promise<BrickServiceRecord>
+    start(): Promise<BrickServiceRecord>
+    stop(): Promise<BrickServiceRecord>
+    restart(): Promise<BrickServiceRecord>
+  }
+  system: {
+    shellOpenPath(fullPath: string): Promise<void>
+    shellOpenExternal(url: string): Promise<void>
+  }
 }
 
 declare global {

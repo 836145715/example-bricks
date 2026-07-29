@@ -1,4 +1,9 @@
-import type { ListEntriesResult, ShareConfigInput, ShareStatus } from './types'
+import type {
+  BrickServiceRecord,
+  ListEntriesResult,
+  ShareConfigInput,
+  ShareStatus
+} from './types'
 
 /** 封装 window.brickly.invoke，集中处理可用性校验与类型断言。 */
 function requireBrickly() {
@@ -6,6 +11,26 @@ function requireBrickly() {
     throw new Error('window.brickly.invoke 不可用，请在 Brickly Webview 中打开本工具。')
   }
   return window.brickly
+}
+
+function requireService() {
+  const service = requireBrickly().service
+  if (!service || typeof service.getStatus !== 'function') {
+    throw new Error('window.brickly.service 不可用，请确认本工具已声明 service 生命周期。')
+  }
+  return service
+}
+
+export async function getBrickServiceStatus(): Promise<BrickServiceRecord> {
+  return requireService().getStatus()
+}
+
+export async function startBrickService(): Promise<void> {
+  await requireService().start()
+}
+
+export async function stopBrickService(): Promise<void> {
+  await requireService().stop()
 }
 
 export async function fetchStatus(): Promise<ShareStatus> {
@@ -37,9 +62,10 @@ export async function clearLog(): Promise<void> {
 }
 
 export async function openFolder(path?: string): Promise<void> {
-  await requireBrickly().invoke('open-folder', path ? { path } : {})
+  if (!path) return
+  await requireBrickly().system.shellOpenPath(path)
 }
 
 export async function openUrl(url: string): Promise<void> {
-  await requireBrickly().invoke('open-url', { url })
+  await requireBrickly().system.shellOpenExternal(url)
 }
