@@ -69,7 +69,7 @@ func (mapper utf16RangeMapper) byteOffset(value string, byteOffset int) int {
 	return utf16Offset
 }
 
-// searchHighlighter 是 matches 的统一生成入口。本地、SSH、onlyMatch 都从这里输出坐标。
+// searchHighlighter 是 SSH 检索结果 matches 的统一生成入口。
 type searchHighlighter struct {
 	filters []compiledFilter
 	mapper  highlightRangeMapper

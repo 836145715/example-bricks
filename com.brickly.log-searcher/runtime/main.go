@@ -22,7 +22,6 @@ type LogFileConfig struct {
 type ServerConfig struct {
 	ID       string          `json:"id"`
 	Name     string          `json:"name"`
-	Type     string          `json:"type"` // "local" 或 "ssh"
 	Host     string          `json:"host"`
 	Port     int             `json:"port"`
 	User     string          `json:"user"`
@@ -91,11 +90,12 @@ type FilterConfig struct {
 }
 
 type searchInput struct {
-	ServerID   string
-	Pattern    string
-	ResultMode string
-	Args       GrepArgs
-	LogPaths   []string
+	ServerID         string
+	Pattern          string
+	ResultMode       string
+	Args             GrepArgs
+	LogPaths         []string
+	HasExplicitFiles bool
 }
 
 // -------------------- 协议消息读写 --------------------
@@ -253,15 +253,6 @@ func markCancelled(id string) {
 	}
 }
 
-func cancelActive(id string) {
-	cancelMu.Lock()
-	cancel := activeCancels[id]
-	cancelMu.Unlock()
-	if cancel != nil {
-		cancel()
-	}
-}
-
 func clearCancelled(id string) {
 	cancelMu.Lock()
 	delete(cancelled, id)
@@ -315,7 +306,7 @@ func handleLoadConfig(id string) {
 		return
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := configFiles.Read(path)
 	if err != nil {
 		sendError(id, "CONFIG_READ_ERROR", err.Error())
 		return
@@ -349,7 +340,7 @@ func handleSaveConfig(id string, input map[string]any) {
 		return
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := configFiles.Write(path, data); err != nil {
 		sendError(id, "CONFIG_WRITE_ERROR", err.Error())
 		return
 	}
@@ -372,8 +363,17 @@ func parseServerConfigInput(input map[string]any) (ServerConfig, error) {
 	if err := json.Unmarshal(serverBytes, &server); err != nil {
 		return ServerConfig{}, err
 	}
+	return server, validateSSHServer(server)
+}
 
-	return server, nil
+func validateSSHServer(server ServerConfig) error {
+	if server.Host == "" {
+		return fmt.Errorf("SSH host is required")
+	}
+	if server.User == "" {
+		return fmt.Errorf("SSH user is required")
+	}
+	return nil
 }
 
 func enabledLogPaths(server ServerConfig) []string {
@@ -392,62 +392,33 @@ func handleTestConnection(id string, input map[string]any) {
 		sendError(id, "INVALID_INPUT", err.Error())
 		return
 	}
-	if server.Type == "" {
-		sendError(id, "INVALID_INPUT", "server type is required")
+	logPaths := enabledLogPaths(server)
+	client, err := dialSSHClient(server)
+	if err != nil {
+		sendError(id, "SSH_CONNECT_ERROR", err.Error())
 		return
 	}
+	defer client.Close()
 
-	logPaths := enabledLogPaths(server)
-	switch server.Type {
-	case "local":
-		if len(logPaths) == 0 {
-			sendResult(id, map[string]any{
-				"ok":      true,
-				"message": "本地配置可用，但还没有启用的日志路径。",
-			})
-			return
-		}
-
-		files, err := ExpandLocalPaths(logPaths)
+	filesCount := 0
+	if len(logPaths) > 0 {
+		files, err := ExpandRemotePaths(client, logPaths)
 		if err != nil {
-			sendError(id, "LOCAL_PATH_ERROR", err.Error())
+			sendError(id, "SSH_PATH_ERROR", err.Error())
 			return
 		}
-		sendResult(id, map[string]any{
-			"ok":         true,
-			"message":    fmt.Sprintf("本地路径可访问，找到 %d 个日志文件。", len(files)),
-			"filesCount": len(files),
-		})
-	case "ssh":
-		client, err := dialSSHClient(server)
-		if err != nil {
-			sendError(id, "SSH_CONNECT_ERROR", err.Error())
-			return
-		}
-		defer client.Close()
-
-		filesCount := 0
-		if len(logPaths) > 0 {
-			files, err := ExpandRemotePaths(client, logPaths)
-			if err != nil {
-				sendError(id, "SSH_PATH_ERROR", err.Error())
-				return
-			}
-			filesCount = len(files)
-		}
-
-		message := "SSH 连接成功。"
-		if len(logPaths) > 0 {
-			message = fmt.Sprintf("SSH 连接成功，找到 %d 个日志文件。", filesCount)
-		}
-		sendResult(id, map[string]any{
-			"ok":         true,
-			"message":    message,
-			"filesCount": filesCount,
-		})
-	default:
-		sendError(id, "UNKNOWN_SERVER_TYPE", "Unknown server type: "+server.Type)
+		filesCount = len(files)
 	}
+
+	message := "SSH 连接成功。"
+	if len(logPaths) > 0 {
+		message = fmt.Sprintf("SSH 连接成功，找到 %d 个日志文件。", filesCount)
+	}
+	sendResult(id, map[string]any{
+		"ok":         true,
+		"message":    message,
+		"filesCount": filesCount,
+	})
 }
 
 // 列出当前服务器配置下的所有日志具体文件列表
@@ -464,7 +435,7 @@ func handleListLogFiles(id string, input map[string]any) {
 		return
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := configFiles.Read(path)
 	if err != nil {
 		sendError(id, "CONFIG_NOT_FOUND", "Please configure servers first.")
 		return
@@ -490,6 +461,10 @@ func handleListLogFiles(id string, input map[string]any) {
 		sendError(id, "SERVER_NOT_FOUND", "Server config not found: "+serverId)
 		return
 	}
+	if err := validateSSHServer(*targetServer); err != nil {
+		sendError(id, "INVALID_SERVER_CONFIG", err.Error())
+		return
+	}
 
 	// 提取出所有日志路径配置（不管是否 Enabled，都列出来供前台多选）
 	var configPaths []string
@@ -501,39 +476,33 @@ func handleListLogFiles(id string, input map[string]any) {
 
 	if len(configPaths) == 0 {
 		sendResult(id, map[string]any{
-			"files": []string{},
+			"files":     []string{},
+			"fileInfos": []RemoteLogFile{},
 		})
 		return
 	}
 
-	var expandedFiles []string
-	if targetServer.Type == "local" {
-		expandedFiles, err = ExpandLocalPaths(configPaths)
-		if err != nil {
-			sendError(id, "EXPAND_ERROR", err.Error())
-			return
-		}
-	} else if targetServer.Type == "ssh" {
-		// 远程 SSH 展开
-		client, err := dialSSHClient(*targetServer)
-		if err != nil {
-			sendError(id, "SSH_CONNECT_ERROR", err.Error())
-			return
-		}
-		defer client.Close()
-
-		expandedFiles, err = ExpandRemotePaths(client, configPaths)
-		if err != nil {
-			sendError(id, "SSH_EXPAND_ERROR", err.Error())
-			return
-		}
-	} else {
-		sendError(id, "UNKNOWN_SERVER_TYPE", "Unknown server type: "+targetServer.Type)
+	client, err := dialSSHClient(*targetServer)
+	if err != nil {
+		sendError(id, "SSH_CONNECT_ERROR", err.Error())
 		return
+	}
+	defer client.Close()
+
+	expandedFiles, err := ExpandRemotePaths(client, configPaths)
+	if err != nil {
+		sendError(id, "SSH_EXPAND_ERROR", err.Error())
+		return
+	}
+	fileInfos, err := ReadRemoteLogFileInfo(client, expandedFiles)
+	if err != nil {
+		logWarn("远程日志文件大小读取失败", map[string]any{"serverId": serverId, "error": err.Error()})
+		fileInfos = []RemoteLogFile{}
 	}
 
 	sendResult(id, map[string]any{
-		"files": expandedFiles,
+		"files":     expandedFiles,
+		"fileInfos": fileInfos,
 	})
 }
 
@@ -565,6 +534,7 @@ func parseSearchInput(input map[string]any, targetServer ServerConfig) searchInp
 	parsed.Args = parseGrepArgs(input)
 
 	if filesVal, exists := input["files"]; exists {
+		parsed.HasExplicitFiles = true
 		if filesSlice, ok := filesVal.([]any); ok {
 			for _, f := range filesSlice {
 				if fStr, ok := f.(string); ok && fStr != "" {
@@ -574,7 +544,7 @@ func parseSearchInput(input map[string]any, targetServer ServerConfig) searchInp
 		}
 	}
 
-	if len(parsed.LogPaths) == 0 {
+	if !parsed.HasExplicitFiles && len(parsed.LogPaths) == 0 {
 		for _, logConf := range targetServer.Logs {
 			if logConf.Enabled && logConf.Path != "" {
 				parsed.LogPaths = append(parsed.LogPaths, logConf.Path)
@@ -600,7 +570,7 @@ func handleSearch(id string, input map[string]any) {
 		return
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := configFiles.Read(path)
 	if err != nil {
 		sendError(id, "CONFIG_NOT_FOUND", "Please configure servers first.")
 		return
@@ -627,9 +597,17 @@ func handleSearch(id string, input map[string]any) {
 		sendError(id, "SERVER_NOT_FOUND", "Server config not found: "+serverId)
 		return
 	}
+	if err := validateSSHServer(*targetServer); err != nil {
+		sendError(id, "INVALID_SERVER_CONFIG", err.Error())
+		return
+	}
 
 	search := parseSearchInput(input, *targetServer)
 
+	if search.HasExplicitFiles && len(search.LogPaths) == 0 {
+		sendError(id, "NO_FILES_SELECTED", "Select at least one loaded log file before searching.")
+		return
+	}
 	if len(search.LogPaths) == 0 {
 		sendError(id, "NO_LOG_PATHS", "No log files or paths specified for this search.")
 		return
@@ -647,25 +625,12 @@ func handleSearch(id string, input map[string]any) {
 
 	sendProgress(id, 0.1, "Connecting & searching logs...")
 
-	var searchErr error
-	if targetServer.Type == "local" {
-		searchErr = RunLocalGrep(ctx, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) {
-			if ctx.Err() != nil || isCancelled(id) {
-				return
-			}
-			sendChunk(id, line)
-		})
-	} else if targetServer.Type == "ssh" {
-		searchErr = RunRemoteGrep(ctx, *targetServer, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) {
-			if ctx.Err() != nil || isCancelled(id) {
-				return
-			}
-			sendChunk(id, line)
-		})
-	} else {
-		sendError(id, "UNKNOWN_SERVER_TYPE", "Unknown server type: "+targetServer.Type)
-		return
-	}
+	searchErr := RunRemoteGrep(ctx, *targetServer, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) {
+		if ctx.Err() != nil || isCancelled(id) {
+			return
+		}
+		sendChunk(id, line)
+	})
 
 	if searchErr != nil {
 		if ctx.Err() != nil || isCancelled(id) {
@@ -681,19 +646,16 @@ func handleSearch(id string, input map[string]any) {
 }
 
 func handleStoredSearch(id string, targetServer ServerConfig, search searchInput) {
-	cancelActive("server:" + search.ServerID)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runID, activeSearch := storedSearches.Start(search.ServerID, search.LogPaths, cancel)
+	defer storedSearches.Finish(search.ServerID, activeSearch)
+	registerCancel(id, cancel)
+	defer clearCancelled(id)
 
-	runID := searchResults.StartRun(search.ServerID, search.LogPaths)
 	if state, ok := searchResults.State(search.ServerID, runID); ok {
 		sendSearchState(id, state)
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	registerCancel(id, cancel)
-	registerCancel("server:"+search.ServerID, cancel)
-	defer clearCancelled(id)
-	defer clearCancelled("server:" + search.ServerID)
 
 	sendProgress(id, 0.1, "Connecting & searching logs...")
 
@@ -725,20 +687,11 @@ func handleStoredSearch(id string, targetServer ServerConfig, search searchInput
 			emitState(true)
 		}
 	}
-
-	var searchErr error
-	if targetServer.Type == "local" {
-		if expanded, err := ExpandLocalPaths(search.LogPaths); err == nil && len(expanded) > 0 {
-			searchResults.SetTabs(search.ServerID, runID, expanded)
-			emitState(true)
-		}
-		searchErr = runStoredLocalGrep(ctx, search.ServerID, runID, search.Pattern, search.LogPaths, search.Args, appendLine, finishFile)
-	} else if targetServer.Type == "ssh" {
-		searchErr = runStoredRemoteGrep(ctx, targetServer, search, runID, appendLine, finishFile)
-	} else {
-		sendError(id, "UNKNOWN_SERVER_TYPE", "Unknown server type: "+targetServer.Type)
-		return
+	startFile := func(tabID string) {
+		startStoredSearchFile(searchResults, search.ServerID, runID, tabID, emitState)
 	}
+
+	searchErr := runStoredRemoteGrep(ctx, targetServer, search, runID, startFile, appendLine, finishFile)
 
 	if searchErr != nil {
 		status := searchStatusError
@@ -765,23 +718,16 @@ func handleStoredSearch(id string, targetServer ServerConfig, search searchInput
 	sendResult(id, map[string]any{"completed": true, "runId": runID})
 }
 
-func runStoredLocalGrep(
-	ctx context.Context,
-	serverID, runID, pattern string,
-	logPaths []string,
-	args GrepArgs,
-	onLine func(line GrepLine),
-	onFileDone func(tabID string),
-) error {
-	return runLocalGrepWithFileLifecycle(ctx, pattern, logPaths, args, func(tabID string) {
-		searchResults.StartFile(serverID, runID, tabID)
-	}, onFileDone, func(line GrepLine) {
-		tabID := line.File
-		if tabID == "" {
-			tabID = fallbackResultsScope
-		}
-		onLine(line)
-	})
+func startStoredSearchFile(
+	store *resultStore,
+	serverID string,
+	runID string,
+	tabID string,
+	emitState func(force bool),
+) {
+	if store.StartFile(serverID, runID, tabID) {
+		emitState(true)
+	}
 }
 
 func runStoredRemoteGrep(
@@ -789,14 +735,13 @@ func runStoredRemoteGrep(
 	targetServer ServerConfig,
 	search searchInput,
 	runID string,
+	onFileStart func(tabID string),
 	onLine func(line GrepLine),
 	onFileDone func(tabID string),
 ) error {
 	return runRemoteGrepWithFileLifecycle(ctx, targetServer, search.Pattern, search.LogPaths, search.Args, func(files []string) {
 		searchResults.SetTabs(search.ServerID, runID, files)
-	}, func(tabID string) {
-		searchResults.StartFile(search.ServerID, runID, tabID)
-	}, onFileDone, func(line GrepLine) {
+	}, onFileStart, onFileDone, func(line GrepLine) {
 		tabID := line.File
 		if tabID == "" {
 			tabID = fallbackResultsScope
@@ -842,8 +787,7 @@ func handleClearSearchResults(id string, input map[string]any) {
 		sendError(id, "INVALID_INPUT", "serverId is required")
 		return
 	}
-	cancelActive("server:" + serverID)
-	searchResults.ClearServer(serverID)
+	storedSearches.Clear(serverID)
 	sendResult(id, map[string]any{"ok": true})
 }
 

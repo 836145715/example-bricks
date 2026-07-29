@@ -10,8 +10,8 @@
     "en": "Log Searcher"
   },
   "description": {
-    "zh-CN": "基于 Go Runtime + SSH 原生库的日志检索工具，支持本地及远程日志的流式 grep 查询与管理。",
-    "en": "Log search tool powered by Go native runtime and SSH library, supporting local & remote log grep streaming."
+    "zh-CN": "基于 Go Runtime 和 SSH 原生库的远程日志流式 grep 查询与管理工具。",
+    "en": "Remote SSH log search tool powered by a Go native runtime and streaming grep."
   },
   "icon": "assets/icon.svg",
   "keywords": [
@@ -67,7 +67,7 @@
       "name": "流式搜索日志",
       "execution": "parallel",
       "description": {
-        "zh-CN": "检索指定服务器的本地或远程日志，支持文件列表、链式过滤、grep 选项和流式日志行输出。"
+        "zh-CN": "通过 SSH 检索指定服务器日志，支持文件列表、链式过滤、grep 选项和流式日志行输出。"
       },
       "io": {
         "inputs": [
@@ -298,7 +298,7 @@
       "name": "测试日志连接",
       "execution": "parallel",
       "description": {
-        "zh-CN": "测试本地日志路径或 SSH 服务器连接是否可用，可直接传未保存的服务器配置。"
+        "zh-CN": "测试 SSH 服务器连接和远程日志路径是否可用，可直接传未保存的服务器配置。"
       },
       "io": {
         "inputs": [
@@ -307,7 +307,7 @@
             "label": "服务器配置",
             "type": "json",
             "required": true,
-            "description": "ServerConfig 对象，支持 local 和 ssh；ssh 会尝试实际登录，local 会检查启用的日志路径。"
+            "description": "SSH ServerConfig 对象；会尝试实际登录，并在配置了日志路径时检查远程路径展开。"
           }
         ],
         "outputs": [
@@ -341,7 +341,13 @@
         "outputs": [
           {
             "name": "files",
-            "type": "json"
+            "type": "json",
+            "description": "远程日志文件路径数组。"
+          },
+          {
+            "name": "fileInfos",
+            "type": "json",
+            "description": "可选的文件元数据数组，每项包含 path 与 sizeBytes（文件字节数）。"
           }
         ]
       }

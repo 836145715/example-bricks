@@ -2,10 +2,10 @@
 
 status: active
 type: brick
-related_code: runtime/main.go, runtime/grep.go, runtime/ssh.go, src/App.tsx
+related_code: runtime/main.go, runtime/search_shared.go, runtime/ssh.go, src/App.tsx
 last_verified: 2026-06-08
 
-`com.brickly.log-searcher` 提供本地与 SSH 远程日志的流式检索能力。UI 适合人工排查日志，`search` command 也可以被其他 Brick、工作流或 Agent 直接调用。
+`com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。UI 适合人工排查日志，`search` command 也可以被其他 Brick、工作流或 Agent 直接调用。
 
 ## search 能力
 
@@ -34,9 +34,9 @@ UI 默认每个文件保留最新 500 条命中。
 
 ### 尾部搜索
 
-设置 `args.fromTail=true` 且 `args.tailLines>0` 时，只在每个目标文件最后 `tailLines` 行内搜索。适合排查正在增长的大日志，能避免默认从文件头开始扫描全部历史。若同时设置 `maxCount`，会先限定尾部扫描窗口，再在窗口内保留最新命中。未开启 `fromTail` 时，本地搜索仍保持逐行扫描；当 `maxCount>0` 时，为保证最新语义，单个文件会在扫描完成后再输出保留下来的结果。
+设置 `args.fromTail=true` 且 `args.tailLines>0` 时，只在每个目标文件最后 `tailLines` 行内搜索。UI 默认关闭此模式；开启后默认搜索最后 1000 行，以便快速排查正在增长的大日志。若同时设置 `maxCount`，会先限定尾部扫描窗口，再在窗口内保留最新命中。未开启 `fromTail` 时，远程 `grep` 会扫描完整文件；当 `maxCount>0` 时，为保证最新语义，单个文件会在扫描完成后再输出保留下来的结果。
 
-UI 中选择多个日志文件时，工具会为每个文件创建独立结果 Tab；不再渲染“全部”聚合视图，避免重复上下文。每个文件 Tab 的结果列表、滚动位置、计数和错误状态互相隔离；Tab 圆点提示等待、检索中、完成、出错或取消，出错文件会在对应结果视图中展示具体错误信息。SSH 多文件搜索会复用同一个 SSH 连接，并按文件顺序创建远程 grep 会话，避免每个 Tab 反复握手；本地搜索仍按文件顺序执行，避免文件 IO 资源压力。
+UI 中选择多个日志文件时，工具会为每个文件创建独立结果 Tab；不再渲染“全部”聚合视图，避免重复上下文。每个文件 Tab 会显示列出时读取的远程文件大小，结果列表、滚动位置、计数和错误状态互相隔离；Tab 圆点提示等待、检索中、完成、出错或取消，出错文件会在对应结果视图中展示具体错误信息。多文件搜索会复用同一个 SSH 连接，并以最多 6 个远程 grep 会话并发查询，避免每个 Tab 反复握手。
 
 ### Go 侧存储模式
 
@@ -75,8 +75,7 @@ UI 结果区默认使用自动换行虚拟列表，通过动态行高测量展�
 
 行为：
 
-- `local`：检查已启用日志路径是否可展开。
-- `ssh`：尝试使用当前 host、port、user 和鉴权信息建立 SSH 连接，并在配置了日志路径时检查远程路径展开。
+- 尝试使用当前 host、port、user 和鉴权信息建立 SSH 连接，并在配置了日志路径时检查远程路径展开。
 
 输出：
 

@@ -2,6 +2,18 @@ package main
 
 import "testing"
 
+func assertMatches(t *testing.T, got [][]int, want [][]int) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("got matches %v, want %v", got, want)
+	}
+	for i := range want {
+		if len(got[i]) != 2 || got[i][0] != want[i][0] || got[i][1] != want[i][1] {
+			t.Fatalf("got matches %v, want %v", got, want)
+		}
+	}
+}
+
 func TestUTF16RangeMapperConvertsByteRangesToBrowserOffsets(t *testing.T) {
 	mapper := utf16RangeMapper{}
 	content := "🙂 前缀 错误"

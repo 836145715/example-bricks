@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -20,6 +21,31 @@ func TestShellQuoteGlobPreservesWildcardExpansion(t *testing.T) {
 	want := `'/var/log/nginx/access-'*'.log'`
 	if got != want {
 		t.Fatalf("shellQuoteGlob() = %q, want %q", got, want)
+	}
+}
+
+func TestBuildRemoteFileInfoCommandQuotesPaths(t *testing.T) {
+	got := buildRemoteFileInfoCommand([]string{"/var/log/app current.log", "/tmp/quote's.log"})
+	mustContainAll(t, got, []string{
+		"sh -c ",
+		"/var/log/app current.log",
+		"/tmp/quote",
+		`wc -c < "$path"`,
+		`printf '\''%s\t%s\n'\'' "$size" "$path"`,
+	})
+	if strings.Contains(got, "/tmp/quote's.log") {
+		t.Fatalf("file path with quote should be shell-quoted, got %q", got)
+	}
+}
+
+func TestParseRemoteLogFileInfoLine(t *testing.T) {
+	got, ok := parseRemoteLogFileInfoLine("1048576\t/var/log/app current.log")
+	if !ok {
+		t.Fatal("parseRemoteLogFileInfoLine() should parse a valid result line")
+	}
+	want := RemoteLogFile{Path: "/var/log/app current.log", SizeBytes: 1048576}
+	if got != want {
+		t.Fatalf("parseRemoteLogFileInfoLine() = %+v, want %+v", got, want)
 	}
 }
 
@@ -357,5 +383,67 @@ func TestBuildRemoteExpandCommandWrapsScriptWithShell(t *testing.T) {
 	}
 	if !strings.Contains(got, `path='\''/tmp/app.log'\''`) {
 		t.Fatalf("buildRemoteExpandCommand() should quote nested script, got %q", got)
+	}
+}
+
+func TestExpandRemotePathsWithExpandsPathsConcurrentlyAndPreservesOrder(t *testing.T) {
+	paths := make([]string, maxConcurrentFileSearches*2)
+	for index := range paths {
+		paths[index] = fmt.Sprintf("file-%d.log", index)
+	}
+	started := make(chan struct{}, maxConcurrentFileSearches)
+	release := make(chan struct{})
+	var mu sync.Mutex
+	active := 0
+	peak := 0
+
+	type expansionResult struct {
+		files []string
+		err   error
+	}
+	done := make(chan expansionResult, 1)
+	go func() {
+		files, err := expandRemotePathsWith(context.Background(), paths, func(_ context.Context, path string) ([]string, error) {
+			mu.Lock()
+			active++
+			if active > peak {
+				peak = active
+			}
+			mu.Unlock()
+
+			started <- struct{}{}
+			<-release
+
+			mu.Lock()
+			active--
+			mu.Unlock()
+			return []string{path + ".expanded"}, nil
+		})
+		done <- expansionResult{files: files, err: err}
+	}()
+
+	for index := 0; index < maxConcurrentFileSearches; index++ {
+		<-started
+	}
+	close(release)
+
+	result := <-done
+	if result.err != nil {
+		t.Fatalf("expandRemotePathsWith() error = %v", result.err)
+	}
+	if peak != maxConcurrentFileSearches {
+		t.Fatalf("peak concurrent expansions = %d, want %d", peak, maxConcurrentFileSearches)
+	}
+	want := make([]string, len(paths))
+	for index, path := range paths {
+		want[index] = path + ".expanded"
+	}
+	if len(result.files) != len(want) {
+		t.Fatalf("expanded files = %v, want %v", result.files, want)
+	}
+	for index := range want {
+		if result.files[index] != want[index] {
+			t.Fatalf("expanded files = %v, want %v", result.files, want)
+		}
 	}
 }

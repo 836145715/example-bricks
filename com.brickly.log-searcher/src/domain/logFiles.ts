@@ -3,6 +3,11 @@ export interface LogPathConfig {
   enabled: boolean
 }
 
+export interface RemoteLogFile {
+  path: string
+  sizeBytes?: number
+}
+
 interface ParsedLogFileInfo {
   filePath: string
   baseName: string
@@ -14,6 +19,48 @@ interface ParsedLogFileInfo {
 
 export const getLogFileName = (filePath: string): string => {
   return filePath.substring(Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\')) + 1)
+}
+
+export const formatLogFileSize = (sizeBytes: number): string => {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = Math.max(0, sizeBytes)
+  let unitIndex = 0
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex++
+  }
+
+  const precision = unitIndex === 0 || value >= 10 ? 0 : 1
+  return `${Number(value.toFixed(precision))} ${units[unitIndex]}`
+}
+
+export const normalizeRemoteLogFiles = (response: unknown): RemoteLogFile[] => {
+  if (typeof response !== 'object' || response === null) return []
+
+  const data = response as Record<string, unknown>
+  const paths: string[] = []
+  const filesByPath = new Map<string, RemoteLogFile>()
+  const add = (value: unknown) => {
+    if (typeof value === 'string' && value.trim() !== '') {
+      if (!filesByPath.has(value)) paths.push(value)
+      filesByPath.set(value, filesByPath.get(value) ?? { path: value })
+      return
+    }
+    if (typeof value !== 'object' || value === null) return
+
+    const file = value as Record<string, unknown>
+    if (typeof file.path !== 'string' || file.path.trim() === '') return
+    const sizeBytes = typeof file.sizeBytes === 'number' && Number.isFinite(file.sizeBytes) && file.sizeBytes >= 0
+      ? file.sizeBytes
+      : undefined
+    if (!filesByPath.has(file.path)) paths.push(file.path)
+    filesByPath.set(file.path, sizeBytes === undefined ? { path: file.path } : { path: file.path, sizeBytes })
+  }
+
+  if (Array.isArray(data.files)) data.files.forEach(add)
+  if (Array.isArray(data.fileInfos)) data.fileInfos.forEach(add)
+  return paths.map(path => filesByPath.get(path)!).filter(Boolean)
 }
 
 const parseLogFileInfo = (filePath: string): ParsedLogFileInfo => {

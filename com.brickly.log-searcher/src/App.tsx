@@ -31,7 +31,7 @@ import {
   escapeRegExp,
   mergeHighlightRanges
 } from './domain/highlight'
-import { getDefaultSelectedFiles, getLogFileName, sortLogFiles } from './domain/logFiles'
+import { formatLogFileSize, getDefaultSelectedFiles, getLogFileName, normalizeRemoteLogFiles, sortLogFiles, type RemoteLogFile } from './domain/logFiles'
 
 // --- 声明 window 上的全局 brickly 属性类型 ---
 declare global {
@@ -64,7 +64,6 @@ interface LogFileConfig {
 interface ServerConfig {
   id: string
   name: string
-  type: 'local' | 'ssh'
   host: string
   port: number
   user: string
@@ -113,6 +112,7 @@ interface ParsedLogLine {
 const FALLBACK_RESULTS_SCOPE = '__fallback__'
 
 type FileSearchStatus = 'idle' | 'queued' | 'searching' | 'success' | 'error' | 'cancelled' | 'done'
+type FileListStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 interface FileSearchState {
   count: number
@@ -245,6 +245,9 @@ const makePeekSignature = (
   totalHint: number
 ): string => `${runId}::${tabId}::${offset}::${limit}::${totalHint}`
 
+const fileListLoadAttempts = 3
+const fileListRetryDelayMs = 500
+
 export function App() {
   const [servers, setServers] = useState<ServerConfig[]>([])
   const [activeServerId, setActiveServerId] = useState<string>('')
@@ -349,13 +352,15 @@ export function App() {
   }>({ status: 'idle', message: '' })
 
   // 日志多选控件状态与 Refs
-  const [availableFilesMap, setAvailableFilesMap] = useState<Record<string, string[]>>({})
+  const [availableFilesMap, setAvailableFilesMap] = useState<Record<string, RemoteLogFile[]>>({})
   const [selectedFilesMap, setSelectedFilesMap] = useState<Record<string, string[]>>({})
-  const [isListLoadingMap, setIsListLoadingMap] = useState<Record<string, boolean>>({})
+  const [fileListStatusMap, setFileListStatusMap] = useState<Record<string, FileListStatus>>({})
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false)
   // 文件名筛选按服务器独立，避免切换连接后仍带着上一页的过滤词
   const [fileFilterTextMap, setFileFilterTextMap] = useState<Record<string, string>>({})
   const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const fileListRequestIDsRef = useRef<Record<string, number>>({})
+  const fileListRetryTimersRef = useRef<Record<string, ReturnType<typeof window.setTimeout>>>({})
 
   // 点击外部自动收起下拉框
   useEffect(() => {
@@ -368,29 +373,68 @@ export function App() {
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
 
+  useEffect(() => () => {
+    for (const timer of Object.values(fileListRetryTimersRef.current)) {
+      window.clearTimeout(timer)
+    }
+  }, [])
+
   // 刷新拉取当前服务器下的日志文件列表
-  const fetchAvailableFiles = async (serverId: string) => {
+  const fetchAvailableFiles = async (serverId: string, attempt = 0, requestID?: number) => {
     if (!window.brickly || !serverId) return
-    setIsListLoadingMap(prev => ({ ...prev, [serverId]: true }))
+
+    let activeRequestID = requestID
+    if (activeRequestID === undefined) {
+      const retryTimer = fileListRetryTimersRef.current[serverId]
+      if (retryTimer) {
+        window.clearTimeout(retryTimer)
+        delete fileListRetryTimersRef.current[serverId]
+      }
+      activeRequestID = (fileListRequestIDsRef.current[serverId] ?? 0) + 1
+      fileListRequestIDsRef.current[serverId] = activeRequestID
+    }
+    setFileListStatusMap(prev => ({ ...prev, [serverId]: 'loading' }))
+
     try {
       const res = await window.brickly.invoke('list_log_files', { serverId })
-      const files: string[] = res?.files || []
-      const sortedFiles = sortLogFiles(files)
+      if (fileListRequestIDsRef.current[serverId] !== activeRequestID) return
+      const files = normalizeRemoteLogFiles(res)
+      const filesByPath = new Map(files.map(file => [file.path, file]))
+      const sortedFiles = sortLogFiles([...filesByPath.keys()])
+        .map(path => filesByPath.get(path))
+        .filter((file): file is RemoteLogFile => file !== undefined)
+      const sortedFilePaths = sortedFiles.map(file => file.path)
       setAvailableFilesMap(prev => ({ ...prev, [serverId]: sortedFiles }))
+      setFileListStatusMap(prev => ({ ...prev, [serverId]: 'ready' }))
 
-      // 默认勾选逻辑：如果是配置里的直接文件且 enabled 的，则默认勾选。若是通配符或路径，默认不勾选。
+      // 保留用户已有选择；首次成功加载时才应用配置中的默认直接文件。
       const server = servers.find(s => s.id === serverId)
       if (server) {
-        setSelectedFilesMap(prev => ({
-          ...prev,
-          [serverId]: getDefaultSelectedFiles(sortedFiles, server.logs)
-        }))
+        setSelectedFilesMap(prev => {
+          if (Object.prototype.hasOwnProperty.call(prev, serverId)) {
+            return {
+              ...prev,
+              [serverId]: (prev[serverId] ?? []).filter(file => sortedFilePaths.includes(file))
+            }
+          }
+          return {
+            ...prev,
+            [serverId]: getDefaultSelectedFiles(sortedFilePaths, server.logs)
+          }
+        })
       }
     } catch (err: any) {
+      if (fileListRequestIDsRef.current[serverId] !== activeRequestID) return
       console.error('fetch log files err:', err)
-      setAvailableFilesMap(prev => ({ ...prev, [serverId]: [] }))
-    } finally {
-      setIsListLoadingMap(prev => ({ ...prev, [serverId]: false }))
+      if (attempt+1 < fileListLoadAttempts) {
+        const delay = fileListRetryDelayMs * (attempt + 1)
+        fileListRetryTimersRef.current[serverId] = window.setTimeout(() => {
+          delete fileListRetryTimersRef.current[serverId]
+          void fetchAvailableFiles(serverId, attempt + 1, activeRequestID)
+        }, delay)
+        return
+      }
+      setFileListStatusMap(prev => ({ ...prev, [serverId]: 'error' }))
     }
   }
 
@@ -1163,8 +1207,7 @@ export function App() {
     const newServer: ServerConfig = {
       id: 'srv_' + Date.now(),
       name: '未命名服务器',
-      type: 'local',
-      host: 'localhost',
+      host: '',
       port: 22,
       user: 'root',
       authType: 'password',
@@ -1429,10 +1472,25 @@ export function App() {
     }
 
     const selectedFiles = selectedFilesMap[targetServerId] || []
+    const availableFiles = availableFilesMap[targetServerId] || []
+    const availableFilePaths = availableFiles.map(file => file.path)
+    if (availableFiles.length === 0) {
+      const fileListStatus = fileListStatusMap[targetServerId] ?? 'idle'
+      if (fileListStatus === 'loading' || fileListStatus === 'idle') {
+        showToast('日志文件仍在加载，请稍后再试')
+      } else {
+        showToast('日志文件列表不可用，请刷新后再试')
+      }
+      return
+    }
     const filesToSearch = selectedFiles.length > 0
-      ? selectedFiles
-      : (availableFilesMap[targetServerId] || []).slice(0, 5)
-    const fileTabs = filesToSearch.length > 0 ? filesToSearch : [FALLBACK_RESULTS_SCOPE]
+      ? selectedFiles.filter(file => availableFilePaths.includes(file))
+      : availableFilePaths.slice(0, 5)
+    if (filesToSearch.length === 0) {
+      showToast('请先选择至少一个日志文件')
+      return
+    }
+    const fileTabs = filesToSearch
     const batchRunId = (serverBatchRunIdsRef.current[targetServerId] ?? 0) + 1
     serverBatchRunIdsRef.current[targetServerId] = batchRunId
 
@@ -1634,6 +1692,12 @@ export function App() {
     return getLogFileName(tabId)
   }
 
+  const getTabFileSize = (serverId: string, tabId: string): string => {
+    if (tabId === FALLBACK_RESULTS_SCOPE) return ''
+    const file = (availableFilesMap[serverId] ?? []).find(candidate => candidate.path === tabId)
+    return file?.sizeBytes === undefined ? '' : formatLogFileSize(file.sizeBytes)
+  }
+
   const getTabTitle = (tabId: string): string => {
     if (tabId === FALLBACK_RESULTS_SCOPE) return '服务器配置中的启用日志路径'
     return tabId
@@ -1661,7 +1725,8 @@ export function App() {
 
   const getTabTitleWithStatus = (serverId: string, tabId: string): string => {
     const state = getFileSearchState(serverId, tabId)
-    return `${getTabTitle(tabId)}\n${getFileSearchStatusText(state)}`
+    const fileSize = getTabFileSize(serverId, tabId)
+    return `${getTabTitle(tabId)}${fileSize ? `\n大小: ${fileSize}` : ''}\n${getFileSearchStatusText(state)}`
   }
 
   const activeServer = servers.find(s => s.id === activeServerId)
@@ -1791,7 +1856,7 @@ export function App() {
         </div>
 
         <div className="sidebar-title-section">
-          <span className="sidebar-title">连接服务器 ({servers.length})</span>
+          <span className="sidebar-title">SSH 服务器 ({servers.length})</span>
           <button
             className="sidebar-action-btn"
             onClick={handleAddNewServer}
@@ -1808,13 +1873,12 @@ export function App() {
               key={srv.id}
               className={`server-item ${activeServerId === srv.id ? 'active' : ''}`}
               onClick={() => handleSelectServer(srv)}
-              title={sidebarCollapsed ? `${srv.name} · ${srv.type.toUpperCase()}` : srv.name}
+              title={srv.name}
               type="button"
             >
               <div className="server-item-left">
                 <Server size={14} />
                 <span className="server-name" title={srv.name}>{srv.name}</span>
-                <span className="server-type-badge">{srv.type.toUpperCase()}</span>
               </div>
               <div className="server-item-actions">
                 <button
@@ -1868,15 +1932,17 @@ export function App() {
                 >
                   <Folder size={14} />
                   <span className="trigger-text">
-                    {isListLoadingMap[activeServerId]
-                      ? '加载文件中...'
-                      : (() => {
-                          const selected = selectedFilesMap[activeServerId] || []
-                          const available = availableFilesMap[activeServerId] || []
-                          if (selected.length === 0) return '未选文件(默认前5个)'
-                          if (selected.length === available.length) return '已选择全部文件'
-                          return `已选 ${selected.length}/${available.length} 个文件`
-                        })()}
+                    {(() => {
+                      const status = fileListStatusMap[activeServerId] ?? 'idle'
+                      const selected = selectedFilesMap[activeServerId] || []
+                      const available = availableFilesMap[activeServerId] || []
+                      if (available.length === 0 && status === 'loading') return '加载文件中...'
+                      if (available.length === 0 && status === 'error') return '文件加载失败'
+                      if (available.length === 0) return '等待加载文件...'
+                      if (selected.length === 0) return '未选文件(默认前5个)'
+                      if (selected.length === available.length) return '已选择全部文件'
+                      return `已选 ${selected.length}/${available.length} 个文件`
+                    })()}
                   </span>
                 </button>
 
@@ -1902,7 +1968,7 @@ export function App() {
                         onClick={(e) => {
                           e.stopPropagation()
                           const available = availableFilesMap[activeServerId] || []
-                          setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: [...available] }))
+                          setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: available.map(file => file.path) }))
                         }}
                       >
                         全选
@@ -1931,13 +1997,14 @@ export function App() {
                       {(() => {
                         const available = availableFilesMap[activeServerId] || []
                         const filtered = available.filter(f =>
-                          f.toLowerCase().includes(fileFilterText.toLowerCase())
+                          f.path.toLowerCase().includes(fileFilterText.toLowerCase())
                         )
                         if (filtered.length === 0) {
                           return <div className="dropdown-empty">无匹配的文件</div>
                         }
                         const selected = selectedFilesMap[activeServerId] || []
-                        return filtered.map(filePath => {
+                        return filtered.map(file => {
+                          const filePath = file.path
                           const isChecked = selected.includes(filePath)
                           const fileName = getLogFileName(filePath)
                           return (
@@ -1995,7 +2062,12 @@ export function App() {
                 停止
               </button>
             ) : (
-              <button className="btn btn-primary" onClick={handleSearch} disabled={!activeServerId} type="button">
+              <button
+                className="btn btn-primary"
+                onClick={handleSearch}
+                disabled={!activeServerId || (availableFilesMap[activeServerId] || []).length === 0}
+                type="button"
+              >
                 <Play size={14} />
                 检索
               </button>
@@ -2324,6 +2396,7 @@ export function App() {
                     >
                       <span className={`result-tab-dot ${getTabStatusClass(tabStats.status)}`} />
                       <span className="result-tab-label">{getTabLabel(tabId)}</span>
+                      {getTabFileSize(activeServerId, tabId) && <span className="result-tab-size">{getTabFileSize(activeServerId, tabId)}</span>}
                       {tabStats.count > 0 && <span className="result-tab-count">{tabStats.count}</span>}
                     </button>
                   )
@@ -2559,97 +2632,78 @@ export function App() {
                   />
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>连接类型</label>
-                    <select
-                      value={editingServer.type}
-                      onChange={(e) => setEditingServer({ ...editingServer, type: e.target.value as 'local' | 'ssh' })}
-                    >
-                      <option value="local">本地日志 (Local)</option>
-                      <option value="ssh">远程 SSH (SSH)</option>
-                    </select>
-                  </div>
-
-                  {editingServer.type === 'ssh' && (
-                    <div className="form-group">
-                      <label>SSH 端口</label>
-                      <input
-                        type="number"
-                        value={editingServer.port || 22}
-                        onChange={(e) => setEditingServer({ ...editingServer, port: parseInt(e.target.value) || 22 })}
-                        placeholder="22"
-                      />
-                    </div>
-                  )}
+                <div className="form-group">
+                  <label>SSH 端口</label>
+                  <input
+                    type="number"
+                    value={editingServer.port || 22}
+                    onChange={(e) => setEditingServer({ ...editingServer, port: parseInt(e.target.value) || 22 })}
+                    placeholder="22"
+                  />
                 </div>
 
-                {editingServer.type === 'ssh' && (
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>主机 IP/域名 *</label>
+                    <input
+                      type="text"
+                      value={editingServer.host}
+                      onChange={(e) => setEditingServer({ ...editingServer, host: e.target.value })}
+                      placeholder="192.168.1.100"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>SSH 用户名 *</label>
+                    <input
+                      type="text"
+                      value={editingServer.user}
+                      onChange={(e) => setEditingServer({ ...editingServer, user: e.target.value })}
+                      placeholder="root"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>鉴权方式</label>
+                  <select
+                    value={editingServer.authType}
+                    onChange={(e) => setEditingServer({ ...editingServer, authType: e.target.value as 'password' | 'key' })}
+                  >
+                    <option value="password">SSH 密码</option>
+                    <option value="key">SSH 私钥 (Key)</option>
+                  </select>
+                </div>
+
+                {editingServer.authType === 'password' ? (
+                  <div className="form-group">
+                    <label>SSH 密码</label>
+                    <input
+                      type="password"
+                      value={editingServer.password || ''}
+                      onChange={(e) => setEditingServer({ ...editingServer, password: e.target.value })}
+                      placeholder="远程登录密码"
+                    />
+                  </div>
+                ) : (
                   <>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>主机 IP/域名 *</label>
-                        <input
-                          type="text"
-                          value={editingServer.host}
-                          onChange={(e) => setEditingServer({ ...editingServer, host: e.target.value })}
-                          placeholder="192.168.1.100"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>SSH 用户名 *</label>
-                        <input
-                          type="text"
-                          value={editingServer.user}
-                          onChange={(e) => setEditingServer({ ...editingServer, user: e.target.value })}
-                          placeholder="root"
-                        />
-                      </div>
-                    </div>
-
                     <div className="form-group">
-                      <label>鉴权方式</label>
-                      <select
-                        value={editingServer.authType}
-                        onChange={(e) => setEditingServer({ ...editingServer, authType: e.target.value as 'password' | 'key' })}
-                      >
-                        <option value="password">SSH 密码</option>
-                        <option value="key">SSH 私钥 (Key)</option>
-                      </select>
+                      <label>私钥文件物理路径 (优先)</label>
+                      <input
+                        type="text"
+                        value={editingServer.keyPath || ''}
+                        onChange={(e) => setEditingServer({ ...editingServer, keyPath: e.target.value })}
+                        placeholder="C:\Users\username\.ssh\id_rsa"
+                      />
                     </div>
-
-                    {editingServer.authType === 'password' ? (
-                      <div className="form-group">
-                        <label>SSH 密码</label>
-                        <input
-                          type="password"
-                          value={editingServer.password || ''}
-                          onChange={(e) => setEditingServer({ ...editingServer, password: e.target.value })}
-                          placeholder="远程登录密码"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <div className="form-group">
-                          <label>私钥文件物理路径 (优先)</label>
-                          <input
-                            type="text"
-                            value={editingServer.keyPath || ''}
-                            onChange={(e) => setEditingServer({ ...editingServer, keyPath: e.target.value })}
-                            placeholder="C:\Users\username\.ssh\id_rsa"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label>私钥文本内容</label>
-                          <textarea
-                            value={editingServer.keyText || ''}
-                            onChange={(e) => setEditingServer({ ...editingServer, keyText: e.target.value })}
-                            placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."
-                            spellCheck={false}
-                          />
-                        </div>
-                      </>
-                    )}
+                    <div className="form-group">
+                      <label>私钥文本内容</label>
+                      <textarea
+                        value={editingServer.keyText || ''}
+                        onChange={(e) => setEditingServer({ ...editingServer, keyText: e.target.value })}
+                        placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."
+                        spellCheck={false}
+                      />
+                    </div>
                   </>
                 )}
 
@@ -2681,7 +2735,7 @@ export function App() {
                           type="text"
                           value={logConf.path}
                           onChange={(e) => handleUpdateLogPath(index, { path: e.target.value })}
-                          placeholder={editingServer.type === 'local' ? "d:/logs/nginx/*.log" : "/var/log/nginx/*.log"}
+                          placeholder="/var/log/nginx/*.log"
                           spellCheck={false}
                         />
                         <button

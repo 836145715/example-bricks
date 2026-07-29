@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"os"
+	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -52,8 +54,7 @@ func TestParseServerConfigInput(t *testing.T) {
 		"server": map[string]any{
 			"id":       "srv_test",
 			"name":     "测试服务器",
-			"type":     "local",
-			"host":     "localhost",
+			"host":     "logs.example.internal",
 			"port":     22,
 			"user":     "root",
 			"authType": "password",
@@ -66,7 +67,7 @@ func TestParseServerConfigInput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseServerConfigInput() error = %v", err)
 	}
-	if server.ID != "srv_test" || server.Type != "local" || len(server.Logs) != 2 {
+	if server.ID != "srv_test" || len(server.Logs) != 2 {
 		t.Fatalf("unexpected server: %+v", server)
 	}
 }
@@ -85,77 +86,131 @@ func TestEnabledLogPaths(t *testing.T) {
 	}
 }
 
-func TestLocalTestConnectionPathExpansion(t *testing.T) {
-	dir := t.TempDir()
-	logFile := filepath.Join(dir, "app.log")
-	if err := os.WriteFile(logFile, []byte("ok\n"), 0644); err != nil {
-		t.Fatalf("write log file: %v", err)
+func TestParseSearchInputDoesNotUseConfiguredPathsForExplicitEmptyFiles(t *testing.T) {
+	server := ServerConfig{
+		Logs: []LogFileConfig{{Path: "/var/log/app.log", Enabled: true}},
 	}
+	search := parseSearchInput(map[string]any{
+		"files": []any{},
+	}, server)
 
-	files, err := ExpandLocalPaths(enabledLogPaths(ServerConfig{
-		Type: "local",
-		Logs: []LogFileConfig{{Path: filepath.Join(dir, "*.log"), Enabled: true}},
-	}))
-	if err != nil {
-		t.Fatalf("ExpandLocalPaths() error = %v", err)
+	if !search.HasExplicitFiles {
+		t.Fatal("explicit files input should be recorded")
 	}
-	if len(files) != 1 || files[0] != logFile {
-		t.Fatalf("ExpandLocalPaths() = %v, want %q", files, logFile)
+	if len(search.LogPaths) != 0 {
+		t.Fatalf("explicit empty files should not use configured paths: %v", search.LogPaths)
 	}
 }
 
-func TestStoredLocalSearchFinalizesEachFileBeforeTheNextFile(t *testing.T) {
-	dir := t.TempDir()
-	firstFile := filepath.Join(dir, "first.log")
-	secondFile := filepath.Join(dir, "second.log")
-	for path, content := range map[string]string{
-		firstFile:  "first error\n",
-		secondFile: "second error\n",
-	} {
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			t.Fatalf("write %s: %v", path, err)
-		}
+func TestParseSearchInputUsesConfiguredPathsWhenFilesAreOmitted(t *testing.T) {
+	server := ServerConfig{
+		Logs: []LogFileConfig{{Path: "/var/log/app.log", Enabled: true}},
 	}
+	search := parseSearchInput(map[string]any{}, server)
 
+	if search.HasExplicitFiles {
+		t.Fatal("missing files input should not be recorded as explicit")
+	}
+	if len(search.LogPaths) != 1 || search.LogPaths[0] != "/var/log/app.log" {
+		t.Fatalf("configured paths = %v, want enabled configured path", search.LogPaths)
+	}
+}
+
+func TestStartStoredSearchFileEmitsStateImmediately(t *testing.T) {
 	store := newResultStore()
-	runID := store.StartRun("server", []string{firstFile, secondFile})
-	var snapshots []SearchStatePayload
+	runID := store.StartRun("server", []string{"app.log"})
+	emits := 0
 
-	err := runLocalGrepWithFileLifecycle(
-		context.Background(),
-		"error",
-		[]string{firstFile, secondFile},
-		GrepArgs{},
-		func(filePath string) {
-			store.StartFile("server", runID, filePath)
-		},
-		func(filePath string) {
-			store.FinishFile("server", runID, filePath, searchStatusSuccess, "")
-			state, ok := store.State("server", runID)
-			if !ok {
-				t.Fatal("search state should exist")
+	startStoredSearchFile(store, "server", runID, "app.log", func(force bool) {
+		if !force {
+			t.Fatal("file start should force a state update")
+		}
+		emits++
+	})
+
+	if emits != 1 {
+		t.Fatalf("state emits = %d, want 1", emits)
+	}
+	state, ok := store.State("server", runID)
+	if !ok || len(state.Files) != 1 {
+		t.Fatalf("unexpected state: %+v", state)
+	}
+	if state.Files[0].Status != searchStatusSearching || !state.Files[0].Active {
+		t.Fatalf("file should be shown as searching: %+v", state.Files[0])
+	}
+}
+
+func TestStoredSearchControllerKeepsNewSearchRegisteredWhenOldSearchFinishes(t *testing.T) {
+	store := newResultStore()
+	controller := newStoredSearchController(store)
+
+	oldCtx, oldCancel := context.WithCancel(context.Background())
+	defer oldCancel()
+	_, oldSearch := controller.Start("server", []string{"old.log"}, oldCancel)
+
+	newCtx, newCancel := context.WithCancel(context.Background())
+	defer newCancel()
+	newRunID, newSearch := controller.Start("server", []string{"new.log"}, newCancel)
+	if oldCtx.Err() == nil {
+		t.Fatal("starting a replacement should cancel the previous search for the server")
+	}
+
+	controller.Finish("server", oldSearch)
+	controller.Clear("server")
+	if newCtx.Err() == nil {
+		t.Fatal("clearing the server should still cancel the newest active search")
+	}
+
+	got := store.Peek("server", newRunID, "new.log", 0, 10)
+	if got.Message == "" {
+		t.Fatalf("cleared server should not retain the latest run: %+v", got)
+	}
+	controller.Finish("server", newSearch)
+}
+
+func TestConfigFileStoreKeepsReadsParseableDuringConcurrentWrites(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	store := newConfigFileStore()
+	if err := store.Write(path, []byte(`{"servers":[]}`)); err != nil {
+		t.Fatalf("initial config write: %v", err)
+	}
+
+	errs := make(chan error, 32)
+	var workers sync.WaitGroup
+	for writer := 0; writer < 4; writer++ {
+		workers.Add(1)
+		go func(writer int) {
+			defer workers.Done()
+			for iteration := 0; iteration < 20; iteration++ {
+				data := []byte(fmt.Sprintf(`{"servers":[{"id":"%d-%d"}]}`, writer, iteration))
+				if err := store.Write(path, data); err != nil {
+					errs <- err
+					return
+				}
 			}
-			snapshots = append(snapshots, state)
-		},
-		func(line GrepLine) {
-			store.AppendLine("server", runID, line.File, line)
-		},
-	)
-	if err != nil {
-		t.Fatalf("runLocalGrepWithFileLifecycle() error = %v", err)
+		}(writer)
 	}
-	if len(snapshots) != 2 {
-		t.Fatalf("completed snapshots = %d, want 2", len(snapshots))
+	for reader := 0; reader < 4; reader++ {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for iteration := 0; iteration < 20; iteration++ {
+				data, err := store.Read(path)
+				if err != nil {
+					errs <- err
+					return
+				}
+				var parsed map[string]any
+				if err := json.Unmarshal(data, &parsed); err != nil {
+					errs <- fmt.Errorf("read partial config: %w", err)
+					return
+				}
+			}
+		}()
 	}
-
-	firstComplete := snapshots[0]
-	if firstComplete.Files[0].Status != searchStatusSuccess {
-		t.Fatalf("first file status = %q, want %q", firstComplete.Files[0].Status, searchStatusSuccess)
-	}
-	if firstComplete.Files[0].Total != 1 {
-		t.Fatalf("first file total = %d, want 1", firstComplete.Files[0].Total)
-	}
-	if firstComplete.Files[1].Status != searchStatusQueued {
-		t.Fatalf("second file status = %q, want %q before its turn", firstComplete.Files[1].Status, searchStatusQueued)
+	workers.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
 	}
 }

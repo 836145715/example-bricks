@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -44,7 +45,7 @@ func runRemoteGrepWithFileLifecycle(
 	defer client.Close()
 
 	// 2. 展开远程通配符与目录
-	targetFiles, err := ExpandRemotePaths(client, files)
+	targetFiles, err := expandRemotePaths(ctx, client, files)
 	if err != nil {
 		return err
 	}
@@ -78,31 +79,49 @@ func runRemoteGrepWithFileLifecycle(
 	primaryOpts := buildRemotePrimaryOptions(args)
 
 	// 3. 复用同一个 SSH client，逐文件创建 session。避免多文件搜索反复 SSH 握手。
-	for _, targetFile := range targetFiles {
+	var callbacks sync.Mutex
+	reportStart := func(filePath string) {
+		if onFileStart == nil {
+			return
+		}
+		callbacks.Lock()
+		defer callbacks.Unlock()
+		onFileStart(filePath)
+	}
+	reportDone := func(filePath string) {
+		if onFileDone == nil {
+			return
+		}
+		callbacks.Lock()
+		defer callbacks.Unlock()
+		onFileDone(filePath)
+	}
+	reportLine := func(line GrepLine) {
+		callbacks.Lock()
+		defer callbacks.Unlock()
+		onLine(line)
+	}
+
+	return runFileJobs(ctx, targetFiles, func(targetFile string) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if onFileStart != nil {
-			onFileStart(targetFile)
-		}
+		reportStart(targetFile)
 
-		grepErr := runRemoteGrepFile(ctx, client, targetFile, primaryOpts, filterConfigs, args, outputParser, highlightFilters, highlighter, onLine)
+		grepErr := runRemoteGrepFile(ctx, client, targetFile, primaryOpts, filterConfigs, args, outputParser, highlightFilters, highlighter, reportLine)
 		if grepErr != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			onLine(GrepLine{
+			reportLine(GrepLine{
 				Text:  grepErr.Error(),
 				File:  targetFile,
 				Error: grepErr.Error(),
 			})
 		}
-		if onFileDone != nil {
-			onFileDone(targetFile)
-		}
-	}
-
-	return nil
+		reportDone(targetFile)
+		return nil
+	})
 }
 
 func runRemoteGrepFile(
@@ -299,49 +318,168 @@ func dialSSHClient(server ServerConfig) (*ssh.Client, error) {
 	return client, nil
 }
 
-// 远程 SSH 展开路径与通配符获取常规文件列表
+// ExpandRemotePaths expands paths for callers that do not own a cancellable search context.
 func ExpandRemotePaths(client *ssh.Client, paths []string) ([]string, error) {
-	var targetFiles []string
-	for _, p := range paths {
-		trimmedP := strings.TrimSpace(p)
-		if trimmedP == "" {
+	return expandRemotePaths(context.Background(), client, paths)
+}
+
+// RemoteLogFile is a concrete remote log file with the byte size captured when it was listed.
+type RemoteLogFile struct {
+	Path      string `json:"path"`
+	SizeBytes int64  `json:"sizeBytes"`
+}
+
+// ListRemoteLogFiles expands configured paths, then reads metadata for every concrete file on
+// the same SSH client. The metadata is collected in one session to avoid per-file round trips.
+func ListRemoteLogFiles(client *ssh.Client, paths []string) ([]RemoteLogFile, error) {
+	targetFiles, err := ExpandRemotePaths(client, paths)
+	if err != nil {
+		return nil, err
+	}
+	return ReadRemoteLogFileInfo(client, targetFiles)
+}
+
+// ReadRemoteLogFileInfo reads sizes for already-expanded remote paths in a single SSH session.
+func ReadRemoteLogFileInfo(client *ssh.Client, targetFiles []string) ([]RemoteLogFile, error) {
+	if len(targetFiles) == 0 {
+		return []RemoteLogFile{}, nil
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session for file metadata: %w", err)
+	}
+	defer session.Close()
+
+	stdoutPipe, err := session.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := session.Start(buildRemoteFileInfoCommand(targetFiles)); err != nil {
+		return nil, err
+	}
+
+	files := make([]RemoteLogFile, 0, len(targetFiles))
+	scanner := bufio.NewScanner(stdoutPipe)
+	for scanner.Scan() {
+		if file, ok := parseRemoteLogFileInfoLine(scanner.Text()); ok {
+			files = append(files, file)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if err := session.Wait(); err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+func parseRemoteLogFileInfoLine(line string) (RemoteLogFile, bool) {
+	parts := strings.SplitN(line, "\t", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return RemoteLogFile{}, false
+	}
+
+	sizeBytes, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
+	if err != nil || sizeBytes < 0 {
+		return RemoteLogFile{}, false
+	}
+	return RemoteLogFile{Path: parts[1], SizeBytes: sizeBytes}, true
+}
+
+func expandRemotePaths(ctx context.Context, client *ssh.Client, paths []string) ([]string, error) {
+	return expandRemotePathsWith(ctx, paths, func(ctx context.Context, path string) ([]string, error) {
+		return expandRemotePath(ctx, client, path)
+	})
+}
+
+type remotePathExpansion struct {
+	index int
+	path  string
+}
+
+func expandRemotePathsWith(
+	ctx context.Context,
+	paths []string,
+	expand func(context.Context, string) ([]string, error),
+) ([]string, error) {
+	jobs := make([]remotePathExpansion, 0, len(paths))
+	for _, path := range paths {
+		trimmedPath := strings.TrimSpace(path)
+		if trimmedPath == "" {
 			continue
 		}
+		jobs = append(jobs, remotePathExpansion{index: len(jobs), path: trimmedPath})
+	}
 
-		session, err := client.NewSession()
+	expandedByPath := make([][]string, len(jobs))
+	if err := runJobs(ctx, jobs, func(job remotePathExpansion) error {
+		files, err := expand(ctx, job.path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create session for path expansion: %w", err)
+			return err
 		}
+		expandedByPath[job.index] = files
+		return nil
+	}); err != nil {
+		return nil, err
+	}
 
-		// 构建远程 Shell 命令：
-		// 1. 如果是目录，列出目录下的所有第一层文件
-		// 2. 如果包含通配符，在远程由 shell 展开并过滤出常规文件
-		// 3. 否则，判断是否是常规文件，若是则直接返回
-		cmd := buildRemoteExpandCommand(trimmedP)
+	var targetFiles []string
+	for _, files := range expandedByPath {
+		targetFiles = append(targetFiles, files...)
+	}
+	return targetFiles, nil
+}
 
-		stdoutPipe, err := session.StdoutPipe()
-		if err != nil {
-			session.Close()
+func expandRemotePath(ctx context.Context, client *ssh.Client, path string) ([]string, error) {
+	session, err := client.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session for path expansion: %w", err)
+	}
+	defer session.Close()
+
+	stdoutPipe, err := session.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := session.Start(buildRemoteExpandCommand(path)); err != nil {
+		return nil, err
+	}
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = session.Close()
+		case <-done:
+		}
+	}()
+
+	targetFiles := make([]string, 0)
+	scanner := bufio.NewScanner(stdoutPipe)
+	for scanner.Scan() {
+		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-
-		if err := session.Start(cmd); err != nil {
-			session.Close()
-			return nil, err
+		fileLine := strings.TrimSpace(scanner.Text())
+		if fileLine != "" && !strings.ContainsAny(fileLine, "*?[]") {
+			targetFiles = append(targetFiles, fileLine)
 		}
-
-		scanner := bufio.NewScanner(stdoutPipe)
-		for scanner.Scan() {
-			fileLine := strings.TrimSpace(scanner.Text())
-			if fileLine != "" {
-				// 避免有些通配符未匹配到时返回通配符原样（通常 [ -f "$f" ] 已经排除了这种情况，但双重防错）
-				if !strings.ContainsAny(fileLine, "*?[]") {
-					targetFiles = append(targetFiles, fileLine)
-				}
-			}
+	}
+	if err := scanner.Err(); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
-		session.Wait()
-		session.Close()
+		return nil, err
+	}
+	if err := session.Wait(); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, err
 	}
 	return targetFiles, nil
 }
@@ -802,6 +940,15 @@ func stripLineNumberPrefix(line string) (string, int, bool) {
 
 func buildRemoteExpandCommand(path string) string {
 	return "sh -c " + shellQuote(buildRemoteExpandScript(path))
+}
+
+func buildRemoteFileInfoCommand(paths []string) string {
+	quotedPaths := make([]string, 0, len(paths))
+	for _, path := range paths {
+		quotedPaths = append(quotedPaths, shellQuote(path))
+	}
+	script := fmt.Sprintf(`for path in %s; do if [ -f "$path" ]; then size=$(wc -c < "$path") && printf '%%s\t%%s\n' "$size" "$path"; fi; done`, strings.Join(quotedPaths, " "))
+	return "sh -c " + shellQuote(script)
 }
 
 func buildRemoteExpandScript(path string) string {
