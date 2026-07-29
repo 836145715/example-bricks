@@ -25,12 +25,44 @@ export interface StopShareResult {
   warning?: string
 }
 
+export class ShareLifecycleStateError extends Error {
+  constructor(
+    message: string,
+    readonly snapshot: ShareSnapshot,
+    readonly runtimeStatusKnown: boolean,
+    cause?: unknown
+  ) {
+    super(message, { cause })
+    this.name = 'ShareLifecycleStateError'
+  }
+}
+
+export class LifecycleRequestGate {
+  private epoch = 0
+
+  capture(): number {
+    return this.epoch
+  }
+
+  invalidate(): void {
+    this.epoch += 1
+  }
+
+  isCurrent(epoch: number): boolean {
+    return epoch === this.epoch
+  }
+}
+
 export function isServiceActive(status: BrickServiceStatus): boolean {
   return status === 'running' || isServiceTransitioning(status)
 }
 
 export function isServiceTransitioning(status: BrickServiceStatus): boolean {
   return status === 'starting' || status === 'restarting' || status === 'stopping'
+}
+
+export function canStartShare(serviceStatus: BrickServiceStatus, sharing: boolean): boolean {
+  return !sharing && !isServiceTransitioning(serviceStatus)
 }
 
 export async function loadShareSnapshot(
@@ -49,7 +81,12 @@ export async function loadShareSnapshot(
     if (confirmed.status !== 'running') {
       return stoppedSnapshot(confirmed, settings)
     }
-    throw runtimeError
+    throw new ShareLifecycleStateError(
+      messageOf(runtimeError),
+      stoppedSnapshot(confirmed, settings),
+      false,
+      runtimeError
+    )
   }
 }
 
@@ -62,12 +99,24 @@ export async function startShareLifecycle(
   let startedService = false
 
   if (service.status !== 'running') {
+    if (service.status === 'stopping') {
+      throw new ShareLifecycleStateError(
+        '宿主服务正在停止，请等待停止完成后再启动共享。',
+        stoppedSnapshot(service, settings),
+        false
+      )
+    }
+    const ownsServiceStart =
+      service.status === 'stopped' || service.status === 'crashed' || service.status === 'error'
     await api.startService()
-    startedService = true
+    startedService = ownsServiceStart
     service = await api.getServiceStatus()
     if (service.status !== 'running') {
       const error = new Error(`宿主服务启动后状态为 ${service.status}，无法启动共享。`)
-      await compensateServiceStart(api, error)
+      if (startedService) {
+        await compensateServiceStart(api, error, settings, service)
+      }
+      throw error
     }
   } else {
     const current = await api.fetchStatus()
@@ -79,7 +128,7 @@ export async function startShareLifecycle(
     return { service, status }
   } catch (error) {
     if (startedService) {
-      await compensateServiceStart(api, error)
+      await compensateServiceStart(api, error, settings, service)
     }
     throw error
   }
@@ -95,9 +144,10 @@ export async function stopShareLifecycle(
   }
 
   let runtimeStopError: unknown
+  let stoppedRuntimeStatus: ShareStatus | undefined
   if (before.status === 'running') {
     try {
-      await api.stopShare()
+      stoppedRuntimeStatus = await api.stopShare()
     } catch (error) {
       runtimeStopError = error
     }
@@ -122,11 +172,20 @@ export async function stopShareLifecycle(
   }
 
   if (after.status !== 'stopped') {
-    throw combineErrors(
+    const error = combineErrors(
       serviceStopError ?? new Error(`宿主服务停止后状态仍为 ${after.status}。`),
       runtimeStopError,
       '共享停止失败'
     )
+    if (stoppedRuntimeStatus) {
+      throw new ShareLifecycleStateError(
+        error.message,
+        { service: after, status: stoppedRuntimeStatus },
+        true,
+        error
+      )
+    }
+    throw error
   }
 
   const warning = joinMessages(runtimeStopError, serviceStopError)
@@ -136,11 +195,32 @@ export async function stopShareLifecycle(
   }
 }
 
-async function compensateServiceStart(api: ShareLifecycleApi, originalError: unknown): Promise<never> {
+async function compensateServiceStart(
+  api: ShareLifecycleApi,
+  originalError: unknown,
+  settings: ShareSettings,
+  fallbackService: BrickServiceRecord
+): Promise<never> {
   try {
     await api.stopService()
   } catch (cleanupError) {
-    throw combineErrors(originalError, cleanupError, 'runtime 启动失败且宿主服务补偿停止失败')
+    let service = fallbackService
+    let combined = combineErrors(
+      originalError,
+      cleanupError,
+      'runtime 启动失败且宿主服务补偿停止失败'
+    )
+    try {
+      service = await api.getServiceStatus()
+    } catch (statusError) {
+      combined = combineErrors(combined, statusError, '补偿停止失败且无法确认宿主服务状态')
+    }
+    throw new ShareLifecycleStateError(
+      combined.message,
+      stoppedSnapshot(service, settings),
+      true,
+      combined
+    )
   }
   throw originalError
 }

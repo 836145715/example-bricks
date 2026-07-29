@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  canStartShare,
   isServiceActive,
   isServiceTransitioning,
+  LifecycleRequestGate,
   loadShareSnapshot,
+  ShareLifecycleStateError,
   startShareLifecycle,
   stopShareLifecycle,
   type ShareLifecycleApi
@@ -104,6 +107,24 @@ test('UI 仅在宿主过渡状态持续快速轮询', () => {
   assert.equal(isServiceTransitioning('stopped'), false)
 })
 
+test('宿主运行但 HTTP 未启动时仍允许启动共享', () => {
+  assert.equal(canStartShare('running', false), true)
+  assert.equal(canStartShare('stopped', false), true)
+  assert.equal(canStartShare('running', true), false)
+  assert.equal(canStartShare('starting', false), false)
+  assert.equal(canStartShare('stopping', false), false)
+})
+
+test('生命周期操作开始后拒绝在途轮询结果', () => {
+  const gate = new LifecycleRequestGate()
+  const pollEpoch = gate.capture()
+
+  assert.equal(gate.isCurrent(pollEpoch), true)
+  gate.invalidate()
+  assert.equal(gate.isCurrent(pollEpoch), false)
+  assert.equal(gate.isCurrent(gate.capture()), true)
+})
+
 test('停止状态初始化不会唤起 runtime', async () => {
   const { api, calls } = fakeApi({ service: 'stopped' })
 
@@ -161,6 +182,49 @@ test('runtime 启动失败会补偿停止刚启动的 service', async () => {
   ])
 })
 
+test('补偿停止失败时携带复查后的宿主运行快照', async () => {
+  const { api, calls } = fakeApi({
+    service: 'stopped',
+    runtimeStartError: new Error('bind failed'),
+    serviceStopError: new Error('cleanup failed')
+  })
+
+  await assert.rejects(
+    () => startShareLifecycle(api, input, settings),
+    (error) => {
+      assert.ok(error instanceof ShareLifecycleStateError)
+      assert.match(error.message, /bind failed/)
+      assert.match(error.message, /cleanup failed/)
+      assert.equal(error.snapshot.service.status, 'running')
+      assert.equal(error.snapshot.status.running, false)
+      return true
+    }
+  )
+  assert.deepEqual(calls, [
+    'service.getStatus',
+    'service.start',
+    'service.getStatus',
+    'runtime.start',
+    'service.stop',
+    'service.getStatus'
+  ])
+})
+
+test('接入其他窗口正在启动的 service 时不拥有失败补偿权', async () => {
+  const { api, calls } = fakeApi({
+    service: 'starting',
+    runtimeStartError: new Error('bind failed')
+  })
+
+  await assert.rejects(() => startShareLifecycle(api, input, settings), /bind failed/)
+  assert.deepEqual(calls, [
+    'service.getStatus',
+    'service.start',
+    'service.getStatus',
+    'runtime.start'
+  ])
+})
+
 test('停止严格先关闭 runtime 再关闭并确认宿主 service', async () => {
   const { api, calls } = fakeApi({ service: 'running' })
 
@@ -200,7 +264,16 @@ test('宿主停止失败且仍 running 时不得返回已停止', async () => {
     serviceStopError: new Error('host stop failed')
   })
 
-  await assert.rejects(() => stopShareLifecycle(api, settings), /host stop failed/)
+  await assert.rejects(
+    () => stopShareLifecycle(api, settings),
+    (error) => {
+      assert.ok(error instanceof ShareLifecycleStateError)
+      assert.match(error.message, /host stop failed/)
+      assert.equal(error.snapshot.service.status, 'running')
+      assert.equal(error.snapshot.status.running, false)
+      return true
+    }
+  )
   assert.deepEqual(calls, [
     'service.getStatus',
     'runtime.stop',
@@ -229,5 +302,14 @@ test('runtime 状态读取失败且宿主仍运行时保留原错误', async () 
     runtimeStatusError: new Error('runtime disconnected')
   })
 
-  await assert.rejects(() => loadShareSnapshot(api, settings), /runtime disconnected/)
+  await assert.rejects(
+    () => loadShareSnapshot(api, settings),
+    (error) => {
+      assert.ok(error instanceof ShareLifecycleStateError)
+      assert.match(error.message, /runtime disconnected/)
+      assert.equal(error.snapshot.service.status, 'running')
+      assert.equal(error.snapshot.status.running, false)
+      return true
+    }
+  )
 })

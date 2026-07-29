@@ -11,7 +11,9 @@ import {
 import {
   isServiceActive,
   isServiceTransitioning,
+  LifecycleRequestGate,
   loadShareSnapshot,
+  ShareLifecycleStateError,
   startShareLifecycle,
   stopShareLifecycle,
   type ShareLifecycleApi,
@@ -57,6 +59,7 @@ export function useShareController() {
   const snapshotRef = useRef<ShareSnapshot | null>(null)
   const settingsRef = useRef<ShareSettings>(loadShareSettings(window.localStorage))
   const operationRef = useRef<Promise<void> | null>(null)
+  const requestGateRef = useRef(new LifecycleRequestGate())
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const applySnapshot = useCallback((snapshot: ShareSnapshot, error = '') => {
@@ -77,16 +80,35 @@ export function useShareController() {
     }))
   }, [])
 
-  const refresh = useCallback(async () => {
-    try {
-      const snapshot = await loadShareSnapshot(lifecycleApi, settingsRef.current)
-      applySnapshot(snapshot)
-    } catch (error) {
+  const applyError = useCallback(
+    (error: unknown) => {
+      if (error instanceof ShareLifecycleStateError) {
+        const previous = snapshotRef.current
+        const snapshot =
+          !error.runtimeStatusKnown && previous
+            ? { service: error.snapshot.service, status: previous.status }
+            : error.snapshot
+        applySnapshot(snapshot, error.message)
+        return
+      }
       if (mountedRef.current) {
         setState((previous) => ({ ...previous, loading: false, error: messageOf(error) }))
       }
+    },
+    [applySnapshot]
+  )
+
+  const refresh = useCallback(async () => {
+    const epoch = requestGateRef.current.capture()
+    try {
+      const snapshot = await loadShareSnapshot(lifecycleApi, settingsRef.current)
+      if (!requestGateRef.current.isCurrent(epoch) || operationRef.current) return
+      applySnapshot(snapshot)
+    } catch (error) {
+      if (!requestGateRef.current.isCurrent(epoch) || operationRef.current) return
+      applyError(error)
     }
-  }, [applySnapshot])
+  }, [applyError, applySnapshot])
 
   useEffect(() => {
     let cancelled = false
@@ -96,25 +118,20 @@ export function useShareController() {
         if (!cancelled) applySnapshot(snapshot)
       })
       .catch((error) => {
-        if (!cancelled && mountedRef.current) {
-          setState((previous) => ({
-            ...previous,
-            loading: false,
-            error: messageOf(error)
-          }))
-        }
+        if (!cancelled) applyError(error)
       })
 
     return () => {
       cancelled = true
       mountedRef.current = false
     }
-  }, [applySnapshot])
+  }, [applyError, applySnapshot])
 
   const serviceStatus = state.snapshot?.service.status
   const shouldPoll =
-    serviceStatus === 'running' ||
-    (serviceStatus !== undefined && isServiceTransitioning(serviceStatus))
+    state.operation === null &&
+    (serviceStatus === 'running' ||
+      (serviceStatus !== undefined && isServiceTransitioning(serviceStatus)))
 
   useEffect(() => {
     if (shouldPoll && !pollTimer.current) {
@@ -134,6 +151,7 @@ export function useShareController() {
   const runAction = useCallback(
     (operation: Exclude<ControllerOperation, null>, action: () => Promise<void>) => {
       if (operationRef.current) return operationRef.current
+      requestGateRef.current.invalidate()
       if (mountedRef.current) {
         setState((previous) => ({ ...previous, operation, error: '' }))
       }
@@ -142,9 +160,7 @@ export function useShareController() {
         try {
           await action()
         } catch (error) {
-          if (mountedRef.current) {
-            setState((previous) => ({ ...previous, error: messageOf(error) }))
-          }
+          applyError(error)
         } finally {
           operationRef.current = null
           if (mountedRef.current) {
@@ -155,7 +171,7 @@ export function useShareController() {
       operationRef.current = promise
       return promise
     },
-    []
+    [applyError]
   )
 
   const start = useCallback(
@@ -200,7 +216,13 @@ export function useShareController() {
   const saveConfig = useCallback(
     (config: ShareConfigInput) => {
       const current = snapshotRef.current
-      if (!current || isServiceActive(current.service.status)) return
+      if (
+        !current ||
+        current.status.running ||
+        isServiceTransitioning(current.service.status)
+      ) {
+        return
+      }
       settingsRef.current = saveShareSettings(
         window.localStorage,
         config,

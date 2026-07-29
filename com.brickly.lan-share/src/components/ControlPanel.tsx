@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FolderOpen, Loader2, Play, Save, Square } from 'lucide-react'
 import { openFolder } from '../brickly'
-import { isServiceActive } from '../share-lifecycle'
+import { canStartShare, isServiceActive, isServiceTransitioning } from '../share-lifecycle'
 import type { BrickServiceStatus, ShareConfigInput, ShareStatus } from '../types'
 
 interface ControlPanelProps {
@@ -40,7 +40,9 @@ export function ControlPanel({
   }, [status.root, status.port, status.allowUpload, dirty])
 
   const serviceActive = isServiceActive(serviceStatus)
-  const locked = serviceActive || busy
+  const transitioning = isServiceTransitioning(serviceStatus)
+  const showStart = canStartShare(serviceStatus, status.running)
+  const locked = status.running || transitioning || busy
 
   const collectConfig = (): ShareConfigInput => {
     const config: ShareConfigInput = {
@@ -142,13 +144,15 @@ export function ControlPanel({
       </label>
 
       <div className="control-actions">
-        {serviceActive ? (
-          <button className="btn danger" onClick={onStop} disabled={busy}>
-            {busy ? <Loader2 size={16} className="spin" /> : <Square size={16} />} 停止共享
-          </button>
-        ) : (
+        {showStart && (
           <button className="btn primary" onClick={handleStart} disabled={busy}>
             {busy ? <Loader2 size={16} className="spin" /> : <Play size={16} />} 启动共享
+          </button>
+        )}
+        {serviceActive && (
+          <button className="btn danger" onClick={onStop} disabled={busy}>
+            {busy ? <Loader2 size={16} className="spin" /> : <Square size={16} />}{' '}
+            {status.running ? '停止共享' : '停止服务'}
           </button>
         )}
         <button className="btn ghost" onClick={handleSave} disabled={locked}>
