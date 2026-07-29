@@ -325,8 +325,10 @@ func ExpandRemotePaths(client *ssh.Client, paths []string) ([]string, error) {
 
 // RemoteLogFile is a concrete remote log file with the byte size captured when it was listed.
 type RemoteLogFile struct {
-	Path      string `json:"path"`
-	SizeBytes int64  `json:"sizeBytes"`
+	Path       string `json:"path"`
+	SizeBytes  int64  `json:"sizeBytes"`
+	ModifiedAt int64  `json:"modifiedAt"`
+	MimeType   string `json:"mimeType"`
 }
 
 // ListRemoteLogFiles expands configured paths, then reads metadata for every concrete file on
@@ -376,8 +378,8 @@ func ReadRemoteLogFileInfo(client *ssh.Client, targetFiles []string) ([]RemoteLo
 }
 
 func parseRemoteLogFileInfoLine(line string) (RemoteLogFile, bool) {
-	parts := strings.SplitN(line, "\t", 2)
-	if len(parts) != 2 || parts[1] == "" {
+	parts := strings.SplitN(line, "\t", 4)
+	if len(parts) != 2 && len(parts) != 4 {
 		return RemoteLogFile{}, false
 	}
 
@@ -385,7 +387,45 @@ func parseRemoteLogFileInfoLine(line string) (RemoteLogFile, bool) {
 	if err != nil || sizeBytes < 0 {
 		return RemoteLogFile{}, false
 	}
-	return RemoteLogFile{Path: parts[1], SizeBytes: sizeBytes}, true
+	if len(parts) == 2 {
+		if parts[1] == "" {
+			return RemoteLogFile{}, false
+		}
+		return RemoteLogFile{Path: parts[1], SizeBytes: sizeBytes}, true
+	}
+
+	modifiedAt, err := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64)
+	if err != nil || modifiedAt < 0 || parts[3] == "" {
+		return RemoteLogFile{}, false
+	}
+	return RemoteLogFile{
+		Path:       parts[3],
+		SizeBytes:  sizeBytes,
+		ModifiedAt: modifiedAt,
+		MimeType:   strings.TrimSpace(parts[2]),
+	}, true
+}
+
+func filterSearchableRemoteLogFiles(files []RemoteLogFile) []string {
+	paths := make([]string, 0, len(files))
+	for _, file := range files {
+		if isSearchableRemoteLogMimeType(file.MimeType) {
+			paths = append(paths, file.Path)
+		}
+	}
+	return paths
+}
+
+func isSearchableRemoteLogMimeType(mimeType string) bool {
+	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
+	if mimeType == "" {
+		return true
+	}
+	return strings.HasPrefix(mimeType, "text/") ||
+		mimeType == "application/json" ||
+		mimeType == "application/xml" ||
+		mimeType == "application/x-ndjson" ||
+		mimeType == "inode/x-empty"
 }
 
 func expandRemotePaths(ctx context.Context, client *ssh.Client, paths []string) ([]string, error) {
@@ -947,7 +987,7 @@ func buildRemoteFileInfoCommand(paths []string) string {
 	for _, path := range paths {
 		quotedPaths = append(quotedPaths, shellQuote(path))
 	}
-	script := fmt.Sprintf(`for path in %s; do if [ -f "$path" ]; then size=$(wc -c < "$path") && printf '%%s\t%%s\n' "$size" "$path"; fi; done`, strings.Join(quotedPaths, " "))
+	script := fmt.Sprintf(`has_file=0; command -v file >/dev/null 2>&1 && has_file=1; for path in %s; do if [ -f "$path" ]; then size=$(wc -c < "$path") || continue; modified_at=$(stat -c %%Y -- "$path" 2>/dev/null) || modified_at=0; mime_type=; if [ "$has_file" -eq 1 ]; then mime_type=$(file -b --mime-type -- "$path" 2>/dev/null) || mime_type=application/octet-stream; fi; printf '%%s\t%%s\t%%s\t%%s\n' "$size" "$modified_at" "$mime_type" "$path"; fi; done`, strings.Join(quotedPaths, " "))
 	return "sh -c " + shellQuote(script)
 }
 

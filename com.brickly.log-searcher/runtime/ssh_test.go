@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -31,7 +32,9 @@ func TestBuildRemoteFileInfoCommandQuotesPaths(t *testing.T) {
 		"/var/log/app current.log",
 		"/tmp/quote",
 		`wc -c < "$path"`,
-		`printf '\''%s\t%s\n'\'' "$size" "$path"`,
+		`stat -c %Y -- "$path"`,
+		`file -b --mime-type -- "$path"`,
+		`printf '\''%s\t%s\t%s\t%s\n'\'' "$size" "$modified_at" "$mime_type" "$path"`,
 	})
 	if strings.Contains(got, "/tmp/quote's.log") {
 		t.Fatalf("file path with quote should be shell-quoted, got %q", got)
@@ -46,6 +49,38 @@ func TestParseRemoteLogFileInfoLine(t *testing.T) {
 	want := RemoteLogFile{Path: "/var/log/app current.log", SizeBytes: 1048576}
 	if got != want {
 		t.Fatalf("parseRemoteLogFileInfoLine() = %+v, want %+v", got, want)
+	}
+}
+
+func TestParseRemoteLogFileInfoLineIncludesModifiedTimeAndMimeType(t *testing.T) {
+	got, ok := parseRemoteLogFileInfoLine("1048576\t1722230000\ttext/plain\t/var/log/app current.log")
+	if !ok {
+		t.Fatal("parseRemoteLogFileInfoLine() should parse a full metadata result line")
+	}
+	want := RemoteLogFile{
+		Path:       "/var/log/app current.log",
+		SizeBytes:  1048576,
+		ModifiedAt: 1722230000,
+		MimeType:   "text/plain",
+	}
+	if got != want {
+		t.Fatalf("parseRemoteLogFileInfoLine() = %+v, want %+v", got, want)
+	}
+}
+
+func TestFilterSearchableRemoteLogFilesExcludesBinaryFiles(t *testing.T) {
+	got := filterSearchableRemoteLogFiles([]RemoteLogFile{
+		{Path: "/var/log/app.log", MimeType: "text/plain"},
+		{Path: "/srv/service.jar", MimeType: "application/zip"},
+		{Path: "/srv/image.png", MimeType: "image/png"},
+		{Path: "/var/log/empty.log", MimeType: "inode/x-empty"},
+	})
+	want := []string{"/var/log/app.log", "/var/log/empty.log"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("filterSearchableRemoteLogFiles() = %v, want %v", got, want)
+	}
+	if !isSearchableRemoteLogMimeType("") {
+		t.Fatal("unknown MIME type should remain visible when the remote host lacks file")
 	}
 }
 

@@ -347,7 +347,7 @@
           {
             "name": "fileInfos",
             "type": "json",
-            "description": "可选的文件元数据数组，每项包含 path 与 sizeBytes（文件字节数）。"
+            "description": "可选的文件元数据数组，每项包含 path、sizeBytes（字节数）、modifiedAt（Unix 秒级时间戳）与 mimeType。"
           }
         ]
       }

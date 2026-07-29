@@ -31,7 +31,15 @@ import {
   escapeRegExp,
   mergeHighlightRanges
 } from './domain/highlight'
-import { formatLogFileSize, getDefaultSelectedFiles, getLogFileName, normalizeRemoteLogFiles, sortLogFiles, type RemoteLogFile } from './domain/logFiles'
+import {
+  formatLogFileSize,
+  getDefaultSelectedFiles,
+  getLogFileName,
+  isSearchableLogFile,
+  normalizeRemoteLogFiles,
+  sortRemoteLogFilesByModifiedAt,
+  type RemoteLogFile
+} from './domain/logFiles'
 
 // --- 声明 window 上的全局 brickly 属性类型 ---
 declare global {
@@ -398,10 +406,12 @@ export function App() {
     try {
       const res = await window.brickly.invoke('list_log_files', { serverId })
       if (fileListRequestIDsRef.current[serverId] !== activeRequestID) return
-      const files = normalizeRemoteLogFiles(res)
+      const files = sortRemoteLogFilesByModifiedAt(
+        normalizeRemoteLogFiles(res).filter(isSearchableLogFile)
+      )
       const filesByPath = new Map(files.map(file => [file.path, file]))
-      const sortedFiles = sortLogFiles([...filesByPath.keys()])
-        .map(path => filesByPath.get(path))
+      const sortedFiles = files
+        .map(file => filesByPath.get(file.path))
         .filter((file): file is RemoteLogFile => file !== undefined)
       const sortedFilePaths = sortedFiles.map(file => file.path)
       setAvailableFilesMap(prev => ({ ...prev, [serverId]: sortedFiles }))
@@ -1938,7 +1948,7 @@ export function App() {
                       const available = availableFilesMap[activeServerId] || []
                       if (available.length === 0 && status === 'loading') return '加载文件中...'
                       if (available.length === 0 && status === 'error') return '文件加载失败'
-                      if (available.length === 0) return '等待加载文件...'
+                      if (available.length === 0) return '未发现可检索的文本日志'
                       if (selected.length === 0) return '未选文件(默认前5个)'
                       if (selected.length === available.length) return '已选择全部文件'
                       return `已选 ${selected.length}/${available.length} 个文件`

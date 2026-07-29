@@ -6,6 +6,8 @@ export interface LogPathConfig {
 export interface RemoteLogFile {
   path: string
   sizeBytes?: number
+  modifiedAt?: number
+  mimeType?: string
 }
 
 interface ParsedLogFileInfo {
@@ -35,6 +37,24 @@ export const formatLogFileSize = (sizeBytes: number): string => {
   return `${Number(value.toFixed(precision))} ${units[unitIndex]}`
 }
 
+export const isSearchableLogFile = (file: RemoteLogFile): boolean => {
+  if (!file.mimeType) return true
+  const mimeType = file.mimeType.toLowerCase()
+  return mimeType.startsWith('text/')
+    || mimeType === 'application/json'
+    || mimeType === 'application/xml'
+    || mimeType === 'application/x-ndjson'
+    || mimeType === 'inode/x-empty'
+}
+
+export const sortRemoteLogFilesByModifiedAt = (files: RemoteLogFile[]): RemoteLogFile[] => {
+  return [...files].sort((a, b) => {
+    const modifiedAtDiff = (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0)
+    if (modifiedAtDiff !== 0) return modifiedAtDiff
+    return a.path.localeCompare(b.path)
+  })
+}
+
 export const normalizeRemoteLogFiles = (response: unknown): RemoteLogFile[] => {
   if (typeof response !== 'object' || response === null) return []
 
@@ -54,8 +74,18 @@ export const normalizeRemoteLogFiles = (response: unknown): RemoteLogFile[] => {
     const sizeBytes = typeof file.sizeBytes === 'number' && Number.isFinite(file.sizeBytes) && file.sizeBytes >= 0
       ? file.sizeBytes
       : undefined
+    const modifiedAt = typeof file.modifiedAt === 'number' && Number.isFinite(file.modifiedAt) && file.modifiedAt >= 0
+      ? file.modifiedAt
+      : undefined
+    const mimeType = typeof file.mimeType === 'string' && file.mimeType.trim() !== ''
+      ? file.mimeType
+      : undefined
     if (!filesByPath.has(file.path)) paths.push(file.path)
-    filesByPath.set(file.path, sizeBytes === undefined ? { path: file.path } : { path: file.path, sizeBytes })
+    const normalizedFile: RemoteLogFile = { path: file.path }
+    if (sizeBytes !== undefined) normalizedFile.sizeBytes = sizeBytes
+    if (modifiedAt !== undefined) normalizedFile.modifiedAt = modifiedAt
+    if (mimeType !== undefined) normalizedFile.mimeType = mimeType
+    filesByPath.set(file.path, normalizedFile)
   }
 
   if (Array.isArray(data.files)) data.files.forEach(add)

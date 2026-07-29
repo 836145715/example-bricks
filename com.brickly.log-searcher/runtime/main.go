@@ -495,13 +495,27 @@ func handleListLogFiles(id string, input map[string]any) {
 		return
 	}
 	fileInfos, err := ReadRemoteLogFileInfo(client, expandedFiles)
+	files := expandedFiles
 	if err != nil {
 		logWarn("远程日志文件大小读取失败", map[string]any{"serverId": serverId, "error": err.Error()})
 		fileInfos = []RemoteLogFile{}
+	} else {
+		files = filterSearchableRemoteLogFiles(fileInfos)
+		filteredFileInfos := make([]RemoteLogFile, 0, len(files))
+		searchablePaths := make(map[string]struct{}, len(files))
+		for _, filePath := range files {
+			searchablePaths[filePath] = struct{}{}
+		}
+		for _, file := range fileInfos {
+			if _, ok := searchablePaths[file.Path]; ok {
+				filteredFileInfos = append(filteredFileInfos, file)
+			}
+		}
+		fileInfos = filteredFileInfos
 	}
 
 	sendResult(id, map[string]any{
-		"files":     expandedFiles,
+		"files":     files,
 		"fileInfos": fileInfos,
 	})
 }
