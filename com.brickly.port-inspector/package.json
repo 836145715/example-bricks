@@ -1,14 +1,15 @@
 {
   "name": "com.brickly.port-inspector",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "build": "vite build",
     "dev": "vite",
     "preview": "vite preview",
-    "test:runtime": "node --test runtime/node/__tests__/port-inspector.test.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:runtime": "powershell -NoProfile -File runtime/go/build.ps1 -Targets win-x64,win-arm64,mac-x64,mac-arm64",
+    "test:runtime": "cd runtime/go && go test ./..."
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",

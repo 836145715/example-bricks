@@ -3,15 +3,15 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.port-inspector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "端口占用查询",
     "en": "Port Inspector"
   },
   "description": {
-    "zh-CN": "查询本机端口被哪个进程占用，展示进程名称、PID、端口号与连接状态，并可在确认后结束进程。",
-    "en": "Inspect local port ownership, show process name, PID, port and connection state, and terminate a process after confirmation."
+    "zh-CN": "用系统 API 查询本机端口占用，展示进程信息，并在确认后结束进程。",
+    "en": "Inspect local port ownership via system APIs, show process details, and terminate after confirmation."
   },
   "icon": "assets/icon.svg",
   "keywords": [
@@ -19,7 +19,8 @@
     "process",
     "developer",
     "tcp",
-    "udp"
+    "udp",
+    "netstat"
   ],
   "categories": [
     "developer-tools",
@@ -30,23 +31,23 @@
   },
   "license": "MIT",
   "runtime": {
-    "type": "node",
+    "type": "native",
     "platforms": [
       "win-x64",
       "win-arm64",
       "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
+      "mac-arm64"
     ],
-    "entry": "runtime/node/index.cjs"
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "win-arm64": "bin/win-arm64/brick.exe",
+      "mac-x64": "bin/mac-x64/brick",
+      "mac-arm64": "bin/mac-arm64/brick"
+    }
   },
   "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": false,
-      "restart": "none"
-    }
+    "state": "stateless",
+    "idleTimeoutMs": 0
   },
   "permissions": [
     "os.exec"
@@ -55,12 +56,12 @@
     "type": "webview",
     "entry": "ui/index.html",
     "size": {
-      "width": 1080,
-      "height": 720,
+      "width": 1180,
+      "height": 760,
       "resizable": true
     },
     "devTools": "debug-only",
-    "theme": "auto"
+    "theme": "dark"
   },
   "commands": [
     {
@@ -70,8 +71,8 @@
         "en": "Lookup Port"
       },
       "description": {
-        "zh-CN": "查询指定本机端口当前被哪些进程占用，返回协议、本地地址、端口、PID、进程名称和状态。",
-        "en": "Find processes currently owning a local port and return protocol, local address, port, PID, process name and state."
+        "zh-CN": "查询指定本机端口当前被哪些进程占用，返回协议、地址、PID 与进程名。",
+        "en": "Find processes owning a local port; returns protocol, endpoints, PID and process name."
       },
       "category": "network",
       "io": {
@@ -93,44 +94,25 @@
             "type": "string",
             "default": "all",
             "enum": [
-              {
-                "value": "all",
-                "label": "全部"
-              },
-              {
-                "value": "tcp",
-                "label": "TCP"
-              },
-              {
-                "value": "udp",
-                "label": "UDP"
-              }
+              { "value": "all", "label": "全部" },
+              { "value": "tcp", "label": "TCP" },
+              { "value": "udp", "label": "UDP" }
             ]
           }
         ],
         "outputs": [
-          {
-            "name": "result",
-            "type": "json"
-          }
+          { "name": "result", "type": "json" }
         ]
       },
       "examples": [
         {
           "title": "查询 3000 端口",
-          "input": {
-            "port": 3000,
-            "protocol": "all"
-          }
+          "input": { "port": 3000, "protocol": "all" }
         }
       ],
       "llm": {
         "requireApproval": "never",
-        "tags": [
-          "port",
-          "process",
-          "readonly"
-        ]
+        "tags": ["port", "process", "readonly"]
       },
       "execution": "queue"
     },
@@ -141,8 +123,8 @@
         "en": "List Ports"
       },
       "description": {
-        "zh-CN": "列出当前本机监听或已建立连接的端口占用，可按端口号、进程名或 PID 过滤。",
-        "en": "List local listening or established port ownership and optionally filter by port, process name or PID."
+        "zh-CN": "列出本机监听或已建立连接的端口占用，可按关键字过滤。",
+        "en": "List local listening or established sockets with optional filter."
       },
       "category": "network",
       "io": {
@@ -160,18 +142,9 @@
             "type": "string",
             "default": "all",
             "enum": [
-              {
-                "value": "all",
-                "label": "全部"
-              },
-              {
-                "value": "tcp",
-                "label": "TCP"
-              },
-              {
-                "value": "udp",
-                "label": "UDP"
-              }
+              { "value": "all", "label": "全部" },
+              { "value": "tcp", "label": "TCP" },
+              { "value": "udp", "label": "UDP" }
             ]
           },
           {
@@ -192,19 +165,12 @@
           }
         ],
         "outputs": [
-          {
-            "name": "result",
-            "type": "json"
-          }
+          { "name": "result", "type": "json" }
         ]
       },
       "llm": {
         "requireApproval": "never",
-        "tags": [
-          "port",
-          "process",
-          "readonly"
-        ]
+        "tags": ["port", "process", "readonly"]
       },
       "execution": "queue"
     },
@@ -215,13 +181,10 @@
         "en": "Inspect Process Details"
       },
       "description": {
-        "zh-CN": "按 PID 查看进程名称、可执行路径、启动参数、工作目录、父进程和运行时间等只读详情。",
-        "en": "Inspect readonly process details by PID, including name, executable path, command line, working directory, parent process and runtime."
+        "zh-CN": "按 PID 查看进程详情。",
+        "en": "Inspect process details by PID."
       },
       "category": "process",
-      "permissions": [
-        "os.exec"
-      ],
       "io": {
         "inputs": [
           {
@@ -235,26 +198,18 @@
           }
         ],
         "outputs": [
-          {
-            "name": "result",
-            "type": "json"
-          }
+          { "name": "result", "type": "json" }
         ]
       },
       "examples": [
         {
           "title": "查看指定进程详情",
-          "input": {
-            "pid": 12345
-          }
+          "input": { "pid": 12345 }
         }
       ],
       "llm": {
         "requireApproval": "never",
-        "tags": [
-          "process",
-          "readonly"
-        ]
+        "tags": ["process", "readonly"]
       },
       "execution": "queue"
     },
@@ -265,13 +220,10 @@
         "en": "Kill Process"
       },
       "description": {
-        "zh-CN": "结束指定 PID 的进程。该命令有副作用，应只在用户明确确认要释放端口时调用。",
-        "en": "Terminate a process by PID. This command has side effects and should only be used after explicit user confirmation."
+        "zh-CN": "按 PID 结束进程。必须在用户确认后调用。",
+        "en": "Terminate a process by PID after explicit user confirmation."
       },
       "category": "process",
-      "permissions": [
-        "os.exec"
-      ],
       "io": {
         "inputs": [
           {
@@ -291,34 +243,23 @@
           }
         ],
         "outputs": [
-          {
-            "name": "result",
-            "type": "json"
-          }
+          { "name": "result", "type": "json" }
         ]
       },
       "examples": [
         {
           "title": "结束指定进程",
-          "input": {
-            "pid": 12345,
-            "force": false
-          }
+          "input": { "pid": 12345, "force": true }
         }
       ],
       "llm": {
         "requireApproval": "always",
-        "tags": [
-          "process",
-          "dangerous"
-        ]
+        "tags": ["process", "dangerous"]
       },
       "execution": "queue"
     }
   ],
   "triggers": [
-    {
-      "type": "manual"
-    }
+    { "type": "manual" }
   ]
 }
