@@ -52,10 +52,13 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
+    "titleBar": "custom",
     "windowPolicy": "multi",
     "size": {
       "width": 1100,
       "height": 760,
+      "minWidth": 720,
+      "minHeight": 480,
       "resizable": true
     },
     "devTools": "debug-only",

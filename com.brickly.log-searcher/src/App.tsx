@@ -31,6 +31,7 @@ import {
   escapeRegExp,
   mergeHighlightRanges
 } from './domain/highlight'
+import { TitleBar } from './components/TitleBar'
 import {
   formatLogFileSize,
   getDefaultSelectedFiles,
@@ -59,6 +60,14 @@ declare global {
           onDone?: () => void
         }
       ): { cancel(): void }
+      closeWindow?(): void
+      window?: {
+        minimize(): Promise<void>
+        toggleMaximize(): Promise<boolean>
+        close(): Promise<void>
+        isMaximized(): Promise<boolean>
+        onMaximizeChange(callback: (maximized: boolean) => void): () => void
+      }
       system: any
     }
   }
@@ -1851,6 +1860,8 @@ export function App() {
   ])
 
   return (
+    <div className="app-root">
+      <TitleBar />
     <main className={`app-shell ${sidebarCollapsed ? 'app-shell-sidebar-collapsed' : ''}`}>
       {/* 侧边栏：服务器配置选择 */}
       <aside className={`sidebar ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -2809,5 +2820,6 @@ export function App() {
         </footer>
       </section>
     </main>
+    </div>
   )
 }

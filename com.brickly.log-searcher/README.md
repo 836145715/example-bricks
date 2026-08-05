@@ -7,6 +7,8 @@ last_verified: 2026-06-08
 
 `com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。UI 适合人工排查日志，`search` command 也可以被其他 Brick、工作流或 Agent 直接调用。
 
+体验窗使用 **`titleBar: "custom"`** 自绘标题栏（拖动区 + 最小化 / 最大化 / 关闭），依赖平台 `window.brickly.window`。
+
 ## search 能力
 
 输入：
