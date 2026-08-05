@@ -71,6 +71,67 @@ export type ClipboardSetResult = {
   height?: number
 }
 
+export type HistoryChangeReason = 'insert' | 'remove' | 'clear' | 'favorite' | 'sync'
+
+export type ClipboardHistoryChangedPayload = {
+  revision: number
+  count: number
+  reason: HistoryChangeReason
+  at: number
+}
+
+export type ClipboardHistoryChangedEnvelope = {
+  event: 'clipboard-history:changed'
+  payload: ClipboardHistoryChangedPayload
+  sourceBrickId: 'com.brickly.clipboard-history'
+  publishedAt: number
+}
+
+export type RuntimeStatus = {
+  state: 'running' | 'error'
+  enabled: boolean
+  startedAt: number
+  uptimeMs: number
+  count: number
+  maxItems: number
+  dedupeHits: number
+  processedEvents: number
+  lastEventAt?: number
+  lastEventKind?: ClipType
+  lastError?: string
+  revision: number
+}
+
+export type StorageInfo = {
+  brickId: string
+  dataDir: string
+  mediaDir: string
+  dbPath: string
+  count: number
+  maxItems: number
+  dedupeHits: number
+}
+
+export type SyncResult = {
+  changed: boolean
+  reason: 'sync'
+  revision: number
+  count: number
+}
+
+export type BricklyUiApi = {
+  invoke?: (commandId: string, input: Record<string, unknown>) => Promise<unknown>
+  system?: {
+    getFileIcon?: (filePath: string) => Promise<string>
+  }
+}
+
+export type ClipboardHistoryEvents = {
+  subscribe: (
+    listener: (envelope: ClipboardHistoryChangedEnvelope) => void
+  ) => Promise<() => void | Promise<void>>
+}
+
 export type ClipboardHistoryStore = {
   list: () => Promise<ClipItem[]>
   remove: (id: string) => Promise<boolean>
@@ -118,6 +179,8 @@ export type ClipboardHistoryPlatform = {
 
 declare global {
   interface Window {
+    brickly?: BricklyUiApi
+    clipboardHistoryEvents?: ClipboardHistoryEvents
     clipboardHistoryStore?: ClipboardHistoryStore
     clipboardHistoryPlatform?: ClipboardHistoryPlatform
     AIBricks?: {
