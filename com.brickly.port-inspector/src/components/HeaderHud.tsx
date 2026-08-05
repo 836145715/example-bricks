@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ListFilter, Loader2, Network, RefreshCw, Search, Terminal, X } from 'lucide-react'
+import { ListFilter, Loader2, Network, RefreshCw, Search, X } from 'lucide-react'
 import React from 'react'
 import type { Mode, ProtocolFilter } from '../types'
 import { QuickPresets } from './QuickPresets'
@@ -44,18 +44,7 @@ export const HeaderHud: React.FC<HeaderHudProps> = ({
 }) => {
   return (
     <header className="hud">
-      {/* 品牌标识 */}
-      <div className="brand">
-        <span className="brand-mark" aria-hidden>
-          <Terminal size={18} />
-        </span>
-        <div className="brand-text">
-          <h1 className="brand-title">端口雷达</h1>
-          <p className="brand-sub">实时排查 · 进程检视 · 强杀占用</p>
-        </div>
-      </div>
-
-      {/* 核心控件区域 */}
+      {/* 核心控件区域 (已移除与标题栏重复的 Brand LOGO 块) */}
       <div className="hud-controls">
         {/* 模式选择 Segment */}
         <div className="seg" role="tablist" aria-label="扫描模式">
@@ -161,7 +150,6 @@ export const HeaderHud: React.FC<HeaderHudProps> = ({
             含已连接
           </label>
         )}
-
       </div>
 
       {/* 触发操作按钮组 */}
