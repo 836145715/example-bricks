@@ -102,28 +102,92 @@ async function lookupPort(input = {}) {
   })
 }
 
+/**
+ * 通过 Node 进程 API 结束目标进程（Windows 底层为 TerminateProcess，
+ * 不依赖 taskkill.exe，避免非 /F 失败与控制台编码乱码）。
+ *
+ * - Unix: force=false → SIGTERM；force=true → SIGKILL
+ * - Windows: 系统无 POSIX 信号，process.kill 一律走强制终止；force 仅作调用语义记录
+ * - 目标已不存在视为幂等成功（alreadyExited）
+ */
 async function killProcess(input = {}) {
   const pid = normalizePid(input.pid, { forbidSelf: true })
   const force = boolValue(input.force, false)
   const platform = currentPlatform()
   const before = await getProcessName(platform, pid)
 
-  if (platform === 'windows') {
-    const args = ['/PID', String(pid)]
-    if (force) args.push('/F')
-    await runFile('taskkill.exe', args, { timeoutMs: 15000 })
-  } else {
-    await runFile('kill', [force ? '-9' : '-15', String(pid)], { timeoutMs: 15000 })
-  }
+  const outcome = terminateByApi(pid, force)
 
   return {
     ok: true,
     pid,
-    force,
+    force: outcome.force,
+    alreadyExited: outcome.alreadyExited,
+    method: 'api',
     processName: before || null,
     platform,
     killedAt: new Date().toISOString()
   }
+}
+
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    if (error && error.code === 'ESRCH') return false
+    // EPERM：进程存在但当前权限不足以发信号，仍视为存活
+    if (error && error.code === 'EPERM') return true
+    throw mapKillSystemError(error, pid)
+  }
+}
+
+function terminateByApi(pid, force) {
+  if (!processAlive(pid)) {
+    return { alreadyExited: true, force }
+  }
+
+  try {
+    if (process.platform === 'win32') {
+      // libuv 在 Windows 上对非 0 信号统一走 TerminateProcess
+      process.kill(pid)
+    } else {
+      process.kill(pid, force ? 'SIGKILL' : 'SIGTERM')
+    }
+  } catch (error) {
+    if (error && error.code === 'ESRCH') {
+      return { alreadyExited: true, force }
+    }
+    throw mapKillSystemError(error, pid)
+  }
+
+  // 极短窗口内若 PID 已被回收，仍算成功
+  if (!processAlive(pid)) {
+    return { alreadyExited: false, force: process.platform === 'win32' ? true : force }
+  }
+
+  // Windows / 强杀场景下 TerminateProcess 通常立即生效；
+  // Unix SIGTERM 可能延迟退出，只要信号发出即视为指令已送达。
+  return {
+    alreadyExited: false,
+    force: process.platform === 'win32' ? true : force
+  }
+}
+
+function mapKillSystemError(error, pid) {
+  const code = error && error.code ? String(error.code) : ''
+  if (code === 'ESRCH') {
+    return new BppError('PROCESS_NOT_FOUND', `process ${pid} not found`)
+  }
+  if (code === 'EPERM' || code === 'EACCES') {
+    return new BppError(
+      'ACCESS_DENIED',
+      `permission denied terminating process ${pid}; try running as administrator or check process protection`
+    )
+  }
+  return new BppError('KILL_FAILED', `failed to terminate process ${pid}: ${error && error.message ? error.message : String(error)}`, {
+    cause: normalizeErrorDetail(error)
+  })
 }
 
 async function inspectProcessDetails(input = {}) {
@@ -606,12 +670,15 @@ module.exports = {
   inspectProcessDetails,
   killProcess,
   lookupPort,
+  mapKillSystemError,
   parseUnixProcessNames,
   parseUnixProcessSummary,
   parseWindowsProcessDetails,
   parseLsof,
   parseSs,
   parseWindowsNetstat,
+  processAlive,
   resolveProcessName,
-  runtimeInfo
+  runtimeInfo,
+  terminateByApi
 }

@@ -3,14 +3,19 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
+const { spawn } = require('node:child_process')
 const {
+  killProcess,
+  mapKillSystemError,
   parseUnixProcessNames,
   parseUnixProcessSummary,
   parseWindowsProcessDetails,
   parseLsof,
   parseSs,
   parseWindowsNetstat,
-  resolveProcessName
+  processAlive,
+  resolveProcessName,
+  terminateByApi
 } = require('../services/port-inspector.cjs')
 
 test('parseWindowsNetstat parses TCP and UDP rows', () => {
@@ -128,4 +133,72 @@ test('parseWindowsProcessDetails parses PowerShell CIM json', () => {
     startedAt: '2026-06-08T21:00:00.0000000+08:00',
     user: 'DESKTOP\\\\xuan'
   })
+})
+
+test('mapKillSystemError maps ESRCH and EPERM to stable codes', () => {
+  const notFound = mapKillSystemError(Object.assign(new Error('no such process'), { code: 'ESRCH' }), 4242)
+  assert.equal(notFound.code, 'PROCESS_NOT_FOUND')
+
+  const denied = mapKillSystemError(Object.assign(new Error('operation not permitted'), { code: 'EPERM' }), 4242)
+  assert.equal(denied.code, 'ACCESS_DENIED')
+
+  const failed = mapKillSystemError(Object.assign(new Error('boom'), { code: 'UNKNOWN' }), 4242)
+  assert.equal(failed.code, 'KILL_FAILED')
+})
+
+test('processAlive detects current process and missing pid', () => {
+  assert.equal(processAlive(process.pid), true)
+  assert.equal(processAlive(2_147_483_646), false)
+})
+
+test('terminateByApi is idempotent for missing pid', () => {
+  const outcome = terminateByApi(2_147_483_646, true)
+  assert.deepEqual(outcome, { alreadyExited: true, force: true })
+})
+
+test('killProcess refuses to terminate the runtime itself', async () => {
+  await assert.rejects(() => killProcess({ pid: process.pid, force: true }), (error) => {
+    assert.equal(error.code, 'INVALID_INPUT')
+    assert.match(String(error.message), /refusing to terminate/i)
+    return true
+  })
+})
+
+test('killProcess terminates a child process via Node API', async () => {
+  const child = spawn(
+    process.execPath,
+    ['-e', 'setInterval(() => {}, 1000)'],
+    {
+      stdio: 'ignore',
+      windowsHide: true
+    }
+  )
+  assert.ok(child.pid)
+
+  try {
+    const result = await killProcess({ pid: child.pid, force: true })
+    assert.equal(result.ok, true)
+    assert.equal(result.pid, child.pid)
+    assert.equal(result.method, 'api')
+    assert.equal(result.alreadyExited, false)
+    // Windows API 路径始终按强制终止语义记录
+    if (process.platform === 'win32') {
+      assert.equal(result.force, true)
+    } else {
+      assert.equal(result.force, true)
+    }
+  } finally {
+    try {
+      child.kill('SIGKILL')
+    } catch {
+      // already gone
+    }
+    await new Promise((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        resolve()
+        return
+      }
+      child.once('exit', () => resolve())
+    })
+  }
 })
