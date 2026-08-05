@@ -47,6 +47,7 @@
   },
   "permissions": [
     "resource.get",
+    "os.clipboard",
     "event.publish:clipboard-history:changed"
   ],
   "subscriptions": [
@@ -173,6 +174,65 @@
         "outputs": [
           {
             "name": "info",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "sync-now",
+      "name": {
+        "zh-CN": "立即同步剪贴板",
+        "en": "Sync Clipboard Now"
+      },
+      "description": "通过 Runtime clipboard API 读取当前剪贴板，并复用事件入库与去重流程。",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "set-content",
+      "name": {
+        "zh-CN": "写入剪贴板",
+        "en": "Set Clipboard Content"
+      },
+      "description": "通过 Runtime clipboard API 将文本、图片或文件写回系统剪贴板。",
+      "io": {
+        "inputs": [
+          {
+            "name": "content",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "runtime-status",
+      "name": {
+        "zh-CN": "Runtime 状态",
+        "en": "Runtime Status"
+      },
+      "description": "返回剪贴板历史 Runtime 自身的监听、存储、去重和事件状态。",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
             "type": "json"
           }
         ]
