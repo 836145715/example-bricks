@@ -10,6 +10,7 @@ import { MetricsBar } from './components/MetricsBar'
 import { PortTable } from './components/PortTable'
 import { ProcessInspectDrawer } from './components/ProcessInspectDrawer'
 import { StatusBar } from './components/StatusBar'
+import { TitleBar } from './components/TitleBar'
 import { usePortInspector } from './hooks/usePortInspector'
 
 export function App() {
@@ -56,6 +57,8 @@ export function App() {
 
   return (
     <div className={clsx('radar', busy && 'is-scanning')}>
+      <TitleBar />
+
       <HeaderHud
         mode={mode}
         setMode={setMode}

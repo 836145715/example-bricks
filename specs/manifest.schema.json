@@ -781,11 +781,30 @@
                   "type": "integer",
                   "minimum": 200
                 },
+                "minWidth": {
+                  "type": "integer",
+                  "minimum": 200,
+                  "description": "体验窗最小宽度；缺省由平台兜底（如 480）。"
+                },
+                "minHeight": {
+                  "type": "integer",
+                  "minimum": 200,
+                  "description": "体验窗最小高度；缺省由平台兜底（如 320）。"
+                },
                 "resizable": {
                   "type": "boolean",
                   "default": true
                 }
               }
+            },
+            "titleBar": {
+              "type": "string",
+              "enum": [
+                "system",
+                "custom"
+              ],
+              "default": "system",
+              "description": "system：系统标题栏（默认）。custom：Brick 自绘标题栏；平台内部使用无边框窗口，并注入 window.brickly.window 控制 API。"
             },
             "windowPolicy": {
               "type": "string",

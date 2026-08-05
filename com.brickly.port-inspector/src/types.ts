@@ -58,11 +58,22 @@ export interface ProcessDetails {
   inspectedAt: string
 }
 
+/** 自绘标题栏窗口控制（平台 titleBar=custom 时注入） */
+export interface BricklyWindowControls {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<boolean>
+  close(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void
+}
+
 /** Brickly 全局 Bridge API */
 export interface BricklyApi {
   brickId: string
   instanceId?: string
   invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
+  closeWindow?(): void
+  window?: BricklyWindowControls
 }
 
 /** 表格排序字段与顺序 */

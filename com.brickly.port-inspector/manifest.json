@@ -55,9 +55,12 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
+    "titleBar": "custom",
     "size": {
       "width": 1180,
       "height": 760,
+      "minWidth": 720,
+      "minHeight": 480,
       "resizable": true
     },
     "devTools": "debug-only",
