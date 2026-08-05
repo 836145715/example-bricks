@@ -63,3 +63,36 @@ export async function subscribeHistoryChanged(
   if (!events?.subscribe) throw new Error('当前页面没有可用的剪贴板历史事件接口。')
   return events.subscribe(listener)
 }
+
+export function createHistoryRefreshScheduler(
+  refresh: () => void | Promise<void>,
+  delayMs = 100
+): {
+  schedule(envelope: ClipboardHistoryChangedEnvelope): void
+  cancel(): void
+} {
+  let active = true
+  let timer: number | undefined
+  let lastEventKey = ''
+  let latestPublishedAt = 0
+
+  return {
+    schedule(envelope) {
+      if (!active) return
+      const eventKey = `${envelope.payload.revision}:${envelope.payload.at}`
+      if (eventKey === lastEventKey || envelope.publishedAt < latestPublishedAt) return
+      lastEventKey = eventKey
+      latestPublishedAt = envelope.publishedAt
+      if (timer !== undefined) return
+      timer = window.setTimeout(async () => {
+        timer = undefined
+        if (active) await refresh()
+      }, delayMs)
+    },
+    cancel() {
+      active = false
+      if (timer !== undefined) window.clearTimeout(timer)
+      timer = undefined
+    }
+  }
+}

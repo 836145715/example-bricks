@@ -96,6 +96,43 @@ test('宿主命令或事件接口缺失时返回明确错误', async (t) => {
   await assert.rejects(() => api.getFileIcon('C:\\demo.txt'), /文件图标接口/)
 })
 
+test('变化事件按 revision 和 at 去重并合并为单次刷新', async (t) => {
+  const timers = []
+  let refreshes = 0
+  const api = loadAdapter(t, {
+    setTimeout(callback) {
+      timers.push(callback)
+      return timers.length
+    },
+    clearTimeout() {}
+  })
+  const scheduler = api.createHistoryRefreshScheduler(async () => {
+    refreshes++
+  })
+  const envelope = changeEnvelope(3, 100)
+
+  scheduler.schedule(envelope)
+  scheduler.schedule(envelope)
+  scheduler.schedule(changeEnvelope(4, 110))
+
+  assert.equal(timers.length, 1)
+  await timers.shift()()
+  assert.equal(refreshes, 1)
+
+  scheduler.schedule(changeEnvelope(1, 200))
+  assert.equal(timers.length, 1, 'runtime 重启后较小 revision 仍应刷新')
+  scheduler.cancel()
+  await timers.shift()()
+  assert.equal(refreshes, 1, '取消后不得执行待处理刷新')
+})
+
+test('App 不再读取旧 preload 门面或主窗口 API', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'src', 'App.tsx'), 'utf8')
+
+  assert.doesNotMatch(source, /clipboardHistoryStore|clipboardHistoryPlatform|window\.AIBricks/)
+  assert.match(source, /from '\.\/brickly'/)
+})
+
 function loadAdapter(t, windowValue) {
   assert.equal(fs.existsSync(ADAPTER_PATH), true, 'src/brickly.ts 应存在')
   const source = fs.readFileSync(ADAPTER_PATH, 'utf8')
@@ -122,4 +159,13 @@ function loadAdapter(t, windowValue) {
   const execute = new Function('exports', 'require', 'module', compiled.outputText)
   execute(module.exports, require, module)
   return module.exports
+}
+
+function changeEnvelope(revision, at) {
+  return {
+    event: 'clipboard-history:changed',
+    sourceBrickId: 'com.brickly.clipboard-history',
+    publishedAt: at,
+    payload: { revision, count: 1, reason: 'insert', at }
+  }
 }
