@@ -1301,6 +1301,54 @@ table.socket-table {
   border: 1px solid var(--line-2);
 }
 
+.modal-force-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-0);
+  cursor: pointer;
+  user-select: none;
+}
+
+.modal-force-check input {
+  margin-top: 3px;
+  accent-color: var(--rose);
+  flex-shrink: 0;
+}
+
+.modal-force-check span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.modal-force-check strong {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.modal-force-check em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.modal-platform-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: rgba(0, 245, 184, 0.05);
+  border: 1px solid var(--line);
+}
+
 .modal-warning-text {
   display: flex;
   align-items: flex-start;

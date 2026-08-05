@@ -24,8 +24,6 @@ export function App() {
     setProtocol,
     includeEstablished,
     setIncludeEstablished,
-    forceKill,
-    setForceKill,
     busy,
     killingPid,
     copiedPid,
@@ -58,7 +56,6 @@ export function App() {
 
   return (
     <div className={clsx('radar', busy && 'is-scanning')}>
-      {/* 顶部控制台 */}
       <HeaderHud
         mode={mode}
         setMode={setMode}
@@ -70,8 +67,6 @@ export function App() {
         setProtocol={setProtocol}
         includeEstablished={includeEstablished}
         setIncludeEstablished={setIncludeEstablished}
-        forceKill={forceKill}
-        setForceKill={setForceKill}
         busy={busy}
         canLookup={canLookup}
         onRunLookup={runLookup}
@@ -79,10 +74,8 @@ export function App() {
         onRefresh={refresh}
       />
 
-      {/* 指标与提示栏 */}
       <MetricsBar summary={summary} notice={notice} lastKill={lastKill} />
 
-      {/* 主舞台：表格矩阵 + 右侧/底部检视抽屉 */}
       <div className={clsx('stage', inspectOpen && 'inspect-open')}>
         <PortTable
           mode={mode}
@@ -107,7 +100,6 @@ export function App() {
           details={details}
           loadingPid={detailsLoadingPid}
           error={inspectError}
-          forceKill={forceKill}
           killingPid={killingPid}
           onClose={closeInspect}
           onCopyText={copyText}
@@ -115,20 +107,17 @@ export function App() {
         />
       </div>
 
-      {/* 底部状态指示 */}
       <StatusBar
         platform={result?.platform}
         method={result?.method}
-        forceKill={forceKill}
         brickId={window.brickly?.brickId}
       />
 
-      {/* 自定义赛博暗黑风格强杀确认模态框 */}
       <ConfirmKillModal
         open={confirmTarget !== null}
         pid={confirmTarget?.pid ?? null}
         processName={confirmTarget?.processName}
-        forceKill={forceKill}
+        platform={result?.platform}
         killing={killingPid !== null}
         onConfirm={executeKill}
         onCancel={cancelKill}

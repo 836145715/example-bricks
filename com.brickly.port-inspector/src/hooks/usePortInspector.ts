@@ -45,7 +45,6 @@ export function usePortInspector() {
   const [query, setQuery] = useState('')
   const [protocol, setProtocol] = useState<ProtocolFilter>('all')
   const [includeEstablished, setIncludeEstablished] = useState(true)
-  const [forceKill, setForceKill] = useState(false)
   const [busy, setBusy] = useState(false)
   const [killingPid, setKillingPid] = useState<number | null>(null)
   const [copiedPid, setCopiedPid] = useState<number | null>(null)
@@ -272,30 +271,33 @@ export function usePortInspector() {
     setConfirmTarget(null)
   }, [])
 
-  // 执行强杀 API
-  const executeKill = useCallback(async () => {
-    if (!confirmTarget) return
-    const { pid } = confirmTarget
-    setKillingPid(pid)
-    try {
-      const killed = await killProcess(pid, forceKill)
-      setLastKill(killed)
-      setNotice({
-        kind: 'ok',
-        text: killed.alreadyExited ? `进程已不存在 · PID ${pid}` : `已成功结束进程 · PID ${pid}`
-      })
-      if (details?.pid === pid) {
-        closeInspect()
-        setDetails(null)
+  // 执行结束进程（force 由确认弹窗传入；Windows 上始终为 true）
+  const executeKill = useCallback(
+    async (force: boolean) => {
+      if (!confirmTarget) return
+      const { pid } = confirmTarget
+      setKillingPid(pid)
+      try {
+        const killed = await killProcess(pid, force)
+        setLastKill(killed)
+        setNotice({
+          kind: 'ok',
+          text: killed.alreadyExited ? `进程已不存在 · PID ${pid}` : `已成功结束进程 · PID ${pid}`
+        })
+        if (details?.pid === pid) {
+          closeInspect()
+          setDetails(null)
+        }
+        setConfirmTarget(null)
+        await refresh()
+      } catch (error) {
+        setNotice({ kind: 'error', text: normalizeError(error) })
+      } finally {
+        setKillingPid(null)
       }
-      setConfirmTarget(null)
-      await refresh()
-    } catch (error) {
-      setNotice({ kind: 'error', text: normalizeError(error) })
-    } finally {
-      setKillingPid(null)
-    }
-  }, [confirmTarget, forceKill, details?.pid, closeInspect, refresh])
+    },
+    [confirmTarget, details?.pid, closeInspect, refresh]
+  )
 
   // 初始化：默认「列全部」
   useEffect(() => {
@@ -314,8 +316,6 @@ export function usePortInspector() {
     setProtocol,
     includeEstablished,
     setIncludeEstablished,
-    forceKill,
-    setForceKill,
     busy,
     killingPid,
     copiedPid,

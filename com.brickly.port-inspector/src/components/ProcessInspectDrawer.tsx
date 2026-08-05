@@ -8,7 +8,6 @@ interface ProcessInspectDrawerProps {
   details: ProcessDetails | null
   loadingPid: number | null
   error: string | null
-  forceKill: boolean
   killingPid: number | null
   onClose: () => void
   onCopyText: (value: string | null, label: string) => void
@@ -27,7 +26,6 @@ export const ProcessInspectDrawer: React.FC<ProcessInspectDrawerProps> = ({
   details,
   loadingPid,
   error,
-  forceKill,
   killingPid,
   onClose,
   onCopyText,
@@ -140,13 +138,7 @@ export const ProcessInspectDrawer: React.FC<ProcessInspectDrawerProps> = ({
             {killingPid === details.pid ? <Loader2 className="spin" size={14} /> : <Square size={13} />}
             结束此进程
           </button>
-          <p className="inspect-tip">
-            PID {details.pid}
-            {forceKill ? ' · 强制模式' : ' · 默认结束'}
-            {forceKill
-              ? '（Windows 强制终止 / macOS SIGKILL）'
-              : '（macOS SIGTERM / Windows 强制终止）'}
-          </p>
+          <p className="inspect-tip">PID {details.pid} · 确认时再选择是否强制（Windows 始终强制）</p>
         </div>
       ) : null}
     </aside>

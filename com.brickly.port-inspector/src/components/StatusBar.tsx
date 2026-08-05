@@ -3,7 +3,6 @@ import React from 'react'
 interface StatusBarProps {
   platform?: string
   method?: string
-  forceKill: boolean
   brickId?: string
 }
 
@@ -24,7 +23,7 @@ function methodLabel(method?: string) {
 /**
  * 底部状态与环境指示栏
  */
-export const StatusBar: React.FC<StatusBarProps> = ({ platform, method, forceKill, brickId }) => {
+export const StatusBar: React.FC<StatusBarProps> = ({ platform, method, brickId }) => {
   return (
     <footer className="status">
       <div className="status-group">
@@ -37,11 +36,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({ platform, method, forceKil
         </span>
         <span className="sep">|</span>
         <span>
-          强制强杀 <b>{forceKill ? '开启' : '关闭'}</b>
-        </span>
-        <span className="sep">|</span>
-        <span>
-          操作靶向 <b>PID 级</b>
+          结束进程 <b>按 PID</b>
         </span>
       </div>
 

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ListFilter, Loader2, Network, RefreshCw, Search, ShieldAlert, Terminal, X } from 'lucide-react'
+import { ListFilter, Loader2, Network, RefreshCw, Search, Terminal, X } from 'lucide-react'
 import React from 'react'
 import type { Mode, ProtocolFilter } from '../types'
 import { QuickPresets } from './QuickPresets'
@@ -15,8 +15,6 @@ interface HeaderHudProps {
   setProtocol: (p: ProtocolFilter) => void
   includeEstablished: boolean
   setIncludeEstablished: (inc: boolean) => void
-  forceKill: boolean
-  setForceKill: (fk: boolean) => void
   busy: boolean
   canLookup: boolean
   onRunLookup: (targetPort?: number) => void
@@ -38,8 +36,6 @@ export const HeaderHud: React.FC<HeaderHudProps> = ({
   setProtocol,
   includeEstablished,
   setIncludeEstablished,
-  forceKill,
-  setForceKill,
   busy,
   canLookup,
   onRunLookup,
@@ -166,15 +162,6 @@ export const HeaderHud: React.FC<HeaderHudProps> = ({
           </label>
         )}
 
-        {/* 强制杀进程复选框 */}
-        <label
-          className="check-inline danger"
-          title="勾选后，点击结束进程将强制终止进程 (Windows / -9 SIGKILL)"
-        >
-          <input type="checkbox" checked={forceKill} onChange={(e) => setForceKill(e.target.checked)} />
-          <ShieldAlert size={12} />
-          强制结束
-        </label>
       </div>
 
       {/* 触发操作按钮组 */}
