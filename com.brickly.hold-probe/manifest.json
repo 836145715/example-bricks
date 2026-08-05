@@ -6,7 +6,7 @@
   "version": "0.1.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
-    "zh-CN": "占用探针",
+    "zh-CN": "文件占用排查",
     "en": "Hold Probe"
   },
   "description": {
@@ -53,9 +53,12 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
+    "titleBar": "custom",
     "size": {
-      "width": 1040,
-      "height": 700,
+      "width": 1180,
+      "height": 760,
+      "minWidth": 780,
+      "minHeight": 520,
       "resizable": true
     },
     "devTools": "debug-only",

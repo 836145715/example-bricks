@@ -1,5 +1,8 @@
 export type PathKind = 'file' | 'directory'
 export type HolderSource = 'restart-manager' | 'handle-scan' | 'process-ref'
+export type Tone = 'idle' | 'ok' | 'warn' | 'err' | 'busy'
+export type SortField = 'processName' | 'pid' | 'sources' | 'applicationType' | 'startedAt'
+export type SortOrder = 'asc' | 'desc'
 
 export interface Holder {
   pid: number
@@ -46,9 +49,31 @@ export interface StopResult {
   stoppedAt: string
 }
 
+export interface PresetTarget {
+  label: string
+  path: string
+  tag?: string
+}
+
+export interface ConfirmTarget {
+  pid: number
+  startKey: string
+  processName: string
+}
+
+export interface BricklyWindowApi {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onMaximizeChange(listener: (maximized: boolean) => void): () => void
+  close(): Promise<void>
+}
+
 export interface BricklyApi {
   brickId: string
   instanceId?: string
+  window?: BricklyWindowApi
+  closeWindow?(): void
   invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
 }
 
