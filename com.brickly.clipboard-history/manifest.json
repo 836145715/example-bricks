@@ -28,7 +28,6 @@
     "name": "Brickly Examples"
   },
   "license": "MIT",
-  "preload": "preload.cjs",
   "runtime": {
     "type": "node",
     "platforms": [

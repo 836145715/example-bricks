@@ -58,17 +58,21 @@ test('UI CRUD、同步和写回全部调用当前 Brick runtime', async (t) => {
   )
 })
 
-test('事件订阅只使用 Clipboard History 的窄 preload API', async (t) => {
+test('事件订阅使用宿主受限 Brick API', async (t) => {
   const received = []
   let disposed = false
   let registeredListener
   const api = loadAdapter(t, {
-    brickly: { invoke: async () => null, system: { getFileIcon: async () => '' } },
-    clipboardHistoryEvents: {
-      async subscribe(listener) {
-        registeredListener = listener
-        return async () => {
-          disposed = true
+    brickly: {
+      invoke: async () => null,
+      system: { getFileIcon: async () => '' },
+      events: {
+        async subscribe(event, listener) {
+          assert.equal(event, 'clipboard-history:changed')
+          registeredListener = listener
+          return async () => {
+            disposed = true
+          }
         }
       }
     }

@@ -87,20 +87,19 @@ export type SyncResult = {
 
 export type BricklyUiApi = {
   invoke?: (commandId: string, input: Record<string, unknown>) => Promise<unknown>
+  events?: {
+    subscribe: (
+      event: string,
+      listener: (envelope: ClipboardHistoryChangedEnvelope) => void
+    ) => Promise<() => void | Promise<void>>
+  }
   system?: {
     getFileIcon?: (filePath: string) => Promise<string>
   }
 }
 
-export type ClipboardHistoryEvents = {
-  subscribe: (
-    listener: (envelope: ClipboardHistoryChangedEnvelope) => void
-  ) => Promise<() => void | Promise<void>>
-}
-
 declare global {
   interface Window {
     brickly?: BricklyUiApi
-    clipboardHistoryEvents?: ClipboardHistoryEvents
   }
 }

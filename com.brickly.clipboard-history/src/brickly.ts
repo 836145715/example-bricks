@@ -59,9 +59,9 @@ export async function getFileIcon(filePath: string): Promise<string> {
 export async function subscribeHistoryChanged(
   listener: (envelope: ClipboardHistoryChangedEnvelope) => void
 ): Promise<() => void | Promise<void>> {
-  const events = window.clipboardHistoryEvents
+  const events = window.brickly?.events
   if (!events?.subscribe) throw new Error('当前页面没有可用的剪贴板历史事件接口。')
-  return events.subscribe(listener)
+  return events.subscribe('clipboard-history:changed', listener)
 }
 
 export function createHistoryRefreshScheduler(
