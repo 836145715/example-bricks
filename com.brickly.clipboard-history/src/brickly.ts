@@ -14,6 +14,12 @@ async function invoke<T>(commandId: string, input: Record<string, unknown>): Pro
   return api.invoke(commandId, input) as Promise<T>
 }
 
+export function startRuntimeService(): Promise<unknown> {
+  const start = window.brickly?.service?.start
+  if (!start) throw new Error('当前页面没有可用的 Clipboard History service 控制面。')
+  return start()
+}
+
 export async function listHistory(limit = 500): Promise<ClipItem[]> {
   const result = await invoke<{ items?: ClipItem[] }>('list', { limit })
   return Array.isArray(result?.items) ? result.items : []

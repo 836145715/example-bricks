@@ -58,6 +58,23 @@ test('UI CRUD、同步和写回全部调用当前 Brick runtime', async (t) => {
   )
 })
 
+test('UI 启动服务使用宿主 Brick service 控制面', async (t) => {
+  let started = 0
+  const api = loadAdapter(t, {
+    brickly: {
+      service: {
+        async start() {
+          started++
+          return { status: 'running' }
+        }
+      }
+    }
+  })
+
+  assert.deepEqual(await api.startRuntimeService(), { status: 'running' })
+  assert.equal(started, 1)
+})
+
 test('事件订阅使用宿主受限 Brick API', async (t) => {
   const received = []
   let disposed = false

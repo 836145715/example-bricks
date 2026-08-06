@@ -34,6 +34,7 @@ import {
   removeHistoryItem,
   setClipboardContent,
   subscribeHistoryChanged,
+  startRuntimeService,
   syncClipboardNow,
   toggleHistoryFavorite
 } from './brickly'
@@ -134,6 +135,12 @@ export function App() {
 
     ;(async () => {
       let subscriptionError = ''
+      let serviceStartError = ''
+      try {
+        await startRuntimeService()
+      } catch (error) {
+        serviceStartError = errorMessage(error)
+      }
       try {
         unsubscribe = await subscribeHistoryChanged((envelope) => {
           if (!alive) return
@@ -157,7 +164,9 @@ export function App() {
           refreshRuntimeSnapshot()
         ])
         setStatusText(
-          subscriptionError
+          serviceStartError
+            ? `服务启动失败 · ${serviceStartError}`
+            : subscriptionError
             ? `事件通知不可用 · ${subscriptionError}`
             : runtimeStatusSummary(status)
         )

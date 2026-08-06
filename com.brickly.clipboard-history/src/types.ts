@@ -93,6 +93,9 @@ export type BricklyUiApi = {
       listener: (envelope: ClipboardHistoryChangedEnvelope) => void
     ) => Promise<() => void | Promise<void>>
   }
+  service?: {
+    start: () => Promise<unknown>
+  }
   system?: {
     getFileIcon?: (filePath: string) => Promise<string>
   }
