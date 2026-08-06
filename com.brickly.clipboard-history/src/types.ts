@@ -85,7 +85,19 @@ export type SyncResult = {
   count: number
 }
 
+export type BricklyWindowControls = {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<boolean>
+  close(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void
+}
+
 export type BricklyUiApi = {
+  brickId?: string
+  instanceId?: string
+  closeWindow?: () => void
+  window?: BricklyWindowControls
   invoke?: (commandId: string, input: Record<string, unknown>) => Promise<unknown>
   events?: {
     subscribe: (

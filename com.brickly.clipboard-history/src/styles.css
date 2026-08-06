@@ -89,6 +89,135 @@ button:focus-visible, input:focus {
   background-size: 20px 20px;
 }
 
+/* ────────── Custom TitleBar (Custom Frameless Window) ────────── */
+.titlebar {
+  display: flex;
+  align-items: stretch;
+  height: 36px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line-glass);
+  background: linear-gradient(180deg, rgba(20, 24, 38, 0.95), rgba(12, 16, 26, 0.95));
+  backdrop-filter: blur(12px);
+  -webkit-user-select: none;
+  user-select: none;
+  z-index: 20;
+}
+
+.titlebar-drag {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.titlebar-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--ac-soft);
+  border: 1px solid var(--ac-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.titlebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.titlebar-id {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.titlebar-btn {
+  width: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.titlebar-btn:hover:not(:disabled) {
+  background: var(--ac-soft);
+  color: var(--fg);
+}
+
+.titlebar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.titlebar-btn-close:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
+
+.titlebar-restore {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+}
+
+.titlebar-restore i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 1px;
+  font-style: normal;
+}
+
+.titlebar-restore i:first-child {
+  top: 0;
+  right: 0;
+}
+
+.titlebar-restore i:last-child {
+  left: 0;
+  bottom: 0;
+  background: var(--bg-0);
+}
+
+.chip-danger {
+  color: var(--danger);
+  background: rgba(248, 113, 113, 0.06);
+  border: 1px solid rgba(248, 113, 113, 0.15);
+}
+
+.chip-danger:hover {
+  color: #ff94a6;
+  background: var(--danger-soft);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
 /* ────────── Top bar (Adaptive Double-Row Layout) ────────── */
 .topbar {
   display: flex;

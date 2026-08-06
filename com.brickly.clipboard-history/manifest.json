@@ -58,6 +58,7 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
+    "titleBar": "custom",
     "size": {
       "width": 820,
       "height": 560,
