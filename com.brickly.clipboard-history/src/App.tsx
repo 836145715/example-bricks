@@ -25,7 +25,19 @@ import {
   ZoomOut,
   RotateCcw
 } from 'lucide-react'
-import type { ClipItem, ClipType, ClipboardContent, WatcherStatus } from './types'
+import {
+  createHistoryRefreshScheduler,
+  getFileIcon,
+  getRuntimeStatus,
+  getStorageInfo,
+  listHistory,
+  removeHistoryItem,
+  setClipboardContent,
+  subscribeHistoryChanged,
+  syncClipboardNow,
+  toggleHistoryFavorite
+} from './brickly'
+import type { ClipItem, ClipType, ClipboardContent, RuntimeStatus, StorageInfo } from './types'
 
 /**
  * Premium Glassmorphism UI
@@ -45,15 +57,14 @@ const FILTERS: ReadonlyArray<{ id: FilterId; label: string; icon: React.Componen
 const rtf = new Intl.RelativeTimeFormat('zh-CN', { numeric: 'auto' })
 
 export function App() {
-  const store = window.clipboardHistoryStore
-  const platform = window.clipboardHistoryPlatform ?? window.AIBricks?.platform
   const [items, setItems] = useState<ClipItem[]>([])
   const [filter, setFilter] = useState<FilterId>('all')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [statusText, setStatusText] = useState('初始化')
-  const [watcherStatus, setWatcherStatus] = useState<WatcherStatus | null>(null)
-  const [storageInfoData, setStorageInfoData] = useState<StorageInfoLike | null>(null)
+  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus | null>(null)
+  const [storageInfoData, setStorageInfoData] = useState<StorageInfo | null>(null)
+  const [eventsConnected, setEventsConnected] = useState(false)
   const [toast, setToast] = useState('')
   const [colophonOpen, setColophonOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<ClipItem | null>(null)
@@ -64,7 +75,7 @@ export function App() {
   }
 
   const refresh = async (): Promise<void> => {
-    const next = store ? await store.list() : []
+    const next = await listHistory()
     setItems(next)
     setSelectedId((current) => current ?? next[0]?.id ?? null)
   }
@@ -107,44 +118,49 @@ export function App() {
   }, [imagePreview])
 
   useEffect(() => {
-    if (!store || !platform) {
-      setStatusText(`接口未就绪 · store=${Boolean(store)} platform=${Boolean(platform)}`)
-      return
-    }
-
     let alive = true
-    let lastTopId: string | null = null
-    const unsubscribe = store.subscribe((_event, next) => {
+    let unsubscribe: (() => void | Promise<void>) | undefined
+    const scheduler = createHistoryRefreshScheduler(async () => {
       if (!alive) return
-      setItems(next)
-      setSelectedId((current) => current ?? next[0]?.id ?? null)
-      // 只在首条真的变了的时候提示，避免 plugin/preload 上游被绕过时
-      // 反复 toast。
-      const topId = next[0]?.id ?? null
-      if (topId !== lastTopId) {
-        lastTopId = topId
-        if (topId) notify('已归档到剪贴板')
-        setStatusText(`已归档 · ${next.length}`)
-      }
+      await Promise.all([refresh(), refreshStorageSnapshot(), refreshRuntimeSnapshot()])
     })
 
     const onFocusRefresh = (): void => {
       if (!alive || document.visibilityState === 'hidden') return
-      void refresh()
-      void refreshStorageSnapshot()
+      void Promise.all([refresh(), refreshStorageSnapshot(), refreshRuntimeSnapshot()])
     }
     window.addEventListener('focus', onFocusRefresh)
     document.addEventListener('visibilitychange', onFocusRefresh)
 
     ;(async () => {
-      await refresh()
+      let subscriptionError = ''
       try {
-        await refreshStorageSnapshot()
-        setStatusText('读取宿主监听中...')
-        const status = await platform.clipboard.status()
-        if (status) setWatcherStatus(status)
-        setStatusText(statusSummary(status))
-        if (status?.enabled) await captureNow(true)
+        unsubscribe = await subscribeHistoryChanged((envelope) => {
+          if (!alive) return
+          scheduler.schedule(envelope)
+          setStatusText(`历史已更新 · ${envelope.payload.count}`)
+          if (envelope.payload.reason === 'insert') notify('已归档到剪贴板')
+        })
+        if (!alive) {
+          await unsubscribe()
+          return
+        }
+        setEventsConnected(true)
+      } catch (error) {
+        subscriptionError = errorMessage(error)
+        if (alive) setEventsConnected(false)
+      }
+      try {
+        const [, , status] = await Promise.all([
+          refresh(),
+          refreshStorageSnapshot(),
+          refreshRuntimeSnapshot()
+        ])
+        setStatusText(
+          subscriptionError
+            ? `事件通知不可用 · ${subscriptionError}`
+            : runtimeStatusSummary(status)
+        )
       } catch (error) {
         setStatusText(`初始化失败 · ${errorMessage(error)}`)
         notify(errorMessage(error))
@@ -153,43 +169,47 @@ export function App() {
 
     return () => {
       alive = false
-      unsubscribe?.()
+      scheduler.cancel()
+      void unsubscribe?.()
       window.removeEventListener('focus', onFocusRefresh)
       document.removeEventListener('visibilitychange', onFocusRefresh)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function refreshStorageSnapshot(): Promise<StorageInfoLike | null> {
-    if (!store) return null
-    let info: unknown = null
-    if (store.refreshStorageInfo) info = await store.refreshStorageInfo()
-    else info = store.storageInfo()
-    setStorageInfoData(toStorageInfo(info))
-    return toStorageInfo(info)
+  async function refreshStorageSnapshot(): Promise<StorageInfo> {
+    const info = await getStorageInfo()
+    setStorageInfoData(info)
+    return info
   }
 
-  async function captureNow(silent = false): Promise<void> {
+  async function refreshRuntimeSnapshot(): Promise<RuntimeStatus> {
+    const status = await getRuntimeStatus()
+    setRuntimeStatus(status)
+    return status
+  }
+
+  async function syncNow(silent = false): Promise<void> {
     try {
-      if (!silent) setStatusText('抓取剪贴板中...')
-      const result = await platform?.clipboard.captureNow()
-      setWatcherStatus((current) => ({ ...(current ?? {}), ...(result ?? {}) }))
-      // 宿主 capture 返回时 runtime 通常已 upsert 完成，但 history 事件可能仍在 debounce。
-      // 主动 list 一次，避免只等事件导致页面不刷新。
-      await refresh()
-      void refreshStorageSnapshot()
-      const changed = result?.lastEventKind ? `已抓取 ${result.lastEventKind}` : '无新内容'
-      setStatusText(result ? statusSummary(result, changed) : changed)
-      if (!silent) notify('已强制同步剪贴板')
+      if (!silent) setStatusText('同步剪贴板中...')
+      const result = await syncClipboardNow()
+      const [, , status] = await Promise.all([
+        refresh(),
+        refreshStorageSnapshot(),
+        refreshRuntimeSnapshot()
+      ])
+      const outcome = result.changed ? '已归档当前内容' : '无新内容'
+      setStatusText(runtimeStatusSummary(status, outcome))
+      if (!silent) notify(result.changed ? '已同步系统剪贴板' : '剪贴板内容未变化')
     } catch (error) {
-      setStatusText(`抓取失败 · ${errorMessage(error)}`)
+      setStatusText(`同步失败 · ${errorMessage(error)}`)
       notify(errorMessage(error))
     }
   }
 
   async function copyItem(item: ClipItem): Promise<void> {
     try {
-      await platform?.clipboard.setContent(clipboardContentForItem(item))
+      await setClipboardContent(clipboardContentForItem(item))
       notify(copySuccessText(item))
     } catch (error) {
       notify(`写入剪贴板失败 · ${errorMessage(error)}`)
@@ -197,14 +217,12 @@ export function App() {
   }
 
   async function toggleFavorite(item: ClipItem): Promise<void> {
-    if (!store) return
-    await store.toggleFavorite(item.id)
+    await toggleHistoryFavorite(item.id)
     await refresh()
   }
 
   async function removeItem(item: ClipItem): Promise<void> {
-    if (!store) return
-    await store.remove(item.id)
+    await removeHistoryItem(item.id)
     await refresh()
     notify('已彻底移除历史记录')
   }
@@ -217,7 +235,7 @@ export function App() {
     favorite: items.filter((it) => it.favorite).length
   }
 
-  const watcherDot = watcherDotClass(watcherStatus)
+  const runtimeDot = runtimeDotClass(runtimeStatus)
 
   return (
     <main className="app-bg grid h-screen grid-rows-[auto_1fr_auto] overflow-hidden select-none">
@@ -280,9 +298,9 @@ export function App() {
       <div className="statusbar">
         <div className="statusbar__left">
           <span className="inline-flex items-center gap-2">
-            <span className={watcherDot} />
+            <span className={runtimeDot} />
             <span className="label">状态</span>
-            <span className="val">{watcherStatus?.state === 'running' ? '监听中' : '未就绪'}</span>
+            <span className="val">{runtimeStatus?.state === 'running' ? '监听中' : '未就绪'}</span>
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="label">总条目</span>
@@ -306,7 +324,7 @@ export function App() {
           </span>
         </div>
         <div className="statusbar__right">
-          <button className="sb-btn" title="立即同步系统剪贴板" onClick={() => captureNow(false)}>
+          <button className="sb-btn" title="立即同步系统剪贴板" onClick={() => syncNow(false)}>
             <RefreshCw size={12} className="hover:rotate-180 transition-transform duration-500" />
           </button>
           <button
@@ -327,8 +345,8 @@ export function App() {
         <Dialog
           data={{
             store: storageInfoData,
-            watcher: watcherStatus,
-            api: { store: Boolean(store), platform: Boolean(platform) }
+            runtime: runtimeStatus,
+            api: { commands: Boolean(runtimeStatus), events: eventsConnected }
           }}
           onClose={() => setColophonOpen(false)}
         />
@@ -387,19 +405,17 @@ function Row({
 
   useEffect(() => {
     if (item.type !== 'file') return
-    const platformApp = window.clipboardHistoryPlatform?.app ?? window.AIBricks?.platform?.app
-    if (!platformApp?.getFileIcon) return
 
     let alive = true
     if (filePaths.length === 1 && filePaths[0]) {
-      platformApp.getFileIcon(filePaths[0])
+      getFileIcon(filePaths[0])
         .then((url: string) => {
           if (alive && url) setFileIconUrl(url)
         })
         .catch((err: unknown) => console.warn('[App] getFileIcon err', err))
     } else if (filePaths.length > 1) {
       filePaths.forEach((path) => {
-        platformApp.getFileIcon(path)
+        getFileIcon(path)
           .then((url: string) => {
             if (alive && url) {
               setIconsMap((prev) => ({ ...prev, [path]: url }))
@@ -581,7 +597,7 @@ function EmptyState() {
 
 function Dialog({ data, onClose }: { data: any; onClose: () => void }) {
   const storeData = data?.store || {}
-  const watcherData = data?.watcher || {}
+  const runtimeData = data?.runtime || {}
   const apiStatus = data?.api || {}
 
   return (
@@ -623,20 +639,20 @@ function Dialog({ data, onClose }: { data: any; onClose: () => void }) {
             </div>
           </div>
           <div className="dialog-card">
-            <div className="dialog-card__label">宿主监听状态</div>
+            <div className="dialog-card__label">Runtime 监听状态</div>
             <div className="dialog-card__value flex items-center gap-1.5">
-              <span className={clsx('w-2 h-2 rounded-full', watcherData?.enabled ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-slate-500')} />
-              <span className={watcherData?.enabled ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
-                {watcherData?.state === 'running' ? '实时运行中' : '未启用'}
+              <span className={clsx('w-2 h-2 rounded-full', runtimeData?.state === 'running' ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-slate-500')} />
+              <span className={runtimeData?.state === 'running' ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
+                {runtimeData?.state === 'running' ? '实时运行中' : '未就绪'}
               </span>
             </div>
           </div>
           <div className="dialog-card">
-            <div className="dialog-card__label">宿主API通道</div>
+            <div className="dialog-card__label">Runtime 通信通道</div>
             <div className="dialog-card__value flex items-center gap-1.5 text-slate-300">
               <Cpu size={12} className="text-violet-400" />
               <span>
-                {apiStatus.store && apiStatus.platform ? '全双工通道正常' : '平台连接受限'}
+                {apiStatus.commands && apiStatus.events ? '命令与事件正常' : '事件通知受限'}
               </span>
             </div>
           </div>
@@ -761,16 +777,6 @@ function ImagePreviewDialog({ item, onClose }: { item: ClipItem; onClose: () => 
 
 /* ─────────────────────────  HELPERS  ───────────────────────── */
 
-type StorageInfoLike = {
-  dataDir?: string
-  mediaDir?: string
-  dbPath?: string
-  count?: number
-  brickId?: string
-  maxItems?: number
-  [key: string]: unknown
-}
-
 function clipboardContentForItem(item: ClipItem): ClipboardContent {
   if (item.type === 'image') {
     const path = item.imageOriginalPath || item.imagePath || item.path
@@ -815,11 +821,6 @@ function isLikelyDirectory(path?: string): boolean {
 function fileBaseName(path?: string): string {
   if (!path) return ''
   return path.split(/[\\/]/).pop() || path
-}
-
-function toStorageInfo(value: unknown): StorageInfoLike | null {
-  if (!value || typeof value !== 'object') return null
-  return value as StorageInfoLike
 }
 
 function fileUrl(p?: string): string {
@@ -871,17 +872,19 @@ function truncatePath(p: string): string {
   return '…' + p.slice(p.length - 80)
 }
 
-function statusSummary(status?: WatcherStatus | null, suffix?: string): string {
-  if (!status) return '系统归档服务离线'
-  if (!status.enabled) return suffix ? `归档未启用 · ${suffix}` : '剪贴板同步已关闭，可在设置面板启用'
-  if (status.state === 'running') return suffix ? `监控中 · ${suffix}` : `正在实时捕获剪贴板历史 (已发布 ${status.published ?? 0})`
-  if (status.state === 'starting') return '剪贴板同步服务正在初始化...'
-  if (status.state === 'error') return `监听异常 · ${status.lastError ?? '请在设置面板排查'}`
+function runtimeStatusSummary(status?: RuntimeStatus | null, suffix?: string): string {
+  if (!status) return '剪贴板历史 Runtime 离线'
+  if (status.state === 'running') {
+    return suffix
+      ? `Runtime 运行中 · ${suffix}`
+      : `正在实时归档剪贴板历史 (已处理 ${status.processedEvents} 次事件)`
+  }
+  if (status.state === 'error') return `Runtime 异常 · ${status.lastError ?? '请查看运行日志'}`
   return '服务未就绪'
 }
 
-function watcherDotClass(status?: WatcherStatus | null): string {
-  if (!status?.enabled) return 'dot dot-off'
+function runtimeDotClass(status?: RuntimeStatus | null): string {
+  if (!status) return 'dot dot-off'
   if (status.state === 'error') return 'dot dot-warn'
   if (status.state === 'running') return 'dot'
   return 'dot dot-warn'
