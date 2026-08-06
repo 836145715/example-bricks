@@ -46,13 +46,20 @@ function createHistoryService(options) {
     }
   }
 
-  function saveState() {
+  function commitItems(items) {
     ensureDir()
-    fs.writeFileSync(
-      dbPath,
-      JSON.stringify({ items: state.items.slice(0, maxItems) }, null, 2) + '\n',
-      'utf8'
-    )
+    try {
+      fs.writeFileSync(
+        dbPath,
+        JSON.stringify({ items: items.slice(0, maxItems) }, null, 2) + '\n',
+        'utf8'
+      )
+      state = { items }
+      lastError = undefined
+    } catch (error) {
+      lastError = errorMessage(error)
+      throw error
+    }
   }
 
   function list(limit = maxItems) {
@@ -65,6 +72,12 @@ function createHistoryService(options) {
     const safeEnvelope = envelope && typeof envelope === 'object' ? envelope : {}
     processedEvents++
     lastEventAt = safeEnvelope.publishedAt || safePayload.capturedAt || now()
+
+    if (!hasClipboardContent(safePayload, resource)) {
+      lastEventKind = undefined
+      lastError = undefined
+      return unchanged('insert')
+    }
 
     try {
       const kind = normalizeKind(safePayload, resource)
@@ -91,14 +104,13 @@ function createHistoryService(options) {
         return unchanged('insert')
       }
 
-      state.items = [item, ...state.items.filter((oldItem) => oldItem.id !== item.id)].slice(
+      const nextItems = [item, ...state.items.filter((oldItem) => oldItem.id !== item.id)].slice(
         0,
         maxItems
       )
-      saveState()
+      commitItems(nextItems)
       lastContentHash = contentHash
       lastInsertAt = insertedAt
-      lastError = undefined
       return changed('insert', { item })
     } catch (error) {
       lastError = errorMessage(error)
@@ -107,10 +119,9 @@ function createHistoryService(options) {
   }
 
   function remove(id) {
-    const before = state.items.length
-    state.items = state.items.filter((item) => item.id !== id)
-    if (state.items.length === before) return unchanged('remove')
-    saveState()
+    const nextItems = state.items.filter((item) => item.id !== id)
+    if (nextItems.length === state.items.length) return unchanged('remove')
+    commitItems(nextItems)
     lastContentHash = state.items[0]?.contentHash || null
     return changed('remove')
   }
@@ -118,18 +129,20 @@ function createHistoryService(options) {
   function clear(keepFavorites) {
     const next = keepFavorites ? state.items.filter((item) => item.favorite) : []
     if (next.length === state.items.length) return unchanged('clear')
-    state.items = next
-    saveState()
+    commitItems(next)
     lastContentHash = state.items[0]?.contentHash || null
     return changed('clear')
   }
 
   function toggleFavorite(id) {
-    const item = state.items.find((entry) => entry.id === id)
+    const itemIndex = state.items.findIndex((entry) => entry.id === id)
+    const item = state.items[itemIndex]
     if (!item) return { ...unchanged('favorite'), found: false }
-    item.favorite = !item.favorite
-    saveState()
-    return changed('favorite', { found: true, favorite: item.favorite })
+    const favorite = !item.favorite
+    const nextItems = state.items.slice()
+    nextItems[itemIndex] = { ...item, favorite }
+    commitItems(nextItems)
+    return changed('favorite', { found: true, favorite })
   }
 
   function storageInfo() {
@@ -290,6 +303,18 @@ function createHistoryService(options) {
     status,
     recordError
   }
+}
+
+function hasClipboardContent(payload, resource) {
+  if (payload.kind === 'text' || payload.kind === 'image' || payload.kind === 'file') return true
+  if (typeof payload.hash === 'string' && payload.hash) return true
+  if (typeof payload.text === 'string' || typeof payload.textPreview === 'string') return true
+  if (typeof payload.path === 'string' && payload.path) return true
+  if (Array.isArray(payload.paths) && payload.paths.some((item) => typeof item === 'string' && item)) {
+    return true
+  }
+  if (typeof resource?.filePath === 'string' && resource.filePath) return true
+  return typeof resource?.content?.text === 'string'
 }
 
 function normalizeKind(payload, resource) {

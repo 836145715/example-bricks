@@ -99,6 +99,37 @@ test('history.json 损坏时降级为空状态并记录错误', (t) => {
   assert.match(service.status().lastError, /JSON|Unexpected|position/i)
 })
 
+test('落盘失败时不提交内存状态，并允许故障恢复后重试', (t) => {
+  const root = makeTempRoot(t)
+  const paths = historyPaths(root)
+  let now = 1000
+  fs.mkdirSync(paths.dbPath, { recursive: true })
+  const service = createService(paths, () => now)
+
+  assert.throws(
+    () =>
+      service.ingest(
+        { kind: 'text', text: 'retry-after-write-failure', capturedAt: now },
+        clipboardEnvelope(now)
+      ),
+    { code: 'EISDIR' }
+  )
+  assert.equal(service.list().length, 0)
+  assert.equal(service.status().revision, 0)
+
+  fs.rmSync(paths.dbPath, { recursive: true, force: true })
+  now = 2000
+  const retry = service.ingest(
+    { kind: 'text', text: 'retry-after-write-failure', capturedAt: now },
+    clipboardEnvelope(now)
+  )
+
+  assert.equal(retry.changed, true)
+  assert.equal(service.list().length, 1)
+  assert.equal(service.status().revision, 1)
+  assert.equal(fs.existsSync(paths.dbPath), true)
+})
+
 test('图片入库继续复制到 media 目录且事件状态不泄露正文', (t) => {
   const harness = createHarness(t)
   const sourcePath = path.join(harness.root, 'source.png')

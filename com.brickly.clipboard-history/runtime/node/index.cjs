@@ -81,6 +81,12 @@ async function ingestClipboard(payload, envelope, resource, reason) {
   }
 }
 
+async function handleClipboardEvent(payload, envelope) {
+  const safePayload = payload && typeof payload === 'object' ? payload : {}
+  const resource = await getResource(safePayload.resourceId)
+  return ingestClipboard(safePayload, envelope, resource, 'insert')
+}
+
 brick.onCommand('list', (_ctx, input) => {
   return { items: history.list(input?.limit) }
 })
@@ -131,10 +137,11 @@ brick.onCommand('set-content', async (ctx, input) => {
 
 brick.onCommand('runtime-status', () => history.status())
 
-brick.events.on(SOURCE_EVENT, async (payload, envelope) => {
-  const safePayload = payload && typeof payload === 'object' ? payload : {}
-  const resource = await getResource(safePayload.resourceId)
-  return ingestClipboard(safePayload, envelope, resource, 'insert')
+brick.events.on(SOURCE_EVENT, (payload, envelope) => {
+  void handleClipboardEvent(payload, envelope).catch((error) => {
+    history.recordError(error)
+    log(`clipboard event failed: ${errorMessage(error)}`)
+  })
 })
 
 brick.onReady(() => {

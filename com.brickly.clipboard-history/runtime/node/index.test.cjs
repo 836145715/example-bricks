@@ -66,6 +66,28 @@ test('sync-now 读取 Runtime clipboard 并发布不含正文的公开事件', a
   assert.equal(status.processedEvents, 1)
 })
 
+test('sync-now 忽略空剪贴板快照且不发布变化事件', async (t) => {
+  const runtime = loadRuntime(t)
+  const result = await runtime.commands.get('sync-now')(
+    {
+      platform: {
+        clipboard: {
+          readContent: async () => ({ capturedAt: 10 })
+        }
+      }
+    },
+    {}
+  )
+
+  assert.equal(result.changed, false)
+  assert.equal(result.reason, 'sync')
+  assert.equal(runtime.published.length, 0)
+  const list = await runtime.commands.get('list')({}, {})
+  assert.deepEqual(list.items, [])
+  const status = await runtime.commands.get('runtime-status')({}, {})
+  assert.equal(status.revision, 0)
+})
+
 test('set-content 只调用 Runtime clipboard API 并校验 content', async (t) => {
   const runtime = loadRuntime(t)
   const calls = []
@@ -105,7 +127,7 @@ test('系统事件通过 resource.get 复用 ingest 并以 insert 原因发布',
     }
   })
 
-  await runtime.events.get('clipboard:new-content')(
+  runtime.events.get('clipboard:new-content')(
     { kind: 'text', resourceId: 'resource-1' },
     {
       event: 'clipboard:new-content',
@@ -113,11 +135,32 @@ test('系统事件通过 resource.get 复用 ingest 并以 insert 原因发布',
       publishedAt: Date.now()
     }
   )
+  await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(runtime.published.length, 1)
   assert.equal(runtime.published[0].payload.reason, 'insert')
   const list = await runtime.commands.get('list')({}, { limit: 10 })
   assert.equal(list.items[0].text, 'from resource')
+})
+
+test('系统事件 listener 吸收异步落盘失败且不返回 rejected Promise', async (t) => {
+  const runtime = loadRuntime(t)
+  fs.mkdirSync(runtime.dbPath)
+
+  const returned = runtime.events.get('clipboard:new-content')(
+    { kind: 'text', text: 'cannot-persist' },
+    {
+      event: 'clipboard:new-content',
+      sourceBrickId: 'system',
+      publishedAt: Date.now()
+    }
+  )
+  returned?.catch?.(() => {})
+
+  assert.equal(returned, undefined)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(runtime.published.length, 0)
+  assert.match(runtime.logs.map((entry) => entry[1]).join('\n'), /failed/)
 })
 
 test('没有真实变化时不发布，发布失败也不回滚已保存状态', async (t) => {
@@ -224,6 +267,7 @@ function loadRuntime(t, options = {}) {
     events,
     published,
     logs,
+    dbPath: path.join(root, '.brickly', 'apps', 'com.brickly.clipboard-history', 'history.json'),
     get publishAttempts() {
       return publishAttempts
     }
