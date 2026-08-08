@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session, Status } from '../types'
 
-const initial: Status = { running: false, port: 8899, proxyUrl: 'http://127.0.0.1:8899', total: 0, maxBodyBytes: 1048576, certificateFingerprint: '', pythonVersion: '-' }
+const initial: Status = { running: false, port: 8899, proxyUrl: 'http://127.0.0.1:8899', total: 0, maxBodyBytes: 1048576, certificateFingerprint: '', pythonVersion: '-', systemProxy: false, systemProxyWarning: '' }
 
 export function useHttpInspector() {
   const api = window.httpInspector

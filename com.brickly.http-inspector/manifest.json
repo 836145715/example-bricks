@@ -25,7 +25,7 @@
   "trustLevel": "community",
   "ui": { "type": "webview", "entry": "ui/index.html", "size": { "width": 1180, "height": 760, "minWidth": 920, "minHeight": 620, "resizable": true }, "windowPolicy": "single", "devTools": "debug-only", "theme": "dark" },
   "commands": [
-    { "id": "start", "hidden": true, "name": "开始抓包", "io": { "inputs": [{ "name": "port", "type": "number", "default": 8899 }, { "name": "maxBodyBytes", "type": "number", "default": 1048576 }, { "name": "excludeHosts", "type": "string", "default": "" }], "outputs": [{ "name": "status", "type": "json" }] }, "execution": "queue" },
+    { "id": "start", "hidden": true, "name": "开始抓包", "io": { "inputs": [{ "name": "port", "type": "number", "default": 8899 }, { "name": "maxBodyBytes", "type": "number", "default": 1048576 }, { "name": "excludeHosts", "type": "string", "default": "" }, { "name": "systemProxy", "type": "boolean", "default": true }], "outputs": [{ "name": "status", "type": "json" }] }, "execution": "queue" },
     { "id": "stop", "hidden": true, "name": "停止抓包", "io": { "inputs": [], "outputs": [{ "name": "status", "type": "json" }] }, "execution": "queue" },
     { "id": "status", "hidden": true, "name": "抓包状态", "io": { "inputs": [], "outputs": [{ "name": "status", "type": "json" }] } },
     { "id": "list", "hidden": true, "name": "会话列表", "io": { "inputs": [{ "name": "afterId", "type": "string" }, { "name": "query", "type": "string" }, { "name": "limit", "type": "number", "default": 200 }], "outputs": [{ "name": "sessions", "type": "json" }] } },

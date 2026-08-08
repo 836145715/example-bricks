@@ -42,7 +42,7 @@ export default function App() {
       <span className={`setup-state ${vm.status.running ? 'ready' : ''}`}><i />{vm.status.running ? '代理已启动' : '代理未启动'}</span>
       <span>客户端代理：<code>{vm.status.proxyUrl}</code></span>
       <button className="copy-proxy" onClick={() => void copyProxy()}>复制地址</button>
-      <span className="setup-note">HTTPS 请求需先安装根证书</span>
+      <span className="setup-note">{vm.status.systemProxyWarning || 'HTTPS 请求需先安装根证书'}</span>
     </section>
     <section className="filterbar">
       <Search /><input value={vm.query} onChange={event => vm.setQuery(event.target.value)} placeholder="按方法、主机、路径或状态筛选" />
