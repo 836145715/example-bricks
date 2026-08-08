@@ -33,7 +33,7 @@ export default function App() {
       <div className="controls">
         <label className="port">端口<input value={vm.port} min={1024} max={65535} type="number" onChange={event => vm.setPort(Number(event.target.value))} disabled={vm.status.running} /></label>
         <button className={vm.status.running ? 'danger' : 'primary'} disabled={vm.busy} onClick={() => void vm.run(vm.status.running ? 'stop' : 'start', { port: vm.port })}>{vm.status.running ? <CircleStop /> : <Play />}{vm.status.running ? '停止代理' : '启动代理'}</button>
-        <button title="安装 HTTPS 根证书" onClick={() => void vm.run('install-certificate')}><ShieldCheck /></button>
+        <button className="cert-button" title="安装 HTTPS 根证书" onClick={() => void vm.run('install-certificate')}><ShieldCheck />安装证书</button>
         <button title="导出 HAR" onClick={() => void exportHar()}><Download /></button>
         <button title="清空会话" onClick={() => void vm.run('clear')}><Trash2 /></button>
       </div>
