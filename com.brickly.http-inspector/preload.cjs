@@ -11,6 +11,14 @@ const subscribers = new Set()
 async function invoke(commandId, input = {}) {
   if (instanceId) return ipcRenderer.invoke('bricks.invokeInstance', instanceId, commandId, input)
 
+  const startService = () => ipcRenderer.invoke(
+    'platform.startService',
+    BRICK_ID,
+    brickDomain ? { domain: brickDomain } : undefined
+  )
+  const reloadCatalog = () => ipcRenderer.invoke('platform.reloadBricks', {
+    domain: brickDomain || 'installed'
+  })
   const invokeBridge = () => ipcRenderer.invoke(
     'bridge.invoke',
     BRICK_ID,
@@ -22,10 +30,12 @@ async function invoke(commandId, input = {}) {
   )
 
   try {
+    await startService()
     return await invokeBridge()
   } catch (error) {
     if (error?.code !== 'BRICK_NOT_FOUND') throw error
-    await ipcRenderer.invoke('platform.reloadBricks', { domain: brickDomain || 'installed' })
+    await reloadCatalog()
+    await startService()
     return invokeBridge()
   }
 }

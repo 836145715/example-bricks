@@ -58,6 +58,7 @@ test('preload passes the injected development domain and refreshes that catalog 
 
   assert.deepEqual(await api.invoke('status', {}), { ok: true })
   assert.deepEqual(normalizeCalls(calls), [
+    ['platform.startService', 'com.brickly.http-inspector', { domain: 'development' }],
     [
       'bridge.invoke',
       'com.brickly.http-inspector',
@@ -68,6 +69,7 @@ test('preload passes the injected development domain and refreshes that catalog 
       'development'
     ],
     ['platform.reloadBricks', { domain: 'development' }],
+    ['platform.startService', 'com.brickly.http-inspector', { domain: 'development' }],
     [
       'bridge.invoke',
       'com.brickly.http-inspector',
