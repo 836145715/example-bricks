@@ -171,3 +171,118 @@ input[type='range']::-moz-range-thumb {
 .animate-drawer {
   animation: drawer-in 0.2s ease-out;
 }
+
+/* ==========================================================================
+   自绘标题栏（titleBar=custom）
+   ========================================================================== */
+.titlebar {
+  display: flex;
+  align-items: stretch;
+  height: 36px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-sunken);
+  user-select: none;
+}
+
+.titlebar-drag {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.titlebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.titlebar-id {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.titlebar-badge {
+  font-size: 11px;
+  color: var(--fg-muted);
+  background: var(--bg-2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.titlebar-btn {
+  width: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid transparent;
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.titlebar-btn:hover:not(:disabled) {
+  background: var(--ac-soft);
+  color: var(--fg);
+}
+
+.titlebar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.titlebar-btn-close:hover:not(:disabled) {
+  background: rgba(255, 59, 92, 0.85);
+  color: #fff;
+}
+
+.titlebar-restore {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  display: inline-block;
+}
+
+.titlebar-restore i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: 1px;
+  font-style: normal;
+}
+
+.titlebar-restore i:first-child {
+  top: 0;
+  right: 0;
+}
+
+.titlebar-restore i:last-child {
+  left: 0;
+  bottom: 0;
+  background: var(--bg-sunken);
+}
+

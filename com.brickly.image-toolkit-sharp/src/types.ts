@@ -119,13 +119,25 @@ export interface BricklyStreamHandlers {
   onError?: (error: { message: string; code?: string }) => void
 }
 
+export interface BricklyWindowControls {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<boolean>
+  close(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void
+}
+
 export interface BricklyHost {
+  brickId?: string
+  instanceId?: string
   stream?: (
     commandId: string,
     input: ProcessImageInput,
     handlers: BricklyStreamHandlers,
   ) => void
   invoke?: (commandId: string, input: unknown) => Promise<unknown>
+  closeWindow?(): void
+  window?: BricklyWindowControls
   fs?: {
     pickDirectory?: () => Promise<string | undefined>
   }

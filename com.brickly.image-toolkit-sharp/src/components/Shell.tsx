@@ -1,4 +1,5 @@
-import { Folder, ImageSquare } from '@phosphor-icons/react'
+import { Folder } from '@phosphor-icons/react'
+import { TitleBar } from './TitleBar'
 import { pickDirectory } from '../lib/bridge'
 import type { CommonOptions, OutputStrategy } from '../types'
 
@@ -21,22 +22,9 @@ export function Shell({
 }: ShellProps) {
   return (
     <div className="flex h-full flex-col bg-[var(--bg-0)]">
-      <header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[var(--line)] bg-[var(--bg-1)]/90 px-3 backdrop-blur-md">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--ac-soft)] text-[var(--ac)]">
-            <ImageSquare size={18} weight="duotone" />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold tracking-tight text-[var(--fg)]">
-              万能图片工具箱
-            </div>
-            <div className="text-[11px] text-[var(--fg-dim)]">
-              {fileCount === 0 ? '未选择文件' : `${fileCount} 个文件`}
-            </div>
-          </div>
-        </div>
+      <TitleBar fileCount={fileCount} />
 
-        <div className="mx-1 h-6 w-px bg-[var(--line)]" />
+      <header className="flex h-[44px] shrink-0 items-center gap-3 border-b border-[var(--line)] bg-[var(--bg-1)]/90 px-3 backdrop-blur-md">
 
         {/* Output strategy */}
         <div className="flex min-w-0 flex-1 items-center gap-2">
