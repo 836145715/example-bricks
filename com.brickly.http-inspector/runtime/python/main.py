@@ -70,8 +70,9 @@ class InspectorService:
             if auto_system_proxy:
                 self.system_proxy = self.system_proxy or create_system_proxy_manager()
                 if self.system_proxy is None:
-                    raise RuntimeError("当前平台不支持自动设置系统代理")
-                self.system_proxy.enable(port)
+                    self.proxy_warning = "当前平台不支持自动设置系统代理，请手动配置客户端代理"
+                else:
+                    self.system_proxy.enable(port)
         except Exception as exc:
             self.engine.stop()
             if self.system_proxy and self.system_proxy.active:
