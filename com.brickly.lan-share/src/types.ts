@@ -75,6 +75,9 @@ export interface BricklyApi {
     stop(): Promise<BrickServiceRecord>
     restart(): Promise<BrickServiceRecord>
   }
+  fs: {
+    pickDirectory(options?: { defaultPath?: string }): Promise<string | undefined>
+  }
   system: {
     shellOpenPath(fullPath: string): Promise<void>
     shellOpenExternal(url: string): Promise<void>

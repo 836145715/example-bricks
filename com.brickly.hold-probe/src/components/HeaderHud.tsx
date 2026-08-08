@@ -1,6 +1,8 @@
 import { Folder, HardDrive, Play, RefreshCw, Search, X } from 'lucide-react'
 import React from 'react'
 
+const isMacOS = navigator.userAgent.includes('Mac')
+
 interface HeaderHudProps {
   path: string
   deep: boolean
@@ -38,7 +40,9 @@ export const HeaderHud: React.FC<HeaderHudProps> = ({
             className="path-input"
             type="text"
             value={path}
-            placeholder="拖放文件/文件夹到此处，或输入路径 (例如 C:\path\to\target)..."
+            placeholder={isMacOS
+              ? '拖放文件/文件夹到此处，或输入路径（例如 /Users/name/project）...'
+              : '拖放文件/文件夹到此处，或输入路径（例如 C:\\path\\to\\target）...'}
             spellCheck={false}
             autoComplete="off"
             onChange={(e) => onPathChange(e.target.value)}
@@ -74,15 +78,20 @@ export const HeaderHud: React.FC<HeaderHudProps> = ({
         </div>
       </div>
 
-      {/* 深度句柄枚举与探测执行 */}
+      {/* 深度扫描与探测执行 */}
       <div className="hud-actions">
-        <label className="toggle-chip" title="默认开启 Restart Manager。开启句柄枚举后会深度扫描系统句柄，耗时相对较长">
+        <label
+          className="toggle-chip"
+          title={isMacOS
+            ? '递归扫描目录下的文件使用情况，较大的目录可能耗时较长'
+            : '扫描系统句柄和目录引用，耗时相对较长'}
+        >
           <input
             type="checkbox"
             checked={deep}
             onChange={(e) => onDeepChange(e.target.checked)}
           />
-          <span className="chip-label">深度句柄扫描</span>
+          <span className="chip-label">深度扫描</span>
         </label>
 
         <button

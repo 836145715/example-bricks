@@ -61,9 +61,10 @@ export async function clearLog(): Promise<void> {
   await requireBrickly().invoke('clear-log', {})
 }
 
-export async function openFolder(path?: string): Promise<void> {
-  if (!path) return
-  await requireBrickly().system.shellOpenPath(path)
+export async function pickDirectory(options?: {
+  defaultPath?: string
+}): Promise<string | undefined> {
+  return requireBrickly().fs.pickDirectory(options)
 }
 
 export async function openUrl(url: string): Promise<void> {

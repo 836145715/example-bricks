@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, Loader2, Play, Save, Square } from 'lucide-react'
-import { openFolder } from '../brickly'
+import { FolderSearch, Loader2, Play, Save, Square } from 'lucide-react'
+import { pickDirectory } from '../brickly'
+import { selectShareDirectory } from '../share-directory'
 import { canStartShare, isServiceActive, isServiceTransitioning } from '../share-lifecycle'
 import type { BrickServiceStatus, ShareConfigInput, ShareStatus } from '../types'
 
@@ -62,6 +63,18 @@ export function ControlPanel({
     onSave(collectConfig())
     setDirty(false)
   }
+  const handleSelectDirectory = async () => {
+    try {
+      const currentRoot = root.trim() || status.root
+      const selectedRoot = await selectShareDirectory(currentRoot, pickDirectory)
+      if (selectedRoot === currentRoot) return
+      setRoot(selectedRoot)
+      setDirty(true)
+    } catch (selectError) {
+      const message = selectError instanceof Error ? selectError.message : String(selectError)
+      window.alert(`选择目录失败：${message}`)
+    }
+  }
 
   return (
     <section className="panel control-panel">
@@ -85,11 +98,11 @@ export function ControlPanel({
           />
           <button
             type="button"
-            className="btn ghost icon-btn"
-            title="在文件管理器中打开"
-            onClick={() => void openFolder(root.trim() || status.root)}
+            className="btn ghost"
+            disabled={locked}
+            onClick={() => void handleSelectDirectory()}
           >
-            <FolderOpen size={16} />
+            <FolderSearch size={16} /> 选择目录
           </button>
         </div>
       </label>

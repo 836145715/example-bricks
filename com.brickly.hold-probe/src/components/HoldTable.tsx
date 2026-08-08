@@ -38,6 +38,7 @@ function sourceLabel(source: HolderSource): { text: string; cls: string } {
   if (source === 'restart-manager') return { text: 'RM 锁', cls: 'rm' }
   if (source === 'handle-scan') return { text: '句柄锁', cls: 'hs' }
   if (source === 'process-ref') return { text: '进程引用', cls: 'pr' }
+  if (source === 'lsof') return { text: 'lsof 使用', cls: 'pr' }
   return { text: source, cls: '' }
 }
 
@@ -119,7 +120,7 @@ export const HoldTable: React.FC<HoldTableProps> = ({
         <div className="matrix-empty">
           <Lock size={32} className="warn-icon" />
           <strong>还没有探测结果</strong>
-          <span>在上方指定目标路径后点击「开始探测」，占用该路径的 Windows 进程会展示在这里。</span>
+          <span>在上方指定目标路径后点击「开始探测」，使用该路径的进程会展示在这里。</span>
         </div>
       ) : holders.length === 0 ? (
         <div className="matrix-empty">
@@ -128,8 +129,8 @@ export const HoldTable: React.FC<HoldTableProps> = ({
           <span>
             {result.count === 0
               ? result.kind === 'directory'
-                ? '若仍无法删除目录，可勾选「深度句柄枚举」再探测一次。'
-                : '文件当前无锁定，可正常读写或删除。'
+                ? '若仍有使用迹象，可勾选「深度扫描」递归检查子目录。'
+                : '当前快照未发现进程使用该文件。'
               : '请尝试清空或修改右上角的过滤词。'}
           </span>
         </div>

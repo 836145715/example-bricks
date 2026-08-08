@@ -92,7 +92,7 @@ export const ConfirmKillModal: React.FC<ConfirmKillModalProps> = ({
             <div className="target-row">
               <span className="target-label">结束模式:</span>
               <span className={`target-val badge ${force ? 'force' : 'normal'}`}>
-                {force ? '强制终止 (taskkill /F)' : '正常请求 (SIGTERM / Close)'}
+                {force ? '强制终止' : '正常终止请求'}
               </span>
             </div>
           </div>
@@ -106,14 +106,14 @@ export const ConfirmKillModal: React.FC<ConfirmKillModalProps> = ({
               onChange={(e) => onForceChange(e.target.checked)}
             />
             <span>
-              <strong>强制终止进程 (/F)</strong>
+              <strong>强制终止进程</strong>
               <em>勾选后将无视进程响应直接强行切断，适合无响应的僵尸进程。</em>
             </span>
           </label>
 
           {/* 平台提示 */}
           <p className="modal-platform-note">
-            终止进程会立即解除其对目标文件或目录的句柄锁定。
+            终止进程可能释放其持有的文件或目录资源。
           </p>
 
           {/* 错误提示 */}

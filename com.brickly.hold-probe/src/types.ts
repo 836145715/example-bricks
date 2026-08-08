@@ -1,5 +1,5 @@
 export type PathKind = 'file' | 'directory'
-export type HolderSource = 'restart-manager' | 'handle-scan' | 'process-ref'
+export type HolderSource = 'restart-manager' | 'handle-scan' | 'process-ref' | 'lsof'
 export type Tone = 'idle' | 'ok' | 'warn' | 'err' | 'busy'
 export type SortField = 'processName' | 'pid' | 'sources' | 'applicationType' | 'startedAt'
 export type SortOrder = 'asc' | 'desc'

@@ -1,5 +1,5 @@
 # Build Hold Probe Go runtime.
-# Usage: powershell -File build.ps1 [-Targets win-x64,win-arm64]
+# Usage: powershell -File build.ps1 [-Targets win-x64,win-arm64,mac-x64,mac-arm64]
 
 param(
   [string[]]$Targets = @()
@@ -9,11 +9,11 @@ $ErrorActionPreference = 'Stop'
 $brickRoot = Resolve-Path "$PSScriptRoot\..\.."
 $srcDir = "$PSScriptRoot"
 $binRoot = "$brickRoot\bin"
-$stamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-
 $matrix = @{
   'win-x64'   = @('windows', 'amd64', '.exe')
   'win-arm64' = @('windows', 'arm64', '.exe')
+  'mac-x64'   = @('darwin', 'amd64', '')
+  'mac-arm64' = @('darwin', 'arm64', '')
 }
 
 if ($Targets.Count -eq 0) {
@@ -38,7 +38,7 @@ try {
     $env:GOOS = $goos
     $env:GOARCH = $goarch
     $env:CGO_ENABLED = '0'
-    & go build -trimpath -ldflags "-s -w -X main.buildStamp=$stamp" -o $outFile .
+    & go build -trimpath -ldflags "-s -w" -o $outFile .
     if ($LASTEXITCODE -ne 0) {
       throw "go build failed for $key (exit $LASTEXITCODE)"
     }

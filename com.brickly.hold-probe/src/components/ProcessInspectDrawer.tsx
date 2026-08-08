@@ -148,10 +148,10 @@ export const ProcessInspectDrawer: React.FC<ProcessInspectDrawerProps> = ({
         {/* 详细块 3: 占用来源与安全提示 */}
         <div className="block">
           <div className="block-head">
-            <span>占用句柄锁定机制</span>
+            <span>文件使用来源</span>
           </div>
           <pre>
-            {(holder.sources || []).join(', ') || 'Restart Manager'} · Key: {holder.startKey}
+            {(holder.sources || []).join(', ') || '系统探测'} · Key: {holder.startKey}
           </pre>
         </div>
       </div>
@@ -169,7 +169,7 @@ export const ProcessInspectDrawer: React.FC<ProcessInspectDrawerProps> = ({
           </button>
         </div>
         <p className="inspect-tip">
-          终止进程会立即释放其持有的文件 / 目录句柄锁。如果包含未保存修改，请先保存数据。
+          终止进程可能释放其持有的文件或目录资源。如果包含未保存修改，请先保存数据。
         </p>
       </div>
     </aside>

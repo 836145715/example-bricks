@@ -6,13 +6,18 @@ interface QuickPresetsProps {
   onSelectPreset: (path: string) => void
 }
 
-const DEFAULT_PRESETS: PresetTarget[] = [
-  { label: 'Brickly 项目根目录', path: 'D:\\brick-project', tag: 'Dir' },
-  { label: '占用探针根目录', path: 'D:\\brick-project\\example-bricks\\com.brickly.hold-probe', tag: 'Dir' },
-  { label: 'node_modules 目录', path: 'D:\\brick-project\\example-bricks\\com.brickly.hold-probe\\node_modules', tag: 'Dir' },
-  { label: 'package.json', path: 'D:\\brick-project\\example-bricks\\com.brickly.hold-probe\\package.json', tag: 'File' },
-  { label: 'Temporary Temp', path: 'C:\\Windows\\Temp', tag: 'System' }
-]
+const DEFAULT_PRESETS: PresetTarget[] = navigator.userAgent.includes('Mac')
+  ? [
+      { label: '应用程序', path: '/Applications', tag: 'Dir' },
+      { label: '共享目录', path: '/Users/Shared', tag: 'Dir' },
+      { label: '临时目录', path: '/tmp', tag: 'System' },
+      { label: '系统日志', path: '/Library/Logs', tag: 'Dir' }
+    ]
+  : [
+      { label: '系统目录', path: 'C:\\Windows', tag: 'Dir' },
+      { label: '程序目录', path: 'C:\\Program Files', tag: 'Dir' },
+      { label: '临时目录', path: 'C:\\Windows\\Temp', tag: 'System' }
+    ]
 
 /**
  * 常用预设目标芯片栏组件

@@ -8,15 +8,16 @@ interface StatusBarProps {
  * 底部状态与快捷键提示组件
  */
 export const StatusBar: React.FC<StatusBarProps> = ({ holdersCount }) => {
+  const isMacOS = navigator.userAgent.includes('Mac')
   return (
     <footer className="status">
       <div className="status-group">
         <span>
-          系统引擎: <b>Win32 Restart Manager + Handle API</b>
+          系统引擎: <b>{isMacOS ? 'macOS lsof' : 'Win32 Restart Manager + Handle API'}</b>
         </span>
         <span className="sep">|</span>
         <span>
-          平台: <b>win-x64 / win-arm64</b>
+          平台: <b>{isMacOS ? 'mac-x64 / mac-arm64' : 'win-x64 / win-arm64'}</b>
         </span>
         <span className="sep">|</span>
         <span>

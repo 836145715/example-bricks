@@ -3,15 +3,15 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.hold-probe",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "文件占用排查",
     "en": "Hold Probe"
   },
   "description": {
-    "zh-CN": "查询 Windows 上文件或文件夹当前被哪些进程占用，查看进程详情，并在确认后结束进程。",
-    "en": "Probe which Windows processes hold a file or folder, inspect details, and terminate after confirmation."
+    "zh-CN": "查询 Windows 或 macOS 上文件和文件夹当前被哪些进程使用，查看进程详情，并在确认后结束进程。",
+    "en": "Probe which Windows or macOS processes use a file or folder, inspect details, and terminate after confirmation."
   },
   "icon": "assets/icon.svg",
   "keywords": [
@@ -20,6 +20,8 @@
     "lock",
     "process",
     "windows",
+    "macos",
+    "lsof",
     "hold",
     "probe"
   ],
@@ -36,11 +38,15 @@
     "type": "native",
     "platforms": [
       "win-x64",
-      "win-arm64"
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64"
     ],
     "entry": {
       "win-x64": "bin/win-x64/brick.exe",
-      "win-arm64": "bin/win-arm64/brick.exe"
+      "win-arm64": "bin/win-arm64/brick.exe",
+      "mac-x64": "bin/mac-x64/brick",
+      "mac-arm64": "bin/mac-arm64/brick"
     }
   },
   "lifecycle": {
@@ -72,8 +78,8 @@
         "en": "Probe Holders"
       },
       "description": {
-        "zh-CN": "探测指定文件或文件夹被哪些 Windows 进程占用。",
-        "en": "Find Windows processes currently holding a file or folder."
+        "zh-CN": "探测指定文件或文件夹当前被哪些进程使用。",
+        "en": "Find processes currently using a file or folder."
       },
       "category": "process",
       "permissions": [
@@ -86,7 +92,7 @@
             "label": "路径",
             "type": "string",
             "required": true,
-            "placeholder": "C:\\path\\to\\file-or-folder"
+            "placeholder": "文件或目录的绝对路径"
           },
           {
             "name": "deep",

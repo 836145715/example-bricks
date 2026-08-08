@@ -3,7 +3,7 @@ package winlock
 import "errors"
 
 var (
-	ErrUnsupported = errors.New("hold probe is only supported on Windows")
+	ErrUnsupported = errors.New("hold probe is unsupported on this platform")
 	ErrAccess      = errors.New("access denied")
 	ErrProbe       = errors.New("probe failed")
 )
@@ -14,6 +14,7 @@ const (
 	SourceRestartManager Source = "restart-manager"
 	SourceHandleScan     Source = "handle-scan"
 	SourceProcessRef     Source = "process-ref"
+	SourceLsof           Source = "lsof"
 )
 
 type Holder struct {
