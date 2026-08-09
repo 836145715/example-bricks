@@ -17,7 +17,6 @@ export type ClipItem = {
   size?: number
   sourceBrickId?: string
   event?: string
-  resourceId?: string
   createdAt: number
   favorite?: boolean
 }

@@ -269,7 +269,6 @@ function createHistoryService(options) {
         Buffer.byteLength(text || '', 'utf8'),
       sourceBrickId: envelope.sourceBrickId,
       event: envelope.event,
-      resourceId: payload.resourceId,
       contentHash,
       createdAt: envelope.publishedAt || payload.capturedAt || now(),
       favorite: old?.favorite || false

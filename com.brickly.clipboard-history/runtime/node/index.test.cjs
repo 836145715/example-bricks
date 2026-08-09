@@ -113,34 +113,64 @@ test('set-content 只调用 Runtime clipboard API 并校验 content', async (t) 
   })
 })
 
-test('系统事件通过 resource.get 复用 ingest 并以 insert 原因发布', async (t) => {
-  const runtime = loadRuntime(t, {
-    hostCall: async (message) => {
-      assert.equal(message.type, 'host.resource.get')
-      assert.equal(message.resourceId, 'resource-1')
-      return {
-        resourceId: 'resource-1',
-        content: { text: 'from resource' },
-        mimeType: 'text/plain',
-        expiresAt: Date.now() + 1000
-      }
-    }
-  })
+test('系统事件使用 ResourceHandle 读取嵌套剪贴板资源', async (t) => {
+  const runtime = loadRuntime(t)
+  const inner = new runtime.ResourceHandle({
+    kind: 'brickly.resource',
+    resourceId: 'clipboard-resource',
+    accessToken: 'token',
+    sizeBytes: 5,
+    mimeType: 'text/plain'
+  }, 'hello')
+  runtime.ResourceHandle.values.set('clipboard-resource', 'hello')
+  const outer = new runtime.ResourceHandle({
+    kind: 'brickly.resource',
+    resourceId: 'event-resource',
+    accessToken: 'token',
+    sizeBytes: 100,
+    mimeType: 'application/json'
+  }, { kind: 'text', mimeType: 'text/plain', resource: inner.ref })
 
-  runtime.events.get('clipboard:new-content')(
-    { kind: 'text', resourceId: 'resource-1' },
-    {
-      event: 'clipboard:new-content',
-      sourceBrickId: 'system',
-      publishedAt: Date.now()
-    }
-  )
+  runtime.events.get('clipboard:new-content')(outer, {
+    event: 'clipboard:new-content',
+    sourceBrickId: 'system',
+    publishedAt: Date.now()
+  })
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(runtime.published.length, 1)
-  assert.equal(runtime.published[0].payload.reason, 'insert')
   const list = await runtime.commands.get('list')({}, { limit: 10 })
-  assert.equal(list.items[0].text, 'from resource')
+  assert.equal(list.items[0].text, 'hello')
+})
+
+test('系统事件将图片 ResourceHandle 保存到历史媒体目录', async (t) => {
+  const runtime = loadRuntime(t)
+  const inner = new runtime.ResourceHandle({
+    kind: 'brickly.resource',
+    resourceId: 'clipboard-image',
+    accessToken: 'token',
+    sizeBytes: 3,
+    mimeType: 'image/png',
+    name: 'capture.png'
+  }, 'png')
+  runtime.ResourceHandle.values.set('clipboard-image', 'png')
+  const outer = new runtime.ResourceHandle({
+    kind: 'brickly.resource',
+    resourceId: 'event-image',
+    accessToken: 'token',
+    sizeBytes: 100,
+    mimeType: 'application/json'
+  }, { kind: 'image', mimeType: 'image/png', resource: inner.ref })
+
+  runtime.events.get('clipboard:new-content')(outer, {
+    event: 'clipboard:new-content',
+    sourceBrickId: 'system',
+    publishedAt: Date.now()
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  const list = await runtime.commands.get('list')({}, { limit: 10 })
+  assert.equal(list.items[0].type, 'image')
+  assert.equal(fs.readFileSync(list.items[0].imagePath, 'utf8'), 'png')
 })
 
 test('系统事件 listener 吸收异步落盘失败且不返回 rejected Promise', async (t) => {
@@ -202,6 +232,31 @@ function loadRuntime(t, options = {}) {
     }
   }
 
+  class FakeResourceHandle {
+    constructor(transportOrRef, refOrValue) {
+      if (refOrValue && refOrValue.kind === 'brickly.resource') {
+        this.ref = refOrValue
+        this.value = FakeResourceHandle.values.get(refOrValue.resourceId)
+      } else {
+        this.ref = transportOrRef
+        this.value = refOrValue
+      }
+    }
+
+    async json() {
+      return this.value
+    }
+
+    async text() {
+      return String(this.value)
+    }
+
+    async saveTo(destination) {
+      fs.writeFileSync(destination, Buffer.from(String(this.value)))
+    }
+  }
+  FakeResourceHandle.values = new Map()
+
   class FakeBricklyRuntime {
     constructor() {
       instance = this
@@ -243,7 +298,11 @@ function loadRuntime(t, options = {}) {
   const originalLoad = Module._load
   Module._load = function patchedLoad(request, parent, isMain) {
     if (request === '@syllm/brickly-sdk') {
-      return { BricklyRuntime: FakeBricklyRuntime, BppError: FakeBppError }
+      return {
+        BricklyRuntime: FakeBricklyRuntime,
+        BppError: FakeBppError,
+        ResourceHandle: FakeResourceHandle
+      }
     }
     if (request === 'node:os' && parent?.filename === RUNTIME_PATH) {
       return { homedir: () => root }
@@ -267,6 +326,7 @@ function loadRuntime(t, options = {}) {
     events,
     published,
     logs,
+    ResourceHandle: FakeResourceHandle,
     dbPath: path.join(root, '.brickly', 'apps', 'com.brickly.clipboard-history', 'history.json'),
     get publishAttempts() {
       return publishAttempts

@@ -45,7 +45,6 @@
     }
   },
   "permissions": [
-    "resource.get",
     "os.clipboard",
     "event.publish:clipboard-history:changed"
   ],

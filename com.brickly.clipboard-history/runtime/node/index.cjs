@@ -3,7 +3,7 @@
 
 const os = require('node:os')
 const path = require('node:path')
-const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
+const { BricklyRuntime, BppError, ResourceHandle } = require('@syllm/brickly-sdk')
 const { createHistoryService } = require('./history-service.cjs')
 
 const BRICK_ID = 'com.brickly.clipboard-history'
@@ -29,17 +29,76 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-async function getResource(resourceId) {
-  if (!resourceId) return null
-  try {
-    return await brick.transport.hostCall({
-      type: 'host.resource.get',
-      resourceId
-    })
-  } catch (error) {
-    history.recordError(error)
-    log(`resource.get failed: ${errorMessage(error)}`)
-    return null
+function isResourceRef(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      value.kind === 'brickly.resource' &&
+      typeof value.resourceId === 'string' &&
+      typeof value.accessToken === 'string'
+  )
+}
+
+function asResourceHandle(value) {
+  if (value instanceof ResourceHandle) return value
+  return isResourceRef(value) ? new ResourceHandle(brick.transport, value) : undefined
+}
+
+function resourceExtension(resource) {
+  const name = resource?.ref?.name || ''
+  const byName = path.extname(String(name)).toLowerCase()
+  if (/^\.[a-z0-9]{1,8}$/.test(byName)) return byName
+  const mime = String(resource?.ref?.mimeType || '')
+  const byMime = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp'
+  }[mime]
+  return byMime || '.bin'
+}
+
+async function materializeClipboardPayload(value) {
+  const outer = asResourceHandle(value)
+  const raw = outer ? await outer.json() : value
+  const payload = raw && typeof raw === 'object' ? { ...raw } : {}
+  const resource = asResourceHandle(payload.resource)
+  if (!resource) return { payload, resource: undefined }
+
+  const metadata = resource.ref || {}
+  const mimeType = payload.mimeType || metadata.mimeType
+  if (String(mimeType || '').startsWith('text/') || payload.kind === 'text') {
+    payload.text = await resource.text()
+    return {
+      payload,
+      resource: {
+        mimeType,
+        name: metadata.name,
+        size: metadata.sizeBytes,
+        content: { text: payload.text }
+      }
+    }
+  }
+
+  const target = path.join(
+    MEDIA_DIR,
+    `.incoming-${Date.now()}-${Math.random().toString(36).slice(2)}${resourceExtension(resource)}`
+  )
+  await resource.saveTo(target)
+  payload.path = target
+  if (payload.kind === 'image' || String(mimeType || '').startsWith('image/')) {
+    payload.imagePath = target
+  } else {
+    payload.paths = [target]
+  }
+  return {
+    payload,
+    resource: {
+      mimeType,
+      name: metadata.name,
+      size: metadata.sizeBytes,
+      filePath: target
+    }
   }
 }
 
@@ -82,9 +141,8 @@ async function ingestClipboard(payload, envelope, resource, reason) {
 }
 
 async function handleClipboardEvent(payload, envelope) {
-  const safePayload = payload && typeof payload === 'object' ? payload : {}
-  const resource = await getResource(safePayload.resourceId)
-  return ingestClipboard(safePayload, envelope, resource, 'insert')
+  const materialized = await materializeClipboardPayload(payload)
+  return ingestClipboard(materialized.payload, envelope, materialized.resource, 'insert')
 }
 
 brick.onCommand('list', (_ctx, input) => {
@@ -114,7 +172,8 @@ brick.onCommand('storage-info', () => history.storageInfo())
 
 brick.onCommand('sync-now', async (ctx) => {
   const snapshot = await ctx.platform.clipboard.readContent()
-  const payload = snapshot && typeof snapshot === 'object' ? snapshot : {}
+  const materialized = await materializeClipboardPayload(snapshot)
+  const payload = materialized.payload
   return ingestClipboard(
     payload,
     {
@@ -122,7 +181,7 @@ brick.onCommand('sync-now', async (ctx) => {
       sourceBrickId: 'system',
       publishedAt: payload.capturedAt || Date.now()
     },
-    payload.resource,
+    materialized.resource,
     'sync'
   )
 })
