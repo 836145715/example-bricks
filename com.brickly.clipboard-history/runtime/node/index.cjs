@@ -1,189 +1,136 @@
 /* eslint-disable */
 'use strict'
 
-const os = require('node:os')
-const path = require('node:path')
 const { BricklyRuntime, BppError, ResourceHandle } = require('@syllm/brickly-sdk')
-const { createHistoryService } = require('./history-service.cjs')
 
 const BRICK_ID = 'com.brickly.clipboard-history'
 const HISTORY_EVENT = 'clipboard-history:changed'
 const SOURCE_EVENT = 'clipboard:new-content'
-const DATA_DIR = path.join(os.homedir(), '.brickly', 'apps', BRICK_ID)
-const MEDIA_DIR = path.join(DATA_DIR, 'media')
-const DB_PATH = path.join(DATA_DIR, 'history.json')
 
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
-const history = createHistoryService({
-  dataDir: DATA_DIR,
-  mediaDir: MEDIA_DIR,
-  dbPath: DB_PATH,
-  log
-})
+const startedAt = Date.now()
+let revision = 0
+let processedEvents = 0
+let lastEventAt
+let lastEventKind
+let lastError
 
-function log(message) {
-  brick.log.info(message)
-}
-
-function errorMessage(error) {
-  return error instanceof Error ? error.message : String(error)
-}
-
-function isResourceRef(value) {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      value.kind === 'brickly.resource' &&
-      typeof value.resourceId === 'string' &&
-      typeof value.accessToken === 'string'
-  )
-}
-
-function asResourceHandle(value) {
-  if (value instanceof ResourceHandle) return value
-  return isResourceRef(value) ? new ResourceHandle(brick.transport, value) : undefined
-}
-
-function resourceExtension(resource) {
-  const name = resource?.ref?.name || ''
-  const byName = path.extname(String(name)).toLowerCase()
-  if (/^\.[a-z0-9]{1,8}$/.test(byName)) return byName
-  const mime = String(resource?.ref?.mimeType || '')
-  const byMime = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/gif': '.gif',
-    'image/webp': '.webp'
-  }[mime]
-  return byMime || '.bin'
-}
-
-async function materializeClipboardPayload(value) {
-  const outer = asResourceHandle(value)
-  const raw = outer ? await outer.json() : value
-  const payload = raw && typeof raw === 'object' ? { ...raw } : {}
-  const resource = asResourceHandle(payload.resource)
-  if (!resource) return { payload, resource: undefined }
-
-  const metadata = resource.ref || {}
-  const mimeType = payload.mimeType || metadata.mimeType
-  if (String(mimeType || '').startsWith('text/') || payload.kind === 'text') {
-    payload.text = await resource.text()
-    return {
-      payload,
-      resource: {
-        mimeType,
-        name: metadata.name,
-        size: metadata.sizeBytes,
-        content: { text: payload.text }
-      }
-    }
-  }
-
-  const target = path.join(
-    MEDIA_DIR,
-    `.incoming-${Date.now()}-${Math.random().toString(36).slice(2)}${resourceExtension(resource)}`
-  )
-  await resource.saveTo(target)
-  payload.path = target
-  if (payload.kind === 'image' || String(mimeType || '').startsWith('image/')) {
-    payload.imagePath = target
-  } else {
-    payload.paths = [target]
-  }
+function historyApi(ctx) {
+  const history = ctx?.platform?.clipboard?.history
+  if (history) return history
+  const call = (type, payload = {}) => brick.transport.hostCall({ type, ...payload })
   return {
-    payload,
-    resource: {
-      mimeType,
-      name: metadata.name,
-      size: metadata.sizeBytes,
-      filePath: target
-    }
+    list: (limit) => call('host.platform.clipboard.history.list', { limit }),
+    readText: (itemId) => call('host.platform.clipboard.history.readText', { itemId }),
+    remove: (itemId) => call('host.platform.clipboard.history.remove', { itemId }),
+    clear: (keepFavorites) =>
+      call('host.platform.clipboard.history.clear', { keepFavorites }),
+    setFavorite: (itemId, favorite) =>
+      call('host.platform.clipboard.history.setFavorite', { itemId, favorite }),
+    storageInfo: () => call('host.platform.clipboard.history.storageInfo'),
+    captureCurrent: () => call('host.platform.clipboard.history.captureCurrent')
   }
 }
 
-async function publishMutation(mutation, reason = mutation.reason) {
-  const result = {
-    changed: mutation.changed,
-    reason,
-    revision: mutation.revision,
-    count: mutation.count
-  }
-  if (!mutation.changed) return result
+function requireId(input) {
+  const id = typeof input?.id === 'string' ? input.id.trim() : ''
+  if (!id) throw new BppError('INVALID_INPUT', 'id is required')
+  return id
+}
 
+function toUiItem(item) {
+  const paths = Array.isArray(item.entries) ? item.entries.map((entry) => entry.path) : []
+  const externalStatus = item.entries?.find((entry) => entry.status && entry.status !== 'available')?.status
+  return {
+    id: item.id,
+    type: item.kind,
+    mimeType: item.mimeType,
+    title: item.title,
+    preview: item.preview,
+    path: paths[0],
+    paths,
+    imagePath: item.kind === 'image' && item.storageKind === 'blob' ? item.contentPath : undefined,
+    imageOriginalPath: item.kind === 'image' && item.storageKind === 'external' ? paths[0] : undefined,
+    width: item.width,
+    height: item.height,
+    size: item.sizeBytes,
+    createdAt: item.createdAt,
+    favorite: item.favorite,
+    contentHash: item.contentHash,
+    storageKind: item.storageKind,
+    entries: item.entries,
+    externalStatus
+  }
+}
+
+async function publishChanged(reason, extra = {}) {
+  revision++
+  const payload = { revision, reason, at: Date.now(), ...extra }
   try {
-    await brick.events.publish(HISTORY_EVENT, {
-      revision: mutation.revision,
-      count: mutation.count,
-      reason,
-      at: Date.now()
-    })
+    await brick.events.publish(HISTORY_EVENT, payload)
   } catch (error) {
-    history.recordError(error)
-    log(`publish ${HISTORY_EVENT} failed: ${errorMessage(error)}`)
+    lastError = error instanceof Error ? error.message : String(error)
+    brick.log.warn(`publish ${HISTORY_EVENT} failed: ${lastError}`)
   }
-  return result
+  return payload
 }
 
-async function ingestClipboard(payload, envelope, resource, reason) {
-  try {
-    const mutation = history.ingest(payload, envelope, resource)
-    if (mutation.changed) {
-      const item = mutation.item
-      log(`insert: ${item.type} hash=${item.contentHash.slice(0, 8)}… size=${item.size}`)
-    }
-    return await publishMutation(mutation, reason)
-  } catch (error) {
-    history.recordError(error)
-    log(`upsert failed: ${errorMessage(error)}`)
-    throw error
+brick.onCommand('list', async (ctx, input) => {
+  const items = await historyApi(ctx).list(input?.limit)
+  return { items: items.map(toUiItem) }
+})
+
+brick.onCommand('read-text', (ctx, input) => historyApi(ctx).readText(requireId(input)))
+
+brick.onCommand('remove', async (ctx, input) => {
+  const ok = await historyApi(ctx).remove(requireId(input))
+  if (ok) {
+    const info = await historyApi(ctx).storageInfo()
+    await publishChanged('remove', { count: info.count })
   }
-}
-
-async function handleClipboardEvent(payload, envelope) {
-  const materialized = await materializeClipboardPayload(payload)
-  return ingestClipboard(materialized.payload, envelope, materialized.resource, 'insert')
-}
-
-brick.onCommand('list', (_ctx, input) => {
-  return { items: history.list(input?.limit) }
+  return { ok }
 })
 
-brick.onCommand('remove', async (_ctx, input) => {
-  const mutation = history.remove(String(input?.id || ''))
-  await publishMutation(mutation)
-  return { ok: mutation.changed }
+brick.onCommand('clear', async (ctx, input) => {
+  const changed = await historyApi(ctx).clear(Boolean(input?.keepFavorites))
+  if (changed > 0) {
+    const info = await historyApi(ctx).storageInfo()
+    await publishChanged('clear', { count: info.count })
+  }
+  return { ok: true, changed }
 })
 
-brick.onCommand('clear', async (_ctx, input) => {
-  const mutation = history.clear(Boolean(input?.keepFavorites))
-  await publishMutation(mutation)
-  return { ok: true, changed: mutation.changed }
+brick.onCommand('toggle-favorite', async (ctx, input) => {
+  const id = requireId(input)
+  const current = (await historyApi(ctx).list(500)).find((item) => item.id === id)
+  if (!current) throw new BppError('NOT_FOUND', 'item not found')
+  const favorite = !current.favorite
+  await historyApi(ctx).setFavorite(id, favorite)
+  const info = await historyApi(ctx).storageInfo()
+  await publishChanged('favorite', { historyItemId: id, count: info.count })
+  return { favorite }
 })
 
-brick.onCommand('toggle-favorite', async (_ctx, input) => {
-  const mutation = history.toggleFavorite(String(input?.id || ''))
-  if (!mutation.found) throw new BppError('NOT_FOUND', 'item not found')
-  await publishMutation(mutation)
-  return { favorite: mutation.favorite }
+brick.onCommand('storage-info', async (ctx) => {
+  const info = await historyApi(ctx).storageInfo()
+  return {
+    brickId: BRICK_ID,
+    dataDir: info.directory,
+    dbPath: `${info.directory}/history.sqlite`,
+    mediaDir: `${info.directory}/blobs`,
+    ...info
+  }
 })
-
-brick.onCommand('storage-info', () => history.storageInfo())
 
 brick.onCommand('sync-now', async (ctx) => {
-  const snapshot = await ctx.platform.clipboard.readContent()
-  const materialized = await materializeClipboardPayload(snapshot)
-  const payload = materialized.payload
-  return ingestClipboard(
-    payload,
-    {
-      event: 'clipboard:sync-now',
-      sourceBrickId: 'system',
-      publishedAt: payload.capturedAt || Date.now()
-    },
-    materialized.resource,
-    'sync'
-  )
+  const item = await historyApi(ctx).captureCurrent()
+  if (!item) return { changed: false, reason: 'sync', revision }
+  processedEvents++
+  lastEventAt = Date.now()
+  lastEventKind = item.kind
+  const info = await historyApi(ctx).storageInfo()
+  await publishChanged('sync', { historyItemId: item.id, count: info.count })
+  return { changed: true, reason: 'sync', revision, item: toUiItem(item) }
 })
 
 brick.onCommand('set-content', async (ctx, input) => {
@@ -194,19 +141,47 @@ brick.onCommand('set-content', async (ctx, input) => {
   return ctx.platform.clipboard.setContent(content)
 })
 
-brick.onCommand('runtime-status', () => history.status())
+brick.onCommand('runtime-status', async (ctx) => {
+  const info = await historyApi(ctx).storageInfo()
+  return {
+    state: lastError ? 'error' : 'running',
+    enabled: true,
+    startedAt,
+    uptimeMs: Date.now() - startedAt,
+    count: info.count,
+    maxItems: info.maxItems,
+    dedupeHits: 0,
+    processedEvents,
+    lastEventAt,
+    lastEventKind,
+    lastError,
+    revision
+  }
+})
 
-brick.events.on(SOURCE_EVENT, (payload, envelope) => {
-  void handleClipboardEvent(payload, envelope).catch((error) => {
-    history.recordError(error)
-    log(`clipboard event failed: ${errorMessage(error)}`)
+brick.events.on(SOURCE_EVENT, (payload) => {
+  void (async () => {
+    if (!(payload instanceof ResourceHandle)) {
+      throw new BppError('INVALID_INPUT', 'clipboard event payload must be a ResourceHandle')
+    }
+    const notice = await payload.json()
+    if (!notice || typeof notice.historyItemId !== 'string') {
+      throw new BppError('INVALID_INPUT', 'clipboard event resource is missing historyItemId')
+    }
+    processedEvents++
+    lastEventAt = Date.now()
+    lastEventKind = notice.kind
+    await publishChanged('insert', {
+      historyItemId: notice.historyItemId,
+      kind: notice.kind,
+      count: notice.count
+    })
+  })().catch((error) => {
+    lastError = error instanceof Error ? error.message : String(error)
+    brick.log.warn(`clipboard event failed: ${lastError}`)
   })
 })
 
-brick.onReady(() => {
-  log(`ready · loaded ${history.storageInfo().count} items from ${DB_PATH}`)
-})
-
+brick.onReady(() => brick.log.info('ready · Host clipboard history connected'))
 brick.onShutdown(() => {})
-
 brick.start()

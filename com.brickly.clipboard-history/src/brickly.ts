@@ -25,6 +25,10 @@ export async function listHistory(limit = 500): Promise<ClipItem[]> {
   return Array.isArray(result?.items) ? result.items : []
 }
 
+export function readHistoryText(id: string): Promise<string> {
+  return invoke<string>('read-text', { id })
+}
+
 export async function removeHistoryItem(id: string): Promise<boolean> {
   const result = await invoke<{ ok?: boolean }>('remove', { id })
   return Boolean(result?.ok)

@@ -115,6 +115,29 @@
       "execution": "queue"
     },
     {
+      "id": "read-text",
+      "name": {
+        "zh-CN": "读取文本正文",
+        "en": "Read Text"
+      },
+      "description": "按需读取一条文本历史的完整正文。",
+      "io": {
+        "inputs": [
+          {
+            "name": "id",
+            "type": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "text",
+            "type": "string"
+          }
+        ]
+      },
+      "execution": "queue"
+    },
+    {
       "id": "clear",
       "name": {
         "zh-CN": "清空历史",

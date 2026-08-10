@@ -7,6 +7,7 @@ import {
   listHistory,
   removeHistoryItem,
   setClipboardContent,
+  readHistoryText,
   subscribeHistoryChanged,
   startRuntimeService,
   syncClipboardNow,
@@ -187,7 +188,7 @@ export function App() {
 
   async function handleCopyItem(item: ClipItem): Promise<void> {
     try {
-      await setClipboardContent(clipboardContentForItem(item))
+      await setClipboardContent(await clipboardContentForItem(item))
       notify(copySuccessText(item))
     } catch (error) {
       notify(`写入剪贴板失败 · ${errorMessage(error)}`)
@@ -301,7 +302,7 @@ export function App() {
 
 /* ───────────────────────── 辅助工具函数 ───────────────────────── */
 
-function clipboardContentForItem(item: ClipItem): ClipboardContent {
+async function clipboardContentForItem(item: ClipItem): Promise<ClipboardContent> {
   if (item.type === 'image') {
     const path = item.imageOriginalPath || item.imagePath || item.path
     if (!path) throw new Error('图片文件路径缺失')
@@ -312,7 +313,7 @@ function clipboardContentForItem(item: ClipItem): ClipboardContent {
     if (paths.length === 0) throw new Error('文件路径缺失')
     return { kind: 'file', paths }
   }
-  return { kind: 'text', text: item.text ?? item.preview ?? '' }
+  return { kind: 'text', text: await readHistoryText(item.id) }
 }
 
 function copySuccessText(item: ClipItem): string {

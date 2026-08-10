@@ -166,6 +166,12 @@ export const ClipRow: React.FC<ClipRowProps> = ({
           </div>
         )}
 
+        {item.externalStatus && (
+          <div className="mt-1 text-[11px] font-medium text-rose-400">
+            {externalStatusLabel(item.externalStatus)}
+          </div>
+        )}
+
         {/* 底部工具与时间栏 */}
         <div className="row__footer mt-1.5 flex justify-between items-center w-full select-none">
           <div className="flex items-center gap-2.5">
@@ -237,6 +243,13 @@ export const ClipRow: React.FC<ClipRowProps> = ({
       </div>
     </li>
   )
+}
+
+function externalStatusLabel(status: NonNullable<ClipItem['externalStatus']>): string {
+  if (status === 'missing') return '源文件已删除'
+  if (status === 'changed') return '源文件已发生变化'
+  if (status === 'permission-denied') return '无权访问源文件'
+  return '源文件当前不可用'
 }
 
 /* ───────────────────────── 辅助工具函数 ───────────────────────── */

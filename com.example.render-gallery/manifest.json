@@ -41,9 +41,7 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [
-    "resource.register"
-  ],
+  "permissions": [],
   "trustLevel": "community",
   "ui": {
     "type": "none"

@@ -19,6 +19,7 @@ export type ClipItem = {
   event?: string
   createdAt: number
   favorite?: boolean
+  externalStatus?: 'changed' | 'missing' | 'offline' | 'permission-denied'
 }
 
 export type ClipboardContent =
