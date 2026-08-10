@@ -1,2 +1,2 @@
-brickly-sdk==0.2.0
+brickly-sdk==0.3.0
 requests>=2.31.0

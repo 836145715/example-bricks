@@ -44,7 +44,7 @@
     "dependencies": {
       "kind": "inline",
       "specs": [
-        "brickly-sdk==0.2.0",
+        "brickly-sdk==0.3.0",
         "pymysql>=1.1.0,<2",
         "cryptography>=41.0.0"
       ]
