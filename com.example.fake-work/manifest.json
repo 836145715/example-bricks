@@ -1,0 +1,49 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.example.fake-work",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "假装上班",
+    "en": "Fake Work"
+  },
+  "description": {
+    "zh-CN": "模拟的开发终端：支持 build、test、deploy、dev/watch、ci 等常用命令，输出样式与真实命令行一致，全部为本地模拟，无任何副作用。",
+    "en": "A simulated dev terminal: build, test, deploy, dev/watch, ci and more, styled like a real CLI. Everything runs locally in simulation with no side effects."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "demo",
+    "terminal",
+    "cli",
+    "fun"
+  ],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly Demo"
+  },
+  "license": "MIT",
+  "lifecycle": {
+    "state": "stateless"
+  },
+  "trustLevel": "community",
+  "permissions": [],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "titleBar": "custom",
+    "size": {
+      "width": 1000,
+      "height": 720,
+      "minWidth": 560,
+      "minHeight": 400,
+      "resizable": true
+    }
+  },
+  "commands": []
+}
