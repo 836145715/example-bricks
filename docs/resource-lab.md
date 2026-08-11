@@ -32,7 +32,8 @@ Host 将资源 TTL 最小钳制为 60 秒，默认套件会按实际 `expiresAt`
 
 每个窗口使用独立前缀生成 `runId`。UI 通过可取消的 `stream('suite-run')` 立即获得控制句柄；Runtime 命令保持到批次终态，以便 Writer 和下游 child invocation 共享正确的调用生命周期。停止时先取消该窗口持有的流调用，再按 `runId` 收敛状态，不会取消其他窗口的批次。慢速 Node 读取还使用独立 `operationId/cancel-hold` 控制命令，确认 child 已收到取消且资源清理结束后才进入 `cancelled`。单项完成后通过 `resource-lab:run-updated` 资源事件立即显示，2 秒状态轮询只用于补偿断线或漏事件。
 
-导出按钮通过 `suite-export` 获得 JSON `ResourceHandle`，读取后立即关闭句柄。导出内容只包含场景、状态、耗时、吞吐、哈希、公开资源元数据和脱敏错误。
+导出按钮通过普通 `invoke('suite-export')` 获得 JSON `ResourceRef`，再显式调用
+`window.brickly.resources.open(ref)` 创建 `ResourceHandle`，读取后立即关闭句柄。导出内容只包含场景、状态、耗时、吞吐、哈希、公开资源元数据和脱敏错误。
 
 `resource-lab:run-updated` 通过 EventBus 发布。UI 的 `window.brickly.events.subscribe()` 回调中，
 `envelope.payload` 固定为 `ResourceHandle`；UI 调用 `json()` 取得完整 `RunSnapshot`，校验结构后
