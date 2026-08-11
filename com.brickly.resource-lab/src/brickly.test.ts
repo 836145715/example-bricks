@@ -69,13 +69,22 @@ test('事件资源中的畸形运行快照不会进入订阅回调', async () =>
   assert.equal(closed, true)
 })
 
-test('导出读取报告资源文本并关闭和撤销句柄', async () => {
+test('导出通过 resources.open 打开报告 Ref 并关闭和撤销句柄', async () => {
   let closed = false
   let revoked = false
+  const source = resourceRef('report-export')
+  let opened: unknown
   installWindow({
-    invoke: async () => ({ text: async () => '{"ok":true}', close: async () => { closed = true }, revoke: async () => { revoked = true } })
+    invoke: async () => source,
+    resources: {
+      open: (ref: unknown) => {
+        opened = ref
+        return { text: async () => '{"ok":true}', close: async () => { closed = true }, revoke: async () => { revoked = true } }
+      }
+    }
   })
   assert.equal(await exportRun('run-export'), '{"ok":true}')
+  assert.deepEqual(opened, source)
   assert.equal(closed, true)
   assert.equal(revoked, true)
 })
@@ -92,5 +101,17 @@ function snapshot(overrides: Record<string, unknown> = {}) {
     startedAt: 1,
     results: [],
     ...overrides
+  }
+}
+
+function resourceRef(resourceId: string) {
+  return {
+    kind: 'brickly.resource',
+    resourceId,
+    accessToken: 'token',
+    sizeBytes: 10,
+    sha256: 'a'.repeat(64),
+    expiresAt: Date.now() + 60_000,
+    mimeType: 'application/json'
   }
 }

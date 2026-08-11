@@ -73,3 +73,14 @@ export interface RendererResourceHandle {
   close(): Promise<void>
   revoke?(): Promise<void>
 }
+
+export interface RendererResourceRef {
+  kind: 'brickly.resource'
+  resourceId: string
+  accessToken: string
+  sizeBytes: number
+  sha256: string
+  expiresAt: number
+  mimeType?: string
+  name?: string
+}

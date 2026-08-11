@@ -1,4 +1,4 @@
-import type { RendererResourceHandle, RunSnapshot, SuiteCatalog } from './types'
+import type { RendererResourceHandle, RendererResourceRef, RunSnapshot, SuiteCatalog } from './types'
 import { isRunSnapshot } from './run-state'
 
 interface BricklyApi {
@@ -12,6 +12,7 @@ interface BricklyApi {
   events?: {
     subscribe(event: string, listener: (envelope: { payload: unknown }) => void): Promise<() => void | Promise<void>>
   }
+  resources?: { open(ref: RendererResourceRef): RendererResourceHandle }
 }
 
 declare global {
@@ -59,14 +60,34 @@ export function cancelRun(runId: string): Promise<RunSnapshot> {
 }
 
 export async function exportRun(runId: string): Promise<string> {
-  const handle = await invoke<RendererResourceHandle>('suite-export', { runId })
-  if (!handle || typeof handle.text !== 'function') throw new Error('Runtime 未返回报告 ResourceHandle。')
+  const ref = requireResourceRef(await invoke<unknown>('suite-export', { runId }))
+  const open = requireApi().resources?.open
+  if (!open) throw new Error('当前窗口不支持打开报告资源。')
+  const handle = open(ref)
   try {
     return await handle.text()
   } finally {
     await handle.close?.().catch(() => undefined)
     await handle.revoke?.().catch(() => undefined)
   }
+}
+
+function requireResourceRef(value: unknown): RendererResourceRef {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Runtime 未返回报告 ResourceRef。')
+  }
+  const ref = value as Partial<RendererResourceRef>
+  if (
+    ref.kind !== 'brickly.resource' ||
+    typeof ref.resourceId !== 'string' || !ref.resourceId ||
+    typeof ref.accessToken !== 'string' || !ref.accessToken ||
+    typeof ref.sizeBytes !== 'number' ||
+    typeof ref.sha256 !== 'string' ||
+    typeof ref.expiresAt !== 'number'
+  ) {
+    throw new Error('Runtime 未返回报告 ResourceRef。')
+  }
+  return ref as RendererResourceRef
 }
 
 export function prepareRestart(runId: string): Promise<{ status: string; runId: string; preparedAt: number; checkpoint: Record<string, unknown> }> {
