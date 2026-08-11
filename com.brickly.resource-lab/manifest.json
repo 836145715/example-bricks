@@ -34,7 +34,8 @@
     }
   },
   "permissions": [
-    "event.publish:resource-lab:run-updated"
+    "event.publish:resource-lab:run-updated",
+    "event.publish:resource-lab:probe"
   ],
   "dependencies": {
     "com.brickly.resource-echo-node": {
@@ -44,6 +45,7 @@
         "transform",
         "relay",
         "hold",
+        "cancel-hold",
         "event-last"
       ]
     },
@@ -72,7 +74,7 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
-    "titleBar": "custom",
+    "titleBar": "system",
     "size": {
       "width": 1280,
       "height": 780,

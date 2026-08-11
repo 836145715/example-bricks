@@ -25,19 +25,20 @@ type resourceInput struct {
 	Resource        brickly.ResourceRef `json:"resource"`
 	SizeBytes       int64               `json:"sizeBytes"`
 	ChunkBytes      int                 `json:"chunkBytes"`
-	Byte            byte                `json:"byte"`
+	Byte            *byte               `json:"byte"`
 	MIMEType        string              `json:"mimeType"`
 	Name            string              `json:"name"`
 	TTLMillis       int64               `json:"ttlMs"`
-	Mask            byte                `json:"mask"`
+	Mask            *byte               `json:"mask"`
 	DelayMillis     int                 `json:"delayMs"`
 	TargetBrickID   string              `json:"targetBrickId"`
 	TargetCommandID string              `json:"targetCommandId"`
 }
 
 type patternReader struct {
-	remaining int64
-	value     byte
+	remaining  int64
+	value      byte
+	chunkBytes int
 }
 
 func main() {
@@ -67,7 +68,7 @@ func main() {
 		if input.Name == "" {
 			input.Name = fmt.Sprintf("go-%d.bin", input.SizeBytes)
 		}
-		return ctx.CreateResourceFrom(newPatternReader(input.SizeBytes, defaultByte(input.Byte)), &brickly.ResourceCreateOptions{
+		return ctx.CreateResourceFrom(newPatternReader(input.SizeBytes, byteOrDefault(input.Byte, 0x61), input.ChunkBytes), &brickly.ResourceCreateOptions{
 			MimeType: input.MIMEType, Name: input.Name, TTLMillis: input.TTLMillis, ExpectedSizeBytes: input.SizeBytes,
 		})
 	})
@@ -78,7 +79,7 @@ func main() {
 			return nil, err
 		}
 		defer handle.Close()
-		return ctx.CreateResourceFrom(&xorReader{source: handle, mask: defaultMask(input.Mask)}, &brickly.ResourceCreateOptions{
+		return ctx.CreateResourceFrom(&xorReader{source: handle, mask: byteOrDefault(input.Mask, 0x20)}, &brickly.ResourceCreateOptions{
 			MimeType: input.Resource.MimeType, Name: "go-transformed-" + input.Resource.Name, ExpectedSizeBytes: input.Resource.SizeBytes,
 		})
 	})
@@ -121,7 +122,8 @@ func main() {
 			lastEvent = map[string]any{"runtime": "go", "errorCode": "INTERNAL_ERROR"}
 			return
 		}
-		lastEvent = map[string]any{"runtime": "go", "received": true, "payload": value}
+		envelope, _ := value.(map[string]any)
+		lastEvent = map[string]any{"runtime": "go", "received": true, "probeId": envelope["probeId"]}
 	})
 	runtime.Start()
 }
@@ -189,14 +191,20 @@ func hydrateInput(ctx *brickly.CommandContext, raw json.RawMessage) (resourceInp
 	return input, handle, err
 }
 
-func newPatternReader(sizeBytes int64, value byte) io.Reader {
-	return &patternReader{remaining: sizeBytes, value: value}
+func newPatternReader(sizeBytes int64, value byte, chunkBytes int) io.Reader {
+	if chunkBytes <= 0 {
+		chunkBytes = 64 * 1024
+	}
+	return &patternReader{remaining: sizeBytes, value: value, chunkBytes: chunkBytes}
 }
 func (r *patternReader) Read(buffer []byte) (int, error) {
 	if r.remaining <= 0 {
 		return 0, io.EOF
 	}
 	n := len(buffer)
+	if n > r.chunkBytes {
+		n = r.chunkBytes
+	}
 	if int64(n) > r.remaining {
 		n = int(r.remaining)
 	}
@@ -219,15 +227,9 @@ func (r *xorReader) Read(buffer []byte) (int, error) {
 	}
 	return n, err
 }
-func defaultByte(value byte) byte {
-	if value == 0 {
-		return 0x61
+func byteOrDefault(value *byte, fallback byte) byte {
+	if value == nil {
+		return fallback
 	}
-	return value
-}
-func defaultMask(value byte) byte {
-	if value == 0 {
-		return 0x20
-	}
-	return value
+	return *value
 }

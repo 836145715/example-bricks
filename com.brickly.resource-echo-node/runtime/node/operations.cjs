@@ -67,11 +67,17 @@ function cancelled() {
 
 function delay(ms, signal) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms)
-    signal?.addEventListener('abort', () => {
+    const cleanup = () => signal?.removeEventListener('abort', onAbort)
+    const timer = setTimeout(() => {
+      cleanup()
+      resolve()
+    }, ms)
+    const onAbort = () => {
       clearTimeout(timer)
+      cleanup()
       reject(cancelled())
-    }, { once: true })
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
   })
 }
 

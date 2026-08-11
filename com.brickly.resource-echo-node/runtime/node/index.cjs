@@ -1,11 +1,13 @@
 'use strict'
 
 const { BricklyRuntime, ResourceHandle } = require('@syllm/brickly-sdk')
+const { HoldRegistry } = require('./hold-registry.cjs')
 const { createPatternSource, inspectResource, requireSize, transformSource } = require('./operations.cjs')
 
 const BRICK_ID = 'com.brickly.resource-echo-node'
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
 let lastEvent
+const holds = new HoldRegistry()
 
 brick.onCommand('inspect', (_ctx, input) => inspectResource(requireResource(input)))
 
@@ -39,10 +41,20 @@ brick.onCommand('relay', (ctx, input) => {
 })
 
 brick.onCommand('hold', async (ctx, input) => {
-  const abort = new AbortController()
-  ctx.onCancel(() => abort.abort())
-  return inspectResource(requireResource(input), 'node', Number(input?.delayMs ?? 25), abort.signal)
+  const operationId = String(input?.operationId ?? ctx.requestId)
+  const signal = holds.begin(operationId)
+  ctx.onCancel(() => holds.cancel(operationId))
+  try {
+    return await inspectResource(requireResource(input), 'node', Number(input?.delayMs ?? 25), signal)
+  } finally {
+    holds.end(operationId)
+  }
 })
+
+brick.onCommand('cancel-hold', (_ctx, input) => ({
+  operationId: String(input?.operationId ?? ''),
+  cancelled: holds.cancel(String(input?.operationId ?? ''))
+}))
 
 brick.onCommand('event-last', () => lastEvent)
 
@@ -52,8 +64,8 @@ brick.events.on('resource-lab:probe', (payload) => {
     const envelope = await payload.json()
     const resource = envelope?.resource
     lastEvent = resource instanceof ResourceHandle
-      ? await inspectResource(resource)
-      : { runtime: 'node', received: true, payload: envelope }
+      ? { ...(await inspectResource(resource)), received: true, probeId: envelope?.probeId }
+      : { runtime: 'node', received: true, probeId: envelope?.probeId }
   })().catch((error) => {
     lastEvent = { runtime: 'node', errorCode: error?.code ?? 'INTERNAL_ERROR' }
   })

@@ -69,7 +69,8 @@ def on_probe(payload, _envelope):
     try:
         if not isinstance(payload, ResourceHandle):
             raise ValueError("event payload must be a ResourceHandle")
-        last_event = {"runtime": "python", "received": True, "payload": payload.json()}
+        envelope = payload.json()
+        last_event = {"runtime": "python", "received": True, "probeId": envelope.get("probeId")}
     except Exception as error:
         last_event = {"runtime": "python", "errorCode": getattr(error, "code", "INTERNAL_ERROR")}
 

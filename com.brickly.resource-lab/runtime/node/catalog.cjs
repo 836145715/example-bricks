@@ -22,6 +22,7 @@ const catalog = Object.freeze([
   scenario('create-unicode-boundary', 'create', 'Unicode 分段边界', { sizeBytes: 1 * MiB }),
   scenario('create-from-stream', 'create', '从流创建资源', { sizeBytes: 8 * MiB }),
   scenario('writer-arbitrary-chunks', 'create', 'Writer 任意块写入', { sizeBytes: 8 * MiB }),
+  scenario('writer-write-from', 'create', 'Writer 从流写入', { sizeBytes: 8 * MiB }),
   scenario('writer-finish-state', 'create', 'Writer finish 状态约束'),
   scenario('writer-abort-state', 'create', 'Writer abort 与清理'),
   scenario('read-text', 'read', '整体读取文本'),
@@ -35,14 +36,20 @@ const catalog = Object.freeze([
   scenario('invoke-go', 'cross-language', 'Go 读取与返回', { target: 'go' }),
   scenario('relay-node-python-go', 'cross-language', 'Node 到 Python 到 Go 多跳'),
   scenario('transform-cross-language', 'cross-language', '跨语言变换并返回资源'),
-  scenario('event-resource-handle', 'cross-language', '资源事件水合与校验'),
+  scenario('event-resource-handle', 'cross-language', '资源事件水合与校验', { exclusive: true }),
   scenario('resource-revoke', 'lifecycle', '撤销后拒绝读取', { exclusive: true }),
-  scenario('resource-ttl', 'lifecycle', 'TTL 到期行为', { exclusive: true }),
+  scenario('resource-ttl', 'lifecycle', 'TTL 到期与活动流', { exclusive: true }),
   scenario('forged-token', 'lifecycle', '拒绝伪造 capability token', { exclusive: true }),
   scenario('immutable-snapshot', 'lifecycle', 'finish 后不可变快照'),
   scenario('cancel-upload', 'lifecycle', '取消未完成上传并清理', { exclusive: true }),
-  scenario('restart-orphan-cleanup', 'lifecycle', '重启清理 orphan', {
+  scenario('cancel-child-invoke', 'lifecycle', '下游调用取消后清理收敛', {
+    sizeBytes: 8 * MiB,
     exclusive: true,
+    mode: 'manual'
+  }),
+  scenario('restart-runtime-recovery', 'lifecycle', 'Runtime 重启恢复', {
+    exclusive: true,
+    mode: 'manual',
     requirements: ['restart']
   }),
   scenario('default-64m-stream', 'stress', '64 MiB 默认大载荷', {

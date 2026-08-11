@@ -1,9 +1,8 @@
 'use strict'
 
 const { randomUUID } = require('node:crypto')
-const { readFile, rm, writeFile } = require('node:fs/promises')
+const { statfs } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
-const { join } = require('node:path')
 const { BricklyRuntime, ResourceHandle } = require('@syllm/brickly-sdk')
 const { GROUPS, catalog, selectScenarios } = require('./catalog.cjs')
 const { RunManager } = require('./run-manager.cjs')
@@ -11,35 +10,42 @@ const { createScenarioExecutor } = require('./scenarios.cjs')
 
 const BRICK_ID = 'com.brickly.resource-lab'
 const UPDATE_EVENT = 'resource-lab:run-updated'
-const checkpointPath = join(tmpdir(), 'brickly-resource-lab-restart-checkpoint.json')
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
-const restartWriters = new Map()
 
-const ports = {
+const basePorts = {
   resources: brick.resources,
-  invokeRoot: (brickId, commandId, input) => brick.invokeRoot(brickId, commandId, input),
-  invokeRootResource: (brickId, commandId, input) => brick.invokeRootResource(brickId, commandId, input),
+  invokeDetached: (brickId, commandId, value) => brick.invokeRoot(brickId, commandId, value),
   publish: (event, payload) => brick.events.publish(event, payload),
   openForged: async (ref) => new ResourceHandle(brick.transport, ref).text(),
   prepareRestart,
   tempDir: tmpdir(),
+  freeDiskBytes: async () => {
+    const stats = await statfs(tmpdir())
+    return Number(stats.bavail) * Number(stats.bsize)
+  },
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 const manager = new RunManager({
-  executeScenario: createScenarioExecutor(ports),
+  executeScenario: createScenarioExecutor(basePorts),
   onUpdate: (snapshot) => brick.events.publish(UPDATE_EVENT, snapshot)
 })
 
 brick.onCommand('suite-list', () => ({ groups: GROUPS, scenarios: catalog }))
 
-brick.onCommand('suite-run', (_ctx, input) => {
+brick.onCommand('suite-run', async (ctx, input) => {
   const runId = normalizeRunId(input?.runId)
   const mode = input?.mode ?? (Array.isArray(input?.ids) ? 'selected' : 'default')
   const scenarios = selectScenarios(Array.isArray(input?.ids) ? { ids: input.ids } : { mode })
-  manager.start({ runId, mode, scenarios })
-  return { runId, status: 'running' }
+  const ports = {
+    ...basePorts,
+    invokeRoot: (brickId, commandId, value) => ctx.invoke(brickId, commandId, value),
+    invokeRootResource: (brickId, commandId, value) => ctx.invokeResource(brickId, commandId, value)
+  }
+  manager.start({ runId, mode, scenarios, executeScenario: createScenarioExecutor(ports) })
+  ctx.onCancel(() => { void manager.cancel(runId) })
+  return manager.wait(runId)
 })
 
 brick.onCommand('suite-status', (_ctx, input) => {
@@ -63,21 +69,16 @@ brick.onCommand('suite-export', async (_ctx, input) => {
 
 brick.onCommand('restart-prepare', async (_ctx, input) => {
   const runId = normalizeRunId(input?.runId)
-  return prepareRestart(runId)
+  const checkpoint = prepareRestart(runId)
+  return { status: 'waiting-restart', runId, preparedAt: checkpoint.preparedAt, checkpoint }
 })
 
-brick.onCommand('restart-verify', async () => {
-  let checkpoint
-  try {
-    checkpoint = JSON.parse(await readFile(checkpointPath, 'utf8'))
-  } catch (error) {
-    if (error?.code === 'ENOENT') return { status: 'skipped', reason: '没有待验证的重启检查点。' }
-    throw error
-  }
+brick.onCommand('restart-verify', async (_ctx, input) => {
+  const checkpoint = input?.checkpoint
+  if (!isCheckpoint(checkpoint)) return { status: 'skipped', reason: '没有待验证的重启检查点。' }
   if (checkpoint.pid === process.pid) {
     return { status: 'waiting-restart', runId: checkpoint.runId, preparedAt: checkpoint.preparedAt }
   }
-  await rm(checkpointPath, { force: true })
   return {
     status: 'passed',
     runId: checkpoint.runId,
@@ -90,21 +91,17 @@ brick.onCommand('restart-verify', async () => {
 
 brick.onShutdown(async () => {
   await manager.cancelAll()
-  await Promise.all([...restartWriters.values()].map((writer) => writer.abort().catch(() => undefined)))
-  restartWriters.clear()
 })
 brick.start()
 
-async function prepareRestart(runId) {
-  const writer = await brick.resources.createWriter({
-    mimeType: 'application/octet-stream',
-    name: 'restart-unfinished.part'
-  })
-  await writer.write(Buffer.alloc(1024 * 1024, 0x61))
-  restartWriters.set(runId, writer)
-  const checkpoint = { runId, preparedAt: Date.now(), pid: process.pid }
-  await writeFile(checkpointPath, JSON.stringify(checkpoint), 'utf8')
-  return { status: 'waiting-restart', runId, preparedAt: checkpoint.preparedAt }
+function prepareRestart(runId) {
+  return { runId, preparedAt: Date.now(), pid: process.pid, nonce: randomUUID() }
+}
+
+function isCheckpoint(value) {
+  return Boolean(value && typeof value === 'object' &&
+    typeof value.runId === 'string' && typeof value.preparedAt === 'number' &&
+    typeof value.pid === 'number' && typeof value.nonce === 'string')
 }
 
 function normalizeRunId(value) {

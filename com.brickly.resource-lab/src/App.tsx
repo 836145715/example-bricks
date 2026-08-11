@@ -9,6 +9,8 @@ import { ResultsTable } from './components/ResultsTable'
 import { ResultDetails } from './components/ResultDetails'
 import { StatusBar } from './components/StatusBar'
 
+const RESTART_CHECKPOINT_KEY = 'brickly.resource-lab.restart-checkpoint'
+
 export default function App() {
   const [catalog, setCatalog] = useState<SuiteCatalog>()
   const [runs, setRuns] = useState<RunSnapshot[]>([])
@@ -16,14 +18,18 @@ export default function App() {
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [serviceReady, setServiceReady] = useState(false)
+  const [launching, setLaunching] = useState(false)
   const [error, setError] = useState<string>()
   const [restartState, setRestartState] = useState<Record<string, unknown>>()
   const activeRunIdRef = useRef(activeRunId)
+  const activeRunStreamRef = useRef<{ runId: string; cancel(): void } | undefined>(undefined)
   activeRunIdRef.current = activeRunId
 
   const merge = useCallback((snapshot: RunSnapshot) => {
     setRuns((current) => mergeRunSnapshot(current, snapshot))
     setActiveRunId((current) => current ?? snapshot.runId)
+    const checkpoint = snapshot.results.find((result) => result.status === 'waiting-restart')?.checkpoint
+    if (checkpoint && typeof checkpoint === 'object') saveRestartCheckpoint(checkpoint as Record<string, unknown>)
   }, [])
 
   const initialize = useCallback(async () => {
@@ -31,12 +37,14 @@ export default function App() {
     try {
       await startResourceLab()
       setServiceReady(true)
-      const [suite, history, restart] = await Promise.all([listSuite(), listRunStatuses(), verifyRestart()])
+      const checkpoint = loadRestartCheckpoint()
+      const [suite, history, restart] = await Promise.all([listSuite(), listRunStatuses(), verifyRestart(checkpoint)])
       setCatalog(suite)
       setSelectedIds(new Set(suite.scenarios.filter((item) => item.mode === 'default').map((item) => item.id)))
       setRuns(history.runs)
       setActiveRunId((current) => current ?? history.runs[0]?.runId)
       setRestartState(restart)
+      if (restart.status === 'passed') window.localStorage.removeItem(RESTART_CHECKPOINT_KEY)
     } catch (reason) {
       setError(toMessage(reason))
     }
@@ -58,24 +66,39 @@ export default function App() {
 
   const activeRun = runs.find((run) => run.runId === activeRunId)
   const selectedResult = activeRun?.results.find((result) => result.scenarioId === selectedScenarioId)
-  const busy = activeRun?.status === 'running'
+  const busy = launching || activeRun?.status === 'running'
   const counts = useMemo(() => countStatuses(activeRun), [activeRun])
 
-  const startRun = async (input: { mode?: 'default' | 'stress'; ids?: string[] }) => {
+  const startRun = (input: { mode?: 'default' | 'stress'; ids?: string[] }) => {
     setError(undefined)
     const runId = createRunId()
+    setLaunching(true)
+    setActiveRunId(runId)
+    setSelectedScenarioId(undefined)
     try {
-      await runSuite({ runId, ...input })
-      setActiveRunId(runId)
-      merge(await getRunStatus(runId))
-    } catch (reason) { setError(toMessage(reason)) }
+      const stream = runSuite({ runId, ...input }, (snapshot) => {
+        merge(snapshot)
+        setLaunching(false)
+        if (snapshot.status !== 'running' && activeRunStreamRef.current?.runId === runId) {
+          activeRunStreamRef.current = undefined
+        }
+      }, (reason) => {
+        setLaunching(false)
+        if (reason?.code !== 'CANCELLED') setError(reason?.message ?? 'Resource Lab 运行失败。')
+      })
+      activeRunStreamRef.current = { runId, cancel: stream.cancel }
+    } catch (reason) {
+      setLaunching(false)
+      setError(toMessage(reason))
+    }
   }
   const runStress = () => {
-    if (window.confirm('压力套件会显式执行 201 MiB 和 1 GiB 流式测试，并需要至少 2 GiB 可用磁盘空间。确认继续？')) void startRun({ mode: 'stress' })
+    if (window.confirm('压力套件会显式执行 201 MiB 和 1 GiB 流式测试，并需要至少 2 GiB 可用磁盘空间。确认继续？')) startRun({ mode: 'stress' })
   }
-  const rerun = (result: TestResult) => { void startRun({ ids: [result.scenarioId] }) }
+  const rerun = (result: TestResult) => { startRun({ ids: [result.scenarioId] }) }
   const stop = async () => {
     if (!activeRunId) return
+    if (activeRunStreamRef.current?.runId === activeRunId) activeRunStreamRef.current.cancel()
     try { merge(await cancelRun(activeRunId)) } catch (reason) { setError(toMessage(reason)) }
   }
   const exportActive = async () => {
@@ -89,13 +112,17 @@ export default function App() {
   }
   const prepare = async () => {
     const runId = activeRunId ?? createRunId()
-    try { setRestartState(await prepareRestart(runId)) } catch (reason) { setError(toMessage(reason)) }
+    try {
+      const restart = await prepareRestart(runId)
+      saveRestartCheckpoint(restart.checkpoint)
+      setRestartState(restart)
+    } catch (reason) { setError(toMessage(reason)) }
   }
 
   return <main className="app-shell">
     <Toolbar busy={busy} hasRun={Boolean(activeRun)} selectedCount={selectedIds.size}
-      onRunDefault={() => void startRun({ mode: 'default' })} onRunStress={runStress}
-      onRunSelected={() => void startRun({ ids: [...selectedIds] })} onStop={() => void stop()}
+      onRunDefault={() => startRun({ mode: 'default' })} onRunStress={runStress}
+      onRunSelected={() => startRun({ ids: [...selectedIds] })} onStop={() => void stop()}
       onClear={() => { setRuns([]); setActiveRunId(undefined); setSelectedScenarioId(undefined) }} onExport={() => void exportActive()} />
     {error && <div className="notice error-notice"><AlertTriangle /><span>{error}</span><button title="重试连接" onClick={() => void initialize()}><RefreshCw /></button></div>}
     {restartState?.status === 'waiting-restart' && <div className="notice restart-notice"><span>重启检查点已准备。现在重启 Brickly，重新打开后会自动验收 Runtime 恢复。</span></div>}
@@ -114,6 +141,19 @@ export default function App() {
 }
 
 function toMessage(reason: unknown): string { return reason instanceof Error ? reason.message : 'Resource Lab 操作失败。' }
+
+function saveRestartCheckpoint(checkpoint: Record<string, unknown>): void {
+  window.localStorage.setItem(RESTART_CHECKPOINT_KEY, JSON.stringify(checkpoint))
+}
+
+function loadRestartCheckpoint(): Record<string, unknown> | undefined {
+  const raw = window.localStorage.getItem(RESTART_CHECKPOINT_KEY)
+  if (!raw) return undefined
+  try { return JSON.parse(raw) as Record<string, unknown> } catch {
+    window.localStorage.removeItem(RESTART_CHECKPOINT_KEY)
+    return undefined
+  }
+}
 
 export function defaultScenarioIds(scenarios: ScenarioDefinition[]): Set<string> {
   return new Set(scenarios.filter((scenario) => scenario.mode === 'default').map((scenario) => scenario.id))

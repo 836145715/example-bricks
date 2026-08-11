@@ -24,9 +24,10 @@ class RunManager {
     this.onUpdate = onUpdate
     this.now = now
     this.runs = new Map()
+    this.gate = new ScenarioGate(maxParallel)
   }
 
-  start({ runId, scenarios, mode = 'selected' }) {
+  start({ runId, scenarios, mode = 'selected', executeScenario }) {
     if (!runId || typeof runId !== 'string') throw invalidInput('runId')
     if (this.runs.has(runId)) throw invalidInput('runId already exists')
     if (!Array.isArray(scenarios) || scenarios.length === 0) throw invalidInput('scenarios')
@@ -37,6 +38,7 @@ class RunManager {
       startedAt: this.now(),
       results: scenarios.map((scenario) => createResult(scenario, runId)),
       scenarios,
+      executeScenario: executeScenario ?? this.executeScenario,
       abort: new AbortController(),
       cancelRequested: false
     }
@@ -130,11 +132,13 @@ class RunManager {
 
   async executeOne(run, scenario, index) {
     const result = run.results[index]
-    result.status = 'running'
-    result.startedAt = this.now()
-    this.notify(run)
+    let release
     try {
-      const details = await this.executeScenario(scenario, {
+      release = await this.gate.acquire(Boolean(scenario.exclusive), run.abort.signal)
+      result.status = 'running'
+      result.startedAt = this.now()
+      this.notify(run)
+      const details = await run.executeScenario(scenario, {
         runId: run.runId,
         signal: run.abort.signal
       })
@@ -155,11 +159,12 @@ class RunManager {
       }
     } finally {
       result.finishedAt = this.now()
-      result.durationMs = Math.max(0, result.finishedAt - result.startedAt)
+      result.durationMs = Math.max(0, result.finishedAt - (result.startedAt ?? result.finishedAt))
       if (result.sizeBytes > 0 && result.durationMs > 0) {
         result.throughputBytesPerSecond = Math.round(result.sizeBytes / (result.durationMs / 1000))
       }
       this.notify(run)
+      release?.()
     }
   }
 
@@ -180,6 +185,58 @@ class RunManager {
   }
 }
 
+class ScenarioGate {
+  constructor(maxParallel) {
+    this.maxParallel = maxParallel
+    this.active = 0
+    this.exclusive = false
+    this.queue = []
+  }
+
+  acquire(exclusive, signal) {
+    if (signal.aborted) return Promise.reject(cancelled())
+    return new Promise((resolve, reject) => {
+      const waiter = { exclusive, resolve, reject, signal, onAbort: undefined }
+      waiter.onAbort = () => {
+        const index = this.queue.indexOf(waiter)
+        if (index >= 0) this.queue.splice(index, 1)
+        reject(cancelled())
+        this.drain()
+      }
+      signal.addEventListener('abort', waiter.onAbort, { once: true })
+      this.queue.push(waiter)
+      this.drain()
+    })
+  }
+
+  drain() {
+    if (this.exclusive || this.queue.length === 0) return
+    const first = this.queue[0]
+    if (first.exclusive) {
+      if (this.active > 0) return
+      this.start(this.queue.shift())
+      return
+    }
+    while (this.active < this.maxParallel && this.queue.length > 0 && !this.queue[0].exclusive) {
+      this.start(this.queue.shift())
+    }
+  }
+
+  start(waiter) {
+    waiter.signal.removeEventListener('abort', waiter.onAbort)
+    this.active++
+    this.exclusive = waiter.exclusive
+    let released = false
+    waiter.resolve(() => {
+      if (released) return
+      released = true
+      this.active--
+      if (waiter.exclusive) this.exclusive = false
+      this.drain()
+    })
+  }
+}
+
 function isTerminal(status) {
   return ['passed', 'failed', 'cancelled', 'waiting-restart'].includes(status)
 }
@@ -193,6 +250,12 @@ function invalidInput(message) {
 function notFound(runId) {
   const error = new Error(`run not found: ${runId}`)
   error.code = 'NOT_FOUND'
+  return error
+}
+
+function cancelled() {
+  const error = new Error('cancelled')
+  error.code = 'CANCELLED'
   return error
 }
 

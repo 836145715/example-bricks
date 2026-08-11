@@ -23,7 +23,7 @@ func TestInspectReaderCountsBytesAndHash(t *testing.T) {
 }
 
 func TestPatternReaderStreamsBoundedData(t *testing.T) {
-	reader := newPatternReader(1024*1024+17, 0x61)
+	reader := newPatternReader(1024*1024+17, 0x61, 64*1024)
 	buffer := make([]byte, 64*1024)
 	total := 0
 	reads := 0
@@ -45,5 +45,20 @@ func TestPatternReaderStreamsBoundedData(t *testing.T) {
 	}
 	if total != 1024*1024+17 || reads != 17 {
 		t.Fatalf("total=%d reads=%d", total, reads)
+	}
+}
+
+func TestPatternReaderHonorsChunkSizeAndZeroByte(t *testing.T) {
+	reader := newPatternReader(10, 0, 3)
+	buffer := make([]byte, 8)
+	for expected := 3; expected > 0; expected-- {
+		n, err := reader.Read(buffer)
+		if err != nil || n != 3 || buffer[0] != 0 {
+			t.Fatalf("read n=%d err=%v first=%d", n, err, buffer[0])
+		}
+	}
+	n, err := reader.Read(buffer)
+	if err != nil || n != 1 || buffer[0] != 0 {
+		t.Fatalf("final read n=%d err=%v first=%d", n, err, buffer[0])
 	}
 }

@@ -24,12 +24,17 @@ test('默认套件不包含超过 64 MiB 或压力专属场景', () => {
   const defaults = selectScenarios({ mode: 'default' })
   assert.ok(defaults.length > 0)
   assert.equal(defaults.some((scenario) => scenario.mode === 'stress'), false)
+  assert.equal(defaults.some((scenario) => scenario.requirements?.includes('restart')), false)
   assert.equal(defaults.some((scenario) => (scenario.sizeBytes ?? 0) > 64 * 1024 * 1024), false)
 
   const stress = selectScenarios({ mode: 'stress' })
   assert.ok(stress.some((scenario) => scenario.sizeBytes === 201 * 1024 * 1024))
   assert.ok(stress.some((scenario) => scenario.sizeBytes === 1024 * 1024 * 1024))
   assert.ok(stress.every((scenario) => scenario.mode === 'stress'))
+  assert.equal(stress.some((scenario) => scenario.requirements?.includes('restart')), false)
+
+  const restart = catalog.find((scenario) => scenario.id === 'restart-runtime-recovery')
+  assert.equal(restart.mode, 'manual')
 })
 
 test('可以按场景 id 精确选择并拒绝未知 id', () => {

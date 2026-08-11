@@ -139,7 +139,7 @@ Push-Location com.brickly.resource-echo-go/runtime/go; go test ./...; Pop-Locati
 
 - [ ] **步骤 1：编写命令适配失败测试**
 
-使用伪 SDK 加载 Runtime，断言注册七个命令、suite-run 立即返回 runId、suite-status 返回增量结果、suite-cancel 只取消指定批次、suite-export 返回 ResourceHandle、shutdown 取消全部活跃批次。
+使用伪 SDK 加载 Runtime，断言注册七个命令、suite-run 保持到批次终态、UI 通过 stream 立即获得可取消句柄、suite-status 返回增量结果、suite-cancel 只取消指定批次、suite-export 返回 ResourceHandle、shutdown 取消全部活跃批次。
 
 - [ ] **步骤 2：运行测试验证失败**
 
@@ -148,7 +148,7 @@ Push-Location com.brickly.resource-echo-go/runtime/go; go test ./...; Pop-Locati
 
 - [ ] **步骤 3：实现 Runtime 适配层和 manifest**
 
-manifest 声明三语言依赖、`event.publish:resource-lab:run-updated`、webview UI 和七个合法 command id。Runtime 发布增量资源事件，重启检查点写入 Brick 数据目录，不持久化 token。
+manifest 声明三语言依赖、`event.publish:resource-lab:run-updated`、webview UI 和七个合法 command id。Runtime 发布增量资源事件，重启检查点由 UI localStorage 保存且只含 `runId/pid/nonce/preparedAt`，不持久化 token。
 
 - [ ] **步骤 4：验证并提交**
 

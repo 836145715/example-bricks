@@ -44,6 +44,12 @@
       "from": "com.brickly.resource-lab"
     }
   ],
+  "triggers": [
+    {
+      "type": "event",
+      "event": "resource-lab:probe"
+    }
+  ],
   "dependencies": {
     "com.brickly.resource-echo-go": {
       "commands": [

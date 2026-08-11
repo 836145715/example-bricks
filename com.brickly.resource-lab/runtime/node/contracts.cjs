@@ -5,6 +5,8 @@ const SAFE_ERROR_MESSAGES = Object.freeze({
   INVALID_INPUT: '测试输入无效。',
   RESOURCE_EXPIRED: '资源已过期或撤销。',
   RESOURCE_LIMIT_EXCEEDED: '资源限制已触发。',
+  RESOURCE_UPLOAD_CLOSED: '资源上传已结束。',
+  RESOURCE_ACCESS_DENIED: '资源能力校验失败。',
   RESOURCE_MATERIALIZATION_TOO_LARGE: '资源超过整体读取上限。',
   PAYLOAD_TOO_LARGE: '调用载荷超过上限。',
   PERMISSION_DENIED: '资源能力校验失败。',

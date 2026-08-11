@@ -17,35 +17,52 @@ test('Runtime 注册完整命令并以 runId 隔离运行、查询、导出和�
   assert.ok(listed.scenarios.length >= 25)
   assert.equal(listed.groups.length, 5)
 
-  const started = await harness.commands.get('suite-run')({}, {
+  const completed = await harness.commands.get('suite-run')({ onCancel() {} }, {
     runId: 'window-a-run-1', ids: ['create-empty']
   })
-  assert.deepEqual(started, { runId: 'window-a-run-1', status: 'running' })
-  await waitUntil(async () => (await harness.commands.get('suite-status')({}, { runId: started.runId })).status === 'passed')
+  assert.equal(completed.runId, 'window-a-run-1')
+  assert.equal(completed.status, 'passed')
 
-  const exported = await harness.commands.get('suite-export')({}, { runId: started.runId })
+  const exported = await harness.commands.get('suite-export')({}, { runId: completed.runId })
   assert.equal(exported.fakeResource, true)
   assert.match(exported.content, /window-a-run-1/)
   assert.equal(exported.content.includes('accessToken'), false)
 
-  const running = await harness.commands.get('suite-run')({}, {
+  const runningPromise = harness.commands.get('suite-run')({ onCancel() {} }, {
     runId: 'window-b-run-1', ids: ['resource-ttl']
   })
-  const cancelled = await harness.commands.get('suite-cancel')({}, { runId: running.runId })
-  assert.equal(cancelled.runId, running.runId)
+  await waitUntil(async () => (await harness.commands.get('suite-status')({}, { runId: 'window-b-run-1' })).status === 'running')
+  const cancelled = await harness.commands.get('suite-cancel')({}, { runId: 'window-b-run-1' })
+  assert.equal(cancelled.runId, 'window-b-run-1')
   assert.equal(cancelled.status, 'cancelled')
+  assert.equal((await runningPromise).status, 'cancelled')
   assert.ok(harness.published.some((event) => event.event === 'resource-lab:run-updated'))
+
+  const restart = await harness.commands.get('restart-prepare')({}, { runId: 'restart-run' })
+  assert.equal(restart.status, 'waiting-restart')
+  assert.equal(typeof restart.checkpoint.nonce, 'string')
+  assert.equal((await harness.commands.get('restart-verify')({}, { checkpoint: restart.checkpoint })).status, 'waiting-restart')
+  const recovered = await harness.commands.get('restart-verify')({}, {
+    checkpoint: { ...restart.checkpoint, pid: restart.checkpoint.pid + 1 }
+  })
+  assert.equal(recovered.status, 'passed')
 })
 
 test('manifest 不声明资源权限且依赖三种 Echo Brick', () => {
   const manifest = require(path.join(__dirname, '..', '..', 'manifest.json'))
   assert.equal(manifest.permissions.some((permission) => permission.startsWith('resource.')), false)
+  assert.ok(manifest.permissions.includes('event.publish:resource-lab:probe'))
   assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
     'com.brickly.resource-echo-go',
     'com.brickly.resource-echo-node',
     'com.brickly.resource-echo-python'
   ])
   assert.equal(manifest.ui.type, 'webview')
+  for (const brickId of Object.keys(manifest.dependencies)) {
+    const echoManifest = require(path.join(__dirname, '..', '..', '..', brickId, 'manifest.json'))
+    assert.ok(echoManifest.subscriptions.some((item) => item.event === 'resource-lab:probe'))
+    assert.ok(echoManifest.triggers.some((item) => item.type === 'event' && item.event === 'resource-lab:probe'))
+  }
 })
 
 function loadRuntime(t) {

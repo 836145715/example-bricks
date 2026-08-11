@@ -73,6 +73,45 @@ test('按 runId 取消不会影响另一个批次并等待场景清理', async (
   await manager.cancel('run-b')
 })
 
+test('多个 run 共用全局并发上限且 exclusive 场景全局独占', async () => {
+  let active = 0
+  let maxActive = 0
+  const exclusiveActive = []
+  const gates = new Map()
+  const manager = new RunManager({
+    maxParallel: 3,
+    executeScenario: async (scenario) => {
+      active++
+      maxActive = Math.max(maxActive, active)
+      if (scenario.exclusive) exclusiveActive.push(active)
+      await new Promise((resolve) => gates.set(scenario.id, resolve))
+      active--
+      return {}
+    }
+  })
+
+  manager.start({ runId: 'run-a', scenarios: [item('a1'), item('a2'), item('exclusive', true)] })
+  manager.start({ runId: 'run-b', scenarios: [item('b1'), item('b2'), item('b3')] })
+  await waitUntil(() => gates.size === 3)
+  assert.equal(active, 3)
+  const released = new Set()
+  while (!gates.has('exclusive')) {
+    for (const [id, resolve] of gates) {
+      if (id !== 'exclusive' && !released.has(id)) {
+        released.add(id)
+        resolve()
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2))
+  }
+  await waitUntil(() => gates.has('exclusive'))
+  assert.deepEqual(exclusiveActive, [1])
+  gates.get('exclusive')()
+  for (const [id, resolve] of gates) if (!released.has(id) && id !== 'exclusive') resolve()
+  await Promise.all([manager.wait('run-a'), manager.wait('run-b')])
+  assert.equal(maxActive, 3)
+})
+
 function item(id, exclusive = false) {
   return { id, title: id, group: 'create', mode: 'default', exclusive }
 }

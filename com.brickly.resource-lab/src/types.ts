@@ -6,7 +6,7 @@ export interface ScenarioDefinition {
   id: string
   group: TestGroup
   title: string
-  mode: 'default' | 'stress'
+  mode: 'default' | 'stress' | 'manual'
   exclusive: boolean
   target?: string
   sizeBytes?: number
@@ -71,4 +71,5 @@ export interface RendererResourceHandle {
   json<T = unknown>(): Promise<T>
   text(): Promise<string>
   close(): Promise<void>
+  revoke?(): Promise<void>
 }

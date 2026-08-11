@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const { createHash } = require('node:crypto')
+const { getEventListeners } = require('node:events')
 const test = require('node:test')
 
 const { createPatternSource, inspectResource } = require('./operations.cjs')
@@ -25,6 +26,12 @@ test('Node pattern source 按固定种子生成指定大小且不整包分配', 
   assert.equal(chunks.length, 17)
   assert.ok(chunks.every((chunk) => chunk.byteLength <= 64 * 1024))
   assert.equal(chunks[0][0], 0x61)
+})
+
+test('Node 慢读完成后移除每个分块的 abort listener', async () => {
+  const abort = new AbortController()
+  await inspectResource(fakeResource(Array.from({ length: 16 }, () => Buffer.alloc(1))), 'node', 1, abort.signal)
+  assert.equal(getEventListeners(abort.signal, 'abort').length, 0)
 })
 
 function fakeResource(chunks) {

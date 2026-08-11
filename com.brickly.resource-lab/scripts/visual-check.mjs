@@ -76,12 +76,13 @@ function mockBridge() {
     if (command === 'restart-verify') return { status: 'skipped' }
     if (command === 'suite-run') return { runId: input.runId, status: 'running' }
     if (command === 'suite-cancel') return { ...snapshot, status: 'cancelled' }
-    if (command === 'restart-prepare') return { status: 'waiting-restart', runId: input.runId, preparedAt: Date.now() }
-    if (command === 'suite-export') return { text: async () => JSON.stringify(snapshot), close: async () => {} }
+    if (command === 'restart-prepare') return { status: 'waiting-restart', runId: input.runId, preparedAt: Date.now(), checkpoint: { runId: input.runId, pid: 1, nonce: 'visual', preparedAt: Date.now() } }
+    if (command === 'suite-export') return { text: async () => JSON.stringify(snapshot), close: async () => {}, revoke: async () => {} }
     throw new Error(`未知模拟命令：${command}`)
   }
   window.brickly = {
     invoke,
+    stream: (_command, _input, callbacks) => ({ cancel: () => callbacks.onError?.({ code: 'CANCELLED' }) }),
     service: { start: async () => ({ running: true }) },
     events: { subscribe: async () => () => {} }
   }
