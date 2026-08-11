@@ -18,7 +18,7 @@ test('runSuite 使用可立即返回且可取消的 stream', () => {
   const handle = runSuite({ runId: 'window-a-1', mode: 'default' }, (snapshot) => completed.push(snapshot))
   assert.equal(calls[0]?.[0], 'suite-run')
   assert.deepEqual(calls[0]?.[1], { runId: 'window-a-1', mode: 'default' })
-  callbacks?.onResult?.({ runId: 'window-a-1', status: 'passed', results: [] })
+  callbacks?.onResult?.(snapshot({ runId: 'window-a-1' }))
   assert.equal(completed.length, 1)
   handle.cancel()
   assert.deepEqual(calls.at(-1), ['cancelled'])
@@ -26,7 +26,7 @@ test('runSuite 使用可立即返回且可取消的 stream', () => {
 
 test('取消只传指定 runId', async () => {
   const calls: unknown[][] = []
-  installWindow({ invoke: async (...args: unknown[]) => (calls.push(args), { runId: 'run-b', status: 'cancelled' }) })
+  installWindow({ invoke: async (...args: unknown[]) => (calls.push(args), snapshot({ runId: 'run-b', status: 'cancelled' })) })
   await cancelRun('run-b')
   assert.deepEqual(calls[0], ['suite-cancel', { runId: 'run-b' }])
 })
@@ -40,9 +40,32 @@ test('事件 payload 使用 ResourceHandle.json 水合运行快照', async () =>
     events: { subscribe: async (_event: string, listener: (event: unknown) => void) => (handler = listener, () => undefined) }
   })
   await subscribeRunUpdates((snapshot) => received.push(snapshot))
-  handler?.({ payload: { json: async () => ({ runId: 'run-event', status: 'passed', results: [] }), close: async () => { closed = true } } })
+  const expected = snapshot({ runId: 'run-event' })
+  handler?.({ payload: { json: async () => expected, close: async () => { closed = true } } })
   await new Promise((resolve) => setImmediate(resolve))
-  assert.deepEqual(received, [{ runId: 'run-event', status: 'passed', results: [] }])
+  assert.deepEqual(received, [expected])
+  assert.equal(closed, true)
+})
+
+test('事件资源中的畸形运行快照不会进入订阅回调', async () => {
+  let handler: ((event: unknown) => void) | undefined
+  let closed = false
+  const received: unknown[] = []
+  installWindow({
+    invoke: async () => ({}),
+    events: { subscribe: async (_event: string, listener: (event: unknown) => void) => (handler = listener, () => undefined) }
+  })
+
+  await subscribeRunUpdates((snapshot) => received.push(snapshot))
+  handler?.({
+    payload: {
+      json: async () => ({ runId: 'run-event', status: 'running' }),
+      close: async () => { closed = true }
+    }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.deepEqual(received, [])
   assert.equal(closed, true)
 })
 
@@ -59,4 +82,15 @@ test('导出读取报告资源文本并关闭和撤销句柄', async () => {
 
 function installWindow(overrides: Record<string, unknown>) {
   Object.assign(globalThis, { window: { brickly: overrides } })
+}
+
+function snapshot(overrides: Record<string, unknown> = {}) {
+  return {
+    runId: 'run',
+    mode: 'default',
+    status: 'passed',
+    startedAt: 1,
+    results: [],
+    ...overrides
+  }
 }

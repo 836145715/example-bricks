@@ -21,6 +21,17 @@ test('不同窗口生成的 runId 包含实例前缀且不会冲突', () => {
   assert.notEqual(first, second)
 })
 
+test('忽略缺少 results 的畸形运行更新', () => {
+  const running = snapshot('run-a', 'running', undefined, 'running')
+  const malformed = { runId: 'run-a', status: 'running', startedAt: 2 }
+
+  assert.deepEqual(mergeRunSnapshot([], malformed as unknown as RunSnapshot), [])
+  assert.deepEqual(
+    mergeRunSnapshot([running], malformed as unknown as RunSnapshot),
+    [running]
+  )
+})
+
 test('状态汇总包含全部终态与运行态', () => {
   const counts = countStatuses({
     ...snapshot('run', 'failed', 20, 'passed'),

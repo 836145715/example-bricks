@@ -34,6 +34,10 @@ Host 将资源 TTL 最小钳制为 60 秒，默认套件会按实际 `expiresAt`
 
 导出按钮通过 `suite-export` 获得 JSON `ResourceHandle`，读取后立即关闭句柄。导出内容只包含场景、状态、耗时、吞吐、哈希、公开资源元数据和脱敏错误。
 
+`resource-lab:run-updated` 通过 EventBus 发布。UI 的 `window.brickly.events.subscribe()` 回调中，
+`envelope.payload` 固定为 `ResourceHandle`；UI 调用 `json()` 取得完整 `RunSnapshot`，校验结构后
+合并状态，并在读取完成后关闭句柄。内部 `{ resource, encoding }` 传输包装不会暴露给工具代码。
+
 ## 重启验收
 
 1. 点击“准备重启验收”，UI 保存只包含 `runId/pid/nonce/preparedAt` 的检查点，不创建伪 orphan Writer。

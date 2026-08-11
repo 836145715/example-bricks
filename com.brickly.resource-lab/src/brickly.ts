@@ -1,4 +1,5 @@
 import type { RendererResourceHandle, RunSnapshot, SuiteCatalog } from './types'
+import { isRunSnapshot } from './run-state'
 
 interface BricklyApi {
   invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
@@ -34,21 +35,27 @@ export function runSuite(
   const stream = requireApi().stream
   if (!stream) throw new Error('当前窗口不支持可取消的 Resource Lab 流式调用。')
   return stream('suite-run', input, {
-    onResult: (result) => onResult(result as RunSnapshot),
+    onResult: (result) => {
+      try {
+        onResult(requireRunSnapshot(result))
+      } catch (error) {
+        onError({ code: 'INVALID_RESPONSE', message: toErrorMessage(error) })
+      }
+    },
     onError
   })
 }
 
 export function getRunStatus(runId: string): Promise<RunSnapshot> {
-  return invoke('suite-status', { runId })
+  return invoke<unknown>('suite-status', { runId }).then(requireRunSnapshot)
 }
 
 export function listRunStatuses(): Promise<{ runs: RunSnapshot[] }> {
-  return invoke('suite-status', {})
+  return invoke<unknown>('suite-status', {}).then(requireRunHistory)
 }
 
 export function cancelRun(runId: string): Promise<RunSnapshot> {
-  return invoke('suite-cancel', { runId })
+  return invoke<unknown>('suite-cancel', { runId }).then(requireRunSnapshot)
 }
 
 export async function exportRun(runId: string): Promise<string> {
@@ -82,13 +89,29 @@ async function hydrateSnapshot(payload: unknown): Promise<RunSnapshot> {
   if (payload && typeof (payload as RendererResourceHandle).json === 'function') {
     const handle = payload as RendererResourceHandle
     try {
-      return await handle.json<RunSnapshot>()
+      return requireRunSnapshot(await handle.json<unknown>())
     } finally {
       await handle.close?.().catch(() => undefined)
     }
   }
-  if (payload && typeof payload === 'object') return payload as RunSnapshot
-  throw new Error('Resource Lab 事件 payload 无效。')
+  return requireRunSnapshot(payload)
+}
+
+function requireRunSnapshot(value: unknown): RunSnapshot {
+  if (isRunSnapshot(value)) return value
+  throw new Error('Resource Lab 运行快照结构无效。')
+}
+
+function requireRunHistory(value: unknown): { runs: RunSnapshot[] } {
+  const runs = value && typeof value === 'object' ? (value as { runs?: unknown }).runs : undefined
+  if (!Array.isArray(runs) || !runs.every(isRunSnapshot)) {
+    throw new Error('Resource Lab 运行历史结构无效。')
+  }
+  return { runs }
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Resource Lab 返回结构无效。'
 }
 
 function invoke<T>(commandId: string, input: Record<string, unknown>): Promise<T> {

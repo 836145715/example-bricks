@@ -2,6 +2,8 @@ import type {
   ClipItem,
   ClipboardContent,
   ClipboardHistoryChangedEnvelope,
+  ClipboardHistoryChangedPayload,
+  ClipboardHistoryChangedResourceEnvelope,
   ClipboardSetResult,
   RuntimeStatus,
   StorageInfo,
@@ -71,7 +73,28 @@ export async function subscribeHistoryChanged(
 ): Promise<() => void | Promise<void>> {
   const events = window.brickly?.events
   if (!events?.subscribe) throw new Error('当前页面没有可用的剪贴板历史事件接口。')
-  return events.subscribe('clipboard-history:changed', listener)
+  return events.subscribe('clipboard-history:changed', (envelope) => {
+    void hydrateHistoryChanged(envelope).then(listener).catch(() => undefined)
+  })
+}
+
+async function hydrateHistoryChanged(
+  envelope: ClipboardHistoryChangedResourceEnvelope
+): Promise<ClipboardHistoryChangedEnvelope> {
+  try {
+    const payload = await envelope.payload.json<unknown>()
+    if (!isHistoryChangedPayload(payload)) throw new Error('剪贴板历史事件 payload 结构无效。')
+    return { ...envelope, payload }
+  } finally {
+    await envelope.payload.close().catch(() => undefined)
+  }
+}
+
+function isHistoryChangedPayload(value: unknown): value is ClipboardHistoryChangedPayload {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const payload = value as Partial<ClipboardHistoryChangedPayload>
+  return typeof payload.revision === 'number' && typeof payload.count === 'number' &&
+    typeof payload.reason === 'string' && typeof payload.at === 'number'
 }
 
 export function createHistoryRefreshScheduler(

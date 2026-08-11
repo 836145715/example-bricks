@@ -78,6 +78,7 @@ test('UI 启动服务使用宿主 Brick service 控制面', async (t) => {
 test('事件订阅使用宿主受限 Brick API', async (t) => {
   const received = []
   let disposed = false
+  let resourceClosed = false
   let registeredListener
   const api = loadAdapter(t, {
     brickly: {
@@ -100,11 +101,20 @@ test('事件订阅使用宿主受限 Brick API', async (t) => {
     event: 'clipboard-history:changed',
     sourceBrickId: 'com.brickly.clipboard-history',
     publishedAt: 100,
-    payload: { revision: 1, count: 2, reason: 'insert', at: 100 }
+    payload: {
+      async json() {
+        return { revision: 1, count: 2, reason: 'insert', at: 100 }
+      },
+      async close() {
+        resourceClosed = true
+      }
+    }
   })
+  await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(received.length, 1)
   assert.equal(received[0].payload.revision, 1)
+  assert.equal(resourceClosed, true)
   await dispose()
   assert.equal(disposed, true)
 })

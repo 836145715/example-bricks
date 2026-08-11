@@ -53,6 +53,15 @@ export type ClipboardHistoryChangedEnvelope = {
   publishedAt: number
 }
 
+export type ClipboardHistoryEventResourceHandle = {
+  json<T = unknown>(): Promise<T>
+  close(): Promise<void>
+}
+
+export type ClipboardHistoryChangedResourceEnvelope = Omit<ClipboardHistoryChangedEnvelope, 'payload'> & {
+  payload: ClipboardHistoryEventResourceHandle
+}
+
 export type RuntimeStatus = {
   state: 'running' | 'error'
   enabled: boolean
@@ -102,7 +111,7 @@ export type BricklyUiApi = {
   events?: {
     subscribe: (
       event: string,
-      listener: (envelope: ClipboardHistoryChangedEnvelope) => void
+      listener: (envelope: ClipboardHistoryChangedResourceEnvelope) => void
     ) => Promise<() => void | Promise<void>>
   }
   service?: {
