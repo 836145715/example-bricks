@@ -38,7 +38,8 @@
     "com.brickly.resource-echo-python": {
       "commands": [
         "inspect",
-        "transform"
+        "transform",
+        "relay"
       ]
     },
     "com.brickly.resource-echo-go": {

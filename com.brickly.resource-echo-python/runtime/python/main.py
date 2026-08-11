@@ -43,7 +43,9 @@ def relay(ctx, input_value):
     target = str(input_value.get("targetBrickId", ""))
     if not target:
         raise ValueError("targetBrickId is required")
-    return ctx.invoke(target, input_value.get("targetCommandId", "inspect"), {"resource": require_resource(input_value)})
+    target_input = dict(input_value.get("targetInput") or {})
+    target_input["resource"] = require_resource(input_value)
+    return ctx.invoke(target, input_value.get("targetCommandId", "inspect"), target_input)
 
 
 @brick.on_command("hold")

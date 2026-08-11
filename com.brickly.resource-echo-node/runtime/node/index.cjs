@@ -32,7 +32,10 @@ brick.onCommand('relay', (ctx, input) => {
   const resource = requireResource(input)
   const targetBrickId = String(input?.targetBrickId ?? '')
   if (!targetBrickId) throw invalidInput('targetBrickId')
-  return ctx.invoke(targetBrickId, input?.targetCommandId ?? 'inspect', { resource })
+  return ctx.invoke(targetBrickId, input?.targetCommandId ?? 'inspect', {
+    resource,
+    ...(input?.targetInput && typeof input.targetInput === 'object' ? input.targetInput : {})
+  })
 })
 
 brick.onCommand('hold', async (ctx, input) => {
