@@ -1,0 +1,191 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.resource-echo-go",
+  "version": "0.1.0",
+  "apiVersion": ">=0.2.0 <1.0.0",
+  "name": {
+    "zh-CN": "资源 Echo Go",
+    "en": "Resource Echo Go"
+  },
+  "description": {
+    "zh-CN": "Resource Lab 的 Go 跨进程资源校验端。",
+    "en": "Go resource verifier for Resource Lab."
+  },
+  "author": {
+    "name": "Brickly Examples"
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64",
+      "linux-arm64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "win-arm64": "bin/win-arm64/brick.exe",
+      "mac-x64": "bin/mac-x64/brick",
+      "mac-arm64": "bin/mac-arm64/brick",
+      "linux-x64": "bin/linux-x64/brick",
+      "linux-arm64": "bin/linux-arm64/brick"
+    }
+  },
+  "lifecycle": {
+    "state": "stateless"
+  },
+  "permissions": [],
+  "subscriptions": [
+    {
+      "event": "resource-lab:probe",
+      "from": "com.brickly.resource-lab"
+    }
+  ],
+  "dependencies": {
+    "com.brickly.resource-echo-node": {
+      "commands": [
+        "inspect",
+        "transform"
+      ]
+    },
+    "com.brickly.resource-echo-python": {
+      "commands": [
+        "inspect",
+        "transform"
+      ]
+    }
+  },
+  "trustLevel": "community",
+  "ui": {
+    "type": "none"
+  },
+  "categories": [
+    "developer-tools"
+  ],
+  "keywords": [
+    "resource",
+    "test",
+    "go"
+  ],
+  "commands": [
+    {
+      "id": "inspect",
+      "name": "inspect",
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "produce",
+      "name": "produce",
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "transform",
+      "name": "transform",
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "relay",
+      "name": "relay",
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "hold",
+      "name": "hold",
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "event-last",
+      "name": "event-last",
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    }
+  ]
+}
