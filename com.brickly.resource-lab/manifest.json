@@ -1,0 +1,249 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.resource-lab",
+  "version": "0.1.0",
+  "apiVersion": ">=0.2.0 <1.0.0",
+  "name": {
+    "zh-CN": "资源验收测试台",
+    "en": "Resource Lab"
+  },
+  "description": {
+    "zh-CN": "交互式验证资源创建、流式读写、跨语言转交、生命周期和大载荷场景。",
+    "en": "Interactive workbench for resource creation, streaming, cross-language transfer, lifecycle, and large payload tests."
+  },
+  "author": {
+    "name": "Brickly Examples"
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "platforms": [
+      "any"
+    ],
+    "entry": "runtime/node/index.cjs"
+  },
+  "lifecycle": {
+    "state": "stateful",
+    "service": {
+      "autoStart": false,
+      "restart": "on-failure",
+      "maxAttempts": 3,
+      "backoffMs": 1000
+    }
+  },
+  "permissions": [
+    "event.publish:resource-lab:run-updated"
+  ],
+  "dependencies": {
+    "com.brickly.resource-echo-node": {
+      "commands": [
+        "inspect",
+        "produce",
+        "transform",
+        "relay",
+        "hold",
+        "event-last"
+      ]
+    },
+    "com.brickly.resource-echo-python": {
+      "commands": [
+        "inspect",
+        "produce",
+        "transform",
+        "relay",
+        "hold",
+        "event-last"
+      ]
+    },
+    "com.brickly.resource-echo-go": {
+      "commands": [
+        "inspect",
+        "produce",
+        "transform",
+        "relay",
+        "hold",
+        "event-last"
+      ]
+    }
+  },
+  "trustLevel": "community",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "titleBar": "custom",
+    "size": {
+      "width": 1280,
+      "height": 780,
+      "resizable": true
+    }
+  },
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "keywords": [
+    "resource",
+    "test",
+    "stream",
+    "runtime",
+    "developer"
+  ],
+  "commands": [
+    {
+      "id": "suite-list",
+      "name": {
+        "zh-CN": "suite-list",
+        "en": "suite-list"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "suite-run",
+      "name": {
+        "zh-CN": "suite-run",
+        "en": "suite-run"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "suite-cancel",
+      "name": {
+        "zh-CN": "suite-cancel",
+        "en": "suite-cancel"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "suite-status",
+      "name": {
+        "zh-CN": "suite-status",
+        "en": "suite-status"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "suite-export",
+      "name": {
+        "zh-CN": "suite-export",
+        "en": "suite-export"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "restart-prepare",
+      "name": {
+        "zh-CN": "restart-prepare",
+        "en": "restart-prepare"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "restart-verify",
+      "name": {
+        "zh-CN": "restart-verify",
+        "en": "restart-verify"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "input",
+            "type": "json"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    }
+  ]
+}
