@@ -1,7 +1,16 @@
 import type { RendererResourceHandle, RendererResourceRef, RunSnapshot, SuiteCatalog } from './types'
 import { isRunSnapshot } from './run-state'
 
+interface BricklyWindowControls {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void
+  close(): Promise<void>
+}
+
 interface BricklyApi {
+  brickId?: string
   invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
   stream?(commandId: string, input: Record<string, unknown>, callbacks: {
     onResult?(result: unknown): void
@@ -13,6 +22,8 @@ interface BricklyApi {
     subscribe(event: string, listener: (envelope: { payload: unknown }) => void): Promise<() => void | Promise<void>>
   }
   resources?: { open(ref: RendererResourceRef): RendererResourceHandle }
+  window?: BricklyWindowControls
+  closeWindow?(): void
 }
 
 declare global {

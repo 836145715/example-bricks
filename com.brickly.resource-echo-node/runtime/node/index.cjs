@@ -3,13 +3,14 @@
 const { BricklyRuntime, ResourceHandle } = require('@syllm/brickly-sdk')
 const { HoldRegistry } = require('./hold-registry.cjs')
 const { createPatternSource, inspectResource, requireSize, transformSource } = require('./operations.cjs')
+const { getInputResourceRef, openInputResource } = require('./resource-input.cjs')
 
 const BRICK_ID = 'com.brickly.resource-echo-node'
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
 let lastEvent
 const holds = new HoldRegistry()
 
-brick.onCommand('inspect', (_ctx, input) => inspectResource(requireResource(input)))
+brick.onCommand('inspect', (_ctx, input) => inspectResource(openInputResource(brick.resources, input)))
 
 brick.onCommand('produce', async (_ctx, input) => {
   const sizeBytes = requireSize(input?.sizeBytes)
@@ -22,7 +23,7 @@ brick.onCommand('produce', async (_ctx, input) => {
 })
 
 brick.onCommand('transform', async (_ctx, input) => {
-  const resource = requireResource(input)
+  const resource = openInputResource(brick.resources, input)
   return brick.resources.createFrom(transformSource(resource, input?.mask), {
     expectedSizeBytes: resource.ref.sizeBytes,
     mimeType: resource.ref.mimeType,
@@ -31,7 +32,7 @@ brick.onCommand('transform', async (_ctx, input) => {
 })
 
 brick.onCommand('relay', (ctx, input) => {
-  const resource = requireResource(input)
+  const resource = getInputResourceRef(input)
   const targetBrickId = String(input?.targetBrickId ?? '')
   if (!targetBrickId) throw invalidInput('targetBrickId')
   return ctx.invoke(targetBrickId, input?.targetCommandId ?? 'inspect', {
@@ -45,7 +46,7 @@ brick.onCommand('hold', async (ctx, input) => {
   const signal = holds.begin(operationId)
   ctx.onCancel(() => holds.cancel(operationId))
   try {
-    return await inspectResource(requireResource(input), 'node', Number(input?.delayMs ?? 25), signal)
+    return await inspectResource(openInputResource(brick.resources, input), 'node', Number(input?.delayMs ?? 25), signal)
   } finally {
     holds.end(operationId)
   }
@@ -61,20 +62,19 @@ brick.onCommand('event-last', () => lastEvent)
 brick.events.on('resource-lab:probe', (payload) => {
   void (async () => {
     if (!(payload instanceof ResourceHandle)) throw invalidInput('event payload')
-    const envelope = await payload.json()
-    const resource = envelope?.resource
-    lastEvent = resource instanceof ResourceHandle
-      ? { ...(await inspectResource(resource)), received: true, probeId: envelope?.probeId }
-      : { runtime: 'node', received: true, probeId: envelope?.probeId }
+    try {
+      const envelope = await payload.json()
+      const resourceRef = envelope?.resource
+      lastEvent = resourceRef && typeof resourceRef === 'object'
+        ? { ...(await inspectResource(brick.resources.open(resourceRef))), received: true, probeId: envelope?.probeId }
+        : { runtime: 'node', received: true, probeId: envelope?.probeId }
+    } finally {
+      await payload.close()
+    }
   })().catch((error) => {
     lastEvent = { runtime: 'node', errorCode: error?.code ?? 'INTERNAL_ERROR' }
   })
 })
-
-function requireResource(input) {
-  if (!(input?.resource instanceof ResourceHandle)) throw invalidInput('resource')
-  return input.resource
-}
 
 function invalidInput(name) {
   const error = new Error(`${name} is required`)

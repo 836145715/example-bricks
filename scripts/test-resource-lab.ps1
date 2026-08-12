@@ -7,6 +7,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $pythonCache = Join-Path $env:TEMP "brickly-resource-lab-pycache-$PID"
+$npmCache = Join-Path $env:TEMP "brickly-resource-lab-npm-cache-$PID"
+$goBuildCache = Join-Path $env:TEMP "brickly-resource-lab-go-build-$PID"
 
 function Invoke-NativeStep {
   param([string]$Name, [string]$WorkingDirectory, [string]$Executable, [string[]]$Arguments)
@@ -22,13 +24,17 @@ function Invoke-NativeStep {
 
 try {
   $env:PYTHONPYCACHEPREFIX = $pythonCache
+  $env:npm_config_cache = $npmCache
+  $env:GOCACHE = $goBuildCache
+  $pythonExecutable = Join-Path $repoRoot 'com.brickly.resource-echo-python\.venv\Scripts\python.exe'
+  if (-not (Test-Path -LiteralPath $pythonExecutable)) { $pythonExecutable = 'python' }
   Invoke-NativeStep 'Resource Lab Runtime dependencies' (Join-Path $repoRoot 'com.brickly.resource-lab\runtime\node') 'npm.cmd' @('ci', '--ignore-scripts')
   Invoke-NativeStep 'Node Echo dependencies' (Join-Path $repoRoot 'com.brickly.resource-echo-node\runtime\node') 'npm.cmd' @('ci', '--ignore-scripts')
   Invoke-NativeStep 'Resource Lab Runtime tests' (Join-Path $repoRoot 'com.brickly.resource-lab\runtime\node') 'node.exe' @('--test', 'catalog.test.cjs', 'run-manager.test.cjs', 'scenarios.test.cjs', 'index.test.cjs')
-  Invoke-NativeStep 'Node Echo tests' (Join-Path $repoRoot 'com.brickly.resource-echo-node\runtime\node') 'node.exe' @('--test', 'operations.test.cjs', 'hold-registry.test.cjs')
+  Invoke-NativeStep 'Node Echo tests' (Join-Path $repoRoot 'com.brickly.resource-echo-node\runtime\node') 'node.exe' @('--test', 'operations.test.cjs', 'hold-registry.test.cjs', 'resource-input.test.cjs')
   Invoke-NativeStep 'Node Echo syntax' $repoRoot 'node.exe' @('--check', 'com.brickly.resource-echo-node/runtime/node/index.cjs')
-  Invoke-NativeStep 'Python Echo tests' $repoRoot 'python' @('-m', 'unittest', 'discover', '-s', 'com.brickly.resource-echo-python/runtime/python', '-p', 'test_*.py')
-  Invoke-NativeStep 'Python Echo syntax' $repoRoot 'python' @('-m', 'py_compile', 'com.brickly.resource-echo-python/runtime/python/main.py', 'com.brickly.resource-echo-python/runtime/python/resource_ops.py')
+  Invoke-NativeStep 'Python Echo tests' $repoRoot $pythonExecutable @('-m', 'unittest', 'discover', '-s', 'com.brickly.resource-echo-python/runtime/python', '-p', 'test_*.py')
+  Invoke-NativeStep 'Python Echo syntax' $repoRoot $pythonExecutable @('-m', 'py_compile', 'com.brickly.resource-echo-python/runtime/python/main.py', 'com.brickly.resource-echo-python/runtime/python/resource_ops.py', 'com.brickly.resource-echo-python/runtime/python/resource_input.py')
   Invoke-NativeStep 'Go Echo tests' (Join-Path $repoRoot 'com.brickly.resource-echo-go\runtime\go') 'go.exe' @('test', './...')
   Invoke-NativeStep 'Go Echo six-platform build' $repoRoot 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'com.brickly.resource-echo-go/runtime/go/build.ps1')
 
@@ -54,6 +60,10 @@ try {
   Write-Host "`nResource Lab acceptance passed." -ForegroundColor Green
 } finally {
   Remove-Item Env:PYTHONPYCACHEPREFIX -ErrorAction SilentlyContinue
+  Remove-Item Env:npm_config_cache -ErrorAction SilentlyContinue
+  Remove-Item Env:GOCACHE -ErrorAction SilentlyContinue
   Remove-Item Env:BRICKLY_HOST_ROOT -ErrorAction SilentlyContinue
   if (Test-Path -LiteralPath $pythonCache) { Remove-Item -LiteralPath $pythonCache -Recurse -Force }
+  if (Test-Path -LiteralPath $npmCache) { Remove-Item -LiteralPath $npmCache -Recurse -Force }
+  if (Test-Path -LiteralPath $goBuildCache) { Remove-Item -LiteralPath $goBuildCache -Recurse -Force }
 }

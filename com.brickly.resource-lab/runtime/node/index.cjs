@@ -3,7 +3,7 @@
 const { randomUUID } = require('node:crypto')
 const { statfs } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
-const { BricklyRuntime, ResourceHandle } = require('@syllm/brickly-sdk')
+const { BricklyRuntime } = require('@syllm/brickly-sdk')
 const { GROUPS, catalog, selectScenarios } = require('./catalog.cjs')
 const { RunManager } = require('./run-manager.cjs')
 const { createScenarioExecutor } = require('./scenarios.cjs')
@@ -16,7 +16,15 @@ const basePorts = {
   resources: brick.resources,
   invokeDetached: (brickId, commandId, value) => brick.invokeRoot(brickId, commandId, value),
   publish: (event, payload) => brick.events.publish(event, payload),
-  openForged: async (ref) => new ResourceHandle(brick.transport, ref).text(),
+  openForged: async (ref) => {
+    // open 校验格式；读流才校验 capability。伪造 token 应在 text() 阶段被拒。
+    const handle = brick.resources.open(ref)
+    try {
+      return await handle.text()
+    } finally {
+      await handle.close().catch(() => undefined)
+    }
+  },
   prepareRestart,
   tempDir: tmpdir(),
   freeDiskBytes: async () => {

@@ -57,11 +57,14 @@ test('ResourceRef、错误和结果 DTO 不泄露能力令牌与内容', () => {
     chunk: 'base64-secret'
   })
   assert.deepEqual(ref, {
-    kind: 'brickly.resource',
+    kind: 'resource-summary',
     resourceId: 'res_1',
     sizeBytes: 12,
     mimeType: 'text/plain'
   })
+  assert.equal('accessToken' in ref, false)
+  // 不得再输出可被 SDK 当成 wire ResourceRef 的残缺对象
+  assert.notEqual(ref.kind, 'brickly.resource')
 
   const error = new Error('failed with secret-token and C:\\secret\\resource.bin')
   error.code = 'RESOURCE_EXPIRED'

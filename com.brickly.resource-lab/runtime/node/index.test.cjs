@@ -84,6 +84,7 @@ function loadRuntime(t) {
       instance = this
       this.transport = {}
       this.resources = {
+        open: (ref) => new FakeResourceHandle(this.transport, ref),
         create: async (content) => fakeHandle(Buffer.from(content)),
         createFrom: async (source) => {
           const chunks = []

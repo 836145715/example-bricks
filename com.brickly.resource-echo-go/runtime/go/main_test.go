@@ -3,9 +3,12 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"strings"
 	"testing"
+
+	brickly "github.com/836145715/brickly-sdk-go"
 )
 
 func TestInspectReaderCountsBytesAndHash(t *testing.T) {
@@ -60,5 +63,20 @@ func TestPatternReaderHonorsChunkSizeAndZeroByte(t *testing.T) {
 	n, err := reader.Read(buffer)
 	if err != nil || n != 1 || buffer[0] != 0 {
 		t.Fatalf("final read n=%d err=%v first=%d", n, err, buffer[0])
+	}
+}
+
+func TestOpenInputResourceUsesRuntimeOpenResource(t *testing.T) {
+	runtime := brickly.New(brickly.Options{BrickID: "com.test.resource-input", Stdin: strings.NewReader(""), Stdout: io.Discard, Stderr: io.Discard})
+	ref := brickly.ResourceRef{
+		Kind: "brickly.resource", ResourceID: "res_go", AccessToken: "token",
+		SizeBytes: 1, SHA256: strings.Repeat("a", 64), ExpiresAt: 2_000_000_000_000,
+	}
+	input, handle, err := openInputResource(runtime, json.RawMessage(`{"resource":{"kind":"brickly.resource","resourceId":"res_go","accessToken":"token","sizeBytes":1,"sha256":"`+strings.Repeat("a", 64)+`","expiresAt":2000000000000}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if input.Resource.ResourceID != ref.ResourceID || handle.Ref.ResourceID != ref.ResourceID {
+		t.Fatalf("unexpected resource input: input=%+v handle=%+v", input.Resource, handle.Ref)
 	}
 }

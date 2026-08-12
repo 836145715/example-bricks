@@ -169,8 +169,13 @@ class RunManager {
   }
 
   notify(run) {
-    const snapshot = this.snapshot(run)
-    Promise.resolve(this.onUpdate(snapshot)).catch(() => undefined)
+    // onUpdate 可能同步抛错（例如 SDK dehydrate 拒绝非法 ResourceRef）
+    try {
+      const snapshot = this.snapshot(run)
+      Promise.resolve(this.onUpdate(snapshot)).catch(() => undefined)
+    } catch {
+      // 进度事件失败不阻断场景主流程
+    }
   }
 
   snapshot(run) {

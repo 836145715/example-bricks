@@ -3,6 +3,7 @@ import threading
 from brickly import BricklyRuntime, ResourceHandle
 
 from resource_ops import inspect_resource, pattern_chunks, require_size, transformed_chunks
+from resource_input import open_input_resource
 
 
 BRICK_ID = "com.brickly.resource-echo-python"
@@ -12,7 +13,7 @@ last_event = None
 
 @brick.on_command("inspect")
 def inspect(_ctx, input_value):
-    return inspect_resource(require_resource(input_value))
+    return inspect_resource(open_input_resource(brick.resources, input_value))
 
 
 @brick.on_command("produce")
@@ -29,7 +30,7 @@ def produce(_ctx, input_value):
 
 @brick.on_command("transform")
 def transform(_ctx, input_value):
-    resource = require_resource(input_value)
+    resource = open_input_resource(brick.resources, input_value)
     return brick.resources.create_from(
         transformed_chunks(resource, input_value.get("mask", 0x20)),
         expected_size_bytes=resource.ref["sizeBytes"],
@@ -44,7 +45,7 @@ def relay(ctx, input_value):
     if not target:
         raise ValueError("targetBrickId is required")
     target_input = dict(input_value.get("targetInput") or {})
-    target_input["resource"] = require_resource(input_value)
+    target_input["resource"] = input_value.get("resource")
     return ctx.invoke(target, input_value.get("targetCommandId", "inspect"), target_input)
 
 
@@ -53,7 +54,7 @@ def hold(ctx, input_value):
     cancelled = threading.Event()
     ctx.on_cancel(cancelled.set)
     return inspect_resource(
-        require_resource(input_value),
+        open_input_resource(brick.resources, input_value),
         delay_ms=int(input_value.get("delayMs", 25)),
         cancelled=cancelled.is_set,
     )
@@ -73,13 +74,9 @@ def on_probe(payload, _envelope):
         last_event = {"runtime": "python", "received": True, "probeId": envelope.get("probeId")}
     except Exception as error:
         last_event = {"runtime": "python", "errorCode": getattr(error, "code", "INTERNAL_ERROR")}
-
-
-def require_resource(input_value):
-    resource = input_value.get("resource") if isinstance(input_value, dict) else None
-    if not isinstance(resource, ResourceHandle):
-        raise ValueError("resource is required")
-    return resource
+    finally:
+        if isinstance(payload, ResourceHandle):
+            payload.close()
 
 
 brick.events.on("resource-lab:probe", on_probe)

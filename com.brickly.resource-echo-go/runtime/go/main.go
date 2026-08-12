@@ -46,7 +46,7 @@ func main() {
 	var lastEvent any
 
 	runtime.OnCommand("inspect", func(ctx *brickly.CommandContext, raw json.RawMessage) (any, error) {
-		input, handle, err := hydrateInput(ctx, raw)
+		input, handle, err := openInputResource(runtime, raw)
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +74,7 @@ func main() {
 	})
 
 	runtime.OnCommand("transform", func(ctx *brickly.CommandContext, raw json.RawMessage) (any, error) {
-		input, handle, err := hydrateInput(ctx, raw)
+		input, handle, err := openInputResource(runtime, raw)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +101,7 @@ func main() {
 	})
 
 	runtime.OnCommand("hold", func(ctx *brickly.CommandContext, raw json.RawMessage) (any, error) {
-		input, handle, err := hydrateInput(ctx, raw)
+		input, handle, err := openInputResource(runtime, raw)
 		if err != nil {
 			return nil, err
 		}
@@ -182,12 +182,12 @@ func inspectSlow(ctx *brickly.CommandContext, reader io.Reader, mimeType string,
 	return inspectResult{Runtime: "go", SizeBytes: sizeBytes, ChunkCount: chunks, SHA256: hex.EncodeToString(digest.Sum(nil)), MIMEType: mimeType}, nil
 }
 
-func hydrateInput(ctx *brickly.CommandContext, raw json.RawMessage) (resourceInput, *brickly.ResourceHandle, error) {
+func openInputResource(runtime *brickly.Runtime, raw json.RawMessage) (resourceInput, *brickly.ResourceHandle, error) {
 	var input resourceInput
 	if err := json.Unmarshal(raw, &input); err != nil {
 		return input, nil, err
 	}
-	handle, err := ctx.HydrateResource(input.Resource)
+	handle, err := runtime.OpenResource(input.Resource)
 	return input, handle, err
 }
 

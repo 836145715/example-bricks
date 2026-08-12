@@ -1,4 +1,4 @@
-github.com/836145715/brickly-sdk-go v0.3.0 h1:X2JxfTWLV2JPKicW8geOr18/fP2HwOosHun9y6jmb8Y=
-github.com/836145715/brickly-sdk-go v0.3.0/go.mod h1:SVItZvgC9XzEGTPe65F7e225gPo1rWnMWdFzMMg/y08=
 golang.org/x/sys v0.31.0 h1:ioabZlmFYtWhL+TRYpcnNlLwhyxaM9kWTDEmfnprqik=
 golang.org/x/sys v0.31.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
+github.com/836145715/brickly-sdk-go v0.3.1 h1:p+rV0tzflo2eCbGTAUfVd/0m9P/atkmjPSP16TEnTPs=
+github.com/836145715/brickly-sdk-go v0.3.1/go.mod h1:SVItZvgC9XzEGTPe65F7e225gPo1rWnMWdFzMMg/y08=

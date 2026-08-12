@@ -89,17 +89,28 @@ function writeVideoPlaceholder(dir) {
   return filePath
 }
 
-async function registerResource(filePath, mimeType, name) {
-  return brick.transport.hostCall({
-    type: 'host.resource.register',
-    resource: {
-      filePath,
-      mimeType,
-      name,
-      size: fs.statSync(filePath).size,
-      ttlMs: 30 * 60_000
-    }
+/**
+ * 通过统一资源 API 注册文件内容（0.3.x：不再使用 host.resource.register）。
+ * 返回适合结果区 `format: resource` 渲染的元数据卡片，不暴露 accessToken / 本地路径。
+ */
+async function createResourceFromFile(filePath, mimeType, name) {
+  const content = fs.readFileSync(filePath)
+  const handle = await brick.resources.create(content, {
+    mimeType,
+    name,
+    ttlMs: 30 * 60_000
   })
+  const ref = handle.ref
+  return {
+    kind: 'resource',
+    resourceId: ref.resourceId,
+    mimeType: ref.mimeType,
+    name: ref.name ?? name,
+    size: ref.sizeBytes,
+    sizeBytes: ref.sizeBytes,
+    sha256: ref.sha256,
+    expiresAt: ref.expiresAt
+  }
 }
 
 async function showAll(ctx, input) {
@@ -109,7 +120,11 @@ async function showAll(ctx, input) {
   const svgFile = writeSvgFile(dir, title)
   const wavFile = writeWavFile(dir)
   const videoPlaceholder = writeVideoPlaceholder(dir)
-  const resource = await registerResource(svgFile, 'image/svg+xml', 'registered-render-gallery-image.svg')
+  const resource = await createResourceFromFile(
+    svgFile,
+    'image/svg+xml',
+    'registered-render-gallery-image.svg'
+  )
 
   const outputs = {
     markdown: `# ${title}
@@ -241,15 +256,7 @@ summarizePackageJson('./package.json')
       name: path.basename(videoPlaceholder),
       size: fs.statSync(videoPlaceholder).size
     },
-    resource: {
-      kind: 'resource',
-      resourceId: resource.resourceId,
-      mimeType: resource.mimeType,
-      name: resource.name,
-      size: resource.size,
-      filePath: resource.filePath,
-      expiresAt: resource.expiresAt
-    }
+    resource
   }
 
   let index = 0

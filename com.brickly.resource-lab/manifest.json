@@ -74,10 +74,12 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
-    "titleBar": "system",
+    "titleBar": "custom",
     "size": {
       "width": 1280,
       "height": 780,
+      "minWidth": 900,
+      "minHeight": 560,
       "resizable": true
     }
   },

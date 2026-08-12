@@ -3,8 +3,8 @@ const { join, relative } = require('node:path')
 
 const root = __dirname
 const goModule = 'github.com/836145715/brickly-sdk-go'
-const goVersion = 'v0.3.0'
-const pythonRequirement = 'brickly-sdk==0.3.0'
+const goVersion = 'v0.3.1'
+const pythonRequirement = 'brickly-sdk==0.3.1'
 const failures = []
 
 function walk(dir) {
@@ -57,4 +57,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`OK: example Go SDK is ${goVersion} and Python SDK is 0.3.0`)
+console.log(`OK: example Go SDK is ${goVersion} and Python SDK is 0.3.1`)
