@@ -310,79 +310,6 @@ button svg {
   border-color: #166534;
 }
 
-/* Run tabs */
-.run-tabs {
-  flex: 0 0 36px;
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
-  padding: 0 10px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  background: #0d1522;
-  border-bottom: 1px solid var(--border);
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-}
-.run-tabs-empty {
-  display: flex;
-  align-items: center;
-  color: var(--muted);
-  font-size: 12px;
-  padding: 0 6px;
-}
-.run-tabs > button:not(.restart-action) {
-  height: 36px;
-  min-width: 110px;
-  padding: 0 10px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.run-tabs > button.active {
-  color: var(--text);
-  background: #152033;
-  border-bottom-color: var(--accent);
-}
-.run-tabs small {
-  margin-left: auto;
-  font-size: 10px;
-  color: var(--muted);
-}
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #64748b;
-}
-.dot-running {
-  background: #38bdf8;
-}
-.dot-passed {
-  background: var(--ok);
-}
-.dot-failed {
-  background: var(--danger);
-}
-.dot-waiting-restart {
-  background: var(--warn);
-}
-.restart-action {
-  height: 26px;
-  margin: 5px 0 5px auto;
-  padding: 0 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: #1a2436;
-  font-size: 11px;
-  color: var(--muted);
-}
-
 /* Workspace — grid 子项默认 min-height:auto 会撑破高度导致无法滚动，必须 0 */
 .workspace {
   flex: 1 1 auto;
@@ -896,6 +823,84 @@ button svg {
   overflow: auto;
   font: 11px/1.45 var(--mono);
   white-space: pre-wrap;
+}
+
+.transfer-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-strong);
+}
+.transfer-panel > h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.transfer-note {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.transfer-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.payload-card {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #0b1522;
+  min-width: 0;
+}
+.payload-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: baseline;
+}
+.payload-card header strong {
+  font-size: 12px;
+  color: #d5dee8;
+}
+.payload-card header span {
+  color: var(--muted);
+  font: 10px var(--mono);
+}
+.payload-block {
+  margin-top: 8px;
+}
+.payload-block h4 {
+  margin: 0 0 4px;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.payload-text,
+.payload-hex {
+  margin: 0;
+  max-height: 140px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: #0006;
+  font: 11px/1.45 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #e2e8f0;
+}
+.payload-hex {
+  color: #a5f3fc;
+}
+
+@media (max-width: 1100px) {
+  .transfer-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Status bar */

@@ -29,7 +29,7 @@ export function ScenarioNav({ scenarios, focusId, lastById, busy, onFocus, onRun
       <div className="panel-heading">
         <div>
           <strong>场景列表</strong>
-          <span>点选查看说明 · 可单独运行</span>
+          <span>点选说明 · 运行看过/不过</span>
         </div>
       </div>
       <div className="nav-scroll">

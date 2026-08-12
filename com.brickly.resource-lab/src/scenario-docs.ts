@@ -307,10 +307,10 @@ const guides: Record<string, ScenarioGuide> = {
   'restart-runtime-recovery': {
     id: 'restart-runtime-recovery',
     goal: '准备重启检查点，进程 pid 变化后验证 Runtime 恢复。',
-    why: 'stateful service 重启后应能继续验收（Host orphan 另由 Host E2E 测）。',
+    why: 'stateful 实例重启后应能继续验收（Host orphan 另由 Host E2E 测；本工具不是后台 service）。',
     steps: [
       'restart-prepare 写入 checkpoint（含 pid）',
-      '重启 Brickly / Runtime',
+      '重启 Brickly / 本 Brick 会话进程',
       'restart-verify：若 pid 已变则 passed'
     ],
     successLooksLike: '状态 waiting-restart → 重启后 passed',

@@ -17,7 +17,6 @@ interface BricklyApi {
     onError?(error: { code?: string; message?: string }): void
     onDone?(): void
   }): { cancel(): void }
-  service?: { start(): Promise<unknown> }
   events?: {
     subscribe(event: string, listener: (envelope: { payload: unknown }) => void): Promise<() => void | Promise<void>>
   }
@@ -30,9 +29,9 @@ declare global {
   interface Window { brickly?: BricklyApi }
 }
 
+/** 纯 stateful：打开体验窗后按需起会话实例，无需 service.start。 */
 export async function startResourceLab(): Promise<void> {
-  const start = requireApi().service?.start
-  if (start) await start()
+  requireApi()
 }
 
 export function listSuite(): Promise<SuiteCatalog> {

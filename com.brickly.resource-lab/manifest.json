@@ -25,13 +25,7 @@
     "entry": "runtime/node/index.cjs"
   },
   "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": false,
-      "restart": "on-failure",
-      "maxAttempts": 3,
-      "backoffMs": 1000
-    }
+    "state": "stateful"
   },
   "permissions": [
     "event.publish:resource-lab:run-updated",

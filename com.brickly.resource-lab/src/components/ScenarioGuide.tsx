@@ -223,15 +223,118 @@ export function ScenarioGuidePanel({ scenario, result, busy, onRun, onRerun }: S
             )}
             {result.resource && (
               <div className="wide">
-                <dt>资源元数据</dt>
+                <dt>资源元数据（Ref 摘要，无 token）</dt>
                 <dd>
                   <pre className="mini-pre">{JSON.stringify(result.resource, null, 2)}</pre>
                 </dd>
               </div>
             )}
           </dl>
+          {isRecord(result.transfer) && <TransferPanel transfer={result.transfer} />}
+          {isRecord(result.payload) && !result.transfer && (
+            <TransferPanel
+              transfer={{
+                received: result.payload,
+                transport: isRecord(result.transport) ? result.transport : undefined
+              }}
+            />
+          )}
+          {result.json !== undefined && (
+            <div className="payload-block">
+              <h4>JSON 正文</h4>
+              <pre className="mini-pre">{JSON.stringify(result.json, null, 2)}</pre>
+            </div>
+          )}
         </article>
       )}
     </section>
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function TransferPanel({ transfer }: { transfer: Record<string, unknown> }) {
+  const sent = isRecord(transfer.sent) ? transfer.sent : undefined
+  const received = isRecord(transfer.received) ? transfer.received : undefined
+  const transport = isRecord(transfer.transport) ? transfer.transport : undefined
+  const peer = isRecord(transfer.peer) ? transfer.peer : undefined
+  return (
+    <div className="transfer-panel">
+      <h4>传输内容预览</h4>
+      {typeof transfer.note === 'string' && <p className="transfer-note">{transfer.note}</p>}
+      {typeof transfer.sentDescription === 'string' && (
+        <p className="transfer-note">{transfer.sentDescription}</p>
+      )}
+      <div className="transfer-columns">
+        {sent && (
+          <PayloadCard
+            title="发送 / 期望"
+            payload={sent}
+            description={typeof sent.description === 'string' ? sent.description : undefined}
+          />
+        )}
+        {received && <PayloadCard title="读回 / 对端" payload={received} />}
+      </div>
+      {transport && (
+        <div className="payload-block">
+          <h4>分块传输</h4>
+          <p className="transfer-note">
+            {typeof transport.note === 'string' ? transport.note : null}
+            {Array.isArray(transport.firstChunkSizes)
+              ? ` · 分块大小: [${(transport.firstChunkSizes as number[]).join(', ')}] 字节`
+              : null}
+            {typeof transport.chunkCount === 'number' ? ` · 总块数 ${transport.chunkCount}` : null}
+          </p>
+        </div>
+      )}
+      {peer && (
+        <div className="payload-block">
+          <h4>对端回报</h4>
+          <pre className="mini-pre">{JSON.stringify(peer, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PayloadCard({
+  title,
+  payload,
+  description
+}: {
+  title: string
+  payload: Record<string, unknown>
+  description?: string
+}) {
+  const utf8 = typeof payload.utf8 === 'string' ? payload.utf8 : undefined
+  const hex = typeof payload.hex === 'string' ? payload.hex : undefined
+  const note = typeof payload.note === 'string' ? payload.note : description
+  return (
+    <div className="payload-card">
+      <header>
+        <strong>{title}</strong>
+        <span>
+          {typeof payload.totalBytes === 'number' ? `${payload.totalBytes} B` : ''}
+          {payload.truncated ? ' · 已截断' : ''}
+          {typeof payload.encoding === 'string' ? ` · ${payload.encoding}` : ''}
+        </span>
+      </header>
+      {note && <p className="transfer-note">{note}</p>}
+      {utf8 !== undefined && (
+        <div className="payload-block">
+          <h4>UTF-8 文本</h4>
+          <pre className="payload-text">{utf8 || '（空）'}</pre>
+        </div>
+      )}
+      {hex !== undefined && (
+        <div className="payload-block">
+          <h4>Hex</h4>
+          <pre className="payload-hex">{hex || '（空）'}</pre>
+        </div>
+      )}
+      {!utf8 && !hex && description && <p className="transfer-note">{description}</p>}
+    </div>
   )
 }

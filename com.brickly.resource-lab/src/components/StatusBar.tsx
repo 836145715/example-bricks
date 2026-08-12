@@ -1,40 +1,48 @@
 import { Activity, Server } from 'lucide-react'
-import type { RunSnapshot, StatusCounts } from '../types'
+import type { TestStatus } from '../types'
+
+const STATUS_LABEL: Partial<Record<TestStatus, string>> = {
+  pending: '未跑',
+  running: '运行中',
+  passed: '通过',
+  failed: '失败',
+  skipped: '跳过',
+  cancelled: '已取消',
+  'waiting-restart': '待重启'
+}
 
 export function StatusBar({
-  run,
-  counts,
-  serviceReady,
-  focusTitle
+  runtimeReady,
+  busy,
+  focusTitle,
+  focusStatus,
+  sessionPassed,
+  sessionFailed
 }: {
-  run?: RunSnapshot
-  counts: StatusCounts
-  serviceReady: boolean
+  runtimeReady: boolean
+  busy: boolean
   focusTitle?: string
+  focusStatus?: TestStatus
+  sessionPassed: number
+  sessionFailed: number
 }) {
   return (
     <footer className="statusbar">
-      <span className={serviceReady ? 'ready' : ''}>
+      <span className={runtimeReady ? 'ready' : ''}>
         <Server />
-        {serviceReady ? 'Runtime 就绪' : '连接中…'}
+        {runtimeReady ? '已就绪' : '连接中…'}
       </span>
       <span>
         <Activity />
-        {run ? `批次 ${run.status}` : '无活动批次'}
-        {focusTitle ? ` · 当前：${focusTitle}` : ''}
+        {busy ? '运行中' : focusStatus ? STATUS_LABEL[focusStatus] ?? focusStatus : '空闲'}
+        {focusTitle ? ` · ${focusTitle}` : ''}
       </span>
       <div className="status-counts">
         <span>
-          通过 <b>{counts.passed}</b>
+          本会话通过 <b>{sessionPassed}</b>
         </span>
         <span>
-          失败 <b className={counts.failed ? 'failed' : ''}>{counts.failed}</b>
-        </span>
-        <span>
-          跳过 <b>{counts.skipped}</b>
-        </span>
-        <span>
-          运行 <b>{counts.running}</b>
+          失败 <b className={sessionFailed ? 'failed' : ''}>{sessionFailed}</b>
         </span>
       </div>
     </footer>

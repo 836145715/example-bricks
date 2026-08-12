@@ -72,7 +72,12 @@ async function createAndInspect(ports, content, options = {}) {
   try {
     const actual = await inspect(handle)
     assertDigest(actual, expected)
-    return { ...actual, resource: sanitizeResourceRef(handle.ref) }
+    return {
+      ...actual,
+      resource: sanitizeResourceRef(handle.ref),
+      // 发送侧本地内容预览 + 读回侧预览，便于 UI 看到「真正传了什么」
+      transfer: buildTransferView(expected, actual)
+    }
   } finally {
     await cleanupHandle(handle)
   }
@@ -94,7 +99,13 @@ async function createFromAndInspect(ports, sizeBytes, signal) {
     const actual = await inspect(handle, signal)
     const expectedSha256 = hashPattern(sizeBytes)
     if (actual.sizeBytes !== sizeBytes || actual.sha256 !== expectedSha256) throw mismatch()
-    return { ...actual, resource: sanitizeResourceRef(handle.ref) }
+    return {
+      ...actual,
+      resource: sanitizeResourceRef(handle.ref),
+      transfer: buildTransferView(null, actual, {
+        sentDescription: `pattern 0x61 × ${sizeBytes} bytes（流式 createFrom，不落地完整副本）`
+      })
+    }
   } finally {
     await cleanupHandle(handle)
   }
@@ -111,7 +122,11 @@ async function writerArbitraryChunks(ports) {
     handle = await writer.finish()
     const actual = await inspect(handle)
     assertDigest(actual, expected)
-    return actual
+    return {
+      ...actual,
+      resource: sanitizeResourceRef(handle.ref),
+      transfer: buildTransferView(expected, actual)
+    }
   } catch (error) {
     await writer.abort().catch(() => undefined)
     throw error
@@ -129,7 +144,14 @@ async function writerWriteFrom(ports, scenario, context) {
     handle = await writer.finish()
     const actual = await inspect(handle, context.signal)
     if (actual.sizeBytes !== scenario.sizeBytes || actual.sha256 !== hashPattern(scenario.sizeBytes)) throw mismatch()
-    return { ...actual, writeFrom: true, resource: sanitizeResourceRef(handle.ref) }
+    return {
+      ...actual,
+      writeFrom: true,
+      resource: sanitizeResourceRef(handle.ref),
+      transfer: buildTransferView(null, actual, {
+        sentDescription: `pattern 0x61 × ${scenario.sizeBytes} bytes（Writer.writeFrom）`
+      })
+    }
   } catch (error) {
     await writer.abort().catch(() => undefined)
     throw error
@@ -162,8 +184,18 @@ async function readText(ports) {
   const text = 'Resource Lab 文本读取🙂'
   const handle = await ports.resources.create(text)
   try {
-    if (await handle.text() !== text) throw mismatch()
-    return { sizeBytes: Buffer.byteLength(text), textMatched: true }
+    const received = await handle.text()
+    if (received !== text) throw mismatch()
+    const buf = Buffer.from(text)
+    return {
+      sizeBytes: buf.byteLength,
+      textMatched: true,
+      transfer: buildTransferView(buf, {
+        sizeBytes: buf.byteLength,
+        sha256: createHash('sha256').update(buf).digest('hex'),
+        payload: buildPayloadPreview(buf)
+      })
+    }
   } finally { await cleanupHandle(handle) }
 }
 
@@ -172,8 +204,19 @@ async function readJson(ports) {
   const json = JSON.stringify(value)
   const handle = await ports.resources.create(json, { mimeType: 'application/json' })
   try {
-    if (JSON.stringify(await handle.json()) !== json) throw mismatch()
-    return { sizeBytes: Buffer.byteLength(json), jsonMatched: true }
+    const received = await handle.json()
+    if (JSON.stringify(received) !== json) throw mismatch()
+    const buf = Buffer.from(json)
+    return {
+      sizeBytes: buf.byteLength,
+      jsonMatched: true,
+      json: received,
+      transfer: buildTransferView(buf, {
+        sizeBytes: buf.byteLength,
+        sha256: createHash('sha256').update(buf).digest('hex'),
+        payload: buildPayloadPreview(buf)
+      })
+    }
   } finally { await cleanupHandle(handle) }
 }
 
@@ -184,8 +227,21 @@ async function readSaveTo(ports, scenario, context) {
     await handle.saveTo(path)
     const info = await stat(path)
     const bytes = await readFile(path)
-    if (info.size !== scenario.sizeBytes || createHash('sha256').update(bytes).digest('hex') !== hashPattern(scenario.sizeBytes)) throw mismatch()
-    return { sizeBytes: info.size, saved: true }
+    const expectedSha = hashPattern(scenario.sizeBytes)
+    const actualSha = createHash('sha256').update(bytes).digest('hex')
+    if (info.size !== scenario.sizeBytes || actualSha !== expectedSha) throw mismatch()
+    return {
+      sizeBytes: info.size,
+      saved: true,
+      sha256: actualSha,
+      transfer: buildTransferView(null, {
+        sizeBytes: info.size,
+        sha256: actualSha,
+        payload: buildPayloadPreview(bytes.subarray(0, PREVIEW_MAX_BYTES), {
+          totalBytes: bytes.byteLength
+        })
+      }, { sentDescription: `saveTo 落盘后回读；预览文件头 ${Math.min(PREVIEW_MAX_BYTES, bytes.byteLength)} 字节` })
+    }
   } finally {
     await rm(path, { force: true }).catch(() => undefined)
     await cleanupHandle(handle)
@@ -223,7 +279,17 @@ async function invokeTarget(ports, scenario) {
   try {
     const report = await ports.invokeRoot(brickId, 'inspect', { resource: handle })
     assertReport(report, content, target)
-    return { target, sizeBytes: report.sizeBytes, sha256: report.sha256, chunkCount: report.chunkCount }
+    return {
+      target,
+      sizeBytes: report.sizeBytes,
+      sha256: report.sha256,
+      chunkCount: report.chunkCount,
+      transfer: buildTransferView(content, {
+        sizeBytes: report.sizeBytes,
+        sha256: report.sha256,
+        payload: buildPayloadPreview(content)
+      }, { peer: { runtime: report.runtime, chunkCount: report.chunkCount } })
+    }
   } finally { await cleanupHandle(handle) }
 }
 
@@ -238,7 +304,18 @@ async function relayAcrossLanguages(ports) {
       targetInput: { targetBrickId: TARGETS.go, targetCommandId: 'inspect' }
     })
     assertReport(report, content, 'go')
-    return { sizeBytes: content.byteLength, sha256: report.sha256, hops: ['node', 'python', 'go'] }
+    return {
+      sizeBytes: content.byteLength,
+      sha256: report.sha256,
+      hops: ['node', 'python', 'go'],
+      transfer: buildTransferView(null, {
+        sizeBytes: content.byteLength,
+        sha256: report.sha256,
+        payload: buildPayloadPreview(content.subarray(0, 256), { totalBytes: content.byteLength })
+      }, {
+        sentDescription: `8 MiB pattern 0x61，经 Node→Python→Go relay；预览为前 256 字节`
+      })
+    }
   } finally { await cleanupHandle(handle) }
 }
 
@@ -288,7 +365,14 @@ async function fullChain64m(ports, scenario, context) {
       const report = await ports.invokeRoot(TARGETS[target], 'inspect', { resource: handle })
       if (report.runtime !== target || report.sizeBytes !== local.sizeBytes || report.sha256 !== local.sha256) throw mismatch()
     }
-    return { ...local, hops: ['resource-lab', 'node', 'python', 'go'], resource: sanitizeResourceRef(handle.ref) }
+    return {
+      ...local,
+      hops: ['resource-lab', 'node', 'python', 'go'],
+      resource: sanitizeResourceRef(handle.ref),
+      transfer: buildTransferView(null, local, {
+        sentDescription: `${scenario.sizeBytes} bytes pattern 0x61，本地 + 三语言 inspect 一致`
+      })
+    }
   } finally { await cleanupHandle(handle) }
 }
 
@@ -420,17 +504,118 @@ async function requestHoldCancellation(ports, operationId) {
   return { cancelled: false }
 }
 
+const PREVIEW_MAX_BYTES = 256
+const CHUNK_SIZE_SAMPLES = 16
+
 async function inspect(handle, signal) {
   const digest = createHash('sha256')
   let sizeBytes = 0
   let chunkCount = 0
+  const previewParts = []
+  let previewLen = 0
+  const firstChunkSizes = []
   for await (const chunk of handle.stream()) {
     if (signal?.aborted) throw cancelled()
-    digest.update(chunk)
-    sizeBytes += chunk.byteLength
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    digest.update(buf)
+    sizeBytes += buf.byteLength
     chunkCount++
+    if (firstChunkSizes.length < CHUNK_SIZE_SAMPLES) firstChunkSizes.push(buf.byteLength)
+    if (previewLen < PREVIEW_MAX_BYTES) {
+      const take = Math.min(PREVIEW_MAX_BYTES - previewLen, buf.byteLength)
+      previewParts.push(buf.subarray(0, take))
+      previewLen += take
+    }
   }
-  return { sizeBytes, chunkCount, sha256: digest.digest('hex'), mimeType: handle.ref?.mimeType }
+  const previewBuf = Buffer.concat(previewParts, previewLen)
+  return {
+    sizeBytes,
+    chunkCount,
+    sha256: digest.digest('hex'),
+    mimeType: handle.ref?.mimeType,
+    payload: buildPayloadPreview(previewBuf, { totalBytes: sizeBytes }),
+    transport: {
+      chunkCount,
+      firstChunkSizes,
+      note:
+        firstChunkSizes.length < chunkCount
+          ? `仅采样前 ${firstChunkSizes.length} 个分块大小，共 ${chunkCount} 块`
+          : `共 ${chunkCount} 个分块`
+    }
+  }
+}
+
+/**
+ * @param {Buffer|null} sentBuffer 发送侧完整或可预览的本地字节（大文件可传 null）
+ * @param {{ sizeBytes?: number, sha256?: string, payload?: object, transport?: object }} received
+ */
+function buildTransferView(sentBuffer, received, options = {}) {
+  const sent =
+    sentBuffer != null
+      ? buildPayloadPreview(sentBuffer)
+      : options.sentDescription
+        ? {
+            kind: 'payload-preview',
+            description: options.sentDescription,
+            totalBytes: received?.sizeBytes
+          }
+        : undefined
+  return compactObject({
+    kind: 'transfer-view',
+    sent,
+    received: received?.payload,
+    transport: received?.transport,
+    peer: options.peer,
+    sha256: received?.sha256,
+    sizeBytes: received?.sizeBytes,
+    note: 'sent/received 仅为前若干字节预览，完整内容以 sha256 为准，避免把大文件打进 UI/事件。'
+  })
+}
+
+function buildPayloadPreview(buffer, options = {}) {
+  const totalBytes = options.totalBytes ?? buffer.byteLength
+  const max = options.maxBytes ?? PREVIEW_MAX_BYTES
+  const sample = buffer.subarray(0, Math.min(max, buffer.byteLength))
+  const hex = [...sample].map((b) => b.toString(16).padStart(2, '0')).join(' ')
+  let utf8
+  let encoding = 'binary'
+  try {
+    const text = sample.toString('utf8')
+    if (isMostlyPrintable(text)) {
+      utf8 = totalBytes > sample.byteLength ? `${text}…` : text
+      encoding = 'utf8'
+    }
+  } catch {
+    // ignore
+  }
+  return compactObject({
+    kind: 'payload-preview',
+    totalBytes,
+    previewBytes: sample.byteLength,
+    truncated: totalBytes > sample.byteLength,
+    encoding,
+    utf8,
+    hex,
+    note:
+      totalBytes > sample.byteLength
+        ? `仅展示前 ${sample.byteLength} / ${totalBytes} 字节`
+        : `完整 ${totalBytes} 字节`
+  })
+}
+
+function isMostlyPrintable(text) {
+  if (!text) return false
+  let bad = 0
+  for (const ch of text) {
+    const c = ch.codePointAt(0)
+    const ok = c === 9 || c === 10 || c === 13 || (c >= 32 && c !== 0xfffd)
+    if (!ok) bad++
+  }
+  return bad / [...text].length < 0.1
+}
+
+function compactObject(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined && v !== null))
 }
 
 async function* patternSource(sizeBytes, signal, byte = 0x61) {

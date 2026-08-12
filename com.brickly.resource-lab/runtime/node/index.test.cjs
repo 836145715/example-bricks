@@ -58,6 +58,8 @@ test('manifest 不声明资源权限且依赖三种 Echo Brick', () => {
     'com.brickly.resource-echo-python'
   ])
   assert.equal(manifest.ui.type, 'webview')
+  assert.equal(manifest.lifecycle?.state, 'stateful')
+  assert.equal(manifest.lifecycle?.service, undefined)
   for (const brickId of Object.keys(manifest.dependencies)) {
     const echoManifest = require(path.join(__dirname, '..', '..', '..', brickId, 'manifest.json'))
     assert.ok(echoManifest.subscriptions.some((item) => item.event === 'resource-lab:probe'))

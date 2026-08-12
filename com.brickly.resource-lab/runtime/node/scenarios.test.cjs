@@ -27,6 +27,9 @@ test('create-text 使用公开 create API 并校验正文与元数据', async ()
   assert.equal(calls.length, 1)
   assert.equal(result.sizeBytes, 12)
   assert.equal(result.sha256, createHash('sha256').update('resource lab').digest('hex'))
+  assert.equal(result.transfer?.sent?.utf8, 'resource lab')
+  assert.equal(result.transfer?.received?.utf8, 'resource lab')
+  assert.ok(Array.isArray(result.transfer?.transport?.firstChunkSizes))
 })
 
 test('invoke-python 将 ResourceHandle 传给目标并校验报告', async () => {
