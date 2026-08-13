@@ -4,6 +4,7 @@ import type {
   ClipboardHistoryChangedEnvelope,
   ClipboardHistoryChangedPayload,
   ClipboardHistoryChangedResourceEnvelope,
+  ClipboardHistoryEventResourceHandle,
   ClipboardSetResult,
   RuntimeStatus,
   StorageInfo,
@@ -97,10 +98,10 @@ export async function subscribeHistoryChanged(
   const events = window.brickly?.events
   if (!events?.subscribe) throw new Error('当前页面没有可用的剪贴板历史事件接口。')
   const dispose = await events.subscribe('clipboard-history:changed', (envelope) => {
-    void hydrateHistoryChanged(envelope)
-      .then((hydrated) => listener(hydrated))
+    void readEventPayload(envelope)
+      .then((read) => listener(read))
       .catch((error: unknown) => {
-        logWarn('event hydrate failed (swallowed)', {
+        logWarn('event payload read failed (swallowed)', {
           error: error instanceof Error ? error.message : String(error)
         })
       })
@@ -109,26 +110,19 @@ export async function subscribeHistoryChanged(
 }
 
 /**
- * 对齐 resource-lab / Node SDK：事件 payload 是 Handle，只 json() + 可选 close。
- * 宿主 toUiEventPayload 已保证 json 是 own-property；不要再走 resources.open。
+ * 宿主对事件 payload 统一资源化（encoding:json wrapper），preload 已解包为
+ * Handle，这里只读回内容并校验；payload 异常时 reject 由订阅方吞掉。
  */
-async function hydrateHistoryChanged(
+async function readEventPayload(
   envelope: ClipboardHistoryChangedResourceEnvelope
 ): Promise<ClipboardHistoryChangedEnvelope> {
-  const raw = envelope.payload as unknown
-  const handle =
-    raw && typeof raw === 'object' && typeof (raw as { json?: unknown }).json === 'function'
-      ? (raw as { json: <T = unknown>() => Promise<T>; close?: () => Promise<void> })
-      : undefined
-  if (!handle) throw new Error('剪贴板历史事件 payload 不是 ResourceHandle（缺少 json）。')
+  const handle = envelope.payload as ClipboardHistoryEventResourceHandle
   try {
     const payload = await handle.json<unknown>()
     if (!isHistoryChangedPayload(payload)) throw new Error('剪贴板历史事件 payload 结构无效。')
     return { ...envelope, payload }
   } finally {
-    if (typeof handle.close === 'function') {
-      await handle.close().catch(() => undefined)
-    }
+    await handle.close?.().catch(() => undefined)
   }
 }
 
@@ -149,10 +143,7 @@ function isHistoryChangedPayload(value: unknown): value is ClipboardHistoryChang
  * - 运行中的新事件只打 pending 标记，结束后再刷一轮（合并突发）
  * - 仍按 revision/at 去重
  */
-export function createHistoryRefreshScheduler(
-  refresh: () => void | Promise<void>,
-  _delayMs = 0
-): {
+export function createHistoryRefreshScheduler(refresh: () => void | Promise<void>): {
   schedule(envelope: ClipboardHistoryChangedEnvelope): void
   cancel(): void
 } {
