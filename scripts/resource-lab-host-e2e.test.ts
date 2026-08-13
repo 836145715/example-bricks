@@ -163,7 +163,7 @@ function invokeBrick(host: any, brickId: string, commandId: string, input: unkno
   return host.invocationGateway.submit({
     kind: 'host-command',
     caller: { label: 'resource-lab-host-e2e' },
-    target: { brickId, commandId, domain: 'installed' },
+    target: { brickId, commandId, origin: 'installed' },
     input,
     ...(signal ? { signal } : {})
   })
