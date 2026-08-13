@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createHistoryRefreshScheduler,
   clearHistory,
@@ -39,11 +39,15 @@ export function App() {
   const [toast, setToast] = useState('')
   const [colophonOpen, setColophonOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<ClipItem | null>(null)
+  const toastTimer = useRef<number | undefined>(undefined)
 
   const notify = (text: string): void => {
     setToast(text)
-    window.setTimeout(() => setToast(''), 1600)
+    window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(''), 1600)
   }
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), [])
 
   const refresh = async (): Promise<void> => {
     const next = await listHistory()
@@ -91,6 +95,7 @@ export function App() {
   useEffect(() => {
     let alive = true
     let unsubscribe: (() => void | Promise<void>) | undefined
+
     const scheduler = createHistoryRefreshScheduler(async () => {
       if (!alive) return
       await Promise.all([refresh(), refreshStorageSnapshot(), refreshRuntimeSnapshot()])
@@ -110,6 +115,7 @@ export function App() {
         await startRuntimeService()
       } catch (error) {
         serviceStartError = errorMessage(error)
+        console.warn('[clipboard-history/ui] init service.start error', { error: serviceStartError })
       }
       try {
         unsubscribe = await subscribeHistoryChanged((envelope) => {
@@ -126,6 +132,7 @@ export function App() {
       } catch (error) {
         subscriptionError = errorMessage(error)
         if (alive) setEventsConnected(false)
+        console.warn('[clipboard-history/ui] subscribe failed', { error: subscriptionError })
       }
       try {
         const [, , status] = await Promise.all([
@@ -143,6 +150,7 @@ export function App() {
       } catch (error) {
         setStatusText(`初始化失败 · ${errorMessage(error)}`)
         notify(errorMessage(error))
+        console.warn('[clipboard-history/ui] init failed', { error: errorMessage(error) })
       }
     })()
 

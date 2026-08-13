@@ -10,16 +10,39 @@ import type {
   SyncResult
 } from './types'
 
+const LOG_PREFIX = '[clipboard-history/ui]'
+
+function logWarn(message: string, detail?: Record<string, unknown>): void {
+  if (detail === undefined) {
+    console.warn(`${LOG_PREFIX} ${message}`)
+    return
+  }
+  console.warn(`${LOG_PREFIX} ${message}`, detail)
+}
+
 async function invoke<T>(commandId: string, input: Record<string, unknown>): Promise<T> {
   const api = window.brickly
   if (!api?.invoke) throw new Error('当前页面没有可用的 Clipboard History runtime。')
-  return api.invoke(commandId, input) as Promise<T>
+  try {
+    return (await api.invoke(commandId, input)) as T
+  } catch (error) {
+    logWarn('invoke failed', {
+      commandId,
+      error: error instanceof Error ? error.message : String(error)
+    })
+    throw error
+  }
 }
 
 export function startRuntimeService(): Promise<unknown> {
   const start = window.brickly?.service?.start
   if (!start) throw new Error('当前页面没有可用的 Clipboard History service 控制面。')
-  return start()
+  return Promise.resolve(start()).catch((error: unknown) => {
+    logWarn('service.start failed', {
+      error: error instanceof Error ? error.message : String(error)
+    })
+    throw error
+  })
 }
 
 export async function listHistory(limit = 500): Promise<ClipItem[]> {
@@ -73,20 +96,39 @@ export async function subscribeHistoryChanged(
 ): Promise<() => void | Promise<void>> {
   const events = window.brickly?.events
   if (!events?.subscribe) throw new Error('当前页面没有可用的剪贴板历史事件接口。')
-  return events.subscribe('clipboard-history:changed', (envelope) => {
-    void hydrateHistoryChanged(envelope).then(listener).catch(() => undefined)
+  const dispose = await events.subscribe('clipboard-history:changed', (envelope) => {
+    void hydrateHistoryChanged(envelope)
+      .then((hydrated) => listener(hydrated))
+      .catch((error: unknown) => {
+        logWarn('event hydrate failed (swallowed)', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      })
   })
+  return dispose
 }
 
+/**
+ * 对齐 resource-lab / Node SDK：事件 payload 是 Handle，只 json() + 可选 close。
+ * 宿主 toUiEventPayload 已保证 json 是 own-property；不要再走 resources.open。
+ */
 async function hydrateHistoryChanged(
   envelope: ClipboardHistoryChangedResourceEnvelope
 ): Promise<ClipboardHistoryChangedEnvelope> {
+  const raw = envelope.payload as unknown
+  const handle =
+    raw && typeof raw === 'object' && typeof (raw as { json?: unknown }).json === 'function'
+      ? (raw as { json: <T = unknown>() => Promise<T>; close?: () => Promise<void> })
+      : undefined
+  if (!handle) throw new Error('剪贴板历史事件 payload 不是 ResourceHandle（缺少 json）。')
   try {
-    const payload = await envelope.payload.json<unknown>()
+    const payload = await handle.json<unknown>()
     if (!isHistoryChangedPayload(payload)) throw new Error('剪贴板历史事件 payload 结构无效。')
     return { ...envelope, payload }
   } finally {
-    await envelope.payload.close().catch(() => undefined)
+    if (typeof handle.close === 'function') {
+      await handle.close().catch(() => undefined)
+    }
   }
 }
 
@@ -97,17 +139,51 @@ function isHistoryChangedPayload(value: unknown): value is ClipboardHistoryChang
     typeof payload.reason === 'string' && typeof payload.at === 'number'
 }
 
+/**
+ * 合并历史刷新请求。
+ *
+ * 重要：不要用 setTimeout 做 debounce。
+ * Brick 窗口在失焦/后台时，Chromium 会大幅节流 renderer 定时器，
+ * 表现就是「事件到了但要等点回 UI 才 list」。这里改成：
+ * - 立即排队一次 refresh（microtask，不受后台 timer throttle 影响）
+ * - 运行中的新事件只打 pending 标记，结束后再刷一轮（合并突发）
+ * - 仍按 revision/at 去重
+ */
 export function createHistoryRefreshScheduler(
   refresh: () => void | Promise<void>,
-  delayMs = 100
+  _delayMs = 0
 ): {
   schedule(envelope: ClipboardHistoryChangedEnvelope): void
   cancel(): void
 } {
   let active = true
-  let timer: number | undefined
+  let running = false
+  let pending = false
   let lastEventKey = ''
   let latestPublishedAt = 0
+
+  const runLoop = (): void => {
+    if (!active || running) return
+    running = true
+
+    void (async () => {
+      try {
+        do {
+          pending = false
+          if (!active) break
+          await refresh()
+        } while (active && pending)
+      } catch (error) {
+        logWarn('scheduler refresh failed', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      } finally {
+        running = false
+        // 收尾瞬间又来事件：再开一轮
+        if (active && pending) queueMicrotask(runLoop)
+      }
+    })()
+  }
 
   return {
     schedule(envelope) {
@@ -116,16 +192,19 @@ export function createHistoryRefreshScheduler(
       if (eventKey === lastEventKey || envelope.publishedAt < latestPublishedAt) return
       lastEventKey = eventKey
       latestPublishedAt = envelope.publishedAt
-      if (timer !== undefined) return
-      timer = window.setTimeout(async () => {
-        timer = undefined
-        if (active) await refresh()
-      }, delayMs)
+
+      if (running || pending) {
+        pending = true
+        return
+      }
+
+      pending = true
+      // microtask：跟在当前 IPC/hydrate 回调后立刻跑，不走后台被节流的 setTimeout
+      queueMicrotask(runLoop)
     },
     cancel() {
       active = false
-      if (timer !== undefined) window.clearTimeout(timer)
-      timer = undefined
+      pending = false
     }
   }
 }

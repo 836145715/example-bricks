@@ -119,6 +119,46 @@ test('事件订阅使用宿主受限 Brick API', async (t) => {
   assert.equal(disposed, true)
 })
 
+test('事件 payload 无 close 时仍可 hydrate；缺少 json 则忽略', async (t) => {
+  const received = []
+  let registeredListener
+  const api = loadAdapter(t, {
+    brickly: {
+      events: {
+        async subscribe(_event, listener) {
+          registeredListener = listener
+          return async () => {}
+        }
+      }
+    }
+  })
+
+  await api.subscribeHistoryChanged((envelope) => received.push(envelope))
+
+  registeredListener({
+    event: 'clipboard-history:changed',
+    sourceBrickId: 'com.brickly.clipboard-history',
+    publishedAt: 100,
+    payload: {
+      async json() {
+        return { revision: 2, count: 1, reason: 'insert', at: 100 }
+      }
+    }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(received.length, 1)
+  assert.equal(received[0].payload.revision, 2)
+
+  registeredListener({
+    event: 'clipboard-history:changed',
+    sourceBrickId: 'com.brickly.clipboard-history',
+    publishedAt: 200,
+    payload: { ref: { resourceId: 'res_from_ref' } }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(received.length, 1, '缺少 json 的 payload 不得进入业务回调')
+})
+
 test('宿主命令或事件接口缺失时返回明确错误', async (t) => {
   const api = loadAdapter(t, {})
 
@@ -128,33 +168,55 @@ test('宿主命令或事件接口缺失时返回明确错误', async (t) => {
 })
 
 test('变化事件按 revision 和 at 去重并合并为单次刷新', async (t) => {
-  const timers = []
   let refreshes = 0
-  const api = loadAdapter(t, {
-    setTimeout(callback) {
-      timers.push(callback)
-      return timers.length
-    },
-    clearTimeout() {}
-  })
+  const api = loadAdapter(t, {})
   const scheduler = api.createHistoryRefreshScheduler(async () => {
     refreshes++
   })
   const envelope = changeEnvelope(3, 100)
 
+  // 同 tick 内：去重 + 合并，只应触发一轮 refresh
   scheduler.schedule(envelope)
   scheduler.schedule(envelope)
   scheduler.schedule(changeEnvelope(4, 110))
-
-  assert.equal(timers.length, 1)
-  await timers.shift()()
+  await new Promise((resolve) => setImmediate(resolve))
   assert.equal(refreshes, 1)
 
+  // 新事件仍应刷新（不依赖 revision 单调，只看 eventKey / publishedAt）
   scheduler.schedule(changeEnvelope(1, 200))
-  assert.equal(timers.length, 1, 'runtime 重启后较小 revision 仍应刷新')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(refreshes, 2)
+
+  // cancel 后不得再刷
   scheduler.cancel()
-  await timers.shift()()
-  assert.equal(refreshes, 1, '取消后不得执行待处理刷新')
+  scheduler.schedule(changeEnvelope(5, 300))
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(refreshes, 2, '取消后不得执行待处理刷新')
+})
+
+test('刷新进行中的新事件会 pending 后再刷一轮', async (t) => {
+  let refreshes = 0
+  let release
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  const api = loadAdapter(t, {})
+  const scheduler = api.createHistoryRefreshScheduler(async () => {
+    refreshes++
+    if (refreshes === 1) await gate
+  })
+
+  scheduler.schedule(changeEnvelope(1, 100))
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(refreshes, 1)
+
+  // 第一轮还没结束时再来事件 → 结束后再刷
+  scheduler.schedule(changeEnvelope(2, 110))
+  assert.equal(refreshes, 1)
+  release()
+  await new Promise((resolve) => setImmediate(resolve))
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(refreshes, 2)
 })
 
 test('App 不再读取旧 preload 门面或主窗口 API', () => {

@@ -55,7 +55,7 @@ export type ClipboardHistoryChangedEnvelope = {
 
 export type ClipboardHistoryEventResourceHandle = {
   json<T = unknown>(): Promise<T>
-  close(): Promise<void>
+  close?(): Promise<void>
 }
 
 export type ClipboardHistoryChangedResourceEnvelope = Omit<ClipboardHistoryChangedEnvelope, 'payload'> & {

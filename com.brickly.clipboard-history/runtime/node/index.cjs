@@ -6,6 +6,7 @@ const { BricklyRuntime, BppError, ResourceHandle } = require('@syllm/brickly-sdk
 const BRICK_ID = 'com.brickly.clipboard-history'
 const HISTORY_EVENT = 'clipboard-history:changed'
 const SOURCE_EVENT = 'clipboard:new-content'
+const LOG_PREFIX = '[clipboard-history/runtime]'
 
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
 const startedAt = Date.now()
@@ -14,6 +15,30 @@ let processedEvents = 0
 let lastEventAt
 let lastEventKind
 let lastError
+
+function logInfo(message, detail) {
+  if (detail === undefined) {
+    brick.log.info(`${LOG_PREFIX} ${message}`)
+    return
+  }
+  try {
+    brick.log.info(`${LOG_PREFIX} ${message} ${JSON.stringify(detail)}`)
+  } catch {
+    brick.log.info(`${LOG_PREFIX} ${message}`)
+  }
+}
+
+function logWarn(message, detail) {
+  if (detail === undefined) {
+    brick.log.warn(`${LOG_PREFIX} ${message}`)
+    return
+  }
+  try {
+    brick.log.warn(`${LOG_PREFIX} ${message} ${JSON.stringify(detail)}`)
+  } catch {
+    brick.log.warn(`${LOG_PREFIX} ${message}`)
+  }
+}
 
 function historyApi(ctx) {
   const history = ctx?.platform?.clipboard?.history
@@ -70,14 +95,23 @@ async function publishChanged(reason, extra = {}) {
     await brick.events.publish(HISTORY_EVENT, payload)
   } catch (error) {
     lastError = error instanceof Error ? error.message : String(error)
-    brick.log.warn(`publish ${HISTORY_EVENT} failed: ${lastError}`)
+    logWarn('publish failed', { event: HISTORY_EVENT, reason, revision, error: lastError })
   }
   return payload
 }
 
 brick.onCommand('list', async (ctx, input) => {
-  const items = await historyApi(ctx).list(input?.limit)
-  return { items: items.map(toUiItem) }
+  const limit = input?.limit
+  try {
+    const items = await historyApi(ctx).list(limit)
+    return { items: items.map(toUiItem) }
+  } catch (error) {
+    logWarn('list failed', {
+      limit,
+      error: error instanceof Error ? error.message : String(error)
+    })
+    throw error
+  }
 })
 
 brick.onCommand('read-text', (ctx, input) => historyApi(ctx).readText(requireId(input)))
@@ -124,7 +158,9 @@ brick.onCommand('storage-info', async (ctx) => {
 
 brick.onCommand('sync-now', async (ctx) => {
   const item = await historyApi(ctx).captureCurrent()
-  if (!item) return { changed: false, reason: 'sync', revision }
+  if (!item) {
+    return { changed: false, reason: 'sync', revision }
+  }
   processedEvents++
   lastEventAt = Date.now()
   lastEventKind = item.kind
@@ -178,10 +214,10 @@ brick.events.on(SOURCE_EVENT, (payload) => {
     })
   })().catch((error) => {
     lastError = error instanceof Error ? error.message : String(error)
-    brick.log.warn(`clipboard event failed: ${lastError}`)
+    logWarn('source event failed', { error: lastError })
   })
 })
 
-brick.onReady(() => brick.log.info('ready · Host clipboard history connected'))
-brick.onShutdown(() => {})
+brick.onReady(() => logInfo('ready · Host clipboard history connected', { startedAt }))
+brick.onShutdown(() => logInfo('shutdown'))
 brick.start()
