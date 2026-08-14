@@ -50,13 +50,16 @@ test('历史命令只委托给 Host clipboard.history API', async (t) => {
   assert.deepEqual(await runtime.commands.get('remove')(ctx, { id: 'clip_1' }), { ok: true })
   assert.deepEqual(await runtime.commands.get('clear')(ctx, { keepFavorites: true }), { ok: true, changed: 1 })
   assert.deepEqual(await runtime.commands.get('toggle-favorite')(ctx, { id: 'clip_1' }), { favorite: true })
+  // 显式目标状态：跳过全量 list 查找，直接写入
+  assert.deepEqual(await runtime.commands.get('toggle-favorite')(ctx, { id: 'clip_1', favorite: false }), { favorite: false })
   assert.deepEqual(calls, [
     ['list', 20],
     ['readText', 'clip_1'],
     ['remove', 'clip_1'],
     ['clear', true],
     ['list', 500],
-    ['favorite', 'clip_1', true]
+    ['favorite', 'clip_1', true],
+    ['favorite', 'clip_1', false]
   ])
 })
 
@@ -75,6 +78,39 @@ test('系统剪贴板事件只读取一层 ResourceHandle 并发布刷新事件'
   assert.equal(runtime.published.length, 1)
   assert.equal(runtime.published[0].event, 'clipboard-history:changed')
   assert.equal(runtime.published[0].payload.historyItemId, 'clip_1')
+})
+
+test('任一命令发布成功后清除之前失败留下的 lastError', async (t) => {
+  const runtime = loadRuntime(t)
+  const calls = []
+  const ctx = {
+    platform: {
+      clipboard: {
+        history: {
+          list: async (limit) => (calls.push(['list', limit]), []),
+          setFavorite: async (id, favorite) => (calls.push(['favorite', id, favorite]), true),
+          remove: async (id) => (calls.push(['remove', id]), true),
+          storageInfo: async () => ({ count: 1 })
+        }
+      }
+    }
+  }
+
+  runtime.runtime.events.publish = async () => {
+    throw new Error('publish boom')
+  }
+  await runtime.commands.get('toggle-favorite')(ctx, { id: 'clip_1', favorite: true })
+
+  const failed = await runtime.commands.get('runtime-status')(ctx)
+  assert.equal(failed.state, 'error')
+  assert.equal(failed.lastError, 'publish boom')
+
+  runtime.runtime.events.publish = async () => {}
+  await runtime.commands.get('remove')(ctx, { id: 'clip_1' })
+
+  const recovered = await runtime.commands.get('runtime-status')(ctx)
+  assert.equal(recovered.state, 'running')
+  assert.equal(recovered.lastError, undefined)
 })
 
 test('Runtime 不再加载 history-service 或创建独立数据目录', (t) => {
@@ -146,6 +182,7 @@ function loadRuntime(t) {
     commands,
     events,
     published,
+    get runtime() { return instance },
     ResourceHandle: FakeResourceHandle,
     get loadedHistoryService() { return loadedHistoryService }
   }

@@ -173,6 +173,11 @@
           {
             "name": "id",
             "type": "string"
+          },
+          {
+            "name": "favorite",
+            "type": "boolean",
+            "description": "可选：直接指定目标收藏状态；缺省时按当前状态取反。"
           }
         ],
         "outputs": [

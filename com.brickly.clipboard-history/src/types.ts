@@ -69,7 +69,6 @@ export type RuntimeStatus = {
   uptimeMs: number
   count: number
   maxItems: number
-  dedupeHits: number
   processedEvents: number
   lastEventAt?: number
   lastEventKind?: ClipType
@@ -84,14 +83,13 @@ export type StorageInfo = {
   dbPath: string
   count: number
   maxItems: number
-  dedupeHits: number
 }
 
 export type SyncResult = {
   changed: boolean
   reason: 'sync'
   revision: number
-  count: number
+  item?: ClipItem
 }
 
 export type BricklyWindowControls = {

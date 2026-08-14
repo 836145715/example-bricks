@@ -65,8 +65,8 @@ export async function clearHistory(keepFavorites = false): Promise<boolean> {
   return Boolean(result?.ok)
 }
 
-export async function toggleHistoryFavorite(id: string): Promise<boolean> {
-  const result = await invoke<{ favorite?: boolean }>('toggle-favorite', { id })
+export async function toggleHistoryFavorite(id: string, favorite?: boolean): Promise<boolean> {
+  const result = await invoke<{ favorite?: boolean }>('toggle-favorite', { id, favorite })
   return Boolean(result?.favorite)
 }
 

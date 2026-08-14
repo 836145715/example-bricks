@@ -93,6 +93,7 @@ async function publishChanged(reason, extra = {}) {
   const payload = { revision, reason, at: Date.now(), ...extra }
   try {
     await brick.events.publish(HISTORY_EVENT, payload)
+    lastError = undefined
   } catch (error) {
     lastError = error instanceof Error ? error.message : String(error)
     logWarn('publish failed', { event: HISTORY_EVENT, reason, revision, error: lastError })
@@ -136,9 +137,15 @@ brick.onCommand('clear', async (ctx, input) => {
 
 brick.onCommand('toggle-favorite', async (ctx, input) => {
   const id = requireId(input)
-  const current = (await historyApi(ctx).list(500)).find((item) => item.id === id)
-  if (!current) throw new BppError('NOT_FOUND', 'item not found')
-  const favorite = !current.favorite
+  let favorite
+  if (typeof input?.favorite === 'boolean') {
+    // 显式给定目标状态：跳过全量 list 查找
+    favorite = input.favorite
+  } else {
+    const current = (await historyApi(ctx).list(500)).find((item) => item.id === id)
+    if (!current) throw new BppError('NOT_FOUND', 'item not found')
+    favorite = !current.favorite
+  }
   await historyApi(ctx).setFavorite(id, favorite)
   const info = await historyApi(ctx).storageInfo()
   await publishChanged('favorite', { historyItemId: id, count: info.count })
@@ -186,7 +193,6 @@ brick.onCommand('runtime-status', async (ctx) => {
     uptimeMs: Date.now() - startedAt,
     count: info.count,
     maxItems: info.maxItems,
-    dedupeHits: 0,
     processedEvents,
     lastEventAt,
     lastEventKind,

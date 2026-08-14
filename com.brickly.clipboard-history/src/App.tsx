@@ -204,7 +204,7 @@ export function App() {
   }
 
   async function handleToggleFavorite(item: ClipItem): Promise<void> {
-    await toggleHistoryFavorite(item.id)
+    await toggleHistoryFavorite(item.id, !item.favorite)
     await refresh()
   }
 
