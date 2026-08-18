@@ -35,7 +35,14 @@ runtime.stdout.on('data', (chunk) => {
 runtime.stderr.setEncoding('utf8')
 runtime.stderr.on('data', (chunk) => process.stderr.write(chunk))
 
-runtime.stdin.write(JSON.stringify({ type: 'host.hello', protocolVersion: '0.1.0' }) + '\n')
+runtime.stdin.write(JSON.stringify({
+  type: 'host.hello',
+  protocolVersion: '0.1.0',
+  dependencyBindings: {
+    openai: { brickId: 'com.brickly.openai', origin: 'installed', version: '0.1.0' },
+    ocr: { brickId: 'com.brickly.glm-ocr-screenshot', origin: 'installed', version: '0.1.0' }
+  }
+}) + '\n')
 
 main().catch(async (error) => {
   console.error(error)
@@ -62,7 +69,7 @@ async function main() {
   const noSelection = await waitFor((msg) => msg.type === 'command.result' && msg.id === 'cmd-no-selection')
   assertDeepEqual(noSelection.result, { analyzed: false, reason: 'clipboard-hash-unchanged' })
   const noSelectionMessages = messages.slice(noSelectionStart)
-  assert(!noSelectionMessages.some((msg) => msg.type === 'host.ui.createBrowserWindow'), 'no-selection 不应开窗')
+  assert(!noSelectionMessages.some((msg) => msg.type === 'host.ui.window.create'), 'no-selection 不应开窗')
   assert(!noSelectionMessages.some((msg) => msg.type === 'host.invoke'), 'no-selection 不应调用 OpenAI')
   assert(
     noSelectionMessages.some((msg) => msg.type === 'host.platform.clipboard.setContent'),
@@ -94,14 +101,19 @@ async function main() {
 
   const invoke = selectedMessages.find((msg) => msg.type === 'host.invoke')
   assert(invoke, '有选区时应调用 OpenAI')
-  assertEqual(invoke.brickId, 'com.brickly.openai')
+  assertEqual(invoke.dependencyAlias, 'openai')
+  assertDeepEqual(invoke.ref, {
+    brickId: 'com.brickly.openai',
+    origin: 'installed',
+    version: '0.1.0'
+  })
   assertEqual(invoke.commandId, 'chat-completions')
   assertEqual(invoke.stream, true)
   assertEqual(invoke.input.stream, true)
   assert(JSON.stringify(invoke.input.messages).includes('[SECTION:natural_translation]'), 'prompt 应要求协议化 section')
 
   const sends = messages.filter(
-    (msg) => msg.type === 'host.ui.callWindow' && msg.method === 'webContents.send'
+    (msg) => msg.type === 'host.ui.window.call' && msg.method === 'webContents.send'
   )
   assert(sends.some((msg) => msg.args[0] === 'context-pilot:start'), '应发送 context-pilot:start')
   assert(sends.some((msg) => msg.args[0] === 'context-pilot:delta'), '应发送 context-pilot:delta')
@@ -125,7 +137,7 @@ async function main() {
   const errorMessages = messages.slice(errorStart)
   assertCopyShortcut(errorMessages)
   const errorPayload = errorMessages.find(
-    (msg) => msg.type === 'host.ui.callWindow' && msg.args[0] === 'context-pilot:error'
+    (msg) => msg.type === 'host.ui.window.call' && msg.args[0] === 'context-pilot:error'
   )?.args?.[1]
   assert(errorPayload, 'OpenAI 失败时应通知窗口错误态')
   assertEqual(errorPayload.error, '模型调用失败')
@@ -145,7 +157,7 @@ async function main() {
   )
   await waitFor(
     (msg) =>
-      msg.type === 'host.ui.callWindow' &&
+      msg.type === 'host.ui.window.call' &&
       msg.method === 'webContents.send' &&
       msg.args[0] === 'context-pilot:start'
   )
@@ -155,7 +167,7 @@ async function main() {
   const cancelMessages = messages.slice(cancelStart)
   assert(
     !cancelMessages.some(
-      (msg) => msg.type === 'host.ui.callWindow' && msg.args[0] === 'context-pilot:result'
+      (msg) => msg.type === 'host.ui.window.call' && msg.args[0] === 'context-pilot:result'
     ),
     '取消后不应继续发送 context-pilot:result'
   )
@@ -177,7 +189,7 @@ async function main() {
   assertEqual(screenshot.result.sourceText, 'The adapter exposes stable APIs for querying resources.')
   const screenshotMessages = messages.slice(screenshotStart)
   const ocrInvoke = screenshotMessages.find(
-    (msg) => msg.type === 'host.invoke' && msg.brickId === 'com.brickly.glm-ocr-screenshot'
+    (msg) => msg.type === 'host.invoke' && msg.dependencyAlias === 'ocr'
   )
   assert(ocrInvoke, '截图命令应先调用 GLM OCR 文本能力')
   assertEqual(ocrInvoke.commandId, 'capture-text')
@@ -185,7 +197,7 @@ async function main() {
   assertEqual(ocrInvoke.input.keepScreenshot, false)
   assert(!screenshotMessages.some((msg) => msg.type === 'host.platform.input.keyboardTap'), '截图命令不应模拟复制')
   const screenshotOpenAI = screenshotMessages.find(
-    (msg) => msg.type === 'host.invoke' && msg.brickId === 'com.brickly.openai'
+    (msg) => msg.type === 'host.invoke' && msg.dependencyAlias === 'openai'
   )
   assert(screenshotOpenAI, '截图 OCR 成功后应调用 OpenAI')
   assert(JSON.stringify(screenshotOpenAI.input.messages).includes('adapter exposes stable APIs'), 'prompt 应包含 OCR 文本')
@@ -210,11 +222,11 @@ async function main() {
   })
   const screenshotEmptyMessages = messages.slice(screenshotEmptyStart)
   assert(
-    !screenshotEmptyMessages.some((msg) => msg.type === 'host.ui.createBrowserWindow'),
+    !screenshotEmptyMessages.some((msg) => msg.type === 'host.ui.window.create'),
     'OCR 空文本时不应开窗'
   )
   assert(
-    !screenshotEmptyMessages.some((msg) => msg.type === 'host.invoke' && msg.brickId === 'com.brickly.openai'),
+    !screenshotEmptyMessages.some((msg) => msg.type === 'host.invoke' && msg.dependencyAlias === 'openai'),
     'OCR 空文本时不应调用 OpenAI'
   )
 
@@ -229,7 +241,7 @@ async function main() {
       args: []
     }
   })
-  await waitFor((msg) => msg.type === 'host.ui.closeWindow' && msg.windowId === 1)
+  await waitFor((msg) => msg.type === 'host.ui.window.requestClose' && msg.windowId === 1)
 
   runtime.stdin.write(JSON.stringify({ type: 'runtime.shutdown' }) + '\n')
   await once(runtime, 'exit')
@@ -275,17 +287,27 @@ function handleMessage(msg) {
       id: msg.id,
       result: { workArea: { x: 0, y: 0, width: 1280, height: 720 } }
     })
-  } else if (msg.type === 'host.ui.createBrowserWindow') {
+  } else if (msg.type === 'host.ui.window.create') {
     assertEqual(msg.options.frame, false)
     assertEqual(msg.options.transparent, true)
     assertEqual(msg.options.show, false)
     assertEqual(msg.options.x, 118)
     assertEqual(msg.options.y, 142)
-    send({ type: 'host.result', id: msg.id, result: { windowId: nextWindowId++, webContentsId: 10, url: msg.url } })
-  } else if (msg.type === 'host.ui.callWindow') {
+    const windowId = nextWindowId++
+    send({
+      type: 'host.result',
+      id: msg.id,
+      result: { windowKey: `smoke-window-${windowId}`, windowId, webContentsId: 10, url: msg.url }
+    })
+  } else if (msg.type === 'host.ui.window.call') {
     send({ type: 'host.result', id: msg.id, result: null })
   } else if (msg.type === 'host.invoke') {
-    if (msg.brickId === 'com.brickly.glm-ocr-screenshot') {
+    if (msg.dependencyAlias === 'ocr') {
+      assertDeepEqual(msg.ref, {
+        brickId: 'com.brickly.glm-ocr-screenshot',
+        origin: 'installed',
+        version: '0.1.0'
+      })
       assertEqual(msg.commandId, 'capture-text')
       send({
         type: 'host.result',
@@ -300,7 +322,12 @@ function handleMessage(msg) {
       })
       return
     }
-    assertEqual(msg.brickId, 'com.brickly.openai')
+    assertEqual(msg.dependencyAlias, 'openai')
+    assertDeepEqual(msg.ref, {
+      brickId: 'com.brickly.openai',
+      origin: 'installed',
+      version: '0.1.0'
+    })
     assertEqual(msg.commandId, 'chat-completions')
     assertEqual(msg.stream, true)
     assertEqual(msg.input.stream, true)
@@ -323,8 +350,8 @@ function handleMessage(msg) {
         text: '[SECTION:natural_translation]\n用于和数据库交互的工具\n[SECTION:skeleton]\nS: Tools'
       }
     })
-  } else if (msg.type === 'host.ui.closeWindow') {
-    send({ type: 'host.result', id: msg.id, result: null })
+  } else if (msg.type === 'host.ui.window.requestClose') {
+    send({ type: 'host.result', id: msg.id, result: { status: 'closed' } })
   }
 }
 

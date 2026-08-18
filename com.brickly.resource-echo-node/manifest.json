@@ -41,14 +41,24 @@
     }
   ],
   "dependencies": {
-    "com.brickly.resource-echo-python": {
+    "python_echo": {
+      "target": {
+        "brickId": "com.brickly.resource-echo-python",
+        "origin": "installed",
+        "version": "0.1.0"
+      },
       "commands": [
         "inspect",
         "transform",
         "relay"
       ]
     },
-    "com.brickly.resource-echo-go": {
+    "go_echo": {
+      "target": {
+        "brickId": "com.brickly.resource-echo-go",
+        "origin": "installed",
+        "version": "0.1.0"
+      },
       "commands": [
         "inspect",
         "transform"

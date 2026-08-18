@@ -41,12 +41,14 @@ def transform(_ctx, input_value):
 
 @brick.on_command("relay")
 def relay(ctx, input_value):
-    target = str(input_value.get("targetBrickId", ""))
-    if not target:
-        raise ValueError("targetBrickId is required")
+    target_alias = str(input_value.get("targetAlias", ""))
+    if not target_alias:
+        raise ValueError("targetAlias is required")
     target_input = dict(input_value.get("targetInput") or {})
     target_input["resource"] = input_value.get("resource")
-    return ctx.invoke(target, input_value.get("targetCommandId", "inspect"), target_input)
+    return ctx.dependencies.require(target_alias).invoke(
+        input_value.get("targetCommandId", "inspect"), target_input
+    )
 
 
 @brick.on_command("hold")

@@ -36,8 +36,8 @@ test('invoke-python 将 ResourceHandle 传给目标并校验报告', async () =>
   const handle = fakeHandle(Buffer.from('hello resource'))
   const execute = createScenarioExecutor(fakePorts({
     resources: { create: async () => handle },
-    invokeRoot: async (brickId, commandId, input) => {
-      assert.equal(brickId, 'com.brickly.resource-echo-python')
+    invokeRoot: async (alias, commandId, input) => {
+      assert.equal(alias, 'python_echo')
       assert.equal(commandId, 'inspect')
       assert.equal(input.resource, handle)
       return {
@@ -206,9 +206,9 @@ test('默认 64 MiB 场景经过 Node Python Go 三语言读取', async () => {
   const handle = fakeHandle(Buffer.alloc(sizeBytes, 0x61))
   const execute = createScenarioExecutor(fakePorts({
     resources: { createFrom: async () => handle },
-    invokeRoot: async (brickId) => {
-      targets.push(brickId)
-      return { runtime: brickId.split('-').at(-1), sizeBytes, sha256: digest, chunkCount: 1024 }
+    invokeRoot: async (alias) => {
+      targets.push(alias)
+      return { runtime: alias.replace('_echo', ''), sizeBytes, sha256: digest, chunkCount: 1024 }
     }
   }))
   const result = await execute(catalog.find((item) => item.id === 'default-64m-stream'), {
@@ -227,7 +227,7 @@ test('慢速 child 收到 run 取消后通过独立命令实际中止', async ()
   const execute = createScenarioExecutor(fakePorts({
     resources: { createFrom: async () => handle },
     invokeRoot: async () => new Promise((_resolve, reject) => { rejectHold = reject }),
-    invokeDetached: async (_brickId, commandId, input) => {
+    invokeDetached: async (_alias, commandId, input) => {
       assert.equal(commandId, 'cancel-hold')
       cancelledOperationId = input.operationId
       rejectHold(codedError('CANCELLED'))

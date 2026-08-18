@@ -53,13 +53,23 @@
     }
   ],
   "dependencies": {
-    "com.brickly.resource-echo-node": {
+    "node_echo": {
+      "target": {
+        "brickId": "com.brickly.resource-echo-node",
+        "origin": "installed",
+        "version": "0.1.0"
+      },
       "commands": [
         "inspect",
         "transform"
       ]
     },
-    "com.brickly.resource-echo-python": {
+    "python_echo": {
+      "target": {
+        "brickId": "com.brickly.resource-echo-python",
+        "origin": "installed",
+        "version": "0.1.0"
+      },
       "commands": [
         "inspect",
         "transform"

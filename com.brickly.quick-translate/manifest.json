@@ -35,13 +35,23 @@
     "os.screenshot"
   ],
   "dependencies": {
-    "com.brickly.openai": {
+    "openai": {
+      "target": {
+        "brickId": "com.brickly.openai",
+        "origin": "installed",
+        "version": "0.1.0"
+      },
       "commands": [
         "chat-completions"
       ],
       "note": "调用 OpenAI Chat Completions API 完成英文到中文翻译。"
     },
-    "com.brickly.glm-ocr-screenshot": {
+    "ocr": {
+      "target": {
+        "brickId": "com.brickly.glm-ocr-screenshot",
+        "origin": "installed",
+        "version": "0.1.0"
+      },
       "commands": [
         "capture-text"
       ],

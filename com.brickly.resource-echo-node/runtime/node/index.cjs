@@ -33,9 +33,9 @@ brick.onCommand('transform', async (_ctx, input) => {
 
 brick.onCommand('relay', (ctx, input) => {
   const resource = getInputResourceRef(input)
-  const targetBrickId = String(input?.targetBrickId ?? '')
-  if (!targetBrickId) throw invalidInput('targetBrickId')
-  return ctx.invoke(targetBrickId, input?.targetCommandId ?? 'inspect', {
+  const targetAlias = String(input?.targetAlias ?? '')
+  if (!targetAlias) throw invalidInput('targetAlias')
+  return ctx.dependencies.require(targetAlias).invoke(input?.targetCommandId ?? 'inspect', {
     resource,
     ...(input?.targetInput && typeof input.targetInput === 'object' ? input.targetInput : {})
   })

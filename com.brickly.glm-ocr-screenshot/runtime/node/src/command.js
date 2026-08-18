@@ -35,7 +35,7 @@ async function captureAnnotate(ctx, rawInput) {
     ctx.output('screenshotPath', input.keepScreenshot ? actualScreenshotPath : '')
 
     ctx.progress(0.35, '调用 GLM OCR')
-    const ocrResponse = await ctx.invoke('com.brickly.glm-tools', 'ocr', {
+    const ocrResponse = await ctx.dependencies.require('glm').invoke('ocr', {
       imagePath: actualScreenshotPath,
       languageType: input.languageType,
       probability: input.probability
@@ -100,7 +100,7 @@ async function captureText(ctx, rawInput) {
     ensureActive(ctx)
 
     ctx.progress(0.42, '调用 GLM OCR')
-    const ocrResponse = await ctx.invoke('com.brickly.glm-tools', 'ocr', {
+    const ocrResponse = await ctx.dependencies.require('glm').invoke('ocr', {
       imagePath: actualScreenshotPath,
       languageType: input.languageType,
       probability: input.probability

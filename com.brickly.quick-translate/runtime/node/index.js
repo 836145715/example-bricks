@@ -85,7 +85,7 @@ plugin.onCommand('translate-screenshot-overlay', async (ctx) => {
     keepScreenshot: true
   }
   debugLog('screenshot-ocr.request', ocrInput)
-  const ocr = await ctx.invoke('com.brickly.glm-ocr-screenshot', 'capture-text', ocrInput)
+  const ocr = await ctx.dependencies.require('ocr').invoke('capture-text', ocrInput)
 
   const screenshotPath = typeof ocr?.screenshotPath === 'string' ? ocr.screenshotPath : ''
   const wordsResult = Array.isArray(ocr?.wordsResult) ? ocr.wordsResult : []
@@ -365,7 +365,7 @@ async function translateWithOpenAI(ctx, sourceText, win) {
   }
   let streamedText = ''
   let finalResult = null
-  for await (const event of ctx.invokeStream('com.brickly.openai', 'chat-completions', input)) {
+  for await (const event of ctx.dependencies.require('openai').invokeStream('chat-completions', input)) {
     if (event.type === 'chunk' && event.name === 'text' && typeof event.chunk === 'string') {
       streamedText += event.chunk
       await sendToWindow(win, 'translate:delta', {
@@ -423,7 +423,7 @@ async function translateOcrBlocksWithOpenAI(ctx, wordsResult) {
     items,
     prompt: truncate(input.messages.map((message) => message.content).join('\n\n'), 1200)
   })
-  const result = await ctx.invoke('com.brickly.openai', 'chat-completions', input)
+  const result = await ctx.dependencies.require('openai').invoke('chat-completions', input)
   const text = extractText(result).trim()
   debugLog('screenshot-translate.response.raw', {
     text: truncate(text, 2000),

@@ -48,7 +48,14 @@ runtime.stdout.on('data', (chunk) => {
 runtime.stderr.setEncoding('utf8')
 runtime.stderr.on('data', (chunk) => process.stderr.write(chunk))
 
-runtime.stdin.write(JSON.stringify({ type: 'host.hello', protocolVersion: '0.1.0' }) + '\n')
+runtime.stdin.write(JSON.stringify({
+  type: 'host.hello',
+  protocolVersion: '0.1.0',
+  dependencyBindings: {
+    openai: { brickId: 'com.brickly.openai', origin: 'installed', version: '0.1.0' },
+    ocr: { brickId: 'com.brickly.glm-ocr-screenshot', origin: 'installed', version: '0.1.0' }
+  }
+}) + '\n')
 
 main().catch(async (error) => {
   console.error(error)
@@ -75,7 +82,7 @@ async function main() {
   const noSelection = await waitFor((msg) => msg.type === 'command.result' && msg.id === 'cmd-no-selection')
   assertDeepEqual(noSelection.result, { translated: false, reason: 'clipboard-hash-unchanged' })
   const noSelectionMessages = messages.slice(noSelectionStart)
-  assert(!noSelectionMessages.some((msg) => msg.type === 'host.ui.createBrowserWindow'), 'no-selection 不应开窗')
+  assert(!noSelectionMessages.some((msg) => msg.type === 'host.ui.window.create'), 'no-selection 不应开窗')
   assert(!noSelectionMessages.some((msg) => msg.type === 'host.invoke'), 'no-selection 不应调用 OpenAI')
   assert(
     noSelectionMessages.some((msg) => msg.type === 'host.platform.clipboard.setContent'),
@@ -103,7 +110,7 @@ async function main() {
   assertDeepEqual(restoreMessage.content, { kind: 'text', text: 'Old clipboard' })
 
   const sends = messages.filter(
-    (msg) => msg.type === 'host.ui.callWindow' && msg.method === 'webContents.send'
+    (msg) => msg.type === 'host.ui.window.call' && msg.method === 'webContents.send'
   )
   assert(sends.some((msg) => msg.args[0] === 'translate:start'), '应发送 translate:start')
   assert(sends.some((msg) => msg.args[0] === 'translate:delta'), '应发送 translate:delta')
@@ -120,7 +127,7 @@ async function main() {
       args: []
     }
   })
-  await waitFor((msg) => msg.type === 'host.ui.closeWindow' && msg.windowId === 1)
+  await waitFor((msg) => msg.type === 'host.ui.window.requestClose' && msg.windowId === 1)
 
   const overlayStart = messages.length
   runtime.stdin.write(
@@ -140,7 +147,7 @@ async function main() {
   assertDeepEqual(overlay.result.bounds, { x: 40, y: 50, width: 400, height: 200 })
   const overlayMessages = messages.slice(overlayStart)
   const overlayWindow = overlayMessages.find(
-    (msg) => msg.type === 'host.ui.createBrowserWindow' && msg.url.endsWith('ui/overlay.html')
+    (msg) => msg.type === 'host.ui.window.create' && msg.url.endsWith('ui/overlay.html')
   )
   assert(overlayWindow, '截图翻译应创建 overlay 窗口')
   assertEqual(overlayWindow.options.x, 40)
@@ -153,7 +160,7 @@ async function main() {
 
   const renderSend = overlayMessages.find(
     (msg) =>
-      msg.type === 'host.ui.callWindow' &&
+      msg.type === 'host.ui.window.call' &&
       msg.windowId === 2 &&
       msg.method === 'webContents.send' &&
       msg.args[0] === 'quick-translate-overlay:render'
@@ -172,7 +179,7 @@ async function main() {
       args: []
     }
   })
-  await waitFor((msg) => msg.type === 'host.ui.closeWindow' && msg.windowId === 2)
+  await waitFor((msg) => msg.type === 'host.ui.window.requestClose' && msg.windowId === 2)
 
   runtime.stdin.write(JSON.stringify({ type: 'runtime.shutdown' }) + '\n')
   await once(runtime, 'exit')
@@ -218,7 +225,7 @@ function handleMessage(msg) {
       id: msg.id,
       result: { workArea: { x: 0, y: 0, width: 1280, height: 720 } }
     })
-  } else if (msg.type === 'host.ui.createBrowserWindow') {
+  } else if (msg.type === 'host.ui.window.create') {
     assertEqual(msg.options.frame, false)
     assertEqual(msg.options.transparent, true)
     if (msg.url.endsWith('ui/index.html')) {
@@ -226,11 +233,21 @@ function handleMessage(msg) {
       assertEqual(msg.options.x, 118)
       assertEqual(msg.options.y, 142)
     }
-    send({ type: 'host.result', id: msg.id, result: { windowId: nextWindowId++, webContentsId: 10, url: msg.url } })
-  } else if (msg.type === 'host.ui.callWindow') {
+    const windowId = nextWindowId++
+    send({
+      type: 'host.result',
+      id: msg.id,
+      result: { windowKey: `smoke-window-${windowId}`, windowId, webContentsId: 10, url: msg.url }
+    })
+  } else if (msg.type === 'host.ui.window.call') {
     send({ type: 'host.result', id: msg.id, result: null })
   } else if (msg.type === 'host.invoke') {
-    if (msg.brickId === 'com.brickly.glm-ocr-screenshot') {
+    if (msg.dependencyAlias === 'ocr') {
+      assertDeepEqual(msg.ref, {
+        brickId: 'com.brickly.glm-ocr-screenshot',
+        origin: 'installed',
+        version: '0.1.0'
+      })
       assertEqual(msg.commandId, 'capture-text')
       assertEqual(msg.input.keepScreenshot, true)
       send({
@@ -249,7 +266,12 @@ function handleMessage(msg) {
           ocrResponse: {}
         }
       })
-    } else if (msg.brickId === 'com.brickly.openai') {
+    } else if (msg.dependencyAlias === 'openai') {
+      assertDeepEqual(msg.ref, {
+        brickId: 'com.brickly.openai',
+        origin: 'installed',
+        version: '0.1.0'
+      })
       assertEqual(msg.commandId, 'chat-completions')
       assert(Array.isArray(msg.input.messages), '应使用 chat/completions messages 输入')
       if (msg.stream) {
@@ -266,8 +288,8 @@ function handleMessage(msg) {
         })
       }
     }
-  } else if (msg.type === 'host.ui.closeWindow') {
-    send({ type: 'host.result', id: msg.id, result: null })
+  } else if (msg.type === 'host.ui.window.requestClose') {
+    send({ type: 'host.result', id: msg.id, result: { status: 'closed' } })
   }
 }
 

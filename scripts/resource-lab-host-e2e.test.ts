@@ -34,7 +34,7 @@ test('真实 Host 装载 Resource Lab 四个 Brick 并通过默认套件', { tim
     ])
     const registry = new registryModule.BrickRegistry(join(rootDir, 'development-bricks'))
     registry.setAdditionalBrickRoots(brickIds.map((id) => join(bricksDir, id)))
-    const loaded = registry.reload()
+    const loaded = registry.reloadAll()
     assert.deepEqual(
       loaded.map((brick: any) => ({ id: brick.id, valid: brick.valid, errors: brick.errors })).sort((left: any, right: any) => left.id.localeCompare(right.id)),
       brickIds.slice().sort().map((id) => ({ id, valid: true, errors: undefined }))
@@ -52,7 +52,7 @@ test('真实 Host 装载 Resource Lab 四个 Brick 并通过默认套件', { tim
       configStore: new configModule.BrickConfigStore(join(rootDir, 'configs')),
       runtimeStateDir: join(rootDir, 'runtime-state')
     })
-    await host.startService(labId)
+    await host.startService({ brickId: labId, origin: 'installed', version: '0.1.0' })
     for (const brickId of brickIds.filter((id) => id !== labId)) {
       await invokeBrick(host, brickId, 'event-last', {})
     }
@@ -163,7 +163,7 @@ function invokeBrick(host: any, brickId: string, commandId: string, input: unkno
   return host.invocationGateway.submit({
     kind: 'host-command',
     caller: { label: 'resource-lab-host-e2e' },
-    target: { brickId, commandId, origin: 'installed' },
+    target: { brickId, commandId, origin: 'installed', version: '0.1.0' },
     input,
     ...(signal ? { signal } : {})
   })

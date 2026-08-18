@@ -5,7 +5,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 const { openResultWindow, RENDER_CHANNEL } = require('../src/result-window')
 
-test('openResultWindow 在窗口 ready 回调中保留 command requestId', async () => {
+test('openResultWindow 在窗口 ready 后重发相同渲染 payload', async () => {
   const sent = []
   const handlers = new Map()
   const win = {
@@ -38,6 +38,6 @@ test('openResultWindow 在窗口 ready 回调中保留 command requestId', async
 
   const renderMessages = sent.filter((item) => item.channel === RENDER_CHANNEL)
   assert.equal(renderMessages.length, 2)
-  assert.equal(renderMessages[0].payload.requestId, 'cmd-ocr-render')
-  assert.equal(renderMessages[1].payload.requestId, 'cmd-ocr-render')
+  assert.deepEqual(renderMessages[0].payload, payload)
+  assert.deepEqual(renderMessages[1].payload, payload)
 })

@@ -64,7 +64,12 @@
     }
   ],
   "dependencies": {
-    "com.brickly.glm-tools": {
+    "glm": {
+      "target": {
+        "brickId": "com.brickly.glm-tools",
+        "origin": "installed",
+        "version": "0.1.0"
+      },
       "commands": [
         "ocr"
       ],

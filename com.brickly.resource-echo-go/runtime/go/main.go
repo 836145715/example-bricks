@@ -31,8 +31,9 @@ type resourceInput struct {
 	TTLMillis       int64               `json:"ttlMs"`
 	Mask            *byte               `json:"mask"`
 	DelayMillis     int                 `json:"delayMs"`
-	TargetBrickID   string              `json:"targetBrickId"`
+	TargetAlias     string              `json:"targetAlias"`
 	TargetCommandID string              `json:"targetCommandId"`
+	TargetInput     map[string]any      `json:"targetInput"`
 }
 
 type patternReader struct {
@@ -89,14 +90,23 @@ func main() {
 		if err := json.Unmarshal(raw, &input); err != nil {
 			return nil, err
 		}
-		if input.TargetBrickID == "" {
-			return nil, brickly.NewBppError("INVALID_INPUT", "targetBrickId is required")
+		if input.TargetAlias == "" {
+			return nil, brickly.NewBppError("INVALID_INPUT", "targetAlias is required")
 		}
 		if input.TargetCommandID == "" {
 			input.TargetCommandID = "inspect"
 		}
+		dependency, err := ctx.Dependencies().Require(input.TargetAlias)
+		if err != nil {
+			return nil, err
+		}
+		targetInput := input.TargetInput
+		if targetInput == nil {
+			targetInput = make(map[string]any)
+		}
+		targetInput["resource"] = input.Resource
 		var result any
-		err := ctx.Invoke(input.TargetBrickID, input.TargetCommandID, map[string]any{"resource": input.Resource}, &result)
+		err = dependency.Invoke(input.TargetCommandID, targetInput, &result)
 		return result, err
 	})
 

@@ -14,7 +14,8 @@ const brick = new BricklyRuntime({ brickId: BRICK_ID })
 
 const basePorts = {
   resources: brick.resources,
-  invokeDetached: (brickId, commandId, value) => brick.invokeRoot(brickId, commandId, value),
+  invokeDetached: (alias, commandId, value) =>
+    brick.dependencies.require(alias).invokeRoot(commandId, value),
   publish: (event, payload) => brick.events.publish(event, payload),
   openForged: async (ref) => {
     // open 校验格式；读流才校验 capability。伪造 token 应在 text() 阶段被拒。
@@ -48,8 +49,10 @@ brick.onCommand('suite-run', async (ctx, input) => {
   const scenarios = selectScenarios(Array.isArray(input?.ids) ? { ids: input.ids } : { mode })
   const ports = {
     ...basePorts,
-    invokeRoot: (brickId, commandId, value) => ctx.invoke(brickId, commandId, value),
-    invokeRootResource: (brickId, commandId, value) => ctx.invokeResource(brickId, commandId, value)
+    invokeRoot: (alias, commandId, value) =>
+      ctx.dependencies.require(alias).invoke(commandId, value),
+    invokeRootResource: (alias, commandId, value) =>
+      ctx.dependencies.require(alias).invokeResource(commandId, value)
   }
   manager.start({ runId, mode, scenarios, executeScenario: createScenarioExecutor(ports) })
   ctx.onCancel(() => { void manager.cancel(runId) })

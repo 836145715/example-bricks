@@ -47,7 +47,7 @@ plugin.onCommand('analyze-selection', async (ctx) => {
 
 plugin.onCommand('analyze-screenshot', async (ctx) => {
   ctx.progress(0.05, '框选截图并 OCR')
-  const ocrResult = await ctx.invoke('com.brickly.glm-ocr-screenshot', 'capture-text', {
+  const ocrResult = await ctx.dependencies.require('ocr').invoke('capture-text', {
     languageType: 'AUTO',
     probability: false,
     keepScreenshot: false
@@ -81,6 +81,7 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
   const win = await ensurePanelWindow(ctx)
   ensureActive()
   await sendToWindow(win, 'context-pilot:start', {
+    requestId: ctx.requestId,
     source: options.source || 'selection',
     sourceText,
     startedAt: Date.now()
@@ -92,6 +93,7 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
     const markdown = await analyzeWithOpenAI(ctx, sourceText, win, ensureActive)
     ensureActive()
     await sendToWindow(win, 'context-pilot:result', {
+      requestId: ctx.requestId,
       source: options.source || 'selection',
       sourceText,
       markdown,
@@ -106,6 +108,7 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
       throw cancelledError()
     }
     const payload = {
+      requestId: ctx.requestId,
       source: options.source || 'selection',
       sourceText,
       error: errorMessage(error),
@@ -366,11 +369,12 @@ async function analyzeWithOpenAI(ctx, sourceText, win, ensureActive) {
   }
   let streamedMarkdown = ''
   let finalResult = null
-  for await (const event of ctx.invokeStream('com.brickly.openai', 'chat-completions', input)) {
+  for await (const event of ctx.dependencies.require('openai').invokeStream('chat-completions', input)) {
     ensureActive()
     if (event.type === 'chunk' && event.name === 'text' && typeof event.chunk === 'string') {
       streamedMarkdown += event.chunk
       await sendToWindow(win, 'context-pilot:delta', {
+        requestId: ctx.requestId,
         delta: event.chunk,
         markdown: streamedMarkdown,
         updatedAt: Date.now()

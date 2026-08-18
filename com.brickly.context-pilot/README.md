@@ -11,7 +11,7 @@
 - [x] 将 OpenAI 调用从“只翻译”改为“协议化 Markdown 解构”，避免 UI 强依赖不稳定 JSON。
 - [x] 将窗口 UI 改为精简解构面板，分区展示自然翻译、结构直译、句子主干、短语拆解和表达公式。
 - [x] 保留流式输出：模型 chunk 到达后立即追加，UI 按 section 增量渲染。
-- [x] 增加截图 OCR 入口：调用 `com.brickly.glm-ocr-screenshot.capture-text` 识别截图文字，再复用同一套解构面板。
+- [x] 增加截图 OCR 入口：通过 manifest 的 `ocr` 依赖别名调用 `capture-text` 识别截图文字，再复用同一套解构面板。
 - [x] 为截图 OCR 解构注册独立热键：Windows/Linux 默认 `Control+Alt+O`，macOS 默认 `Command+Option+O`。
 - [x] 补充 smoke 测试，覆盖无选区、有选区、剪贴板恢复、截图 OCR、开窗、流式 OpenAI、窗口事件。
 
@@ -46,16 +46,16 @@ ContextPilot 面向经常阅读英文技术文档的学习者。用户可以选�
 6. 调用 `restoreClipboard(ctx, before)` 尝试恢复触发前剪贴板。
 7. 无有效选区时直接返回 `{ analyzed: false, reason }`，不打开窗口、不调用 OpenAI。
 8. 有有效选区时创建或复用浮窗，发送 `context-pilot:start`。
-9. 调用 `ctx.invokeStream('com.brickly.openai', 'chat-completions', input)`。
+9. 通过 manifest 的 `openai` 依赖别名调用 `ctx.dependencies.require('openai').invokeStream('chat-completions', input)`。
 10. 收到流式 chunk 后发送 `context-pilot:delta`。
 11. 最终发送 `context-pilot:result` 或 `context-pilot:error`。
 
-这些窗口消息的 payload 不再由 ContextPilot 生成 `analysisId`。Node SDK 和宿主会自动写入宿主生成的 `requestId`，即本次 `command.invoke.id`；UI 只处理当前 `requestId` 的 start/delta/result/error，避免多次触发时旧模型流污染新面板。
+这些窗口消息的 payload 不再由 ContextPilot 生成 `analysisId`，而是显式复用命令上下文中的 `ctx.requestId`，即本次 `command.invoke.id`。SDK 同时会把它作为可信的 `parentRequestId` 发送给宿主；UI 只处理当前 `requestId` 的 start/delta/result/error，避免多次触发时旧模型流污染新面板。
 
 ### 截图 OCR 解构
 
 1. `analyze-screenshot` 被独立热键触发。
-2. 调用 `ctx.invoke('com.brickly.glm-ocr-screenshot', 'capture-text', ...)`。
+2. 通过 manifest 的 `ocr` 依赖别名调用 `ctx.dependencies.require('ocr').invoke('capture-text', ...)`。
 3. `capture-text` 弹出系统截图框选交互，调用 GLM OCR 后返回 `wordsText`。
 4. `normalizeOcrText(ocrResult)` 提取文本；如果为空，返回 `{ analyzed: false, reason: 'ocr-empty-text' }`，不开窗、不调用 OpenAI。
 5. 有文本时复用 `analyzeSourceText`，打开同一个 ContextPilot 面板并调用 OpenAI 输出协议化 Markdown。
@@ -130,10 +130,10 @@ OK: context-pilot smoke passed
 - 无选区时返回 `{ analyzed: false }`。
 - 无选区时不开窗、不调用 OpenAI。
 - 有选区时恢复旧剪贴板。
-- 截图 OCR 命令会调用 `com.brickly.glm-ocr-screenshot.capture-text`。
+- 截图 OCR 命令会调用 manifest 中固定版本的 `ocr` 依赖别名。
 - OCR 为空时不开窗、不调用 OpenAI。
 - 有选区时创建透明无边框窗口。
-- 调用 `com.brickly.openai/chat-completions` 且使用 stream。
+- 通过 manifest 中固定版本的 `openai` 依赖别名调用 `chat-completions` 且使用 stream。
 - prompt 使用协议化 section。
 - UI 收到 `context-pilot:start/delta/result`，且消息使用宿主 `requestId` 做轮次隔离。
 - UI 关闭消息会触发窗口关闭。

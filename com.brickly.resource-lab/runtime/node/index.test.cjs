@@ -53,14 +53,15 @@ test('manifest 不声明资源权限且依赖三种 Echo Brick', () => {
   assert.equal(manifest.permissions.some((permission) => permission.startsWith('resource.')), false)
   assert.ok(manifest.permissions.includes('event.publish:resource-lab:probe'))
   assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
-    'com.brickly.resource-echo-go',
-    'com.brickly.resource-echo-node',
-    'com.brickly.resource-echo-python'
+    'go_echo',
+    'node_echo',
+    'python_echo'
   ])
   assert.equal(manifest.ui.type, 'webview')
   assert.equal(manifest.lifecycle?.state, 'stateful')
-  assert.equal(manifest.lifecycle?.service, undefined)
-  for (const brickId of Object.keys(manifest.dependencies)) {
+  assert.deepEqual(manifest.lifecycle?.service, { autoStart: false, restart: 'none' })
+  for (const dependency of Object.values(manifest.dependencies)) {
+    const brickId = dependency.target.brickId
     const echoManifest = require(path.join(__dirname, '..', '..', '..', brickId, 'manifest.json'))
     assert.ok(echoManifest.subscriptions.some((item) => item.event === 'resource-lab:probe'))
     assert.ok(echoManifest.triggers.some((item) => item.type === 'event' && item.event === 'resource-lab:probe'))
@@ -98,13 +99,18 @@ function loadRuntime(t) {
       this.events = {
         publish: async (event, payload) => (published.push({ event, payload }), { delivered: 1 })
       }
+      this.dependencies = {
+        require: () => ({
+          invokeRoot: async () => ({}),
+          invoke: async () => ({}),
+          invokeResource: async () => fakeHandle(Buffer.from('{}'))
+        })
+      }
     }
     onCommand(id, handler) { commands.set(id, handler) }
     onShutdown(handler) { this.shutdown = handler }
     onReady(handler) { this.ready = handler }
     start() { this.ready?.() }
-    invokeRoot() { return Promise.resolve({}) }
-    invokeRootResource() { return Promise.resolve(fakeHandle(Buffer.from('{}'))) }
   }
 
   const originalLoad = Module._load

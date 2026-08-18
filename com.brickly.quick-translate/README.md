@@ -7,12 +7,12 @@
 - 通过 manifest 注册 `translate-selection` 命令和默认热键：双击 `Ctrl`。
 - 触发后模拟 `Ctrl+C`，通过剪贴板前后快照判断当前是否存在新的文本选区。
 - 仅在检测到新的文本选区时翻译；默认提示词将英文翻译为自然、准确、简洁的简体中文。
-- 调用 `com.brickly.openai` 的 `chat-completions` 命令，并使用流式输出。
+- 通过 manifest 中固定版本的 `openai` 依赖别名调用 `chat-completions` 命令，并使用流式输出。
 - 在鼠标附近打开或复用无边框、透明背景、置顶的翻译浮窗。
 - 浮窗支持拖拽、关闭、复制译文；译文流式追加，窗口高度随内容自适应。
 - 检测完选区后会尝试恢复触发前的剪贴板内容，避免覆盖用户原剪贴板。
 - 通过 manifest 注册 `translate-screenshot-overlay` 命令和默认热键：Windows/Linux `Ctrl+Alt+T`，macOS `Command+Option+T`。
-- 截图覆盖翻译会框选屏幕区域，调用 `com.brickly.glm-ocr-screenshot/capture-text` 获取 OCR 文本块和截图屏幕坐标，再调用 OpenAI 批量翻译。
+- 截图覆盖翻译会框选屏幕区域，通过 manifest 中固定版本的 `ocr` 依赖别名调用 `capture-text` 获取 OCR 文本块和截图屏幕坐标，再调用 OpenAI 批量翻译。
 - 运行时使用 `sharp` 生成覆盖图：先用截图周围背景柔化遮盖原文字，再把中文译文绘制到对应 OCR 文本块位置。
 - 覆盖图以透明、无边框、置顶窗口贴到原框选区域，按 `Esc` 或右键关闭。
 
@@ -33,16 +33,16 @@
    - 通过鼠标位置与最近屏幕工作区计算浮窗位置。
    - 打开或复用翻译窗口。
    - 向 UI 发送 `translate:start`。
-8. 调用 `ctx.invokeStream('com.brickly.openai', 'chat-completions', input)`：
+8. 通过 manifest 的 `openai` 依赖别名调用 `ctx.dependencies.require('openai').invokeStream('chat-completions', input)`：
    - 收到文本 chunk 时累积译文并发送 `translate:delta`。
    - 收到 result 时提取最终译文并发送 `translate:result`。
    - 收到错误或异常时发送 `translate:error` 并向上抛出。
 
 `translate-screenshot-overlay` 命令流程：
 
-1. 调用 `com.brickly.glm-ocr-screenshot/capture-text`，传入 `keepScreenshot: true`，让 OCR Brick 保留截图文件并返回 `bounds`。
+1. 通过 manifest 的 `ocr` 依赖别名调用 `ctx.dependencies.require('ocr').invoke('capture-text', ...)`，传入 `keepScreenshot: true`，让 OCR Brick 保留截图文件并返回 `bounds`。
 2. 从 `wordsResult[].words` 和 `wordsResult[].location` 提取 OCR 文本块；若无文本块，返回 `{ translated: false, reason: "ocr-empty" }`。
-3. 调用 `com.brickly.openai/chat-completions`，要求返回同长度 JSON 数组，字段为 `index` 和 `translatedText`。
+3. 通过 manifest 的 `openai` 依赖别名调用 `chat-completions`，要求返回同长度 JSON 数组，字段为 `index` 和 `translatedText`。
 4. 使用 `runtime/node/src/screenshot-overlay-renderer.js` 基于 `sharp` 输出覆盖 PNG。
 5. 使用 `runtime/node/src/screenshot-overlay-window.js` 创建与 `bounds` 一致的透明置顶窗口，并向 `ui/overlay.html` 发送覆盖图路径。
 6. 覆盖窗口收到 `quick-translate-overlay:close` 后关闭；UI 侧按 `Esc` 或右键会发送该消息。
@@ -56,7 +56,7 @@ UI 侧 `ui/app.js` 监听以下事件：
 
 ## 关键文件说明
 
-- `manifest.json`：声明 Brick 元信息、权限、热键、命令、运行时入口，以及对 `com.brickly.openai/chat-completions` 和 `com.brickly.glm-ocr-screenshot/capture-text` 的依赖。
+- `manifest.json`：声明 Brick 元信息、权限、热键、命令、运行时入口，以及带固定来源和版本的 `openai`、`ocr` 依赖别名。
 - `runtime/node/index.js`：Node 运行时入口，包含剪贴板检测、窗口创建/复用、屏幕定位、OpenAI 流式调用、窗口消息转发与关闭逻辑。
 - `runtime/node/src/screenshot-overlay-renderer.js`：截图覆盖翻译的图片渲染模块，负责用 `sharp` 抹除原文字区域并绘制中文译文。
 - `runtime/node/src/screenshot-overlay-window.js`：截图覆盖层窗口模块，负责按截图 `bounds` 创建透明置顶窗口、发送图片路径和处理关闭消息。
@@ -77,9 +77,9 @@ UI 侧 `ui/app.js` 监听以下事件：
 - `host.platform.input.keyboardTap('c', 'control')`：模拟复制当前选区。
 - `host.platform.screen.getCursorScreenPoint()`：获取当前鼠标位置，用于浮窗定位。
 - `host.platform.screen.getDisplayNearestPoint(point)`：获取最近显示器工作区，避免浮窗超出屏幕。
-- `ctx.invokeStream('com.brickly.openai', 'chat-completions', input)`：调用 OpenAI Brick 的 Chat Completions 流式接口。
-- `ctx.invoke('com.brickly.glm-ocr-screenshot', 'capture-text', input)`：截图并返回 OCR 文本、OCR 明细、截图路径和框选区域 `bounds`。
-- `ctx.invoke('com.brickly.openai', 'chat-completions', input)`：截图翻译路径使用非流式调用，请求模型返回 JSON 翻译数组。
+- `ctx.dependencies.require('openai').invokeStream('chat-completions', input)`：调用 OpenAI Brick 的 Chat Completions 流式接口。
+- `ctx.dependencies.require('ocr').invoke('capture-text', input)`：截图并返回 OCR 文本、OCR 明细、截图路径和框选区域 `bounds`。
+- `ctx.dependencies.require('openai').invoke('chat-completions', input)`：截图翻译路径使用非流式调用，请求模型返回 JSON 翻译数组。
 
 运行时向浮窗发送的内部事件为：
 
@@ -151,7 +151,7 @@ OK: quick-translate smoke passed
 - 无选区时不开窗、不调用 OpenAI。
 - 有选区时恢复旧剪贴板。
 - 有选区时创建透明无边框窗口。
-- 调用 `com.brickly.openai/chat-completions` 且使用 stream。
+- 通过 `openai` 依赖别名调用 `chat-completions` 且使用 stream。
 - 向 UI 发送 `translate:start`、`translate:delta`、`translate:result`。
 - UI 关闭消息会触发窗口关闭。
 - 截图覆盖翻译会调用 GLM OCR Brick、调用 OpenAI JSON 翻译、生成覆盖图片，并按截图 `bounds` 创建透明置顶 overlay。

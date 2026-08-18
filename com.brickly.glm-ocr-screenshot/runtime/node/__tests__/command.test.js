@@ -26,11 +26,15 @@ test('captureText 框选截图后返回 OCR 文本且默认清理临时截图', 
         }
       }
     },
-    invoke: async (brickId, commandId, input) => {
-      calls.push({ type: 'invoke', brickId, commandId, input })
-      return {
-        words_result: [{ words: 'Hello world' }, { words: 'from GLM OCR' }]
-      }
+    dependencies: {
+      require: (alias) => ({
+        invoke: async (commandId, input) => {
+          calls.push({ type: 'invoke', alias, commandId, input })
+          return {
+            words_result: [{ words: 'Hello world' }, { words: 'from GLM OCR' }]
+          }
+        }
+      })
     }
   }
 
@@ -40,8 +44,8 @@ test('captureText 框选截图后返回 OCR 文本且默认清理临时截图', 
   assert.equal(result.wordsText, 'Hello world\nfrom GLM OCR')
   assert.deepEqual(result.wordsResult, [{ words: 'Hello world' }, { words: 'from GLM OCR' }])
   assert.equal(
-    calls.find((item) => item.type === 'invoke').brickId,
-    'com.brickly.glm-tools'
+    calls.find((item) => item.type === 'invoke').alias,
+    'glm'
   )
   assert.equal(calls.find((item) => item.type === 'invoke').commandId, 'ocr')
   assert.equal(calls.find((item) => item.type === 'invoke').input.languageType, 'ENG')
