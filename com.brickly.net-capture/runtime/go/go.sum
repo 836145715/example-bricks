@@ -1,3 +1,5 @@
+github.com/836145715/brickly-sdk-go v0.5.0 h1:BgnfjoH2TZPywGhPfa4oORvnu1x4BFTEBlEVZ7edZyc=
+github.com/836145715/brickly-sdk-go v0.5.0/go.mod h1:SVItZvgC9XzEGTPe65F7e225gPo1rWnMWdFzMMg/y08=
 github.com/Trisia/gosysproxy v1.1.0 h1:rBU1mazMXLsZiiaAHXtRoDPt2gzWdA6uxjaLskzaoAA=
 github.com/Trisia/gosysproxy v1.1.0/go.mod h1:PTPPgpRpyTJEL/FMxEE2OcQcGNbUm961xZcgihwraZM=
 github.com/andybalholm/brotli v1.1.1 h1:PR2pgnyFznKEugtsUo0xLdDop5SKXd5Qf5ysW+7XdTA=
@@ -66,5 +68,3 @@ google.golang.org/protobuf v1.36.1 h1:yBPeRvTftaleIgM3PZ/WBIZ7XM/eEYAaEyCwvyjq/g
 google.golang.org/protobuf v1.36.1/go.mod h1:9fA7Ob0pmnwhb644+1+CVWFRbNajQ6iRojtC/QF5bRE=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-github.com/836145715/brickly-sdk-go v0.3.1 h1:p+rV0tzflo2eCbGTAUfVd/0m9P/atkmjPSP16TEnTPs=
-github.com/836145715/brickly-sdk-go v0.3.1/go.mod h1:SVItZvgC9XzEGTPe65F7e225gPo1rWnMWdFzMMg/y08=

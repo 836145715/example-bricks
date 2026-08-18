@@ -45,8 +45,8 @@ for (const brickId of fs.readdirSync(bricksRoot)) {
     }
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
     const version = packageJson.dependencies && packageJson.dependencies['@syllm/brickly-sdk']
-    if (version !== '^0.3.1') {
-      failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.3.1`)
+    if (version !== '^0.5.0') {
+      failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.5.0`)
     }
   }
 }
