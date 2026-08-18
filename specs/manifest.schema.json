@@ -4,13 +4,7 @@
   "title": "Brick Manifest",
   "description": "Brickly 统一 Brick 产物的 manifest.json JSON Schema。",
   "type": "object",
-  "required": [
-    "manifestVersion",
-    "kind",
-    "id",
-    "version",
-    "name"
-  ],
+  "required": ["manifestVersion", "kind", "id", "version", "name"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -26,27 +20,18 @@
       "description": "Brick 全局唯一 ID，反向域名风格。仅允许小写字母、数字、点、连字符。建议格式：<tld>.<author>.<brick>",
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$",
-      "examples": [
-        "com.acme.image-resizer",
-        "io.github.alice.pdf-tools"
-      ]
+      "examples": ["com.acme.image-resizer", "io.github.alice.pdf-tools"]
     },
     "version": {
       "description": "Brick 语义化版本号（SemVer 2.0）。同一 id 不允许重复发布相同 version。",
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
-      "examples": [
-        "1.0.0",
-        "2.3.1-beta.1"
-      ]
+      "examples": ["1.0.0", "2.3.1-beta.1"]
     },
     "apiVersion": {
       "description": "Brick 依赖的平台 API 版本，使用 SemVer range。平台启动时用此字段判断是否兼容。",
       "type": "string",
-      "examples": [
-        ">=1.1.0 <2.0.0",
-        "^1.1.0"
-      ]
+      "examples": [">=1.1.0 <2.0.0", "^1.1.0"]
     },
     "name": {
       "description": "Brick 展示名称（用户可见）。建议 30 字以内，可使用本地化对象。",
@@ -65,9 +50,7 @@
               "maxLength": 60
             }
           },
-          "required": [
-            "en"
-          ],
+          "required": ["en"],
           "additionalProperties": false
         }
       ]
@@ -94,17 +77,12 @@
     "icon": {
       "description": "Brick 图标相对路径（推荐 PNG/SVG，不超过 256x256）。",
       "type": "string",
-      "examples": [
-        "icon.png",
-        "assets/icon.svg"
-      ]
+      "examples": ["icon.png", "assets/icon.svg"]
     },
     "author": {
       "description": "作者信息，publicKey 用于 manifest.sig 签名校验。",
       "type": "object",
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -128,12 +106,7 @@
     },
     "license": {
       "type": "string",
-      "examples": [
-        "MIT",
-        "Apache-2.0",
-        "GPL-3.0",
-        "Proprietary"
-      ]
+      "examples": ["MIT", "Apache-2.0", "GPL-3.0", "Proprietary"]
     },
     "homepage": {
       "type": "string",
@@ -145,21 +118,14 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "git",
-            "svn",
-            "mercurial"
-          ]
+          "enum": ["git", "svn", "mercurial"]
         },
         "url": {
           "type": "string",
           "format": "uri"
         }
       },
-      "required": [
-        "type",
-        "url"
-      ]
+      "required": ["type", "url"]
     },
     "keywords": {
       "description": "搜索关键词，用于市场检索。",
@@ -199,20 +165,12 @@
         {
           "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。",
           "type": "object",
-          "required": [
-            "type",
-            "platforms",
-            "entry"
-          ],
+          "required": ["type", "platforms", "entry"],
           "additionalProperties": false,
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "python",
-                "node",
-                "native"
-              ],
+              "enum": ["python", "node", "native"],
               "description": "python: 源码 + uv venv；node: 使用 Electron 自带 Node 以子进程方式启动；native: 预编译二进制（Go/Rust/.NET 等）。"
             },
             "platforms": {
@@ -256,9 +214,7 @@
             "python": {
               "description": "type=python 专用：PEP 440 版本区间，例如 \">=3.10,<3.13\"。Brickly 用 uv 装区间内最高稳定版到共享缓存。",
               "type": "string",
-              "examples": [
-                ">=3.10,<3.13"
-              ]
+              "examples": [">=3.10,<3.13"]
             },
             "dependencies": {
               "description": "type=python 专用：依赖来源（可选）。省略时若根目录存在 requirements.txt，则自动按该文件安装。requirements 走 `uv pip install -r`，pyproject 走 `uv sync`，inline 直接列依赖 spec（不推荐新 Brick 使用）。",
@@ -266,10 +222,7 @@
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": [
-                    "kind",
-                    "path"
-                  ],
+                  "required": ["kind", "path"],
                   "properties": {
                     "kind": {
                       "const": "requirements"
@@ -283,10 +236,7 @@
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": [
-                    "kind",
-                    "path"
-                  ],
+                  "required": ["kind", "path"],
                   "properties": {
                     "kind": {
                       "const": "pyproject"
@@ -300,10 +250,7 @@
                 {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": [
-                    "kind",
-                    "specs"
-                  ],
+                  "required": ["kind", "specs"],
                   "properties": {
                     "kind": {
                       "const": "inline"
@@ -382,9 +329,7 @@
                 }
               },
               "then": {
-                "required": [
-                  "python"
-                ]
+                "required": ["python"]
               }
             }
           ]
@@ -398,13 +343,40 @@
       "description": "工具生命周期：state 表达无状态/有状态；service 仅 stateful 下表示宿主持有的后台服务。详见 docs/superpowers/specs/2026-07-22-runtime-lifecycle-simplification-constitution.md。",
       "type": "object",
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": ["service"]
+          },
+          "then": {
+            "required": ["state"],
+            "properties": {
+              "state": {
+                "const": "stateful"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["state"],
+            "properties": {
+              "state": {
+                "const": "stateful"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": ["idleTimeoutMs"]
+            }
+          }
+        }
+      ],
       "properties": {
         "state": {
           "type": "string",
-          "enum": [
-            "stateless",
-            "stateful"
-          ],
+          "enum": ["stateless", "stateful"],
           "default": "stateless",
           "description": "stateless：无状态，可按 brick/profile 复用进程并空闲回收；stateful：有状态，跟使用会话或服务。"
         },
@@ -425,10 +397,7 @@
             },
             "restart": {
               "type": "string",
-              "enum": [
-                "none",
-                "on-failure"
-              ],
+              "enum": ["none", "on-failure"],
               "default": "on-failure",
               "description": "非主动停止时的异常重启策略。"
             },
@@ -455,9 +424,7 @@
       "description": "Brick 多环境 Profile 配置声明。字段复用 io.inputs socket 结构，平台在启动 runtime 时通过 host.hello.config 注入选中 Profile。",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "fields"
-      ],
+      "required": ["fields"],
       "properties": {
         "required": {
           "type": "boolean",
@@ -480,23 +447,14 @@
     "trustLevel": {
       "description": "Brick 信任等级。**作者不应在 manifest 中手动设置**，由 Registry/平台在审核流程中签注（写入 audit 字段后，加载时映射为对应等级）。verified 享受免权限弹窗 + worker 高性能跑法；unverified 走全沙箱与权限审批。",
       "type": "string",
-      "enum": [
-        "verified",
-        "community",
-        "unverified"
-      ],
+      "enum": ["verified", "community", "unverified"],
       "default": "unverified"
     },
     "audit": {
       "description": "审核签注。由官方 Registry 在审核通过后写入；客户端加载时校验签名，通过则将 trustLevel 升级为 verified。作者无法伪造（签名密钥仅 Registry 持有）。",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "registryId",
-        "reviewedAt",
-        "reportHash",
-        "signature"
-      ],
+      "required": ["registryId", "reviewedAt", "reportHash", "signature"],
       "properties": {
         "registryId": {
           "type": "string",
@@ -555,9 +513,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "event"
-        ],
+        "required": ["event"],
         "properties": {
           "event": {
             "type": "string",
@@ -604,17 +560,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "type"
-        ],
+        "required": ["type"],
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "host-start",
-              "manual",
-              "event"
-            ]
+            "enum": ["host-start", "manual", "event"]
           },
           "event": {
             "type": "string",
@@ -629,14 +579,10 @@
                   "const": "event"
                 }
               },
-              "required": [
-                "type"
-              ]
+              "required": ["type"]
             },
             "then": {
-              "required": [
-                "event"
-              ]
+              "required": ["event"]
             }
           }
         ]
@@ -650,10 +596,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "name"],
-        "anyOf": [
-          { "required": ["commandId"] },
-          { "required": ["event"] }
-        ],
+        "anyOf": [{ "required": ["commandId"] }, { "required": ["event"] }],
         "properties": {
           "id": {
             "type": "string",
@@ -685,9 +628,7 @@
                     "maxLength": 60
                   }
                 },
-                "required": [
-                  "en"
-                ],
+                "required": ["en"],
                 "additionalProperties": false
               }
             ]
@@ -739,10 +680,7 @@
           "description": "Schema-Driven UI：作者只声明字段，平台用 shadcn/ui 渲染原生组件。视觉统一、AI 友好，覆盖 80% 场景。",
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "type",
-            "path"
-          ],
+          "required": ["type", "path"],
           "properties": {
             "type": {
               "const": "schema"
@@ -757,10 +695,7 @@
           "description": "Webview：基于 Electron BrowserWindow 承载自定义 UI。纯 UI 与带 runtime 的 Brick 体验窗均注入受限的 window.brickly（平台 preload/brick.js）。window.AIBricks 仅平台主窗口使用，不注入 Brick 体验窗。可选顶层 manifest.preload 指定附加 preload（相对 Brick 根目录），在平台 preload 之后链式 require；路径须位于 rootDir 内。",
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "type",
-            "entry"
-          ],
+          "required": ["type", "entry"],
           "properties": {
             "type": {
               "const": "webview"
@@ -799,39 +734,25 @@
             },
             "titleBar": {
               "type": "string",
-              "enum": [
-                "system",
-                "custom"
-              ],
+              "enum": ["system", "custom"],
               "default": "system",
               "description": "system：系统标题栏（默认）。custom：Brick 自绘标题栏；平台内部使用无边框窗口，并注入 window.brickly.window 控制 API。"
             },
             "windowPolicy": {
               "type": "string",
-              "enum": [
-                "single",
-                "multi"
-              ],
+              "enum": ["single", "multi"],
               "default": "single",
               "description": "体验窗开窗策略。single（默认）：同一 Brick 再开时聚焦已有窗；multi：每次打开新建窗口（适合 JSON 格式化等需要并列对比的工具）。"
             },
             "devTools": {
               "type": "string",
-              "enum": [
-                "always",
-                "debug-only",
-                "never"
-              ],
+              "enum": ["always", "debug-only", "never"],
               "default": "debug-only",
               "description": "DevTools 开启策略。debug-only 仅在平台开发模式下可打开。"
             },
             "theme": {
               "type": "string",
-              "enum": [
-                "auto",
-                "light",
-                "dark"
-              ],
+              "enum": ["auto", "light", "dark"],
               "default": "auto"
             }
           }
@@ -840,9 +761,7 @@
           "description": "纯后台 Brick，无 UI。仅供 LLM Agent / DAG 画布 / 其他 Brick 以 commands 形式调用。",
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "type"
-          ],
+          "required": ["type"],
           "properties": {
             "type": {
               "const": "none"
@@ -860,46 +779,56 @@
       }
     },
     "dependencies": {
-      "description": "声明当前 Brick 依赖的其它 Brick，也是跨 Brick 调用的授权来源。key 为目标 Brick id，value 可为版本字符串或包含 version/commands/optional/note 的对象。commands 支持具体命令 id，也支持 * 表示允许调用目标 Brick 的全部可见命令；省略或为空不授权命令调用。",
+      "description": "声明当前 Brick 的依赖别名绑定，也是跨 Brick 调用的授权来源。key 为调用代码使用的稳定别名，target 必须是精确 BrickRef。commands 支持具体命令 id，也支持 * 表示允许调用目标 Brick 的全部可见命令；省略或为空不授权命令调用。",
       "type": "object",
       "patternProperties": {
-        "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
+        "^[a-z][a-z0-9_-]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": {
               "type": "object",
               "additionalProperties": false,
+              "required": ["brickId", "origin", "version"],
               "properties": {
+                "brickId": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$"
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": ["installed", "development", "review"]
+                },
                 "version": {
-                  "type": "string"
-                },
-                "commands": {
-                  "type": "array",
-                  "uniqueItems": true,
-                  "items": {
-                    "type": "string",
-                    "anyOf": [
-                      {
-                        "const": "*"
-                      },
-                      {
-                        "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
-                      }
-                    ]
-                  }
-                },
-                "optional": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "note": {
-                  "type": "string"
+                  "type": "string",
+                  "minLength": 1
                 }
               }
+            },
+            "commands": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "anyOf": [
+                  {
+                    "const": "*"
+                  },
+                  {
+                    "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+                  }
+                ]
+              }
+            },
+            "optional": {
+              "type": "boolean",
+              "default": false
+            },
+            "note": {
+              "type": "string"
             }
-          ]
+          }
         }
       },
       "additionalProperties": false
@@ -908,9 +837,7 @@
       "description": "声明当前 Brick 向宿主快速搜索贡献的 provider。工具只返回结构化搜索结果；宿主负责聚合、排序、超时、激活和 UI 展示。",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "providers"
-      ],
+      "required": ["providers"],
       "properties": {
         "providers": {
           "type": "array",
@@ -940,28 +867,19 @@
           "properties": {
             "model": {
               "type": "string",
-              "enum": [
-                "free",
-                "paid",
-                "freemium",
-                "trial"
-              ]
+              "enum": ["free", "paid", "freemium", "trial"]
             },
             "priceUsd": {
               "type": "number",
               "minimum": 0
             }
           },
-          "required": [
-            "model"
-          ]
+          "required": ["model"]
         },
         "minPlatformVersion": {
           "type": "string",
           "description": "AI-Bricks 宿主最低版本要求。",
-          "examples": [
-            ">=0.5.0"
-          ]
+          "examples": [">=0.5.0"]
         }
       }
     },
@@ -1025,9 +943,7 @@
                   "maxLength": 60
                 }
               },
-              "required": [
-                "en"
-              ],
+              "required": ["en"],
               "additionalProperties": false
             }
           ]
@@ -1083,11 +999,7 @@
     },
     "quickSearchProviderAction": {
       "type": "object",
-      "required": [
-        "id",
-        "title",
-        "command"
-      ],
+      "required": ["id", "title", "command"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -1111,9 +1023,7 @@
                   "maxLength": 60
                 }
               },
-              "required": [
-                "en"
-              ],
+              "required": ["en"],
               "additionalProperties": false
             }
           ]
@@ -1151,10 +1061,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "kind",
-            "accelerator"
-          ],
+          "required": ["kind", "accelerator"],
           "properties": {
             "kind": {
               "const": "accelerator"
@@ -1163,34 +1070,21 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 120,
-              "examples": [
-                "Control+Shift+K",
-                "Command+Shift+K"
-              ]
+              "examples": ["Control+Shift+K", "Command+Shift+K"]
             }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "kind",
-            "key",
-            "gesture"
-          ],
+          "required": ["kind", "key", "gesture"],
           "properties": {
             "kind": {
               "const": "key-gesture"
             },
             "key": {
               "type": "string",
-              "enum": [
-                "Control",
-                "Shift",
-                "Alt",
-                "Meta",
-                "CapsLock"
-              ]
+              "enum": ["Control", "Shift", "Alt", "Meta", "CapsLock"]
             },
             "gesture": {
               "const": "double-tap"
@@ -1207,33 +1101,19 @@
     "command": {
       "description": "Brick 暴露的单个命令定义。",
       "type": "object",
-      "required": [
-        "id",
-        "name",
-        "io"
-      ],
+      "required": ["id", "name", "io"],
       "additionalProperties": false,
       "properties": {
         "id": {
           "description": "命令在 Brick 内部的唯一标识，仅小写字母数字与连字符/下划线。完整调用 ID = <brickId>.<commandId>。",
           "type": "string",
           "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
-          "examples": [
-            "extract-text",
-            "merge",
-            "ocr",
-            "format"
-          ]
+          "examples": ["extract-text", "merge", "ocr", "format"]
         },
         "execution": {
           "description": "同一实例内该命令的并发策略（不属于 lifecycle）。默认 queue。",
           "type": "string",
-          "enum": [
-            "queue",
-            "parallel",
-            "reject",
-            "replace"
-          ],
+          "enum": ["queue", "parallel", "reject", "replace"],
           "default": "queue"
         },
         "name": {
@@ -1253,9 +1133,7 @@
                   "maxLength": 60
                 }
               },
-              "required": [
-                "en"
-              ],
+              "required": ["en"],
               "additionalProperties": false
             }
           ]
@@ -1311,17 +1189,11 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "rule",
-                  "members"
-                ],
+                "required": ["rule", "members"],
                 "properties": {
                   "rule": {
                     "type": "string",
-                    "enum": [
-                      "oneOf",
-                      "anyOf"
-                    ],
+                    "enum": ["oneOf", "anyOf"],
                     "description": "oneOf=恰好一个，anyOf=至少一个。配对字段（要么全填要么全不填）请直接合并成 object 字段，不在此处建模。"
                   },
                   "members": {
@@ -1381,9 +1253,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "input"
-            ],
+            "required": ["input"],
             "properties": {
               "title": {
                 "type": "string"
@@ -1412,11 +1282,7 @@
             },
             "requireApproval": {
               "type": "string",
-              "enum": [
-                "never",
-                "high-risk",
-                "always"
-              ],
+              "enum": ["never", "high-risk", "always"],
               "default": "high-risk",
               "description": "LLM 调用本命令时是否需要用户确认。high-risk 表示当 permissions 含 fs.write/os.exec/net.* 等高危项时弹窗确认；always 表示每次都弹；never 仅在审核通过且明确无副作用的查询类命令使用。"
             },
@@ -1448,15 +1314,8 @@
               },
               "description": "工具标签，用于 LLM tool 检索/过滤（当工具数量很多时，编排器可按标签做相关性筛选，避免上下文爆炸）。",
               "examples": [
-                [
-                  "pdf",
-                  "document"
-                ],
-                [
-                  "sql",
-                  "database",
-                  "readonly"
-                ]
+                ["pdf", "document"],
+                ["sql", "database", "readonly"]
               ]
             },
             "rateLimit": {
@@ -1480,9 +1339,7 @@
     },
     "profileEnvVar": {
       "type": "object",
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -1511,10 +1368,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "name",
-          "type"
-        ],
+        "required": ["name", "type"],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -1582,23 +1436,15 @@
             "items": {
               "oneOf": [
                 {
-                  "type": [
-                    "string",
-                    "number"
-                  ]
+                  "type": ["string", "number"]
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "value"
-                  ],
+                  "required": ["value"],
                   "additionalProperties": false,
                   "properties": {
                     "value": {
-                      "type": [
-                        "string",
-                        "number"
-                      ]
+                      "type": ["string", "number"]
                     },
                     "label": {
                       "type": "string"
@@ -1623,10 +1469,7 @@
           },
           "control": {
             "type": "string",
-            "enum": [
-              "input",
-              "slider"
-            ],
+            "enum": ["input", "slider"],
             "description": "UI 提示：number 字段的控件形态。精确值如端口建议使用 input。"
           },
           "multiline": {
@@ -1649,11 +1492,7 @@
           },
           "inject": {
             "type": "string",
-            "enum": [
-              "config",
-              "env",
-              "both"
-            ],
+            "enum": ["config", "env", "both"],
             "description": "Profile 配置注入目标。config=仅 host.hello.config，env=仅环境变量，both=两者都注入。未声明时普通字段默认 config，带 env 字段默认 both。"
           },
           "accept": {
