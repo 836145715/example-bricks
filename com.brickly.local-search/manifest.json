@@ -39,13 +39,7 @@
     }
   },
   "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": false,
-      "restart": "on-failure",
-      "maxAttempts": 3,
-      "backoffMs": 2000
-    }
+    "state": "stateful"
   },
   "permissions": [
     "fs.read",
@@ -54,9 +48,13 @@
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
+    "titleBar": "custom",
+    "windowPolicy": "single",
     "size": {
-      "width": 1040,
-      "height": 680,
+      "width": 1100,
+      "height": 720,
+      "minWidth": 920,
+      "minHeight": 560,
       "resizable": true
     },
     "devTools": "debug-only",

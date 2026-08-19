@@ -22,10 +22,21 @@ import {
 } from 'lucide-react'
 import { renderAsync } from 'docx-preview'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  checkHealth,
+  copyText,
+  getFileIcon,
+  hasBrickly,
+  openPath,
+  previewFile,
+  searchFiles,
+  showInFolder
+} from './bridge'
+import { TitleBar } from './components/TitleBar'
 import type { HealthStatus, PreviewResult, SearchCategory, SearchItem, SearchResult, SearchSort } from './types'
 
 const categories: Array<{ id: SearchCategory; label: string; icon: typeof Search; color: string }> = [
-  { id: 'all', label: '全部', icon: Search, color: '#6366f1' },
+  { id: 'all', label: '全部', icon: Search, color: '#2f9d8a' },
   { id: 'file', label: '文件', icon: File, color: '#94a3b8' },
   { id: 'folder', label: '文件夹', icon: Folder, color: '#eab308' },
   { id: 'excel', label: 'EXCEL', icon: FileSpreadsheet, color: '#10b981' },
@@ -63,7 +74,6 @@ const emptyResult: SearchResult = {
 }
 
 export function App() {
-  const api = window.localSearch
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<SearchCategory>('all')
   const [sort, setSort] = useState<SearchSort>('date_desc')
@@ -101,12 +111,12 @@ export function App() {
   }, [selected, result.items, selectedPath])
 
   const runHealth = useCallback(async () => {
-    if (!api) {
+    if (!hasBrickly()) {
       setNotice('本地搜索接口未注入')
       return
     }
     try {
-      const next = await api.health()
+      const next = await checkHealth()
       setHealth(next)
       if (!next.ok) {
         setNotice(next.everythingError || next.error || 'Everything 未就绪')
@@ -116,11 +126,11 @@ export function App() {
     } catch (error) {
       setNotice(errorMessage(error))
     }
-  }, [api])
+  }, [])
 
   const runSearch = useCallback(
     async (nextPage: number) => {
-      if (!api) {
+      if (!hasBrickly()) {
         setNotice('本地搜索接口未注入')
         return
       }
@@ -128,7 +138,7 @@ export function App() {
       requestRef.current = requestId
       setLoading(true)
       try {
-        const next = await api.search({
+        const next = await searchFiles({
           query,
           category,
           offset: nextPage * limit,
@@ -150,7 +160,7 @@ export function App() {
         }
       }
     },
-    [api, category, limit, query, sort]
+    [category, limit, query, sort]
   )
 
   useEffect(() => {
@@ -166,12 +176,12 @@ export function App() {
   }, [category, query, sort, runSearch])
 
   useEffect(() => {
-    if (!api?.getFileIcon || !selectedPath) {
+    if (!hasBrickly() || !selectedPath) {
       setSelectedIcon('')
       return
     }
     let live = true
-    api.getFileIcon(selectedPath)
+    getFileIcon(selectedPath)
       .then((value) => {
         if (live) setSelectedIcon(value || '')
       })
@@ -179,44 +189,43 @@ export function App() {
     return () => {
       live = false
     }
-  }, [api, selectedPath])
+  }, [selectedPath])
 
-  // 快捷操作核心函数封装
   const openSelected = useCallback(async (path?: string) => {
     const targetPath = path || selectedPath
-    if (!api || !targetPath) return
+    if (!hasBrickly() || !targetPath) return
     try {
-      await api.openPath(targetPath)
+      await openPath(targetPath)
       setNotice('已打开文件')
     } catch (error) {
       setNotice(errorMessage(error))
     }
-  }, [api, selectedPath])
+  }, [selectedPath])
 
   const showSelected = useCallback(async (path?: string) => {
     const targetPath = path || selectedPath
-    if (!api || !targetPath) return
+    if (!hasBrickly() || !targetPath) return
     try {
-      await api.showInFolder(targetPath)
+      await showInFolder(targetPath)
       setNotice('已在资源管理器中定位')
     } catch (error) {
       setNotice(errorMessage(error))
     }
-  }, [api, selectedPath])
+  }, [selectedPath])
 
   const copySelectedPath = useCallback(async (path?: string) => {
     const targetPath = path || selectedPath
-    if (!api || !targetPath) return
+    if (!hasBrickly() || !targetPath) return
     try {
-      await api.copyText(targetPath)
+      await copyText(targetPath)
       setNotice('已复制路径')
     } catch (error) {
       setNotice(errorMessage(error))
     }
-  }, [api, selectedPath])
+  }, [selectedPath])
 
   useEffect(() => {
-    if (!api || !selectedPath || !selected?.isFile) {
+    if (!hasBrickly() || !selectedPath || !selected?.isFile) {
       setPreview(null)
       setPreviewError('')
       setPreviewLoading(false)
@@ -226,8 +235,7 @@ export function App() {
     previewRequestRef.current = requestId
     setPreviewLoading(true)
     setPreviewError('')
-    void api
-      .preview({ path: selectedPath, maxBytes: 20 * 1024, maxEntries: 80 })
+    void previewFile({ path: selectedPath, maxBytes: 20 * 1024, maxEntries: 80 })
       .then((next) => {
         if (previewRequestRef.current !== requestId) return
         setPreview(next)
@@ -242,7 +250,7 @@ export function App() {
           setPreviewLoading(false)
         }
       })
-  }, [api, selected, selectedPath])
+  }, [selected, selectedPath])
 
   // 键盘快捷键导航与滚动
   const scrollToIndex = useCallback((index: number) => {
@@ -317,17 +325,10 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
+    <div className="app-root">
+      <TitleBar indexReady={Boolean(health?.ok)} statusText={notice} />
+      <main className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-icon">
-            <Search size={18} />
-          </div>
-          <div>
-            <strong>本地搜索</strong>
-            <span>Everything · Go native</span>
-          </div>
-        </div>
         <nav className="category-list">
           {categories.map((item) => {
             const Icon = item.icon
@@ -402,7 +403,7 @@ export function App() {
                       onOpen={() => void openSelected(itemPath)}
                       onShowInFolder={() => void showSelected(itemPath)}
                       onCopyPath={() => void copySelectedPath(itemPath)}
-                      getIcon={api?.getFileIcon}
+                      getIcon={hasBrickly() ? getFileIcon : undefined}
                     />
                   )
                 })}
@@ -497,6 +498,7 @@ export function App() {
         </footer>
       </section>
     </main>
+    </div>
   )
 }
 

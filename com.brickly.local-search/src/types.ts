@@ -142,24 +142,30 @@ export interface PreviewResult {
   meta?: Record<string, unknown>
 }
 
-export interface LocalSearchApi {
-  search(input: {
-    query: string
-    category: SearchCategory
-    offset: number
-    limit: number
-    sort: SearchSort
-  }): Promise<SearchResult>
-  health(): Promise<HealthStatus>
-  preview(input: { path: string; maxBytes?: number; maxEntries?: number }): Promise<PreviewResult>
-  getFileIcon(path: string): Promise<string>
-  openPath(path: string): Promise<void>
-  showInFolder(path: string): Promise<void>
-  copyText(text: string): Promise<unknown>
+interface BricklySystemApi {
+  getFileIcon(filePath: string): Promise<string>
+  shellOpenPath(fullPath: string): Promise<void>
+  shellShowItemInFolder(fullPath: string): Promise<void>
+}
+
+interface BricklyWindowApi {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<boolean>
+  close(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void
+}
+
+interface BricklyHostApi {
+  ref?: { brickId: string }
+  invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
+  closeWindow(): void
+  window?: BricklyWindowApi
+  system: BricklySystemApi
 }
 
 declare global {
   interface Window {
-    localSearch?: LocalSearchApi
+    brickly?: BricklyHostApi
   }
 }

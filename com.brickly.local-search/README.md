@@ -3,7 +3,7 @@ status: active
 type: brick-guide
 related_code:
   - bricks/com.brickly.local-search
-last_verified: 2026-06-09
+last_verified: 2026-08-19
 ---
 
 # 本地搜索 Brick
@@ -16,13 +16,19 @@ last_verified: 2026-06-09
 - 本机已安装并运行 Everything 客户端。
 - `vendor/win-x64/Everything64.dll` 存在。
 
+生命周期是普通 `stateful` 会话，不是 `lifecycle.service`。索引由本机 Everything 进程持有；Brick 只在窗口/调用会话里加载 DLL 并查询，不需要宿主常驻服务槽。
+
+自定义界面通过宿主注入的 `window.brickly.invoke` / `window.brickly.system` 调用命令和打开文件，不再自行拼 `bridge.invoke` 字符串身份。Go runtime 使用 SDK 默认 BPP 版本（当前 `0.4.0`），不要再写死 `0.2.0`。
+
+体验窗使用 `ui.titleBar = "custom"`：宿主开无边框窗口并注入 `window.brickly.window`（最小化 / 最大化 / 关闭）。界面自绘 36px 标题栏，拖动区用 `-webkit-app-region: drag`，按钮区必须 `no-drag`。改完 titleBar 后需要关掉再打开工具窗口才会生效。
+
 ## 构建
 
 ```powershell
-cd D:\ai-bricks\bricks\com.brickly.local-search\runtime\go
+cd D:\brick-project\example-bricks\com.brickly.local-search\runtime\go
 .\build.ps1
 
-cd D:\ai-bricks\bricks\com.brickly.local-search
+cd D:\brick-project\example-bricks\com.brickly.local-search
 npm run build
 ```
 
