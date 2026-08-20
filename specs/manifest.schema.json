@@ -167,6 +167,21 @@
           "type": "object",
           "required": ["type", "platforms", "entry"],
           "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "const": "python"
+                  }
+                },
+                "required": ["type"]
+              },
+              "then": {
+                "required": ["python"]
+              }
+            }
+          ],
           "properties": {
             "type": {
               "type": "string",
@@ -174,7 +189,7 @@
               "description": "python: 源码 + uv venv；node: 使用 Electron 自带 Node 以子进程方式启动；native: 预编译二进制（Go/Rust/.NET 等）。"
             },
             "platforms": {
-              "description": "Brick 支持的平台列表。用户机器不在列表内则禁止安装。`any` 仅适用于纯脚本（python/node）且不依赖原生扩展时使用。",
+              "description": "Brick 声明支持的具体平台列表。平台是否已经完成审核和发布由市场 package 独立决定。",
               "type": "array",
               "minItems": 1,
               "uniqueItems": true,
@@ -186,104 +201,45 @@
                   "mac-x64",
                   "mac-arm64",
                   "linux-x64",
-                  "linux-arm64",
-                  "any"
+                  "linux-arm64"
                 ]
               }
             },
             "entry": {
-              "description": "入口点。type=python|node 时为字符串；type=native 时为 {platform: path} 对象，必须覆盖 platforms 声明的全部平台。",
-              "oneOf": [
-                {
+              "description": "按平台映射的入口点；key 必须与 platforms 完全一致，路径必须位于对应 runtime/<platform>/。",
+              "type": "object",
+              "minProperties": 1,
+              "patternProperties": {
+                "^(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)$": {
                   "type": "string",
-                  "minLength": 1
-                },
-                {
-                  "type": "object",
-                  "patternProperties": {
-                    "^(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)$": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  },
-                  "additionalProperties": false,
-                  "minProperties": 1
+                  "pattern": "^runtime/(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/[^/].*"
                 }
-              ]
+              },
+              "additionalProperties": false
+            },
+            "include": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "required": ["platform", "path"],
+                "additionalProperties": false,
+                "properties": {
+                  "platform": {
+                    "type": "string",
+                    "enum": ["win-x64", "win-arm64", "mac-x64", "mac-arm64", "linux-x64", "linux-arm64"]
+                  },
+                  "path": {
+                    "type": "string",
+                    "pattern": "^runtime/(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/[^/].*"
+                  }
+                }
+              }
             },
             "python": {
-              "description": "type=python 专用：PEP 440 版本区间，例如 \">=3.10,<3.13\"。Brickly 用 uv 装区间内最高稳定版到共享缓存。",
+              "description": "type=python 专用：固定 minor 版本，例如 3.12.*。",
               "type": "string",
-              "examples": [">=3.10,<3.13"]
-            },
-            "dependencies": {
-              "description": "type=python 专用：依赖来源（可选）。省略时若根目录存在 requirements.txt，则自动按该文件安装。requirements 走 `uv pip install -r`，pyproject 走 `uv sync`，inline 直接列依赖 spec（不推荐新 Brick 使用）。",
-              "oneOf": [
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": ["kind", "path"],
-                  "properties": {
-                    "kind": {
-                      "const": "requirements"
-                    },
-                    "path": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": ["kind", "path"],
-                  "properties": {
-                    "kind": {
-                      "const": "pyproject"
-                    },
-                    "path": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": ["kind", "specs"],
-                  "properties": {
-                    "kind": {
-                      "const": "inline"
-                    },
-                    "specs": {
-                      "type": "array",
-                      "items": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "minItems": 1
-                    }
-                  }
-                }
-              ]
-            },
-            "lockFile": {
-              "description": "type=python 专用：uv.lock 路径（pyproject 模式下推荐提供）。存在时严格按锁文件安装，校验失败则拒绝执行。",
-              "type": "string",
-              "minLength": 1
-            },
-            "indexUrl": {
-              "description": "type=python 专用：自定义 PyPI index（企业内网）。需声明 net.custom-index 权限。",
-              "type": "string",
-              "format": "uri"
-            },
-            "extraIndexUrl": {
-              "description": "type=python 专用：附加 PyPI index 列表。",
-              "type": "array",
-              "items": {
-                "type": "string",
-                "format": "uri"
-              }
+              "pattern": "^\\d+\\.\\d+\\.\\*$"
             },
             "args": {
               "description": "启动子进程时附加的命令行参数。",
@@ -302,37 +258,7 @@
               },
               "additionalProperties": false
             }
-          },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "type": {
-                    "const": "native"
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "entry": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            {
-              "if": {
-                "properties": {
-                  "type": {
-                    "const": "python"
-                  }
-                }
-              },
-              "then": {
-                "required": ["python"]
-              }
-            }
-          ]
+          }
         },
         {
           "type": "null"

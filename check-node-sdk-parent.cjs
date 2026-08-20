@@ -11,15 +11,22 @@ for (const brickId of fs.readdirSync(bricksRoot)) {
   const brickDir = path.join(bricksRoot, brickId)
   if (!fs.statSync(brickDir).isDirectory()) continue
 
-  const runtimeNodeDir = path.join(brickDir, 'runtime', 'node')
-  if (!fs.existsSync(runtimeNodeDir)) continue
+  const runtimeDirs = ['runtime/node', 'runtime/win-x64']
+    .map((rel) => path.join(brickDir, rel))
+    .filter((dir) => fs.existsSync(dir))
 
-  const sdkDir = path.join(runtimeNodeDir, '_sdk')
+  for (const runtimeDir of runtimeDirs) {
+    inspectRuntime(runtimeDir)
+  }
+}
+
+function inspectRuntime(runtimeDir) {
+  const sdkDir = path.join(runtimeDir, '_sdk')
   if (fs.existsSync(sdkDir)) {
     failures.push(`${relative(sdkDir)} should be removed; use @syllm/brickly-sdk instead`)
   }
 
-  const files = listFiles(runtimeNodeDir).filter((file) => /\.(?:cjs|js|mjs|ts|json)$/.test(file))
+  const files = listFiles(runtimeDir).filter((file) => /\.(?:cjs|js|mjs|ts|json)$/.test(file))
   const usesNpmSdk = files.some((file) =>
     fs.readFileSync(file, 'utf8').includes('@syllm/brickly-sdk')
   )
@@ -37,17 +44,27 @@ for (const brickId of fs.readdirSync(bricksRoot)) {
     }
   }
 
-  if (usesNpmSdk) {
-    const packageJsonPath = path.join(runtimeNodeDir, 'package.json')
-    if (!fs.existsSync(packageJsonPath)) {
-      failures.push(`${relative(packageJsonPath)} missing for @syllm/brickly-sdk runtime`)
-      continue
-    }
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-    const version = packageJson.dependencies && packageJson.dependencies['@syllm/brickly-sdk']
-    if (version !== '^0.5.0') {
-      failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.5.0`)
-    }
+  if (!usesNpmSdk) return
+
+  const packageJsonPath = path.join(runtimeDir, 'package.json')
+  if (!fs.existsSync(packageJsonPath)) {
+    failures.push(`${relative(packageJsonPath)} missing for @syllm/brickly-sdk runtime`)
+    return
+  }
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+  const version = packageJson.dependencies && packageJson.dependencies['@syllm/brickly-sdk']
+  if (version !== '^0.5.0') {
+    failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.5.0`)
+  }
+
+  const installedPkg = path.join(runtimeDir, 'node_modules/@syllm/brickly-sdk/package.json')
+  if (!fs.existsSync(installedPkg)) {
+    failures.push(`${relative(path.join(runtimeDir, 'node_modules/@syllm/brickly-sdk'))} is missing; run npm ci`)
+    return
+  }
+  const installed = JSON.parse(fs.readFileSync(installedPkg, 'utf8')).version
+  if (installed !== '0.5.0') {
+    failures.push(`${relative(installedPkg)} must install 0.5.0, found ${installed}`)
   }
 }
 
@@ -63,6 +80,7 @@ function listFiles(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory()) {
+      if (entry.name === 'node_modules') continue
       files.push(...listFiles(fullPath))
     } else {
       files.push(fullPath)

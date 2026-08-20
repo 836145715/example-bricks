@@ -1,6 +1,12 @@
 node_modules/
+.venv/
 dist/
 bin/
+**/runtime/*/brick
+**/runtime/*/brick.exe
+**/runtime/*/brick.exe~
+!com.brickly.resource-echo-go/runtime/*/brick
+!com.brickly.resource-echo-go/runtime/*/brick.exe
 .worktrees/
 __pycache__/
 *.py[cod]
