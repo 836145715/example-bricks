@@ -1,0 +1,585 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.ssh-manager",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "SSH",
+    "en": "SSH"
+  },
+  "description": {
+    "zh-CN": "SSH 客户端：交互终端、远程命令，以及当前会话上的 SFTP 列目录、上传和下载。",
+    "en": "SSH client with an interactive terminal, remote exec, and session-scoped SFTP list, upload, and download."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "ssh",
+    "terminal",
+    "remote",
+    "ops",
+    "server"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly Examples"
+  },
+  "license": "MIT",
+  "preload": "preload.cjs",
+  "runtime": {
+    "type": "native",
+    "platforms": [
+      "win-x64",
+      "mac-arm64"
+    ],
+    "entry": {
+      "win-x64": "bin/win-x64/brick.exe",
+      "mac-arm64": "bin/mac-arm64/brick"
+    }
+  },
+  "lifecycle": {
+    "state": "stateful"
+  },
+  "permissions": [
+    "fs.read",
+    "fs.write",
+    "net.tcp",
+    "os.clipboard"
+  ],
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "titleBar": "custom",
+    "windowPolicy": "single",
+    "size": {
+      "width": 1180,
+      "height": 760,
+      "minWidth": 880,
+      "minHeight": 560,
+      "resizable": true
+    },
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
+  "commands": [
+    {
+      "id": "list-hosts",
+      "name": {
+        "zh-CN": "列出主机",
+        "en": "List Hosts"
+      },
+      "description": "返回本机保存的 SSH 主机清单，可按名称、地址、分组或标签过滤。",
+      "category": "hosts",
+      "execution": "parallel",
+      "io": {
+        "inputs": [
+          {
+            "name": "query",
+            "label": "搜索",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "hosts",
+            "type": "json",
+            "description": "主机数组。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "save-host",
+      "name": {
+        "zh-CN": "保存主机",
+        "en": "Save Host"
+      },
+      "description": "新增或更新一台 SSH 主机。未提供 id 时自动生成。",
+      "category": "hosts",
+      "io": {
+        "inputs": [
+          {
+            "name": "host",
+            "label": "主机",
+            "type": "json",
+            "required": true,
+            "description": "SSH 主机对象：name、host、port、user、authType、password 或 keyPath/keyText、可选 passphrase、group、tags、note。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "host",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "delete-host",
+      "name": {
+        "zh-CN": "删除主机",
+        "en": "Delete Host"
+      },
+      "description": "按 id 删除已保存的 SSH 主机。",
+      "category": "hosts",
+      "io": {
+        "inputs": [
+          {
+            "name": "hostId",
+            "label": "主机 ID",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "test-connection",
+      "name": {
+        "zh-CN": "测试连接",
+        "en": "Test Connection"
+      },
+      "description": "测试 SSH 登录是否成功。可传已保存 hostId，或直接传未保存的主机对象。",
+      "category": "hosts",
+      "execution": "parallel",
+      "timeoutMs": 15000,
+      "io": {
+        "inputs": [
+          {
+            "name": "hostId",
+            "label": "主机 ID",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "host",
+            "label": "主机配置",
+            "type": "json",
+            "required": false,
+            "description": "未保存的主机对象；与 hostId 二选一。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          },
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "latencyMs",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exec",
+      "name": {
+        "zh-CN": "执行远程命令",
+        "en": "Exec Command"
+      },
+      "description": "在指定 Linux 主机上执行一条命令，返回 stdout、stderr 和 exitCode。适合 Agent 或工作流一次性调用。",
+      "category": "remote",
+      "execution": "parallel",
+      "timeoutMs": 120000,
+      "io": {
+        "inputs": [
+          {
+            "name": "hostId",
+            "label": "主机 ID",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "host",
+            "label": "主机配置",
+            "type": "json",
+            "required": false
+          },
+          {
+            "name": "command",
+            "label": "命令",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "timeoutMs",
+            "label": "超时毫秒",
+            "type": "number",
+            "required": false,
+            "description": "默认 30000，最大 120000。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "stdout",
+            "type": "string"
+          },
+          {
+            "name": "stderr",
+            "type": "string"
+          },
+          {
+            "name": "exitCode",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "open-session",
+      "name": {
+        "zh-CN": "打开终端会话",
+        "en": "Open Session"
+      },
+      "description": "打开交互式 SSH PTY 会话，并通过 data chunk 流式输出终端字节。",
+      "category": "terminal",
+      "execution": "parallel",
+      "timeoutMs": 86400000,
+      "io": {
+        "inputs": [
+          {
+            "name": "hostId",
+            "label": "主机 ID",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sessionId",
+            "label": "会话 ID",
+            "type": "string",
+            "required": false,
+            "description": "由前端生成；不传则由 runtime 生成。"
+          },
+          {
+            "name": "cols",
+            "label": "列数",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "rows",
+            "label": "行数",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "session",
+            "type": "json",
+            "description": "会话建立后立即输出，包含 sessionId、hostId、status。"
+          },
+          {
+            "name": "data",
+            "type": "json",
+            "description": "流式 PTY 数据，encoding=base64。"
+          },
+          {
+            "name": "status",
+            "type": "json",
+            "description": "会话结束状态。"
+          },
+          {
+            "name": "sessionId",
+            "type": "string"
+          },
+          {
+            "name": "exitCode",
+            "type": "number"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true
+      }
+    },
+    {
+      "id": "write-session",
+      "name": {
+        "zh-CN": "写入终端",
+        "en": "Write Session"
+      },
+      "description": "向已打开的终端会话写入 base64 编码的键盘或粘贴数据。",
+      "category": "terminal",
+      "execution": "parallel",
+      "timeoutMs": 5000,
+      "io": {
+        "inputs": [
+          {
+            "name": "sessionId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "data",
+            "type": "string",
+            "required": true,
+            "description": "base64 编码的写入字节。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resize-session",
+      "name": {
+        "zh-CN": "调整终端尺寸",
+        "en": "Resize Session"
+      },
+      "description": "向远程 PTY 发送窗口尺寸变更。",
+      "category": "terminal",
+      "execution": "parallel",
+      "timeoutMs": 5000,
+      "io": {
+        "inputs": [
+          {
+            "name": "sessionId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "cols",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "rows",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "close-session",
+      "name": {
+        "zh-CN": "关闭终端会话",
+        "en": "Close Session"
+      },
+      "description": "关闭指定交互终端会话并断开对应 SSH 连接。",
+      "category": "terminal",
+      "execution": "parallel",
+      "timeoutMs": 5000,
+      "io": {
+        "inputs": [
+          {
+            "name": "sessionId",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "session-cwd",
+      "name": {
+        "zh-CN": "读取终端当前目录",
+        "en": "Session CWD"
+      },
+      "description": "读取交互终端对应 shell 进程的当前工作目录（Linux /proc）。",
+      "category": "terminal",
+      "execution": "parallel",
+      "timeoutMs": 8000,
+      "io": {
+        "inputs": [
+          {
+            "name": "sessionId",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "type": "string"
+          },
+          {
+            "name": "pid",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sftp-list",
+      "name": {
+        "zh-CN": "列出远端目录",
+        "en": "SFTP List"
+      },
+      "description": "列出远端目录。path 为空时返回家目录。",
+      "category": "sftp",
+      "execution": "parallel",
+      "timeoutMs": 30000,
+      "io": {
+        "inputs": [
+          {
+            "name": "hostId",
+            "label": "主机 ID",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sessionId",
+            "label": "会话 ID",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "path",
+            "label": "远端目录",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "type": "string"
+          },
+          {
+            "name": "entries",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sftp-upload",
+      "name": {
+        "zh-CN": "上传到远端",
+        "en": "SFTP Upload"
+      },
+      "description": "把本机文件或目录上传到远端目录，并通过 progress chunk 报告进度。",
+      "category": "sftp",
+      "execution": "parallel",
+      "timeoutMs": 3600000,
+      "io": {
+        "inputs": [
+          {
+            "name": "hostId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sessionId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "localPath",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "remoteDir",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "overwrite",
+            "type": "boolean",
+            "required": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "progress",
+            "type": "json"
+          },
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true
+      }
+    },
+    {
+      "id": "sftp-download",
+      "name": {
+        "zh-CN": "从远端下载",
+        "en": "SFTP Download"
+      },
+      "description": "把远端文件或目录下载到本机目录，并通过 progress chunk 报告进度。",
+      "category": "sftp",
+      "execution": "parallel",
+      "timeoutMs": 3600000,
+      "io": {
+        "inputs": [
+          {
+            "name": "hostId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sessionId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "remotePath",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "localDir",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "overwrite",
+            "type": "boolean",
+            "required": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "progress",
+            "type": "json"
+          },
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "ui": {
+        "streaming": true
+      }
+    }
+  ]
+}
