@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.glm-ocr-screenshot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "GLM 截图 OCR 标注",
@@ -74,7 +74,7 @@
       "target": {
         "brickId": "com.brickly.glm-tools",
         "origin": "installed",
-        "version": "0.1.0"
+        "version": "0.2.0"
       },
       "commands": [
         "ocr"

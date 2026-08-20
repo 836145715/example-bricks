@@ -26,15 +26,12 @@ async function captureAnnotate(ctx, rawInput) {
   let screenshotCreated = false
 
   try {
-    ctx.progress(0.05, '请框选截图区域')
     const screenshot = await ctx.platform.screenshot.selectRegion({ outputPath: screenshotPath })
     actualScreenshotPath = screenshot.path
     screenshotCreated = true
     const bounds = screenshot.bounds
     ensureActive(ctx)
-    ctx.output('screenshotPath', input.keepScreenshot ? actualScreenshotPath : '')
 
-    ctx.progress(0.35, '调用 GLM OCR')
     const ocrResponse = await ctx.dependencies.require('glm').invoke('ocr', {
       imagePath: actualScreenshotPath,
       languageType: input.languageType,
@@ -47,7 +44,6 @@ async function captureAnnotate(ctx, rawInput) {
       : []
     const wordsText = wordsResult.map((item) => item.words || '').filter(Boolean).join('\n')
 
-    ctx.progress(0.72, '打开 OCR 标注窗口')
     const renderPayload = await buildOcrRenderPayload({
       screenshotPath: actualScreenshotPath,
       wordsResult,
@@ -58,14 +54,6 @@ async function captureAnnotate(ctx, rawInput) {
     })
     const resultWindow = await openResultWindow(ctx, renderPayload)
     ensureActive(ctx)
-
-    ctx.output('windowId', resultWindow.id)
-    ctx.output('screenshotPath', input.keepScreenshot ? actualScreenshotPath : '')
-    ctx.output('bounds', bounds)
-    ctx.output('wordsText', wordsText)
-    ctx.output('wordsResult', wordsResult)
-    ctx.output('ocrResponse', ocrResponse)
-    ctx.progress(1, 'OCR 标注窗口已打开')
 
     return {
       windowId: resultWindow.id,
@@ -92,14 +80,12 @@ async function captureText(ctx, rawInput) {
   let screenshotCreated = false
 
   try {
-    ctx.progress(0.08, '请框选截图区域')
     const screenshot = await ctx.platform.screenshot.selectRegion({ outputPath: screenshotPath })
     actualScreenshotPath = screenshot.path
     screenshotCreated = true
     const bounds = screenshot.bounds
     ensureActive(ctx)
 
-    ctx.progress(0.42, '调用 GLM OCR')
     const ocrResponse = await ctx.dependencies.require('glm').invoke('ocr', {
       imagePath: actualScreenshotPath,
       languageType: input.languageType,
@@ -111,13 +97,6 @@ async function captureText(ctx, rawInput) {
       ? ocrResponse.words_result
       : []
     const wordsText = wordsResult.map((item) => item.words || '').filter(Boolean).join('\n')
-
-    ctx.output('screenshotPath', input.keepScreenshot ? actualScreenshotPath : '')
-    ctx.output('bounds', bounds)
-    ctx.output('wordsText', wordsText)
-    ctx.output('wordsResult', wordsResult)
-    ctx.output('ocrResponse', ocrResponse)
-    ctx.progress(1, 'OCR 识别完成')
 
     return {
       screenshotPath: input.keepScreenshot ? actualScreenshotPath : '',
