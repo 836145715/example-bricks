@@ -4,7 +4,7 @@
 /**
  * com.brickly.image-toolkit-sharp — 后端图像处理引擎
  *
- * 基于 JSON-Lines over stdin/stdout (BPP 协议 0.1.0)。
+ * 基于 brickly.runtime.v1 gRPC Runtime。
  * 命令 process-image → lib/batch.runProcessImage，结果为 items/summary 契约。
  */
 
@@ -23,7 +23,7 @@ function log (message, details) {
 
 /**
  * process-image handler: progress/cancel wired into batch dispatcher.
- * @param {import('@syllm/brickly-sdk').CommandContext} ctx
+ * @param {{ requestId: string, isCancelled: () => boolean, onCancel: (fn: () => void) => void, progress: (p: number, message?: string) => void }} ctx
  * @param {object} input
  */
 async function handleProcessImage (ctx, input) {
@@ -51,7 +51,7 @@ async function handleProcessImage (ctx, input) {
           /* host may have disconnected */
         }
       },
-      isCancelled: () => cancelled.has(id)
+      isCancelled: () => cancelled.has(id) || ctx.isCancelled()
     })
     log('调用完成', {
       id,
@@ -72,7 +72,23 @@ async function handleProcessImage (ctx, input) {
   }
 }
 
-brick.onCommand('process-image', handleProcessImage)
+brick.onCommand('process-image', async (ctx, input) => {
+  return handleProcessImage({
+    requestId: ctx.requestId,
+    isCancelled: () => ctx.isCancelled(),
+    onCancel: (fn) => ctx.onCancel(fn),
+    progress () {}
+  }, input)
+})
+
+brick.onInteract('process-image', async (session) => {
+  return handleProcessImage({
+    requestId: 'interact',
+    isCancelled: () => session.signal.aborted,
+    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true }),
+    progress: (p, message) => session.send({ type: 'progress', progress: p, message })
+  }, session.initial || {})
+})
 
 brick.onShutdown(() => {
   log('收到停机指令')
