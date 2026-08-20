@@ -144,25 +144,43 @@ function ensureNotCancelled(ctx) {
   }
 }
 
-brick.onCommand('keyboard-tap', async (ctx, input = {}) => {
-  log('invoke start', { id: ctx.requestId, commandId: ctx.commandId })
-  const result = await runKeyboardTap(ctx, input)
-  log('invoke result', { id: ctx.requestId, commandId: ctx.commandId })
-  return result
-})
+function commandCtx(ctx) {
+  return {
+    ...ctx,
+    progress() {},
+    chunk() {}
+  }
+}
 
-brick.onCommand('type-text', async (ctx, input = {}) => {
-  log('invoke start', { id: ctx.requestId, commandId: ctx.commandId })
-  const result = await runTypeText(ctx, input)
-  log('invoke result', { id: ctx.requestId, commandId: ctx.commandId })
-  return result
-})
+function interactCtx(session, commandId) {
+  return {
+    requestId: 'interact',
+    commandId,
+    isCancelled: () => session.signal.aborted,
+    progress: (value, message) => session.send({ type: 'progress', progress: value, message }),
+    chunk: (chunk, name) => session.send({ type: 'chunk', chunk, name }),
+    platform: brick.platform,
+    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true })
+  }
+}
 
-brick.onCommand('mouse-action', async (ctx, input = {}) => {
-  log('invoke start', { id: ctx.requestId, commandId: ctx.commandId })
-  const result = await runMouseAction(ctx, input)
-  log('invoke result', { id: ctx.requestId, commandId: ctx.commandId })
-  return result
-})
+function register(commandId, runner) {
+  brick.onCommand(commandId, async (ctx, input = {}) => {
+    log('invoke start', { id: ctx.requestId, commandId })
+    const result = await runner(commandCtx(ctx), input)
+    log('invoke result', { id: ctx.requestId, commandId })
+    return result
+  })
+  brick.onInteract(commandId, async (session) => {
+    log('interact start', { commandId })
+    const result = await runner(interactCtx(session, commandId), session.initial || {})
+    log('interact result', { commandId })
+    return result
+  })
+}
+
+register('keyboard-tap', runKeyboardTap)
+register('type-text', runTypeText)
+register('mouse-action', runMouseAction)
 
 brick.start()
