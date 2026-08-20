@@ -696,6 +696,104 @@ button:disabled {
   font-size: 12.5px;
 }
 
+.empty.index-loading svg {
+  color: var(--primary);
+  margin-bottom: 14px;
+  filter: none;
+  animation: none;
+}
+
+.empty.index-loading .spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  padding: 36px 40px;
+  max-width: 460px;
+}
+
+.setup svg {
+  color: var(--color-warn);
+  filter: none;
+}
+
+.setup h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.setup p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.setup ol {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.setup-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+.setup-actions button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.setup-actions button:disabled {
+  opacity: 0.55;
+}
+
+.setup-actions .setup-secondary {
+  background: var(--bg-surface);
+  color: var(--color-text);
+  border: 1px solid var(--border-color);
+}
+
+.health-link {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-size: 11.5px;
+  font-weight: 550;
+}
+
+.health-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
 /* 右侧详情面板 */
 .detail-pane {
   min-width: 0;

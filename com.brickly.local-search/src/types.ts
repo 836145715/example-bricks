@@ -46,8 +46,18 @@ export interface SearchResult {
   items: SearchItem[]
 }
 
+export type HealthReason =
+  | 'ready'
+  | 'missing_sdk'
+  | 'not_installed'
+  | 'not_running'
+  | 'indexing'
+  | 'ipc_unavailable'
+  | 'unsupported'
+
 export interface HealthStatus {
   ok: boolean
+  reason?: HealthReason
   platform: string
   architecture: string
   goVersion: string
@@ -56,6 +66,10 @@ export interface HealthStatus {
   dllExists: boolean
   dllLoaded: boolean
   ipcReady: boolean
+  ipcConnected?: boolean
+  processRunning?: boolean
+  installPath?: string
+  downloadUrl?: string
   everythingError?: string
   error?: string
   checkedAt: number
@@ -146,6 +160,7 @@ interface BricklySystemApi {
   getFileIcon(filePath: string): Promise<string>
   shellOpenPath(fullPath: string): Promise<void>
   shellShowItemInFolder(fullPath: string): Promise<void>
+  shellOpenExternal(url: string): Promise<void>
 }
 
 interface BricklyWindowApi {

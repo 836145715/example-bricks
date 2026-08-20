@@ -1,3 +1,4 @@
+import { unwrapHealth } from './health'
 import type { HealthStatus, PreviewResult, SearchCategory, SearchResult, SearchSort } from './types'
 
 function requireBrickly() {
@@ -22,7 +23,7 @@ export async function searchFiles(input: {
 }
 
 export async function checkHealth(): Promise<HealthStatus> {
-  return requireBrickly().invoke('health', {}) as Promise<HealthStatus>
+  return unwrapHealth(await requireBrickly().invoke('health', {}))
 }
 
 export async function previewFile(input: {
@@ -43,6 +44,14 @@ export async function getFileIcon(path: string): Promise<string> {
 
 export async function openPath(path: string): Promise<void> {
   await requireBrickly().system.shellOpenPath(path)
+}
+
+export async function openExternal(url: string): Promise<void> {
+  const api = requireBrickly()
+  if (typeof api.system.shellOpenExternal !== 'function') {
+    throw new Error('当前环境无法打开外部链接')
+  }
+  await api.system.shellOpenExternal(url)
 }
 
 export async function showInFolder(path: string): Promise<void> {

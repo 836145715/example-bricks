@@ -13,10 +13,11 @@ last_verified: 2026-08-19
 ## 运行依赖
 
 - Windows x64。
-- 本机已安装并运行 Everything 客户端。
-- `vendor/win-x64/Everything64.dll` 存在。
+- 捆绑目录 `runtime/win-x64/` 必须包含 `Everything64.dll`、`Everything.exe`。`Everything.lng` 只是界面语言包，可有可无。
+- 不再扫描用户本机的 Everything 安装。打开工具时若索引通道未接通，会以后台管理员实例启动自带的 `Everything.exe -admin -startup -instance Brickly`，避免弹出 NTFS 权限三选一对话框。Windows 仍可能出现一次 UAC。
+- 索引未完成时只显示 loading，`Everything_IsDBLoaded` 为真后再搜索。
 
-生命周期是普通 `stateful` 会话，不是 `lifecycle.service`。索引由本机 Everything 进程持有；Brick 只在窗口/调用会话里加载 DLL 并查询，不需要宿主常驻服务槽。
+生命周期是普通 `stateful` 会话，不是 `lifecycle.service`。索引由捆绑的 Everything 实例持有；Brick 只在窗口/调用会话里加载 DLL 并查询。
 
 自定义界面通过宿主注入的 `window.brickly.invoke` / `window.brickly.system` 调用命令和打开文件，不再自行拼 `bridge.invoke` 字符串身份。Go runtime 使用 SDK 默认 BPP 版本（当前 `0.4.0`），不要再写死 `0.2.0`。
 
@@ -34,10 +35,10 @@ npm run build
 
 ## 命令
 
-- `health`：返回平台、Go runtime、DLL 路径和 Everything IPC 状态。
-- `search`：按关键词、分类、分页和排序查询 Everything 索引。
+- `health`：检查捆绑 SDK / Everything，必要时后台拉起 `-instance Brickly`。`reason` 为 `ready` / `not_installed` / `not_running` / `indexing` / `ipc_unavailable` / `missing_sdk` / `unsupported`。
+- `search`：按关键词、分类、分页和排序查询 Everything 索引；索引未就绪时直接拒绝。
 - `preview`：按受限大小读取文件预览信息，支持文本/代码、图片、PDF、音视频、ZIP/JAR/EPUB 目录、DOCX/DOCM 渲染、RTF 文本和 XLSX 表格前几行。
-- `quick-search`：隐藏命令，供宿主快速搜索调用；输入 `{ providerId, query, sequence, limit }`，输出 `{ results }`，结果只包含标题、路径、类别、去重键和主进程激活缓存所需的 `activationData.path`。
+- `quick-search`：隐藏命令，供宿主快速搜索调用；输入 `{ providerId, query, sequence, limit }`，输出 `{ results }`，结果只包含标题、路径、类别、去重键和主进程激活缓存所需的 `activationData.path`。索引未就绪时返回空结果。
 - `quick-search-open`：隐藏命令，供宿主激活快速搜索结果；只接受缓存结果中的本地绝对路径，并通过 Windows Shell 打开文件或文件夹。
 
 修改 Go runtime 后必须重新运行 `runtime/go/build.ps1`，否则 `bin/win-x64/brick.exe` 仍不会包含新的快速搜索命令。

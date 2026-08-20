@@ -34,6 +34,9 @@ type searchResponse struct {
 }
 
 func handleSearch(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
+	if err := requireIndexReady(); err != nil {
+		return nil, err
+	}
 	params, err := search.ParseInput(input)
 	if err != nil {
 		return nil, brickly.NewBppError("INVALID_INPUT", err.Error())
@@ -83,6 +86,9 @@ func handleQuickSearch(_ *brickly.CommandContext, input json.RawMessage) (any, e
 	if params.Query == "" {
 		return quicksearch.SearchOutput{Results: []quicksearch.ProviderItem{}}, nil
 	}
+	if health := client.Health(buildStamp); !health.OK {
+		return quicksearch.SearchOutput{Results: []quicksearch.ProviderItem{}}, nil
+	}
 
 	result, err := client.Search(everything.SearchOptions{
 		Query:  search.BuildQuery(params.Query, search.CategoryAll),
@@ -107,17 +113,47 @@ func handleQuickSearchOpen(_ *brickly.CommandContext, input json.RawMessage) (an
 	return map[string]string{"message": quicksearch.OpenedMessage(params)}, nil
 }
 
+func requireIndexReady() error {
+	health := client.Health(buildStamp)
+	if health.OK {
+		return nil
+	}
+	code := "EVERYTHING_ERROR"
+	switch health.Reason {
+	case everything.ReasonNotInstalled:
+		code = "EVERYTHING_NOT_INSTALLED"
+	case everything.ReasonNotRunning:
+		code = "EVERYTHING_NOT_RUNNING"
+	case everything.ReasonIndexing:
+		code = "EVERYTHING_INDEXING"
+	case everything.ReasonIpcUnavailable:
+		code = "EVERYTHING_IPC_UNAVAILABLE"
+	}
+	message := health.EverythingError
+	if message == "" {
+		message = everything.ReasonMessage(health.Reason)
+	}
+	return brickly.NewBppError(code, message)
+}
+
 func toBppError(err error) error {
 	var sdkErr *everything.SDKError
 	if errors.As(err, &sdkErr) {
 		code := "EVERYTHING_ERROR"
+		message := sdkErr.Error()
 		if sdkErr.Code == everything.ErrorIPC {
-			code = "EVERYTHING_NOT_RUNNING"
+			if !everything.BundledExeExists() {
+				code = "EVERYTHING_NOT_INSTALLED"
+				message = everything.ReasonMessage(everything.ReasonNotInstalled)
+			} else {
+				code = "EVERYTHING_NOT_RUNNING"
+				message = everything.ReasonMessage(everything.ReasonNotRunning)
+			}
 		}
 		if sdkErr.Code == everything.ErrorInvalidParameter {
 			code = "INVALID_INPUT"
 		}
-		return brickly.NewBppError(code, sdkErr.Error(), map[string]any{"everythingCode": sdkErr.Code})
+		return brickly.NewBppError(code, message, map[string]any{"everythingCode": sdkErr.Code})
 	}
 	return brickly.NewBppError("EVERYTHING_ERROR", err.Error())
 }

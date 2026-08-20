@@ -32,19 +32,38 @@ type Item struct {
 	Attributes   uint32 `json:"attributes"`
 }
 
+type HealthReason string
+
+const (
+	ReasonReady        HealthReason = "ready"
+	ReasonMissingSDK   HealthReason = "missing_sdk"
+	ReasonNotInstalled HealthReason = "not_installed"
+	ReasonNotRunning   HealthReason = "not_running"
+	ReasonIndexing       HealthReason = "indexing"
+	ReasonIpcUnavailable HealthReason = "ipc_unavailable"
+	ReasonUnsupported    HealthReason = "unsupported"
+)
+
+const DownloadURL = "https://www.voidtools.com/zh-cn/downloads/"
+
 type Health struct {
-	OK              bool   `json:"ok"`
-	Platform        string `json:"platform"`
-	Architecture    string `json:"architecture"`
-	GoVersion       string `json:"goVersion"`
-	BuildStamp      string `json:"buildStamp"`
-	DLLPath         string `json:"dllPath"`
-	DLLExists       bool   `json:"dllExists"`
-	DLLLoaded       bool   `json:"dllLoaded"`
-	IPCReady        bool   `json:"ipcReady"`
-	EverythingError string `json:"everythingError,omitempty"`
-	Error           string `json:"error,omitempty"`
-	CheckedAt       int64  `json:"checkedAt"`
+	OK              bool         `json:"ok"`
+	Reason          HealthReason `json:"reason"`
+	Platform        string       `json:"platform"`
+	Architecture    string       `json:"architecture"`
+	GoVersion       string       `json:"goVersion"`
+	BuildStamp      string       `json:"buildStamp"`
+	DLLPath         string       `json:"dllPath"`
+	DLLExists       bool         `json:"dllExists"`
+	DLLLoaded       bool         `json:"dllLoaded"`
+	IPCReady        bool         `json:"ipcReady"`
+	IPCConnected    bool         `json:"ipcConnected"`
+	ProcessRunning  bool         `json:"processRunning"`
+	InstallPath     string       `json:"installPath,omitempty"`
+	DownloadURL     string       `json:"downloadUrl,omitempty"`
+	EverythingError string       `json:"everythingError,omitempty"`
+	Error           string       `json:"error,omitempty"`
+	CheckedAt       int64        `json:"checkedAt"`
 }
 
 const (

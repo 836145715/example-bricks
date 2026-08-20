@@ -8,9 +8,11 @@ import { useEffect, useState } from 'react'
  */
 export function TitleBar({
   indexReady,
+  statusLabel,
   statusText
 }: {
   indexReady: boolean
+  statusLabel: string
   statusText: string
 }) {
   const [maximized, setMaximized] = useState(false)
@@ -50,7 +52,7 @@ export function TitleBar({
 
       <div className="titlebar-meta" title={statusText}>
         <span className={clsx('titlebar-status-dot', indexReady ? 'is-ok' : 'is-warn')} />
-        <span className="titlebar-status">{indexReady ? '索引可用' : '索引未就绪'}</span>
+        <span className="titlebar-status">{statusLabel}</span>
       </div>
 
       <div className="titlebar-controls">

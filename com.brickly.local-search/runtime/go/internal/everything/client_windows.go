@@ -5,7 +5,6 @@ package everything
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -35,6 +34,7 @@ type lazySDK struct {
 	getResultAttributes    *syscall.LazyProc
 	isDBLoaded             *syscall.LazyProc
 	getMajorVersion        *syscall.LazyProc
+	setInstanceNameW       *syscall.LazyProc
 }
 
 func NewClient(dllPath string) *Client {
@@ -103,37 +103,67 @@ func (c *Client) Search(options SearchOptions) (SearchResult, error) {
 }
 
 func (c *Client) Health(buildStamp string) Health {
+	installPath := BundledExePath()
+	if !fileExists(installPath) {
+		installPath = ""
+	}
+	_, processRunning := FindBundledProcess(BundledExePath())
 	health := Health{
-		Platform:     runtime.GOOS,
-		Architecture: runtime.GOARCH,
-		GoVersion:    runtime.Version(),
-		BuildStamp:   buildStamp,
-		DLLPath:      c.dllPath,
-		DLLExists:    fileExists(c.dllPath),
-		CheckedAt:    nowMillis(),
+		Platform:       runtime.GOOS,
+		Architecture:   runtime.GOARCH,
+		GoVersion:      runtime.Version(),
+		BuildStamp:     buildStamp,
+		DLLPath:        c.dllPath,
+		DLLExists:      fileExists(c.dllPath),
+		ProcessRunning: processRunning,
+		InstallPath:    installPath,
+		DownloadURL:    DownloadURL,
+		CheckedAt:      nowMillis(),
 	}
 
 	sdk, err := c.load()
 	if err != nil {
 		health.Error = err.Error()
+		health.Reason = Classify(ClassifyInput{
+			DLLExists:      health.DLLExists,
+			InstallPath:    installPath,
+			ProcessRunning: processRunning,
+		})
+		health.EverythingError = ReasonMessage(health.Reason)
 		return health
 	}
 	health.DLLLoaded = true
 	if sdk.getMajorVersion != nil {
-		if _, _, err := sdk.getMajorVersion.Call(); err != syscall.Errno(0) {
-			health.Error = err.Error()
-		}
+		major, _, _ := sdk.getMajorVersion.Call()
+		health.IPCConnected = major != 0
 	}
+	var lastErr uint32
 	if sdk.isDBLoaded != nil {
 		ok, _, _ := sdk.isDBLoaded.Call()
 		health.IPCReady = ok != 0
 	}
 	if !health.IPCReady {
-		if sdkErr := sdk.lastError(); sdkErr != nil {
-			health.EverythingError = sdkErr.Error()
+		if sdkErr, ok := sdk.lastError().(*SDKError); ok && sdkErr != nil {
+			lastErr = sdkErr.Code
 		}
 	}
-	health.OK = health.DLLLoaded && health.IPCReady
+	if !health.IPCConnected && !health.IPCReady && installPath != "" {
+		EnsureBundledStarted()
+		_, health.ProcessRunning = FindBundledProcess(installPath)
+	}
+	health.Reason = Classify(ClassifyInput{
+		DLLExists:      health.DLLExists,
+		DLLLoaded:      health.DLLLoaded,
+		IPCReady:       health.IPCReady,
+		IPCConnected:   health.IPCConnected,
+		LastError:      lastErr,
+		InstallPath:    installPath,
+		ProcessRunning: health.ProcessRunning,
+	})
+	health.OK = health.Reason == ReasonReady
+	if !health.OK {
+		health.EverythingError = ReasonMessage(health.Reason)
+	}
 	return health
 }
 
@@ -171,9 +201,17 @@ func (c *Client) load() (*lazySDK, error) {
 		getResultAttributes:    dll.NewProc("Everything_GetResultAttributes"),
 		isDBLoaded:             dll.NewProc("Everything_IsDBLoaded"),
 		getMajorVersion:        dll.NewProc("Everything_GetMajorVersion"),
+		setInstanceNameW:       dll.NewProc("Everything_SetInstanceNameW"),
 	}
 	if err := dll.Load(); err != nil {
 		return nil, err
+	}
+	if err := sdk.setInstanceNameW.Find(); err == nil {
+		namePtr, convErr := syscall.UTF16PtrFromString(InstanceName)
+		if convErr == nil {
+			sdk.setInstanceNameW.Call(uintptr(unsafe.Pointer(namePtr)))
+			enableNamedInstance()
+		}
 	}
 	for name, proc := range map[string]*syscall.LazyProc{
 		"Everything_SetSearchW":             sdk.setSearchW,
@@ -284,10 +322,5 @@ func fileExists(path string) bool {
 }
 
 func DefaultDLLPath() string {
-	exe, err := os.Executable()
-	if err != nil {
-		return filepath.Clean("vendor/win-x64/Everything64.dll")
-	}
-	brickRoot := filepath.Clean(filepath.Join(filepath.Dir(exe), "..", ".."))
-	return filepath.Join(brickRoot, "vendor", "win-x64", "Everything64.dll")
+	return BundledDLLPath()
 }

@@ -20,20 +20,23 @@ func (c *Client) Search(SearchOptions) (SearchResult, error) {
 
 func (c *Client) Health(buildStamp string) Health {
 	return Health{
-		OK:           false,
-		Platform:     runtime.GOOS,
-		Architecture: runtime.GOARCH,
-		GoVersion:    runtime.Version(),
-		BuildStamp:   buildStamp,
-		DLLPath:      c.dllPath,
-		DLLExists:    false,
-		DLLLoaded:    false,
-		IPCReady:     false,
-		Error:        "本地搜索 Brick 第一版仅支持 Windows x64",
-		CheckedAt:    nowMillis(),
+		OK:              false,
+		Reason:          ReasonUnsupported,
+		Platform:        runtime.GOOS,
+		Architecture:    runtime.GOARCH,
+		GoVersion:       runtime.Version(),
+		BuildStamp:      buildStamp,
+		DLLPath:         c.dllPath,
+		DLLExists:       false,
+		DLLLoaded:       false,
+		IPCReady:        false,
+		DownloadURL:     DownloadURL,
+		Error:           ReasonMessage(ReasonUnsupported),
+		EverythingError: ReasonMessage(ReasonUnsupported),
+		CheckedAt:       nowMillis(),
 	}
 }
 
 func DefaultDLLPath() string {
-	return "vendor/win-x64/Everything64.dll"
+	return BundledDLLPath()
 }

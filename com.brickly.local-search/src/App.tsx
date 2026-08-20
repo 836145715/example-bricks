@@ -4,6 +4,7 @@ import {
   AudioLines,
   CheckCircle2,
   Clipboard,
+  Download,
   ExternalLink,
   File,
   FileImage,
@@ -27,12 +28,14 @@ import {
   copyText,
   getFileIcon,
   hasBrickly,
+  openExternal,
   openPath,
   previewFile,
   searchFiles,
   showInFolder
 } from './bridge'
 import { TitleBar } from './components/TitleBar'
+import { EVERYTHING_DOWNLOAD_URL, blockedHealth, healthReason, healthStatusLabel, indexErrorReason, isIndexReady, setupCopy, unwrapHealth } from './health'
 import type { HealthStatus, PreviewResult, SearchCategory, SearchItem, SearchResult, SearchSort } from './types'
 
 const categories: Array<{ id: SearchCategory; label: string; icon: typeof Search; color: string }> = [
@@ -88,8 +91,13 @@ export function App() {
   const [previewError, setPreviewError] = useState('')
   const [notice, setNotice] = useState('准备就绪')
   const [selectedIcon, setSelectedIcon] = useState('')
+  const [starting, setStarting] = useState(false)
   const requestRef = useRef(0)
   const previewRequestRef = useRef(0)
+  const indexReadyRef = useRef(false)
+  const reason = healthReason(health)
+  const indexReady = isIndexReady(health)
+  indexReadyRef.current = indexReady
 
   const totalPages = Math.max(1, Math.ceil(result.total / limit))
   const canPrev = page > 0
@@ -118,10 +126,10 @@ export function App() {
     try {
       const next = await checkHealth()
       setHealth(next)
-      if (!next.ok) {
-        setNotice(next.everythingError || next.error || 'Everything 未就绪')
-      } else {
+      if (isIndexReady(next)) {
         setNotice('Everything 索引已连接')
+      } else {
+        setNotice(next.everythingError || next.error || 'Everything 未就绪')
       }
     } catch (error) {
       setNotice(errorMessage(error))
@@ -132,6 +140,9 @@ export function App() {
     async (nextPage: number) => {
       if (!hasBrickly()) {
         setNotice('本地搜索接口未注入')
+        return
+      }
+      if (!indexReadyRef.current) {
         return
       }
       const requestId = requestRef.current + 1
@@ -151,6 +162,14 @@ export function App() {
         setNotice(next.items.length ? `找到 ${next.total.toLocaleString()} 条结果` : '没有匹配结果')
       } catch (error) {
         if (requestRef.current !== requestId) return
+        const blocked = indexErrorReason(error)
+        if (blocked) {
+          setHealth((current) => blockedHealth(current, blocked, errorMessage(error)))
+          setResult(emptyResult)
+          setSelected(null)
+          setNotice(errorMessage(error))
+          return
+        }
         setResult((current) => ({ ...current, items: [], total: 0, offset: nextPage * limit }))
         setSelected(null)
         setNotice(errorMessage(error))
@@ -168,12 +187,92 @@ export function App() {
   }, [runHealth])
 
   useEffect(() => {
+    if (!indexReady) {
+      setResult(emptyResult)
+      setSelected(null)
+      return
+    }
     const timer = window.setTimeout(() => {
       setPage(0)
       void runSearch(0)
     }, 160)
     return () => window.clearTimeout(timer)
-  }, [category, query, sort, runSearch])
+  }, [indexReady, category, query, sort, runSearch])
+
+  useEffect(() => {
+    if (indexReady) return
+    if (reason === 'missing_sdk' || reason === 'unsupported' || reason === 'not_installed') return
+    let cancelled = false
+    const tick = async () => {
+      if (cancelled || !hasBrickly()) return
+      try {
+        const next = await checkHealth()
+        if (cancelled) return
+        setHealth(next)
+        if (next.ok && next.ipcReady) setNotice('Everything 索引已连接')
+        else setNotice(next.everythingError || next.error || '正在建立索引…')
+      } catch (error) {
+        if (!cancelled) setNotice(errorMessage(error))
+      }
+    }
+    void tick()
+    const timer = window.setInterval(() => {
+      void tick()
+    }, 1500)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [indexReady, reason])
+
+  const waitForIndex = useCallback(async () => {
+    let latest: HealthStatus | null = null
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1000))
+      if (!hasBrickly()) return null
+      try {
+        latest = await checkHealth()
+        setHealth(latest)
+        if (latest.ok && latest.ipcReady) {
+          setNotice('Everything 索引已连接')
+          return latest
+        }
+        if (healthReason(latest) === 'indexing') {
+          setNotice(latest.everythingError || '正在建立索引…')
+          return latest
+        }
+        setNotice(latest.everythingError || latest.error || 'Everything 未就绪')
+      } catch (error) {
+        setNotice(errorMessage(error))
+      }
+    }
+    return latest
+  }, [])
+
+  const openDownload = useCallback(async () => {
+    try {
+      await openExternal(health?.downloadUrl || EVERYTHING_DOWNLOAD_URL)
+      setNotice('已打开 Everything 下载页')
+    } catch (error) {
+      setNotice(errorMessage(error))
+    }
+  }, [health?.downloadUrl])
+
+  const startEverything = useCallback(async () => {
+    setStarting(true)
+    try {
+      await runHealth()
+      setNotice('正在后台启动 Everything…')
+      const next = await waitForIndex()
+      if (next?.ok) return
+      if (healthReason(next) === 'indexing' || healthReason(next) === 'not_running') return
+      setNotice('Everything 正在启动，请稍候')
+    } catch (error) {
+      setNotice(errorMessage(error))
+    } finally {
+      setStarting(false)
+    }
+  }, [runHealth, waitForIndex])
 
   useEffect(() => {
     if (!hasBrickly() || !selectedPath) {
@@ -326,7 +425,11 @@ export function App() {
 
   return (
     <div className="app-root">
-      <TitleBar indexReady={Boolean(health?.ok)} statusText={notice} />
+      <TitleBar
+        indexReady={indexReady}
+        statusLabel={healthStatusLabel(health)}
+        statusText={notice}
+      />
       <main className="app-shell">
       <aside className="sidebar">
         <nav className="category-list">
@@ -349,7 +452,13 @@ export function App() {
             )
           })}
         </nav>
-        <HealthPanel health={health} onRefresh={runHealth} />
+        <HealthPanel
+          health={health}
+          starting={starting}
+          onRefresh={runHealth}
+          onDownload={() => void openDownload()}
+          onStart={() => void startEverything()}
+        />
       </aside>
 
       <section className="content">
@@ -362,16 +471,27 @@ export function App() {
               placeholder="输入文件名、路径或 Everything 查询语法 (Esc 清空)"
               spellCheck={false}
               autoFocus
+              disabled={!indexReady}
             />
           </div>
-          <select value={sort} onChange={(event) => setSort(event.target.value as SearchSort)}>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as SearchSort)}
+            disabled={!indexReady}
+          >
             {sortOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
-          <button className="icon-btn" onClick={() => void runSearch(page)} title="刷新结果" type="button">
+          <button
+            className="icon-btn"
+            onClick={() => void runSearch(page)}
+            title="刷新结果"
+            type="button"
+            disabled={!indexReady}
+          >
             {loading ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
           </button>
         </header>
@@ -380,9 +500,19 @@ export function App() {
           <section className="results-pane">
             <div className="result-head">
               <span>{result.categoryLabel || '全部'}</span>
-              <strong>{result.total.toLocaleString()} 条</strong>
+              <strong>{indexReady ? `${result.total.toLocaleString()} 条` : '—'}</strong>
             </div>
-            {result.items.length === 0 ? (
+            {!health || reason === 'indexing' || reason === 'not_running' || reason === 'ipc_unavailable' ? (
+              <IndexLoading checking={!health} starting={reason === 'not_running' || reason === 'ipc_unavailable'} />
+            ) : !indexReady ? (
+              <SetupPanel
+                health={health}
+                starting={starting}
+                onDownload={() => void openDownload()}
+                onStart={() => void startEverything()}
+                onRecheck={runHealth}
+              />
+            ) : result.items.length === 0 ? (
               <div className="empty">
                 <Search size={34} />
                 <h2>{loading ? '搜索中' : '暂无结果'}</h2>
@@ -410,13 +540,13 @@ export function App() {
               </ul>
             )}
             <footer className="pager">
-              <button type="button" disabled={!canPrev || loading} onClick={() => goPage(page - 1)}>
+              <button type="button" disabled={!indexReady || !canPrev || loading} onClick={() => goPage(page - 1)}>
                 上一页
               </button>
               <span>
-                第 {page + 1} / {totalPages} 页
+                第 {indexReady ? page + 1 : 1} / {indexReady ? totalPages : 1} 页
               </span>
-              <button type="button" disabled={!canNext || loading} onClick={() => goPage(page + 1)}>
+              <button type="button" disabled={!indexReady || !canNext || loading} onClick={() => goPage(page + 1)}>
                 下一页
               </button>
             </footer>
@@ -492,7 +622,7 @@ export function App() {
         </section>
 
         <footer className="statusbar">
-          <span className={clsx('status-dot', health?.ok ? 'status-ok' : 'status-warn')} />
+          <span className={clsx('status-dot', indexReady ? 'status-ok' : 'status-warn')} />
           <span>{notice}</span>
           <code>{result.effectiveQuery}</code>
         </footer>
@@ -502,23 +632,112 @@ export function App() {
   )
 }
 
-function HealthPanel({ health, onRefresh }: { health: HealthStatus | null; onRefresh: () => void }) {
+function HealthPanel({
+  health,
+  starting,
+  onRefresh,
+  onDownload,
+  onStart
+}: {
+  health: HealthStatus | null
+  starting: boolean
+  onRefresh: () => void
+  onDownload: () => void
+  onStart: () => void
+}) {
   const ok = Boolean(health?.ok)
+  const reason = healthReason(health)
   return (
     <section className="health">
       <div className="health-title">
         {ok ? (
           <CheckCircle2 size={15} className="health-ok" />
+        ) : reason === 'indexing' ? (
+          <Loader2 size={15} className="spin health-warn" />
         ) : (
           <ShieldAlert size={15} className="health-warn" />
         )}
-        <span>{ok ? '索引可用' : '索引未就绪'}</span>
+        <span>{healthStatusLabel(health)}</span>
         <button type="button" onClick={onRefresh} title="检查状态">
           <RefreshCw size={12} />
         </button>
       </div>
       <p>{health?.everythingError || health?.error || (ok ? 'Everything IPC 正常' : '等待状态检查')}</p>
+      {reason === 'not_installed' || reason === 'unsupported' ? (
+        <button className="health-link" type="button" onClick={onDownload}>
+          打开下载页
+        </button>
+      ) : null}
+      {reason === 'not_running' ? (
+        <button className="health-link" type="button" onClick={onStart} disabled={starting || !health?.installPath}>
+          {starting ? '正在启动…' : '启动 Everything'}
+        </button>
+      ) : null}
     </section>
+  )
+}
+
+function IndexLoading({ checking, starting }: { checking: boolean; starting?: boolean }) {
+  const title = checking ? '正在检查索引' : starting ? '正在启动 Everything' : '正在建立索引'
+  const description = checking
+    ? '检测自带 Everything 是否已就绪'
+    : starting
+      ? '以后台实例启动捆绑的 Everything，不依赖本机安装'
+      : 'Everything 已连接，索引完成后会自动显示结果。'
+  return (
+    <div className="empty index-loading">
+      <Loader2 size={28} className="spin" />
+      <h2>{title}</h2>
+      <p>{description}</p>
+    </div>
+  )
+}
+
+function SetupPanel({
+  health,
+  starting,
+  onDownload,
+  onStart,
+  onRecheck
+}: {
+  health: HealthStatus
+  starting: boolean
+  onDownload: () => void
+  onStart: () => void
+  onRecheck: () => void
+}) {
+  const reason = healthReason(health)
+  const copy = setupCopy(health)
+  return (
+    <div className="setup">
+      <ShieldAlert size={28} />
+      <h2>{copy.title}</h2>
+      <p>{copy.description}</p>
+      {copy.steps.length ? (
+        <ol>
+          {copy.steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      ) : null}
+      <div className="setup-actions">
+        {reason === 'not_running' ? (
+          <button type="button" onClick={onStart} disabled={starting || !health.installPath}>
+            {starting ? <Loader2 size={14} className="spin" /> : <ExternalLink size={14} />}
+            {starting ? '正在启动…' : '启动 Everything'}
+          </button>
+        ) : reason === 'not_installed' || reason === 'unsupported' ? (
+          <button type="button" onClick={onDownload}>
+            <Download size={14} />
+            打开下载页
+          </button>
+        ) : null}
+        <button className="setup-secondary" type="button" onClick={onRecheck}>
+          <RefreshCw size={14} />
+          重新检查
+        </button>
+      </div>
+    </div>
   )
 }
 
