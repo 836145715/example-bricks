@@ -30,7 +30,6 @@ brick.onCommand('send', async (ctx, input) => {
       status: result.status,
       durationMs: result.durationMs
     })
-    ctx.output('result', result)
     return result
   } catch (error) {
     throw normalizeError(error)
