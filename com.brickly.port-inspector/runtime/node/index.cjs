@@ -19,7 +19,6 @@ function normalizeError(error) {
 brick.onCommand('lookup', async (ctx, input) => {
   try {
     const result = await lookupPort(input || {})
-    ctx.output('result', result)
     return result
   } catch (error) {
     throw normalizeError(error)
@@ -29,7 +28,6 @@ brick.onCommand('lookup', async (ctx, input) => {
 brick.onCommand('list', async (ctx, input) => {
   try {
     const result = await inspectPorts(input || {})
-    ctx.output('result', result)
     return result
   } catch (error) {
     throw normalizeError(error)
@@ -39,7 +37,6 @@ brick.onCommand('list', async (ctx, input) => {
 brick.onCommand('details', async (ctx, input) => {
   try {
     const result = await inspectProcessDetails(input || {})
-    ctx.output('result', result)
     return result
   } catch (error) {
     throw normalizeError(error)
@@ -49,7 +46,6 @@ brick.onCommand('details', async (ctx, input) => {
 brick.onCommand('kill', async (ctx, input) => {
   try {
     const result = await killProcess(input || {})
-    ctx.output('result', result)
     return result
   } catch (error) {
     throw normalizeError(error)
