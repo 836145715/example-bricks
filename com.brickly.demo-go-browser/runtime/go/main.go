@@ -48,7 +48,6 @@ func main() {
 			windowsMu.Unlock()
 		})
 		result := map[string]any{"windowId": win.ID, "url": url}
-		ctx.Output("window", result)
 		return result, nil
 	})
 
