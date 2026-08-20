@@ -1,0 +1,23 @@
+version = 1
+revision = 3
+requires-python = "==3.12.*"
+
+[[package]]
+name = "brickly-resource-echo-python-runtime"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "brickly-sdk" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "brickly-sdk", specifier = "==0.5.0" }]
+
+[[package]]
+name = "brickly-sdk"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/16/a655ee53e04b2c0bc1eb6b8fa94a64380932913a60a8c9e77a73136dbd70/brickly_sdk-0.5.0.tar.gz", hash = "sha256:a47e3b2dbd1903889a7a2e540ec99bce04a9d845ca501a7ad775038702adf283", size = 156395, upload-time = "2026-08-18T02:44:12.207Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/e2/e9a734794269bf1c6166bdae40a2b48b07d2870b5b8d4c8f881119fa185a/brickly_sdk-0.5.0-py3-none-any.whl", hash = "sha256:48c263a7b8e1e420612182ec5e2459b3e262250c471779f6f75ed4dd90bf60d4", size = 43187, upload-time = "2026-08-18T02:44:13.951Z" },
+]

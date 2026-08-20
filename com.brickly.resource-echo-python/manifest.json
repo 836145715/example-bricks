@@ -27,12 +27,15 @@
       "linux-x64",
       "linux-arm64"
     ],
-    "entry": "runtime/python/main.py",
-    "python": ">=3.10,<3.14",
-    "dependencies": {
-      "kind": "requirements",
-      "path": "requirements.txt"
-    }
+    "entry": {
+      "win-x64": "runtime/win-x64/main.py",
+      "win-arm64": "runtime/win-arm64/main.py",
+      "mac-x64": "runtime/mac-x64/main.py",
+      "mac-arm64": "runtime/mac-arm64/main.py",
+      "linux-x64": "runtime/linux-x64/main.py",
+      "linux-arm64": "runtime/linux-arm64/main.py"
+    },
+    "python": "3.12.*"
   },
   "lifecycle": {
     "state": "stateless"

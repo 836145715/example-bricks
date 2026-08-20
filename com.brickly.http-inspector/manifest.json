@@ -15,10 +15,19 @@
   "preload": "preload.cjs",
   "runtime": {
     "type": "python",
-    "platforms": ["win-x64", "win-arm64", "mac-x64", "mac-arm64"],
-    "entry": "runtime/python/main.py",
-    "python": ">=3.12,<3.14",
-    "dependencies": { "kind": "inline", "specs": ["brickly-sdk==0.5.0", "mitmproxy==12.2.3"] }
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64"
+    ],
+    "entry": {
+      "win-x64": "runtime/win-x64/main.py",
+      "win-arm64": "runtime/win-arm64/main.py",
+      "mac-x64": "runtime/mac-x64/main.py",
+      "mac-arm64": "runtime/mac-arm64/main.py"
+    },
+    "python": "3.12.*"
   },
   "lifecycle": { "state": "stateful", "service": { "autoStart": false, "restart": "on-failure", "maxAttempts": 3, "backoffMs": 2000 } },
   "permissions": ["net.http", "net.https", "fs.read", "fs.write", "os.exec", "event.publish:http-inspector:changed"],

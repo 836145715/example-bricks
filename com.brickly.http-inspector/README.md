@@ -32,7 +32,7 @@ curl -k -x http://127.0.0.1:8899 https://example.com
 ## 开发验证
 
 ```bash
-python3 -m pytest runtime/python/tests -q
+python3 -m pytest runtime/win-x64/tests -q
 npm install
 npm run typecheck
 npm run build

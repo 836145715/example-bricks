@@ -1,7 +1,7 @@
 ---
 status: active
 type: brick-note
-related_code: manifest.json,src/App.tsx,runtime/python/main.py
+related_code: manifest.json,src/App.tsx,runtime/win-x64/main.py
 last_verified: 2026-05-26
 ---
 
