@@ -43,18 +43,7 @@ function logWarn(message, detail) {
 function historyApi(ctx) {
   const history = ctx?.platform?.clipboard?.history
   if (history) return history
-  const call = (type, payload = {}) => brick.transport.hostCall({ type, ...payload })
-  return {
-    list: (limit) => call('host.platform.clipboard.history.list', { limit }),
-    readText: (itemId) => call('host.platform.clipboard.history.readText', { itemId }),
-    remove: (itemId) => call('host.platform.clipboard.history.remove', { itemId }),
-    clear: (keepFavorites) =>
-      call('host.platform.clipboard.history.clear', { keepFavorites }),
-    setFavorite: (itemId, favorite) =>
-      call('host.platform.clipboard.history.setFavorite', { itemId, favorite }),
-    storageInfo: () => call('host.platform.clipboard.history.storageInfo'),
-    captureCurrent: () => call('host.platform.clipboard.history.captureCurrent')
-  }
+  throw new BppError('PROTOCOL_ERROR', 'Host PlatformService clipboard.history 未就绪')
 }
 
 function requireId(input) {
