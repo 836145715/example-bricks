@@ -97,19 +97,8 @@ type searchInput struct {
 
 // -------------------- 协议消息读写 --------------------
 
-// 向 stdout 发送 JSON 协议消息（多线程安全）
-func send(msg map[string]any) {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		logError("marshal BPP message failed", err, nil)
-		return
-	}
-	stdoutMu.Lock()
-	defer stdoutMu.Unlock()
-	stdout.Write(data)
-	stdout.WriteByte('\n')
-	stdout.Flush()
-}
+// gRPC Runtime 不再写 BPP stdout 帧。进度/chunk 仅在 interact 可用，当前命令走 invoke 返回值。
+func send(_ map[string]any) {}
 
 // -------------------- 结构化日志（plugin.log.* / runtime.log）--------------------
 // 禁止业务日志写 stderr；宿主会把 stderr 记为 [已废弃] error。
@@ -157,43 +146,11 @@ func logErrorOn(requestID, message string, err error, fields map[string]any) {
 
 // -------------------- 协议消息辅助 --------------------
 
-func sendProgress(id string, p float64, message string) {
-	if active := getActiveCommand(id); active != nil {
-		active.ctx.Progress(p, message)
-		return
-	}
-	m := map[string]any{"type": "command.progress", "id": id, "progress": p}
-	if message != "" {
-		m["message"] = message
-	}
-	send(m)
-}
+func sendProgress(_ string, _ float64, _ string) {}
 
-func sendChunk(id string, line GrepLine) {
-	if active := getActiveCommand(id); active != nil {
-		active.ctx.Chunk("logLine", line)
-		return
-	}
-	send(map[string]any{
-		"type":  "command.chunk",
-		"id":    id,
-		"name":  "logLine",
-		"chunk": line,
-	})
-}
+func sendChunk(_ string, _ GrepLine) {}
 
-func sendSearchState(id string, state SearchStatePayload) {
-	if active := getActiveCommand(id); active != nil {
-		active.ctx.Chunk("searchState", state)
-		return
-	}
-	send(map[string]any{
-		"type":  "command.chunk",
-		"id":    id,
-		"name":  "searchState",
-		"chunk": state,
-	})
-}
+func sendSearchState(_ string, _ SearchStatePayload) {}
 
 func sendResult(id string, result any) {
 	if active := getActiveCommand(id); active != nil {

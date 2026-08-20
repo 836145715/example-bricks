@@ -3,7 +3,7 @@ module com.brickly.log-searcher
 go 1.21
 
 require (
-	github.com/836145715/brickly-sdk-go v0.5.0
+	github.com/836145715/brickly-sdk-go v0.6.0
 	golang.org/x/crypto v0.17.0
 )
 
