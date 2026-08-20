@@ -205,11 +205,108 @@
       },
       "timeoutMs": 8000,
       "execution": "queue"
+    },
+    {
+      "id": "quick-search",
+      "name": {
+        "zh-CN": "快速搜索本地文件",
+        "en": "Quick Search Local Files"
+      },
+      "description": "为宿主快速搜索浮窗返回轻量本地文件结果。",
+      "hidden": true,
+      "category": "quick-search",
+      "io": {
+        "inputs": [
+          {
+            "name": "providerId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "sequence",
+            "type": "number"
+          },
+          {
+            "name": "limit",
+            "type": "number",
+            "default": 8,
+            "min": 1,
+            "max": 20
+          }
+        ],
+        "outputs": [
+          {
+            "name": "results",
+            "type": "json"
+          }
+        ]
+      },
+      "timeoutMs": 1200,
+      "execution": "queue"
+    },
+    {
+      "id": "quick-search-open",
+      "name": {
+        "zh-CN": "打开快速搜索文件",
+        "en": "Open Quick Search File"
+      },
+      "description": "打开或定位宿主快速搜索选中的本地文件结果。",
+      "hidden": true,
+      "category": "quick-search",
+      "permissions": [
+        "os.exec"
+      ],
+      "io": {
+        "inputs": [
+          {
+            "name": "providerId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "result",
+            "type": "json",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      },
+      "timeoutMs": 3000,
+      "execution": "queue"
     }
   ],
   "triggers": [
     {
       "type": "manual"
     }
-  ]
+  ],
+  "quickSearch": {
+    "providers": [
+      {
+        "id": "files",
+        "title": {
+          "zh-CN": "本地文件",
+          "en": "Local Files"
+        },
+        "category": "file",
+        "searchCommand": "quick-search",
+        "activateCommand": "quick-search-open",
+        "priority": 64,
+        "timeoutMs": 900,
+        "maxResults": 8,
+        "minQueryLength": 1
+      }
+    ]
+  }
 }

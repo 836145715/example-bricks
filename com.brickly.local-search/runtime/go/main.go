@@ -168,6 +168,9 @@ func main() {
 	plugin.OnCommand("search", handleSearch)
 	plugin.OnCommand("health", handleHealth)
 	plugin.OnCommand("preview", handlePreview)
+	plugin.OnCommand("quick-search", handleQuickSearch)
+	plugin.OnCommand("quick-search-open", handleQuickSearchOpen)
 
 	plugin.Start()
 }
+
