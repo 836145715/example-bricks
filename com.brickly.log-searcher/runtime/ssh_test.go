@@ -31,13 +31,40 @@ func TestBuildRemoteFileInfoCommandQuotesPaths(t *testing.T) {
 		"sh -c ",
 		"/var/log/app current.log",
 		"/tmp/quote",
-		`wc -c < "$path"`,
-		`stat -c %Y -- "$path"`,
-		`file -b --mime-type -- "$path"`,
-		`printf '\''%s\t%s\t%s\t%s\n'\'' "$size" "$modified_at" "$mime_type" "$path"`,
+		`stat -c '\''%s %Y'\'' -- "$path"`,
+		`stat -f '\''%z %m'\'' -- "$path"`,
+		`printf '\''%s\t%s\t%s\t%s\n'\'' "$size" "$modified_at" "" "$path"`,
 	})
+	if strings.Contains(got, "wc -c") {
+		t.Fatalf("file info command should not read whole files with wc -c, got %q", got)
+	}
+	if strings.Contains(got, "file -b") {
+		t.Fatalf("file info command should not probe MIME with file, got %q", got)
+	}
 	if strings.Contains(got, "/tmp/quote's.log") {
 		t.Fatalf("file path with quote should be shell-quoted, got %q", got)
+	}
+}
+
+func TestGuessRemoteLogMimeType(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{path: "/var/log/app.log", want: "text/plain"},
+		{path: "/var/log/app.log.1", want: "text/plain"},
+		{path: "/var/log/catalina.out", want: "text/plain"},
+		{path: "/var/log/app.log.gz", want: "application/octet-stream"},
+		{path: "/srv/service.jar", want: "application/octet-stream"},
+		{path: "/srv/image.png", want: "application/octet-stream"},
+		{path: "/var/log/events.json", want: "application/json"},
+		{path: "/opt/app/unknown", want: ""},
+	}
+	for _, testCase := range cases {
+		got := guessRemoteLogMimeType(testCase.path)
+		if got != testCase.want {
+			t.Fatalf("guessRemoteLogMimeType(%q) = %q, want %q", testCase.path, got, testCase.want)
+		}
 	}
 }
 

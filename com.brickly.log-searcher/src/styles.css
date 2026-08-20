@@ -37,6 +37,7 @@ html, body, #root {
 
 /* 根布局：自绘标题栏 + 主内容 */
 .app-root {
+  position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
@@ -535,7 +536,7 @@ html, body, #root {
 }
 
 .workspace-with-config {
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* 日志结果面板 */
@@ -1164,6 +1165,29 @@ html, body, #root {
   background: #22c55e;
 }
 
+.config-modal-backdrop {
+  position: absolute;
+  inset: 36px 0 0 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 20px 20px;
+  background: rgba(8, 8, 10, 0.58);
+}
+
+.config-modal {
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100% - 8px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #1a1a1c;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.46);
+}
+
 /* 状态面板与配置面板 */
 .config-pane {
   border-left: 1px solid var(--border-color);
@@ -1189,6 +1213,7 @@ html, body, #root {
 
 .config-form {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 16px;
   display: flex;
@@ -1529,6 +1554,16 @@ html, body, #root {
   line-height: 1.2;
   word-break: break-all;
   margin-top: 1px;
+}
+
+.file-select-dropdown .dropdown-item .file-size-span {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .file-select-dropdown .dropdown-empty {

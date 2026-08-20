@@ -457,12 +457,28 @@ export function App() {
     }
   }
 
-  // 每次活动服务器或配置改变，重新异步获取日志文件
+  const activeServerListSignature = (() => {
+    const server = servers.find(item => item.id === activeServerId)
+    if (!server) return ''
+    return [
+      server.id,
+      server.host,
+      String(server.port),
+      server.user,
+      server.authType,
+      server.password ?? '',
+      server.keyPath ?? '',
+      server.keyText ?? '',
+      server.logs.map(log => log.path).join('\n')
+    ].join('\u0001')
+  })()
+
+  // 仅在连接目标或日志路径变化时重新拉列表，改名称不会再走一遍 SSH。
   useEffect(() => {
-    if (activeServerId && servers.length > 0) {
+    if (activeServerId && activeServerListSignature) {
       fetchAvailableFiles(activeServerId)
     }
-  }, [activeServerId, servers])
+  }, [activeServerId, activeServerListSignature])
 
   // 各服务器检索配置安全读取 Getter & Setter
   const getSearchPattern = (id: string): string => {
@@ -1203,15 +1219,33 @@ export function App() {
     logs: srv.logs.map(l => ({ ...l }))
   })
 
+  const closeConfigPanel = () => {
+    setConfigPanelOpen(false)
+    setEditingServer(null)
+    setConnectionTest({ status: 'idle', message: '' })
+  }
+
   const syncConfigPanelToServer = (srv: ServerConfig | null) => {
     if (srv) {
       setEditingServer(cloneServerForEditing(srv))
     } else {
-      setEditingServer(null)
-      setConfigPanelOpen(false)
+      closeConfigPanel()
+      return
     }
     setConnectionTest({ status: 'idle', message: '' })
   }
+
+  useEffect(() => {
+    if (!configPanelOpen) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeConfigPanel()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [configPanelOpen])
 
   const handleSelectServer = (srv: ServerConfig) => {
     setActiveServerId(srv.id)
@@ -1408,8 +1442,7 @@ export function App() {
     }
 
     saveAppConfig(nextServers)
-    setConfigPanelOpen(false)
-    setEditingServer(null)
+    closeConfigPanel()
     if (!activeServerId) {
       setActiveServerId(serverToSave.id)
     }
@@ -2047,6 +2080,9 @@ export function App() {
                                 <span className="file-name-span">{fileName}</span>
                                 <span className="file-path-span">{filePath}</span>
                               </div>
+                              {file.sizeBytes !== undefined && (
+                                <span className="file-size-span">{formatLogFileSize(file.sizeBytes)}</span>
+                              )}
                             </label>
                           )
                         })
@@ -2097,20 +2133,20 @@ export function App() {
             <button
               className="btn btn-secondary"
               onClick={() => {
-                if (editingServer && editingServer.id === activeServerId) {
-                  setConfigPanelOpen(!configPanelOpen)
-                } else {
-                  const srv = servers.find(s => s.id === activeServerId)
-                  if (srv) {
-                    syncConfigPanelToServer(srv)
-                    setConfigPanelOpen(true)
-                  }
+                if (configPanelOpen && editingServer?.id === activeServerId) {
+                  closeConfigPanel()
+                  return
+                }
+                const srv = servers.find(s => s.id === activeServerId)
+                if (srv) {
+                  syncConfigPanelToServer(srv)
+                  setConfigPanelOpen(true)
                 }
               }}
               disabled={!activeServerId}
               type="button"
             >
-              配置详情
+              编辑连接
             </button>
           </div>
 
@@ -2366,7 +2402,7 @@ export function App() {
         </header>
 
         {/* 核心工作区 */}
-        <section className={`workspace ${configPanelOpen ? 'workspace-with-config' : ''}`}>
+        <section className="workspace">
           {/* 日志结果展示 */}
           <div className="results-pane">
             <div className="results-header">
@@ -2622,25 +2658,44 @@ export function App() {
 
           </div>
 
-          {/* 右侧服务器配置详情/修改面板 */}
-          {configPanelOpen && editingServer && (
-            <aside className="config-pane">
-              <div className="config-header">
-                <span className="config-title">
-                  {servers.some(s => s.id === editingServer.id) ? '配置详情' : '添加连接'}
-                </span>
-                <button
-                  className="sidebar-action-btn"
-                  onClick={() => {
-                    setConfigPanelOpen(false)
-                    setEditingServer(null)
-                    setConnectionTest({ status: 'idle', message: '' })
-                  }}
-                  type="button"
-                >
-                  <XCircle size={16} />
-                </button>
-              </div>
+        </section>
+
+        {/* 底部状态栏 */}
+        <footer className="statusbar">
+          <div className="status-left">
+            <div className={`status-dot ${statusDot}`} />
+            <span>{statusMessage}</span>
+          </div>
+          <div>Go Runtime BPP 0.1.0</div>
+        </footer>
+      </section>
+    </main>
+
+    {configPanelOpen && editingServer && (
+      <div
+        className="config-modal-backdrop"
+        onClick={closeConfigPanel}
+      >
+        <div
+          className="config-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="config-modal-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="config-header">
+            <span className="config-title" id="config-modal-title">
+              {servers.some(s => s.id === editingServer.id) ? '编辑连接' : '添加连接'}
+            </span>
+            <button
+              className="sidebar-action-btn"
+              onClick={closeConfigPanel}
+              type="button"
+              title="关闭"
+            >
+              <X size={16} />
+            </button>
+          </div>
 
               <div className="config-form">
                 <div className="form-group">
@@ -2650,6 +2705,7 @@ export function App() {
                     value={editingServer.name}
                     onChange={(e) => setEditingServer({ ...editingServer, name: e.target.value })}
                     placeholder="例如：开发环境 nginx"
+                    autoFocus
                   />
                 </div>
 
@@ -2791,11 +2847,7 @@ export function App() {
                   </button>
                   <button
                     className="btn btn-secondary"
-                    onClick={() => {
-                      setConfigPanelOpen(false)
-                      setEditingServer(null)
-                      setConnectionTest({ status: 'idle', message: '' })
-                    }}
+                    onClick={closeConfigPanel}
                     type="button"
                   >
                     取消
@@ -2806,20 +2858,9 @@ export function App() {
                   </button>
                 </div>
               </div>
-            </aside>
-          )}
-        </section>
-
-        {/* 底部状态栏 */}
-        <footer className="statusbar">
-          <div className="status-left">
-            <div className={`status-dot ${statusDot}`} />
-            <span>{statusMessage}</span>
-          </div>
-          <div>Go Runtime BPP 0.1.0</div>
-        </footer>
-      </section>
-    </main>
+        </div>
+      </div>
+    )}
     </div>
   )
 }

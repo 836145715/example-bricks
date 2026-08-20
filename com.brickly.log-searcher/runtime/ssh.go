@@ -341,7 +341,7 @@ func ListRemoteLogFiles(client *ssh.Client, paths []string) ([]RemoteLogFile, er
 	return ReadRemoteLogFileInfo(client, targetFiles)
 }
 
-// ReadRemoteLogFileInfo reads sizes for already-expanded remote paths in a single SSH session.
+// ReadRemoteLogFileInfo reads inode metadata for already-expanded remote paths in one SSH session.
 func ReadRemoteLogFileInfo(client *ssh.Client, targetFiles []string) ([]RemoteLogFile, error) {
 	if len(targetFiles) == 0 {
 		return []RemoteLogFile{}, nil
@@ -365,6 +365,9 @@ func ReadRemoteLogFileInfo(client *ssh.Client, targetFiles []string) ([]RemoteLo
 	scanner := bufio.NewScanner(stdoutPipe)
 	for scanner.Scan() {
 		if file, ok := parseRemoteLogFileInfoLine(scanner.Text()); ok {
+			if file.MimeType == "" {
+				file.MimeType = guessRemoteLogMimeType(file.Path)
+			}
 			files = append(files, file)
 		}
 	}
@@ -426,6 +429,45 @@ func isSearchableRemoteLogMimeType(mimeType string) bool {
 		mimeType == "application/xml" ||
 		mimeType == "application/x-ndjson" ||
 		mimeType == "inode/x-empty"
+}
+
+func remoteFileBaseName(path string) string {
+	normalized := strings.ReplaceAll(path, "\\", "/")
+	if index := strings.LastIndex(normalized, "/"); index >= 0 {
+		return normalized[index+1:]
+	}
+	return normalized
+}
+
+func guessRemoteLogMimeType(path string) string {
+	name := strings.ToLower(remoteFileBaseName(path))
+	if name == "" {
+		return ""
+	}
+
+	for _, suffix := range []string{
+		".gz", ".tgz", ".bz2", ".xz", ".zst", ".zip", ".jar", ".war", ".ear", ".7z", ".rar",
+		".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".pdf",
+		".so", ".dll", ".exe", ".bin", ".class", ".woff", ".woff2", ".ttf", ".otf",
+	} {
+		if strings.HasSuffix(name, suffix) {
+			return "application/octet-stream"
+		}
+	}
+
+	if strings.Contains(name, ".log") ||
+		strings.HasSuffix(name, ".out") ||
+		strings.HasSuffix(name, ".err") ||
+		strings.HasSuffix(name, ".txt") {
+		return "text/plain"
+	}
+	if strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".ndjson") {
+		return "application/json"
+	}
+	if strings.HasSuffix(name, ".xml") {
+		return "application/xml"
+	}
+	return ""
 }
 
 func expandRemotePaths(ctx context.Context, client *ssh.Client, paths []string) ([]string, error) {
@@ -987,7 +1029,8 @@ func buildRemoteFileInfoCommand(paths []string) string {
 	for _, path := range paths {
 		quotedPaths = append(quotedPaths, shellQuote(path))
 	}
-	script := fmt.Sprintf(`has_file=0; command -v file >/dev/null 2>&1 && has_file=1; for path in %s; do if [ -f "$path" ]; then size=$(wc -c < "$path") || continue; modified_at=$(stat -c %%Y -- "$path" 2>/dev/null) || modified_at=0; mime_type=; if [ "$has_file" -eq 1 ]; then mime_type=$(file -b --mime-type -- "$path" 2>/dev/null) || mime_type=application/octet-stream; fi; printf '%%s\t%%s\t%%s\t%%s\n' "$size" "$modified_at" "$mime_type" "$path"; fi; done`, strings.Join(quotedPaths, " "))
+	// 只用 inode 元数据：wc -c 会读完整文件，file --mime-type 会为每个文件再 fork 一次。
+	script := fmt.Sprintf(`for path in %s; do [ -f "$path" ] || continue; meta=$(stat -c '%%s %%Y' -- "$path" 2>/dev/null || stat -f '%%z %%m' -- "$path" 2>/dev/null) || continue; size=${meta%% *}; modified_at=${meta#* }; printf '%%s\t%%s\t%%s\t%%s\n' "$size" "$modified_at" "" "$path"; done`, strings.Join(quotedPaths, " "))
 	return "sh -c " + shellQuote(script)
 }
 
