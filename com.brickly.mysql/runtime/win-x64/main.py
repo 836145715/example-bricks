@@ -40,23 +40,13 @@ PROFILE_CONFIG_ID = "__profile__"
 
 
 def _send(msg: dict[str, Any]) -> None:
-    """Write JSON message to stdout with newline."""
+    """gRPC Runtime 不再写 BPP stdout。结果只通过 invoke 返回值回传。"""
     req_id = msg.get("id")
     if isinstance(req_id, str):
         with _active_lock:
             active = _active.get(req_id)
         if active:
-            ctx = active["ctx"]
             msg_type = msg.get("type")
-            if msg_type == "command.progress":
-                ctx.progress(float(msg.get("progress") or 0), msg.get("message"))
-                return
-            if msg_type == "command.chunk":
-                ctx.chunk(msg.get("chunk"), msg.get("name"))
-                return
-            if msg_type == "command.output":
-                ctx.output(str(msg.get("name") or "output"), msg.get("value"))
-                return
             if msg_type == "command.result":
                 active["result"] = msg.get("result")
                 return
@@ -64,10 +54,6 @@ def _send(msg: dict[str, Any]) -> None:
                 error = msg.get("error") if isinstance(msg.get("error"), dict) else {}
                 active["error"] = BppError(str(error.get("code") or "INTERNAL_ERROR"), str(error.get("message") or "Runtime error"))
                 return
-    line = json.dumps(msg, ensure_ascii=False, default=str) + "\n"
-    with _stdout_lock:
-        sys.stdout.write(line)
-        sys.stdout.flush()
 
 
 _plugin = None  # set after BricklyRuntime construction
@@ -257,8 +243,6 @@ def cmd_test_connection(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
     if not config:
         raise _bpp_error("INVALID_INPUT", f"Config not found: {config_id}")
 
-    _send({"type": "command.progress", "id": req_id, "progress": 0.5, "message": f"Connecting to {config.host}:{config.port}"})
-
     try:
         conn = _get_connection(config)
         with conn.cursor() as cursor:
@@ -297,15 +281,11 @@ def cmd_query(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
     if not config:
         raise _bpp_error("INVALID_INPUT", f"Config not found: {config_id}")
 
-    _send({"type": "command.progress", "id": req_id, "progress": 0.1, "message": "Executing query"})
-
     conn = _get_connection(config)
     cursor = conn.cursor(DictCursor)
 
     try:
         _execute_sql(cursor, sql, params)
-
-        _send({"type": "command.progress", "id": req_id, "progress": 0.3, "message": "Fetching results"})
 
         # Get column names
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
@@ -326,25 +306,7 @@ def cmd_query(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
             batch.extend(batch_row)
             row_count += len(batch_row)
 
-            # Emit progress
-            progress = min(0.9, 0.3 + (row_count / 10000) * 0.6)
-            _send({
-                "type": "command.progress",
-                "id": req_id,
-                "progress": progress,
-                "message": f"Fetched {row_count} rows"
-            })
-
-            # Emit chunk for streaming
-            _send({
-                "type": "command.chunk",
-                "id": req_id,
-                "chunk": f"Fetched {len(batch_row)} rows\n"
-            })
-
         rows = batch
-
-        _send({"type": "command.progress", "id": req_id, "progress": 1.0, "message": f"Complete: {row_count} rows"})
 
         return {
             "rows": rows,
@@ -371,8 +333,6 @@ def cmd_execute(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
     config = _load_config(config_id)
     if not config:
         raise _bpp_error("INVALID_INPUT", f"Config not found: {config_id}")
-
-    _send({"type": "command.progress", "id": req_id, "progress": 0.5, "message": "Executing statement"})
 
     conn = _get_connection(config)
     cursor = conn.cursor()
@@ -409,8 +369,6 @@ def cmd_transaction(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
     if not config:
         raise _bpp_error("INVALID_INPUT", f"Config not found: {config_id}")
 
-    _send({"type": "command.progress", "id": req_id, "progress": 0.1, "message": f"Starting transaction with {len(statements)} statements"})
-
     conn = _get_connection(config)
     results = []
 
@@ -426,14 +384,6 @@ def cmd_transaction(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
 
             if not sql:
                 raise _bpp_error("INVALID_INPUT", f"Statement {i+1}: sql is required")
-
-            progress = 0.1 + ((i + 1) / len(statements)) * 0.8
-            _send({
-                "type": "command.progress",
-                "id": req_id,
-                "progress": progress,
-                "message": f"Executing statement {i+1}/{len(statements)}"
-            })
 
             cursor = conn.cursor()
             try:
@@ -451,8 +401,6 @@ def cmd_transaction(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
                 raise
 
         conn.commit()
-
-        _send({"type": "command.progress", "id": req_id, "progress": 1.0, "message": "Transaction committed"})
 
         return {
             "success": True,
@@ -480,6 +428,10 @@ def _bpp_error(code: str, message: str) -> _BppError:
 
 def _run_command(ctx: Any, handler: Any, inp: dict[str, Any]) -> Any:
     """Run command through the SDK context while keeping existing business helpers."""
+    global _profile_config
+    cfg = _config_from_profile(getattr(ctx, "config", None) or plugin.config)
+    if cfg:
+        _profile_config = cfg
     req_id = ctx.request_id
     command_id = ctx.command_id
     _log(f"invoke start id={req_id} command={command_id}")
