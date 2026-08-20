@@ -60,12 +60,6 @@ function inspect(config) {
   }
 }
 
-brick.onCommand('inspect', async (ctx) => {
-  const result = inspect(ctx.config || {})
-  ctx.output('config', result.config)
-  ctx.output('env', result.env)
-  ctx.output('checks', result.checks)
-  return result
-})
+brick.onCommand('inspect', async (ctx) => inspect(ctx.config || {}))
 
 brick.start()
