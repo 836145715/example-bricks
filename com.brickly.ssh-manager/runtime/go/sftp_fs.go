@@ -26,6 +26,7 @@ type remoteInfo struct {
 type remoteFS interface {
 	Home() (string, error)
 	Resolve(raw string) (string, error)
+	ReadLink(path string) (string, error)
 	Stat(path string) (remoteInfo, error)
 	ReadDir(path string) ([]remoteInfo, error)
 	Open(path string) (io.ReadCloser, error)
@@ -72,6 +73,18 @@ func (r *sftpRemote) Resolve(raw string) (string, error) {
 		return "", err
 	}
 	return joinRemote(home, normalized), nil
+}
+
+func (r *sftpRemote) ReadLink(remotePath string) (string, error) {
+	target, err := r.client.ReadLink(remotePath)
+	if err != nil {
+		return "", newSFTPError(err.Error())
+	}
+	cleaned := strings.ReplaceAll(strings.TrimSpace(target), "\\", "/")
+	if cleaned == "" {
+		return "", newSFTPError("empty link target")
+	}
+	return cleaned, nil
 }
 
 func (r *sftpRemote) Stat(remotePath string) (remoteInfo, error) {
@@ -176,6 +189,28 @@ func (m *mappedRemote) Resolve(raw string) (string, error) {
 		return path.Clean(normalized), nil
 	}
 	return joinRemote(m.home, normalized), nil
+}
+
+func (m *mappedRemote) ReadLink(remotePath string) (string, error) {
+	local, err := m.toLocal(remotePath)
+	if err != nil {
+		return "", err
+	}
+	target, err := os.Readlink(local)
+	if err != nil {
+		return "", newSFTPError(err.Error())
+	}
+	cleaned := strings.ReplaceAll(strings.TrimSpace(target), "\\", "/")
+	if filepath.IsAbs(target) {
+		rel, relErr := filepath.Rel(m.root, target)
+		if relErr == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return joinRemote("/", filepath.ToSlash(rel)), nil
+		}
+	}
+	if cleaned == "" {
+		return "", newSFTPError("empty link target")
+	}
+	return cleaned, nil
 }
 
 func (m *mappedRemote) toLocal(remotePath string) (string, error) {

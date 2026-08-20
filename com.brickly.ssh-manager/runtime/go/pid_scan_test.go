@@ -60,6 +60,12 @@ func TestValidRemoteCwd(t *testing.T) {
 	}
 }
 
+func TestProcCwdPath(t *testing.T) {
+	if procCwdPath(4242) != "/proc/4242/cwd" {
+		t.Fatalf("path=%s", procCwdPath(4242))
+	}
+}
+
 func TestShellBootCommandAnnouncesPID(t *testing.T) {
 	if !bytes.Contains([]byte(shellBootCommand), []byte("7331;Pid=")) {
 		t.Fatal("missing OSC")

@@ -316,13 +316,13 @@ func handleSessionCwd(ctx *brickly.CommandContext, input json.RawMessage) (any, 
 	if sessionID == "" {
 		return nil, newInputError("sessionId is required")
 	}
-	client, pid, ok := sessions.shellLookup(sessionID)
+	client, hostID, pid, ok := sessions.shellLookup(sessionID)
 	if !ok || client == nil {
 		return nil, newNotFoundError("session not found")
 	}
 	timeout, cancel := context.WithTimeout(ctx.Context(), sessionCwdTimeout)
 	defer cancel()
-	path, err := readSessionCwd(timeout, client, pid)
+	path, err := readSessionCwd(timeout, client, pid, Host{ID: hostID})
 	if err != nil {
 		return nil, err
 	}

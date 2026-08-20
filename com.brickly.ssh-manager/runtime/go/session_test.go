@@ -71,9 +71,9 @@ func TestSessionHubStoresShellPID(t *testing.T) {
 	}
 	hub.setShellPID("s1", 42)
 	hub.setShellPID("s1", 99)
-	_, pid, ok := hub.shellLookup("s1")
-	if !ok || pid != 42 {
-		t.Fatalf("pid=%d ok=%v", pid, ok)
+	_, hostID, pid, ok := hub.shellLookup("s1")
+	if !ok || pid != 42 || hostID != "h1" {
+		t.Fatalf("pid=%d hostID=%s ok=%v", pid, hostID, ok)
 	}
 }
 

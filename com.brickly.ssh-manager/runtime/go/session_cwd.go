@@ -17,14 +17,46 @@ const (
 	sessionCwdTimeout = 4 * time.Second
 )
 
-func readSessionCwd(ctx context.Context, client *ssh.Client, pid int) (string, error) {
+func procCwdPath(pid int) string {
+	return fmt.Sprintf("/proc/%d/cwd", pid)
+}
+
+func readSessionCwd(ctx context.Context, client *ssh.Client, pid int, host Host) (string, error) {
 	if client == nil {
 		return "", newNotFoundError("session not found")
 	}
 	if pid <= 0 {
 		return "", newSSHError("SESSION_CWD_UNAVAILABLE", "shell pid not ready")
 	}
+	if path, err := readCwdViaSFTP(host, procCwdPath(pid)); err == nil {
+		return path, nil
+	}
+	return readCwdViaExec(ctx, client, pid)
+}
 
+func readCwdViaSFTP(host Host, procPath string) (string, error) {
+	if host.ID == "" {
+		return "", newInputError("hostId is required")
+	}
+	var path string
+	err := conns.useSFTP(host, func(fsys remoteFS) error {
+		target, readErr := fsys.ReadLink(procPath)
+		if readErr != nil {
+			return readErr
+		}
+		if !validRemoteCwd(target) {
+			return newSSHError("SESSION_CWD_UNAVAILABLE", "invalid cwd")
+		}
+		path = target
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func readCwdViaExec(ctx context.Context, client *ssh.Client, pid int) (string, error) {
 	session, err := client.NewSession()
 	if err != nil {
 		return "", newSSHError("SSH_SESSION_ERROR", err.Error())

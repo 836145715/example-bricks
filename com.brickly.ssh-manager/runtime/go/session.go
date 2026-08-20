@@ -80,14 +80,14 @@ func (h *sessionHub) setShellPID(id string, pid int) {
 	session.shellPID = pid
 }
 
-func (h *sessionHub) shellLookup(id string) (*ssh.Client, int, bool) {
+func (h *sessionHub) shellLookup(id string) (*ssh.Client, string, int, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	session := h.items[id]
 	if session == nil {
-		return nil, 0, false
+		return nil, "", 0, false
 	}
-	return session.client, session.shellPID, true
+	return session.client, session.HostID, session.shellPID, true
 }
 
 func (h *sessionHub) write(id string, data []byte) error {

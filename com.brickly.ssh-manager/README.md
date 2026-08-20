@@ -52,7 +52,7 @@ cd example-bricks/com.brickly.ssh-manager/runtime/go
 - `exec`：执行一条远程命令，返回 stdout / stderr / exitCode。
 - `open-session`：打开交互 PTY，流式输出 `data` chunk（base64）。开会话时用 POSIX 包装记下 shell PID，不把钩子打进终端。
 - `write-session` / `resize-session` / `close-session`：写入、改尺寸、关闭会话。
-- `session-cwd`：读取该 shell 的 `/proc/<pid>/cwd`。文件管理「追踪」在打开时读一次，之后每次终端回车后再读。
+- `session-cwd`：在已打开的 SSH 连接上读 shell 的 `/proc/<pid>/cwd`（优先复用 SFTP 通道）。文件管理「追踪」在打开时读一次，之后每次终端回车后再读。
 - `sftp-list`：列出远端目录；`path` 为空时返回家目录。
 - `sftp-upload`：上传本机文件或目录，流式输出 `progress`。
 - `sftp-download`：下载远端文件或目录，流式输出 `progress`。
