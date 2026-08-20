@@ -12,9 +12,7 @@ function normalizeTimeout(value) {
 }
 
 brick.onCommand('pick-color', async (ctx, input = {}) => {
-  const color = await ctx.platform.screen.pickColor({ timeoutMs: normalizeTimeout(input.timeoutMs) })
-  ctx.output('color', color)
-  return color
+  return ctx.platform.screen.pickColor({ timeoutMs: normalizeTimeout(input.timeoutMs) })
 })
 
 brick.onCommand('capture-region', async (ctx, input = {}) => {
@@ -30,7 +28,6 @@ brick.onCommand('capture-region', async (ctx, input = {}) => {
     createdAt: result.createdAt,
     dataUrl: result.dataUrl
   }
-  ctx.output('capture', capture)
   return capture
 })
 
