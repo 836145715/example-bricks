@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.lan-share",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "内网文件共享",

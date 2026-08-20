@@ -34,9 +34,7 @@ function normalizeError(error) {
 function handle(outputName, run) {
   return async (ctx, input) => {
     try {
-      const value = await run(ctx, input || {})
-      ctx.output(outputName, value)
-      return value
+      return run(ctx, input || {})
     } catch (error) {
       throw normalizeError(error)
     }
