@@ -35,22 +35,13 @@ _active_lock = threading.Lock()
 
 
 def _send(msg: dict[str, Any]) -> None:
+    """gRPC Runtime 不再写 BPP stdout。结果只通过 invoke 返回值回传。"""
     req_id = msg.get("id")
     if isinstance(req_id, str):
         with _active_lock:
             active = _active.get(req_id)
         if active:
-            ctx = active["ctx"]
             msg_type = msg.get("type")
-            if msg_type == "command.progress":
-                ctx.progress(float(msg.get("progress") or 0), msg.get("message"))
-                return
-            if msg_type == "command.chunk":
-                ctx.chunk(msg.get("chunk"), msg.get("name"))
-                return
-            if msg_type == "command.output":
-                ctx.output(str(msg.get("name") or "output"), msg.get("value"))
-                return
             if msg_type == "command.result":
                 active["result"] = msg.get("result")
                 return
@@ -58,10 +49,6 @@ def _send(msg: dict[str, Any]) -> None:
                 error = msg.get("error") if isinstance(msg.get("error"), dict) else {}
                 active["error"] = BppError(str(error.get("code") or "INTERNAL_ERROR"), str(error.get("message") or "Runtime error"))
                 return
-    line = json.dumps(msg, ensure_ascii=False, default=str) + "\n"
-    with _stdout_lock:
-        sys.stdout.write(line)
-        sys.stdout.flush()
 
 
 _plugin = None  # set after BricklyRuntime construction
@@ -349,30 +336,12 @@ def cmd_save(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
 
     share_id = _extract_share_id(raw_id)
 
-    _send({"type": "command.progress", "id": req_id, "progress": 0.05, "message": f"正在获取分享内容: {share_id}"})
-    _send({"type": "command.chunk", "id": req_id, "chunk": f"🔗 分享ID: {share_id}\n"})
-
     if _is_cancelled(req_id):
         raise _bpp_error("CANCELLED", "已取消")
 
     data = _fetch_share_content(share_id, timeout)
-
-    _send({"type": "command.progress", "id": req_id, "progress": 0.3, "message": "正在解析会话内容"})
-
     parsed = _parse_conversation(data)
-
-    _send({"type": "command.progress", "id": req_id, "progress": 0.5, "message": "正在生成 Markdown"})
-
     title, save_path, file_bytes = _write_markdown(parsed, include_thinking, save_dir_raw)
-
-    _send({"type": "command.chunk", "id": req_id, "chunk": f"📄 标题: {title}\n💬 消息数: {parsed['messageCount']}\n📁 保存至: {save_path}\n📦 大小: {file_bytes} bytes\n"})
-
-    _send({"type": "command.progress", "id": req_id, "progress": 1.0, "message": f"保存完成: {save_path.name}"})
-
-    _send({"type": "command.output", "id": req_id, "name": "title", "value": title})
-    _send({"type": "command.output", "id": req_id, "name": "messageCount", "value": parsed["messageCount"]})
-    _send({"type": "command.output", "id": req_id, "name": "savedTo", "value": str(save_path)})
-    _send({"type": "command.output", "id": req_id, "name": "bytes", "value": file_bytes})
 
     return {
         "title": title,
