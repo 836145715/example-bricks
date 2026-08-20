@@ -2,13 +2,13 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SRC="$(cd "$(dirname "$0")" && pwd)"
-BIN_ROOT="$ROOT/bin"
+RUNTIME_ROOT="$ROOT/runtime"
 STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 TARGETS="${1:-mac-arm64}"
 
 build_one() {
   local key="$1" goos="$2" goarch="$3" suffix="$4"
-  local out_dir="$BIN_ROOT/$key"
+  local out_dir="$RUNTIME_ROOT/$key"
   mkdir -p "$out_dir"
   local out_file="$out_dir/brick$suffix"
   echo "Building $key -> $out_file"

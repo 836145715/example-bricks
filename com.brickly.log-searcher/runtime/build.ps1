@@ -1,7 +1,7 @@
 # 编译 Go 后端二进制
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $srcDir = "$PSScriptRoot"
-$binDir = "$PSScriptRoot\..\bin\win-x64"
+$binDir = "$PSScriptRoot\win-x64"
 
 if (-not (Test-Path $binDir)) {
     New-Item -ItemType Directory -Path $binDir | Out-Null

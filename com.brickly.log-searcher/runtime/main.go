@@ -32,10 +32,7 @@ type ServerConfig struct {
 	Logs     []LogFileConfig `json:"logs"`
 }
 
-const (
-	brickID         = "com.brickly.log-searcher"
-	protocolVersion = "0.2.0"
-)
+const brickID = "com.brickly.log-searcher"
 
 var (
 	stdoutMu       sync.Mutex

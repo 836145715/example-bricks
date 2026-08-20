@@ -41,7 +41,7 @@ npm run build
 - `quick-search`：隐藏命令，供宿主快速搜索调用；输入 `{ providerId, query, sequence, limit }`，输出 `{ results }`，结果只包含标题、路径、类别、去重键和主进程激活缓存所需的 `activationData.path`。索引未就绪时返回空结果。
 - `quick-search-open`：隐藏命令，供宿主激活快速搜索结果；只接受缓存结果中的本地绝对路径，并通过 Windows Shell 打开文件或文件夹。
 
-修改 Go runtime 后必须重新运行 `runtime/go/build.ps1`，否则 `bin/win-x64/brick.exe` 仍不会包含新的快速搜索命令。
+修改 Go runtime 后必须重新运行 `runtime/go/build.ps1`，否则 `runtime/win-x64/brick.exe` 仍不会包含新的快速搜索命令。
 
 ## 预览边界
 

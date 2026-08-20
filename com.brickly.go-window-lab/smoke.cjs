@@ -87,7 +87,7 @@ child.stdout.on('data', (chunk) => {
 child.stderr.setEncoding('utf8')
 child.stderr.on('data', (d) => process.stderr.write('[stderr] ' + d))
 
-send({ type: 'host.hello', protocolVersion: '0.1.0' })
+send({ type: 'host.hello', protocolVersion: '0.4.0', dependencyBindings: {} })
 
 setTimeout(() => {
   send({

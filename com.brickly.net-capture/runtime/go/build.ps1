@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $brickRoot = Resolve-Path "$PSScriptRoot\..\.."
 $srcDir = "$PSScriptRoot"
-$binRoot = "$brickRoot\bin"
+$runtimeRoot = "$brickRoot\runtime"
 $stamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
 
 $matrix = @{
@@ -29,7 +29,7 @@ try {
       continue
     }
     $goos, $goarch, $suffix = $matrix[$key]
-    $outDir = Join-Path $binRoot $key
+    $outDir = Join-Path $runtimeRoot $key
     if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
     $outFile = Join-Path $outDir "brick$suffix"
 

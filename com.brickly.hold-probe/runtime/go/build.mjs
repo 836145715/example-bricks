@@ -20,7 +20,7 @@ const defaults = process.platform === 'darwin'
 for (const key of requested.length > 0 ? requested : defaults) {
   const target = targets[key]
   if (!target) throw new Error(`Unknown target: ${key}`)
-  const output = join(brickRoot, 'bin', key, `brick${target.suffix}`)
+  const output = join(brickRoot, 'runtime', key, `brick${target.suffix}`)
   mkdirSync(dirname(output), { recursive: true })
   console.log(`Building ${key} -> ${output}`)
   const result = spawnSync(

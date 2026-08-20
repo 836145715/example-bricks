@@ -1,0 +1,5 @@
+# Everything 在目标电脑首次运行后重新生成的本机状态，不能进入发布包。
+runtime/win-x64/Everything.db
+runtime/win-x64/Everything.ini
+runtime/win-x64/Errorlog.txt
+runtime/win-x64/*.csv

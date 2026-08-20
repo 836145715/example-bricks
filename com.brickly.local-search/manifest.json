@@ -35,7 +35,7 @@
       "win-x64"
     ],
     "entry": {
-      "win-x64": "bin/win-x64/brick.exe"
+      "win-x64": "runtime/win-x64/brick.exe"
     }
   },
   "lifecycle": {

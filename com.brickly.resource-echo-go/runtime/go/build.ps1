@@ -16,7 +16,7 @@ try {
   foreach ($target in $Targets) {
     if (-not $matrix.ContainsKey($target)) { throw "Unknown target: $target" }
     $goos, $goarch, $suffix = $matrix[$target]
-    $outputDir = Join-Path $brickRoot "bin\$target"
+    $outputDir = Join-Path $brickRoot "runtime\$target"
     New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
     $env:GOOS = $goos
     $env:GOARCH = $goarch

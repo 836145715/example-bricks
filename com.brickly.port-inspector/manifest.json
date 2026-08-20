@@ -39,10 +39,10 @@
       "mac-arm64"
     ],
     "entry": {
-      "win-x64": "bin/win-x64/brick.exe",
-      "win-arm64": "bin/win-arm64/brick.exe",
-      "mac-x64": "bin/mac-x64/brick",
-      "mac-arm64": "bin/mac-arm64/brick"
+      "win-x64": "runtime/win-x64/brick.exe",
+      "win-arm64": "runtime/win-arm64/brick.exe",
+      "mac-x64": "runtime/mac-x64/brick",
+      "mac-arm64": "runtime/mac-arm64/brick"
     }
   },
   "lifecycle": {

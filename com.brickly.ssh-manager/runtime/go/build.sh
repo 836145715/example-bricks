@@ -2,7 +2,7 @@
 # 编译 Go 后端二进制 - macOS
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BIN_DIR="$SCRIPT_DIR/../../bin/mac-arm64"
+BIN_DIR="$SCRIPT_DIR/../mac-arm64"
 
 mkdir -p "$BIN_DIR"
 

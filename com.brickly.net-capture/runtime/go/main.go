@@ -26,7 +26,6 @@ import (
 
 const (
 	brickID           = "com.brickly.net-capture"
-	protocolVersion = "0.2.0"
 	changeEvent       = "net-capture:changed"
 	defaultPort       = 2025
 	maxSessions       = 12000
@@ -1112,9 +1111,8 @@ func min(a, b int) int {
 
 func main() {
 	plugin = brickly.New(brickly.Options{
-		BrickID:         brickID,
-		ProtocolVersion: protocolVersion,
-		Stdout:          stdoutguard.ProtocolStdout(),
+		BrickID: brickID,
+		Stdout:  stdoutguard.ProtocolStdout(),
 	})
 	plugin.Info(fmt.Sprintf("started go=%s sunny=%s", runtime.Version(), public.SunnyVersion), nil)
 

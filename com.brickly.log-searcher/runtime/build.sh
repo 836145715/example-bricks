@@ -3,7 +3,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$SCRIPT_DIR"
-BIN_DIR="$SCRIPT_DIR/../bin/mac-arm64"
+BIN_DIR="$SCRIPT_DIR/mac-arm64"
 
 mkdir -p "$BIN_DIR"
 

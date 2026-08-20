@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $brickRoot = Resolve-Path "$PSScriptRoot\..\.."
 $srcDir = "$PSScriptRoot"
-$binRoot = "$brickRoot\bin"
+$runtimeRoot = "$brickRoot\runtime"
 $matrix = @{
   'win-x64'   = @('windows', 'amd64', '.exe')
   'win-arm64' = @('windows', 'arm64', '.exe')
@@ -30,7 +30,7 @@ try {
       continue
     }
     $goos, $goarch, $suffix = $matrix[$key]
-    $outDir = Join-Path $binRoot $key
+    $outDir = Join-Path $runtimeRoot $key
     if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
     $outFile = Join-Path $outDir "brick$suffix"
 

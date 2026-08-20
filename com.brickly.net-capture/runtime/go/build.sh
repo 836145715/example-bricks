@@ -3,7 +3,7 @@ set -euo pipefail
 
 brick_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 src_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bin_root="$brick_root/bin"
+runtime_root="$brick_root/runtime"
 stamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 targets=("$@")
@@ -27,7 +27,7 @@ for target in "${targets[@]}"; do
     continue
   fi
   read -r goos goarch suffix <<< "$parts"
-  out_dir="$bin_root/$target"
+  out_dir="$runtime_root/$target"
   mkdir -p "$out_dir"
   if [ "$suffix" = "-" ]; then
     suffix=""
