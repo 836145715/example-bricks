@@ -3,5 +3,5 @@ name = "brickly-py-window-lab-runtime"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
-  "brickly-sdk==0.5.0",
+  "brickly-sdk==0.6.0",
 ]
