@@ -137,25 +137,14 @@ async function handleConnect(ctx, input) {
     createdAt: new Date().toISOString(),
     lastUsedAt: new Date().toISOString()
   })
-  ctx.output('connectionId', connectionId)
-  ctx.output('tables', Object.keys(tables))
-  ctx.output('status', 'connected')
   return { connectionId, tables: Object.keys(tables), status: 'connected' }
 }
 
 async function handleQuery(ctx, input) {
   const conn = getConnection(String(input.connectionId || ''))
   const sql = String(input.sql || '')
-  ctx.progress(0.1, `connected to ${conn.database}`)
-  await sleep(80)
   if (ctx.isCancelled()) throw new BppError('CANCELLED', 'Cancelled')
-  ctx.progress(0.45, 'executing query')
   const result = executeSelect(conn, sql)
-  await sleep(80)
-  ctx.output('rows', result.rows)
-  ctx.output('rowCount', result.rowCount)
-  ctx.output('columns', result.columns)
-  ctx.progress(1, `${result.rowCount} rows`)
   return result
 }
 
@@ -170,9 +159,6 @@ async function handleSaveFile(ctx, input) {
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true })
   await fs.promises.writeFile(filePath, content, 'utf8')
   const bytes = Buffer.byteLength(content, 'utf8')
-  ctx.output('filePath', filePath)
-  ctx.output('bytes', bytes)
-  ctx.output('format', format)
   return { filePath, bytes, format }
 }
 
@@ -180,8 +166,6 @@ async function handleClose(ctx, input) {
   const connectionId = String(input.connectionId || '')
   const closed = connections.delete(connectionId)
   const result = { closed, remaining: connections.size }
-  ctx.output('closed', closed)
-  ctx.output('remaining', connections.size)
   return result
 }
 
