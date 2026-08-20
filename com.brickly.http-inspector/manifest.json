@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.http-inspector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": { "zh-CN": "HTTP Inspector", "en": "HTTP Inspector" },
   "description": { "zh-CN": "基于 mitmproxy 的 HTTP、HTTPS 与 WebSocket 调试工具。", "en": "HTTP, HTTPS and WebSocket inspection powered by mitmproxy." },
