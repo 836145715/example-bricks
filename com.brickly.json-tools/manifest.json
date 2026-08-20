@@ -3,10 +3,10 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.json-tools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": "JSON Tools",
-  "description": "Format, minify and validate JSON through the Brickly BPP demo runtime.",
+  "description": "Format, minify and validate JSON through the Brickly gRPC Runtime demo.",
   "icon": "assets/icon.png",
   "keywords": [
     "json",
