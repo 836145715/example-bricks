@@ -60,7 +60,7 @@
       {
         "name": "configOnly",
         "label": "只进 config",
-        "description": "只会出现在 host.hello.config，不会写入环境变量。",
+        "description": "只会出现在 ctx.config，不会写入环境变量。",
         "type": "string",
         "required": true,
         "inject": "config",
@@ -69,7 +69,7 @@
       {
         "name": "fieldEnvOnly",
         "label": "字段只进环境变量",
-        "description": "配置字段只会写入 ENV_TEST_FIELD_ONLY，不会出现在 host.hello.config。",
+        "description": "配置字段只会写入 ENV_TEST_FIELD_ONLY，不会出现在 ctx.config。",
         "type": "string",
         "required": true,
         "env": "ENV_TEST_FIELD_ONLY",
@@ -79,7 +79,7 @@
       {
         "name": "bothValue",
         "label": "config + 环境变量",
-        "description": "会同时出现在 host.hello.config.bothValue 和 ENV_TEST_BOTH。",
+        "description": "会同时出现在 ctx.config.bothValue 和 ENV_TEST_BOTH。",
         "type": "string",
         "required": true,
         "env": "ENV_TEST_BOTH",
@@ -110,7 +110,7 @@
     "env": [
       {
         "name": "ENV_TEST_ONLY",
-        "description": "独立 Profile 环境变量，只进入 process.env，不进入 host.hello.config。",
+        "description": "独立 Profile 环境变量，只进入 process.env，不进入 ctx.config。",
         "required": true
       },
       {
@@ -137,8 +137,8 @@
         "en": "Inspect Injection"
       },
       "description": {
-        "zh-CN": "回显当前 Profile 注入到 host.hello.config 和 runtime 环境变量的结果。",
-        "en": "Echo how the selected Profile was injected into host.hello.config and runtime env vars."
+        "zh-CN": "回显当前 Profile 注入到 ctx.config 和 runtime 环境变量的结果。",
+        "en": "Echo how the selected Profile was injected into ctx.config and runtime env vars."
       },
       "category": "test",
       "io": {
