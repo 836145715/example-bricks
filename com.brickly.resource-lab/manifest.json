@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.resource-lab",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.2.0 <1.0.0",
   "name": {
     "zh-CN": "资源验收测试台",
@@ -52,7 +52,7 @@
       "target": {
         "brickId": "com.brickly.resource-echo-node",
         "origin": "installed",
-        "version": "0.1.0"
+        "version": "0.2.0"
       },
       "commands": [
         "inspect",
@@ -68,7 +68,7 @@
       "target": {
         "brickId": "com.brickly.resource-echo-python",
         "origin": "installed",
-        "version": "0.1.0"
+        "version": "0.2.0"
       },
       "commands": [
         "inspect",
@@ -83,7 +83,7 @@
       "target": {
         "brickId": "com.brickly.resource-echo-go",
         "origin": "installed",
-        "version": "0.1.0"
+        "version": "0.2.0"
       },
       "commands": [
         "inspect",
