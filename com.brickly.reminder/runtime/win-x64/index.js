@@ -166,12 +166,9 @@ function statusPayload() {
   }
 }
 
-plugin.transport.on('message', (message) => {
-  if (message && message.type === 'host.hello') {
-    profileConfig = message.config || {}
-    scheduleNext()
-  }
-})
+function applyConfig(config) {
+  if (config && typeof config === 'object') profileConfig = config
+}
 
 plugin.events.on('window.message', async (payload) => {
   if (!payload || !popup || payload.windowId !== popup.id) return
@@ -186,21 +183,18 @@ plugin.onReady(() => {
 })
 
 plugin.onCommand('status', async (ctx) => {
-  const status = statusPayload()
-  ctx.output('status', status)
-  return status
+  applyConfig(ctx.config)
+  return statusPayload()
 })
 
 plugin.onCommand('preview', async (ctx) => {
-  const result = await showPopup(reminderConfig(), 'preview')
-  ctx.output('window', result)
-  return result
+  applyConfig(ctx.config)
+  return showPopup(reminderConfig(), 'preview')
 })
 
 plugin.onCommand('reschedule', async (ctx) => {
-  const status = scheduleNext()
-  ctx.output('status', status)
-  return status
+  applyConfig(ctx.config)
+  return scheduleNext()
 })
 
 plugin.onShutdown(async () => {
