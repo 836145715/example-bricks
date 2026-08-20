@@ -23,7 +23,7 @@ module.exports = {
       ;({ GIFEncoder, quantize, applyPalette } = require('gifenc'))
     } catch (e) {
       const err = new Error(
-        '缺少 gifenc 依赖，请在 runtime/node 下执行 npm install'
+        '缺少 gifenc 依赖，请在 runtime/win-x64 下执行 npm install'
       )
       err.code = 'NATIVE_DEP_MISSING'
       throw err

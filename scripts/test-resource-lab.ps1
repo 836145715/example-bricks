@@ -28,13 +28,13 @@ try {
   $env:GOCACHE = $goBuildCache
   $pythonExecutable = Join-Path $repoRoot 'com.brickly.resource-echo-python\.venv\Scripts\python.exe'
   if (-not (Test-Path -LiteralPath $pythonExecutable)) { $pythonExecutable = 'python' }
-  Invoke-NativeStep 'Resource Lab Runtime dependencies' (Join-Path $repoRoot 'com.brickly.resource-lab\runtime\node') 'npm.cmd' @('ci', '--ignore-scripts')
-  Invoke-NativeStep 'Node Echo dependencies' (Join-Path $repoRoot 'com.brickly.resource-echo-node\runtime\node') 'npm.cmd' @('ci', '--ignore-scripts')
-  Invoke-NativeStep 'Resource Lab Runtime tests' (Join-Path $repoRoot 'com.brickly.resource-lab\runtime\node') 'node.exe' @('--test', 'catalog.test.cjs', 'run-manager.test.cjs', 'scenarios.test.cjs', 'index.test.cjs')
-  Invoke-NativeStep 'Node Echo tests' (Join-Path $repoRoot 'com.brickly.resource-echo-node\runtime\node') 'node.exe' @('--test', 'operations.test.cjs', 'hold-registry.test.cjs', 'resource-input.test.cjs')
-  Invoke-NativeStep 'Node Echo syntax' $repoRoot 'node.exe' @('--check', 'com.brickly.resource-echo-node/runtime/node/index.cjs')
-  Invoke-NativeStep 'Python Echo tests' $repoRoot $pythonExecutable @('-m', 'unittest', 'discover', '-s', 'com.brickly.resource-echo-python/runtime/python', '-p', 'test_*.py')
-  Invoke-NativeStep 'Python Echo syntax' $repoRoot $pythonExecutable @('-m', 'py_compile', 'com.brickly.resource-echo-python/runtime/python/main.py', 'com.brickly.resource-echo-python/runtime/python/resource_ops.py', 'com.brickly.resource-echo-python/runtime/python/resource_input.py')
+  Invoke-NativeStep 'Resource Lab Runtime dependencies' (Join-Path $repoRoot 'com.brickly.resource-lab\runtime\win-x64') 'npm.cmd' @('ci', '--ignore-scripts')
+  Invoke-NativeStep 'Node Echo dependencies' (Join-Path $repoRoot 'com.brickly.resource-echo-node\runtime\win-x64') 'npm.cmd' @('ci', '--ignore-scripts')
+  Invoke-NativeStep 'Resource Lab Runtime tests' (Join-Path $repoRoot 'com.brickly.resource-lab\runtime\win-x64') 'node.exe' @('--test', 'catalog.test.cjs', 'run-manager.test.cjs', 'scenarios.test.cjs', 'index.test.cjs')
+  Invoke-NativeStep 'Node Echo tests' (Join-Path $repoRoot 'com.brickly.resource-echo-node\runtime\win-x64') 'node.exe' @('--test', 'operations.test.cjs', 'hold-registry.test.cjs', 'resource-input.test.cjs')
+  Invoke-NativeStep 'Node Echo syntax' $repoRoot 'node.exe' @('--check', 'com.brickly.resource-echo-node/runtime/win-x64/index.cjs')
+  Invoke-NativeStep 'Python Echo tests' $repoRoot $pythonExecutable @('-m', 'unittest', 'discover', '-s', 'com.brickly.resource-echo-python/runtime/win-x64', '-p', 'test_*.py')
+  Invoke-NativeStep 'Python Echo syntax' $repoRoot $pythonExecutable @('-m', 'py_compile', 'com.brickly.resource-echo-python/runtime/win-x64/main.py', 'com.brickly.resource-echo-python/runtime/win-x64/resource_ops.py', 'com.brickly.resource-echo-python/runtime/win-x64/resource_input.py')
   Invoke-NativeStep 'Go Echo tests' (Join-Path $repoRoot 'com.brickly.resource-echo-go\runtime\go') 'go.exe' @('test', './...')
   Invoke-NativeStep 'Go Echo six-platform build' $repoRoot 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'com.brickly.resource-echo-go/runtime/go/build.ps1')
 

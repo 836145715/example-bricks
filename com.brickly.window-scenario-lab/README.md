@@ -3,7 +3,7 @@
 status: active  
 type: brick  
 id: `com.brickly.window-scenario-lab`  
-related_code: `runtime/node/index.js`, `ui/control.*`, `ui/child.*`
+related_code: `runtime/win-x64/index.js`, `ui/control.*`, `ui/child.*`
 
 专门覆盖 **多窗口场景** 的测试工具，与「窗口 API 实验室」（测 BrowserWindow 方法白名单）互补：
 
@@ -60,7 +60,7 @@ related_code: `runtime/node/index.js`, `ui/control.*`, `ui/child.*`
 ## 本地依赖
 
 ```bash
-cd example-bricks/com.brickly.window-scenario-lab/runtime/node
+cd example-bricks/com.brickly.window-scenario-lab/runtime/win-x64
 npm install
 ```
 

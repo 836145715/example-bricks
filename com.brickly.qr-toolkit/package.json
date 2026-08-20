@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test:runtime": "npm --prefix runtime/node test"
+    "test:runtime": "npm --prefix runtime/win-x64 test"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

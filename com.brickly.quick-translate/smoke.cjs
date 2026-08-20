@@ -21,7 +21,7 @@ fs.writeFileSync(
   '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#f8fafc"/><rect x="64" y="62" width="150" height="50" fill="#e2e8f0"/><text x="70" y="94" font-size="26" font-family="Arial" fill="#111827">Hello world</text></svg>'
 )
 
-const runtime = spawn(process.execPath, [path.join(__dirname, 'runtime/node/index.js')], {
+const runtime = spawn(process.execPath, [path.join(__dirname, 'runtime/win-x64/index.js')], {
   cwd: __dirname,
   stdio: ['pipe', 'pipe', 'pipe']
 })
@@ -50,7 +50,7 @@ runtime.stderr.on('data', (chunk) => process.stderr.write(chunk))
 
 runtime.stdin.write(JSON.stringify({
   type: 'host.hello',
-  protocolVersion: '0.1.0',
+  protocolVersion: '0.4.0',
   dependencyBindings: {
     openai: { brickId: 'com.brickly.openai', origin: 'installed', version: '0.1.0' },
     ocr: { brickId: 'com.brickly.glm-ocr-screenshot', origin: 'installed', version: '0.1.0' }

@@ -1,7 +1,7 @@
 ---
 status: active
 type: brick-note
-related_code: manifest.json,runtime/node/index.js,runtime/node/src
+related_code: manifest.json,runtime/win-x64/index.js,runtime/win-x64/src
 last_verified: 2026-05-29
 ---
 
@@ -44,7 +44,7 @@ last_verified: 2026-05-29
 
 ## 运行时结构
 
-`runtime/node/index.js` 只负责注册命令和输出结果；核心逻辑拆到：
+`runtime/win-x64/index.js` 只负责注册命令和输出结果；核心逻辑拆到：
 
 - `src/glm-client.js`：BigModel 工具 API 适配器
 - `src/http-client.js`：JSON 与 multipart HTTP 边界
@@ -57,7 +57,7 @@ last_verified: 2026-05-29
 ## 验证
 
 ```bash
-cd bricks/com.brickly.glm-tools/runtime/node
+cd bricks/com.brickly.glm-tools/runtime/win-x64
 npm test
 ```
 

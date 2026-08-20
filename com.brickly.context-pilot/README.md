@@ -31,7 +31,7 @@ ContextPilot 面向经常阅读英文技术文档的学习者。用户可以选�
 
 ## 触发流程
 
-核心流程位于 `runtime/node/index.js`：
+核心流程位于 `runtime/win-x64/index.js`：
 
 ### 划词解构
 
@@ -104,8 +104,8 @@ UI 向 runtime 发送：
 ## 关键文件
 
 - `manifest.json`：声明 Brick ID、划词/截图命令、两个热键、权限、OpenAI 依赖和 GLM OCR 文本依赖。
-- `runtime/node/index.js`：选区检测、剪贴板恢复、截图 OCR 文本提取、窗口生命周期、OpenAI 流式解构调用。
-- `runtime/node/package.json`：声明 `@syllm/brickly-sdk` npm 依赖；宿主协议变更后更新并发布 SDK 包即可。
+- `runtime/win-x64/index.js`：选区检测、剪贴板恢复、截图 OCR 文本提取、窗口生命周期、OpenAI 流式解构调用。
+- `runtime/win-x64/package.json`：声明 `@syllm/brickly-sdk` npm 依赖；宿主协议变更后更新并发布 SDK 包即可。
 - `ui/index.html`：解构面板 DOM。
 - `ui/app.js`：协议化 Markdown 解析、流式渲染、复制、关闭、resize。
 - `ui/style.css`：无边框浮窗、精简分区、拖拽区域和流式文本样式。

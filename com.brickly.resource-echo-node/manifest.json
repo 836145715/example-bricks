@@ -20,9 +20,21 @@
   "runtime": {
     "type": "node",
     "platforms": [
-      "any"
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64",
+      "linux-arm64"
     ],
-    "entry": "runtime/node/index.cjs"
+    "entry": {
+      "win-x64": "runtime/win-x64/index.cjs",
+      "win-arm64": "runtime/win-arm64/index.cjs",
+      "mac-x64": "runtime/mac-x64/index.cjs",
+      "mac-arm64": "runtime/mac-arm64/index.cjs",
+      "linux-x64": "runtime/linux-x64/index.cjs",
+      "linux-arm64": "runtime/linux-arm64/index.cjs"
+    }
   },
   "lifecycle": {
     "state": "stateless"

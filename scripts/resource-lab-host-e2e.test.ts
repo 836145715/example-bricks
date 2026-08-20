@@ -133,14 +133,14 @@ async function prepareBricks(bricksDir: string): Promise<void> {
     'pip', 'install', '--python', pythonExecutable,
     join(hostRoot, 'packages', 'brickly-sdk-python')
   ], { cwd: pythonRoot, windowsHide: true })
-  const [{ stdout: versionOutput }, requirements] = await Promise.all([
+  const [{ stdout: versionOutput }, lockFile] = await Promise.all([
     execFileAsync(pythonExecutable, ['--version'], { windowsHide: true }),
-    readFile(join(pythonRoot, 'requirements.txt'))
+    readFile(join(pythonRoot, 'runtime', platformKey, 'uv.lock'))
   ])
   const pythonVersion = versionOutput.match(/(\d+\.\d+\.\d+)/)?.[1]
   assert.ok(pythonVersion, `无法解析 Python 版本：${versionOutput}`)
   await writeFile(join(pythonRoot, '.brickly-installed.json'), JSON.stringify({
-    depsHash: createHash('sha256').update(requirements).digest('hex'),
+    depsHash: createHash('sha256').update(lockFile).digest('hex'),
     pythonVersion
   }))
 }

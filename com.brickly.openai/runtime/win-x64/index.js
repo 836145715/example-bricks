@@ -66,7 +66,7 @@ function loadOpenAI() {
   } catch (error) {
     throw makeError(
       'SDK_MISSING',
-      `OpenAI Node SDK is not installed in runtime/node. Run npm install in the plugin runtime folder. Original error: ${error.message}`
+      `OpenAI Node SDK is not installed in runtime/win-x64. Run npm install in the plugin runtime folder. Original error: ${error.message}`
     )
   }
 }

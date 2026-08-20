@@ -8,7 +8,7 @@
 cd example-bricks/com.brickly.http-tester
 npm install
 npm run build
-cd runtime/node && npm install
+cd runtime/win-x64 && npm install
 ```
 
 在 Brickly 中加载本目录即可。

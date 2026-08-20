@@ -11,7 +11,7 @@
 const { spawn } = require('child_process')
 const path = require('path')
 
-const child = spawn(process.execPath, [path.resolve(__dirname, 'runtime/node/index.js')], {
+const child = spawn(process.execPath, [path.resolve(__dirname, 'runtime/win-x64/index.js')], {
   stdio: ['pipe', 'pipe', 'pipe']
 })
 
@@ -77,7 +77,7 @@ child.stderr.setEncoding('utf8')
 child.stderr.on('data', (d) => process.stderr.write('[stderr] ' + d))
 
 // 1. 握手
-send({ type: 'host.hello', protocolVersion: '0.1.0' })
+send({ type: 'host.hello', protocolVersion: '0.4.0', dependencyBindings: {} })
 
 // 2. 600ms 后模拟子窗口发 lab:op maximize
 setTimeout(() => {

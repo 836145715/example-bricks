@@ -18,7 +18,7 @@
 
 ## 运行时流程
 
-核心流程位于 `runtime/node/index.js` 的 `translate-selection` 命令处理器中：
+核心流程位于 `runtime/win-x64/index.js` 的 `translate-selection` 命令处理器中：
 
 1. 读取触发前剪贴板快照 `before`，主要依赖 `kind`、`hash`、`text` 等字段。
 2. 调用 `host.platform.input.keyboardTap` 模拟 `Ctrl+C`。
@@ -43,8 +43,8 @@
 1. 通过 manifest 的 `ocr` 依赖别名调用 `ctx.dependencies.require('ocr').invoke('capture-text', ...)`，传入 `keepScreenshot: true`，让 OCR Brick 保留截图文件并返回 `bounds`。
 2. 从 `wordsResult[].words` 和 `wordsResult[].location` 提取 OCR 文本块；若无文本块，返回 `{ translated: false, reason: "ocr-empty" }`。
 3. 通过 manifest 的 `openai` 依赖别名调用 `chat-completions`，要求返回同长度 JSON 数组，字段为 `index` 和 `translatedText`。
-4. 使用 `runtime/node/src/screenshot-overlay-renderer.js` 基于 `sharp` 输出覆盖 PNG。
-5. 使用 `runtime/node/src/screenshot-overlay-window.js` 创建与 `bounds` 一致的透明置顶窗口，并向 `ui/overlay.html` 发送覆盖图路径。
+4. 使用 `runtime/win-x64/src/screenshot-overlay-renderer.js` 基于 `sharp` 输出覆盖 PNG。
+5. 使用 `runtime/win-x64/src/screenshot-overlay-window.js` 创建与 `bounds` 一致的透明置顶窗口，并向 `ui/overlay.html` 发送覆盖图路径。
 6. 覆盖窗口收到 `quick-translate-overlay:close` 后关闭；UI 侧按 `Esc` 或右键会发送该消息。
 
 UI 侧 `ui/app.js` 监听以下事件：
@@ -57,11 +57,11 @@ UI 侧 `ui/app.js` 监听以下事件：
 ## 关键文件说明
 
 - `manifest.json`：声明 Brick 元信息、权限、热键、命令、运行时入口，以及带固定来源和版本的 `openai`、`ocr` 依赖别名。
-- `runtime/node/index.js`：Node 运行时入口，包含剪贴板检测、窗口创建/复用、屏幕定位、OpenAI 流式调用、窗口消息转发与关闭逻辑。
-- `runtime/node/src/screenshot-overlay-renderer.js`：截图覆盖翻译的图片渲染模块，负责用 `sharp` 抹除原文字区域并绘制中文译文。
-- `runtime/node/src/screenshot-overlay-window.js`：截图覆盖层窗口模块，负责按截图 `bounds` 创建透明置顶窗口、发送图片路径和处理关闭消息。
-- `runtime/node/package.json`：声明 `@syllm/brickly-sdk` npm 依赖。它是运行时与宿主通信的适配层，SDK 协议变更后更新并发布 SDK 包即可。
-- `runtime/node/package.json` / `package-lock.json`：声明截图覆盖翻译所需的 `sharp` 运行时依赖。
+- `runtime/win-x64/index.js`：Node 运行时入口，包含剪贴板检测、窗口创建/复用、屏幕定位、OpenAI 流式调用、窗口消息转发与关闭逻辑。
+- `runtime/win-x64/src/screenshot-overlay-renderer.js`：截图覆盖翻译的图片渲染模块，负责用 `sharp` 抹除原文字区域并绘制中文译文。
+- `runtime/win-x64/src/screenshot-overlay-window.js`：截图覆盖层窗口模块，负责按截图 `bounds` 创建透明置顶窗口、发送图片路径和处理关闭消息。
+- `runtime/win-x64/package.json`：声明 `@syllm/brickly-sdk` npm 依赖。它是运行时与宿主通信的适配层，SDK 协议变更后更新并发布 SDK 包即可。
+- `runtime/win-x64/package.json` / `package-lock.json`：声明截图覆盖翻译所需的 `sharp` 运行时依赖。
 - `ui/index.html`：浮窗 DOM 结构，包含状态栏、拖拽区域、复制/关闭按钮、原文、译文和错误展示区域。
 - `ui/app.js`：浮窗交互逻辑，负责监听 `translate:*` 事件、追加流式文本、复制译文、关闭窗口和请求 resize。
 - `ui/style.css`：浮窗视觉样式，包含透明磨砂背景、无边框窗口适配、拖拽区域、流式光标和自适应内容区域。
@@ -112,7 +112,7 @@ UI 侧 `ui/app.js` 监听以下事件：
 - 截图覆盖翻译依赖截图结果返回 `bounds`；如果宿主或 OCR Brick 未透出框选区域坐标，运行时会拒绝贴回原位置。
 - 截图覆盖翻译会保留原始截图文件给 `sharp` 读取，并生成覆盖 PNG；当前没有在覆盖窗口关闭后自动清理这些临时文件。
 - OCR `location` 坐标按截图图像像素解释，覆盖窗口按 `bounds` 贴回屏幕 DIP 坐标；高 DPI 场景依赖宿主截图裁剪和窗口 bounds 保持一致。
-- `@syllm/brickly-sdk` 是运行时 SDK。主仓库 SDK 或宿主协议变更后，需要发布新版 SDK，并在 `runtime/node/package.json` 中升级依赖后重新跑 smoke。
+- `@syllm/brickly-sdk` 是运行时 SDK。主仓库 SDK 或宿主协议变更后，需要发布新版 SDK，并在 `runtime/win-x64/package.json` 中升级依赖后重新跑 smoke。
 - 当前 manifest 权限包含 `os.screenshot`，实际运行时主要使用 screen 定位能力；后续如果权限模型细分，需要重新核对权限声明。
 
 ## 手动验证步骤

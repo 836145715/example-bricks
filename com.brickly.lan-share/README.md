@@ -3,9 +3,9 @@ status: active
 type: brick-readme
 related_code:
   - manifest.json
-  - runtime/node/index.cjs
-  - runtime/node/services/share-service.cjs
-  - runtime/node/services/file-server.cjs
+  - runtime/win-x64/index.cjs
+  - runtime/win-x64/services/share-service.cjs
+  - runtime/win-x64/services/file-server.cjs
   - src/App.tsx
 last_verified: 2026-07-29
 ---
@@ -54,7 +54,7 @@ UI 只在宿主 service 为 `running` 时调用 runtime 命令。共享目录、
 
 ```bash
 npm install
-cd runtime/node && npm install && cd ../..
+cd runtime/win-x64 && npm install && cd ../..
 npm run test:runtime
 npm run test:ui
 npm run typecheck

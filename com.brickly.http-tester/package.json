@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test:runtime": "node runtime/node/services/http-client.test.cjs"
+    "test:runtime": "node runtime/win-x64/services/http-client.test.cjs"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.10",

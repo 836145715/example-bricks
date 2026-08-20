@@ -7,7 +7,7 @@ const { readFileSync } = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 
-const runtime = spawn(process.execPath, [path.join(__dirname, 'runtime/node/index.js')], {
+const runtime = spawn(process.execPath, [path.join(__dirname, 'runtime/win-x64/index.js')], {
   cwd: __dirname,
   stdio: ['pipe', 'pipe', 'pipe']
 })
@@ -37,7 +37,7 @@ runtime.stderr.on('data', (chunk) => process.stderr.write(chunk))
 
 runtime.stdin.write(JSON.stringify({
   type: 'host.hello',
-  protocolVersion: '0.1.0',
+  protocolVersion: '0.4.0',
   dependencyBindings: {
     openai: { brickId: 'com.brickly.openai', origin: 'installed', version: '0.1.0' },
     ocr: { brickId: 'com.brickly.glm-ocr-screenshot', origin: 'installed', version: '0.1.0' }

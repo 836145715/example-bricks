@@ -10,7 +10,7 @@ assert.equal(manifest.id, 'com.brickly.window-scenario-lab')
 assert.ok(manifest.commands.some((c) => c.id === 'open-control'))
 assert.ok(manifest.commands.some((c) => c.id === 'list-win-sessions'))
 
-const runtimeDir = path.join(root, 'runtime/node')
+const runtimeDir = path.join(root, 'runtime/win-x64')
 const files = [
   'index.js',
   'scenarios.js',
