@@ -198,15 +198,6 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 		return nil, err
 	}
 
-	if outputErr := ctx.Output("session", map[string]any{
-		"sessionId": sessionID,
-		"hostId":    host.ID,
-		"status":    "open",
-	}); outputErr != nil {
-		sessions.close(sessionID)
-		return nil, outputErr
-	}
-
 	go func() {
 		<-sessionCtx.Done()
 		_ = sess.Close()
@@ -222,7 +213,7 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 		if len(visible) == 0 {
 			return
 		}
-		_ = ctx.Chunk("data", map[string]any{
+		_ = ctx.Events().Publish("ssh-manager:session-data", map[string]any{
 			"sessionId": sessionID,
 			"encoding":  "base64",
 			"bytes":     encodeBytes(visible),
@@ -237,7 +228,7 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 	}
 	sessions.remove(sessionID)
 	closeLiveSession(live)
-	_ = ctx.Chunk("status", map[string]any{
+	_ = ctx.Events().Publish("ssh-manager:session-status", map[string]any{
 		"sessionId": sessionID,
 		"status":    "closed",
 		"exitCode":  exitCode,

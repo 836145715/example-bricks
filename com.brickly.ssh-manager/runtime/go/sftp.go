@@ -35,9 +35,7 @@ func handleSftpUpload(ctx *brickly.CommandContext, input json.RawMessage) (any, 
 	if params.LocalPath == "" {
 		return nil, newInputError("localPath is required")
 	}
-	progress := newProgressEmitter(func(item transferProgress) {
-		_ = ctx.Chunk("progress", item)
-	})
+	progress := newProgressEmitter(func(_ transferProgress) {})
 	if conns.has(host.ID) {
 		progress.setPhase("scanning", true)
 	} else {
@@ -56,7 +54,6 @@ func handleSftpUpload(ctx *brickly.CommandContext, input json.RawMessage) (any, 
 	if err != nil {
 		return nil, err
 	}
-	_ = ctx.Output("result", result)
 	ctx.Info("上传完成", map[string]any{"hostId": host.ID, "remotePath": result.RemotePath, "bytes": result.Bytes})
 	return result, nil
 }
@@ -72,9 +69,7 @@ func handleSftpDownload(ctx *brickly.CommandContext, input json.RawMessage) (any
 	if params.LocalDir == "" {
 		return nil, newInputError("localDir is required")
 	}
-	progress := newProgressEmitter(func(item transferProgress) {
-		_ = ctx.Chunk("progress", item)
-	})
+	progress := newProgressEmitter(func(_ transferProgress) {})
 	if conns.has(host.ID) {
 		progress.setPhase("scanning", true)
 	} else {
@@ -93,7 +88,6 @@ func handleSftpDownload(ctx *brickly.CommandContext, input json.RawMessage) (any
 	if err != nil {
 		return nil, err
 	}
-	_ = ctx.Output("result", result)
 	ctx.Info("下载完成", map[string]any{"hostId": host.ID, "remotePath": result.RemotePath, "bytes": result.Bytes})
 	return result, nil
 }
