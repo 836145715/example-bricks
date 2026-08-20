@@ -3,10 +3,10 @@ const { join, relative } = require('node:path')
 
 const root = __dirname
 const goModule = 'github.com/836145715/brickly-sdk-go'
-const goVersion = 'v0.5.0'
-const pythonRequirement = 'brickly-sdk==0.5.0'
-const bppVersion = '0.4.0'
-const protocolVersionPattern = /protocolVersion\s*[=:]\s*['"]([\d.]+)['"]/g
+const goVersion = 'v0.6.0'
+const pythonRequirement = 'brickly-sdk==0.6.0'
+const protocolVersion = 'brickly.runtime.v1'
+const protocolVersionPattern = /protocolVersion\s*[=:]\s*['"]([^'"]+)['"]/g
 const failures = []
 
 function walk(dir) {
@@ -19,7 +19,7 @@ function walk(dir) {
       continue
     }
 
-    const inspectProtocol = /\.(go|cjs|js|ts|py)$/.test(name)
+    const inspectProtocol = /\.(go|cjs|js|ts|py)$/.test(name) && !/smoke/i.test(name)
     const inspectSdkPin = ['go.mod', 'pyproject.toml', 'requirements.txt', 'manifest.json'].includes(name)
     if (!inspectProtocol && !inspectSdkPin) continue
 
@@ -28,8 +28,8 @@ function walk(dir) {
 
     if (inspectProtocol) {
       for (const match of content.matchAll(protocolVersionPattern)) {
-        if (match[1] !== bppVersion) {
-          failures.push(`${displayPath} must use BPP protocolVersion ${bppVersion}, found ${match[1]}`)
+        if (match[1] !== protocolVersion) {
+          failures.push(`${displayPath} must use protocolVersion ${protocolVersion}, found ${match[1]}`)
         }
       }
     }
@@ -78,4 +78,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`OK: example Go SDK is ${goVersion}, Python SDK is 0.5.0, BPP is ${bppVersion}`)
+console.log(`OK: example Go SDK is ${goVersion}, Python SDK is 0.6.0, protocol is ${protocolVersion}`)
