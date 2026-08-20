@@ -25,7 +25,6 @@ brick.onCommand('decode', async (ctx, input) => {
   log('decode start', { id })
   try {
     const result = decodeQr(input || {})
-    ctx.output('result', result)
     log('decode done', { id, ok: result.ok })
     return result
   } catch (error) {
@@ -41,7 +40,6 @@ brick.onCommand('generate', async (ctx, input) => {
   log('generate start', { id })
   try {
     const result = await generateQr(input || {})
-    ctx.output('result', result)
     log('generate done', { id, ok: result.ok })
     return result
   } catch (error) {
