@@ -25,7 +25,6 @@ function normalizeError(error) {
 brick.onCommand('resolve', async (ctx, input) => {
   try {
     const result = await resolveDomain(input || {})
-    ctx.output('result', result)
     return result
   } catch (error) {
     throw normalizeError(error)
@@ -35,7 +34,6 @@ brick.onCommand('resolve', async (ctx, input) => {
 brick.onCommand('resolve-all', async (ctx, input) => {
   try {
     const result = await resolveAllRecords(input || {})
-    ctx.output('result', result)
     return result
   } catch (error) {
     throw normalizeError(error)
