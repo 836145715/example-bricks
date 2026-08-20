@@ -30,7 +30,7 @@ const plugin = new BricklyRuntime({ brickId: BRICK_ID })
 let translateWindow = null
 let translateWindowBounds = null
 
-plugin.onCommand('translate-selection', async (ctx) => {
+async function runTranslateSelection(ctx) {
   ctx.progress(0.05, '读取剪贴板快照')
   const before = await safeReadClipboard(ctx)
 
@@ -72,9 +72,9 @@ plugin.onCommand('translate-selection', async (ctx) => {
     await sendToWindow(win, 'translate:error', payload).catch(() => {})
     throw error
   }
-})
+}
 
-plugin.onCommand('translate-screenshot-overlay', async (ctx) => {
+async function runTranslateScreenshotOverlay(ctx) {
   ctx.progress(0.05, '请框选要翻译的截图区域')
   const outputDir = path.join(os.tmpdir(), 'brickly-quick-translate')
   await fs.mkdir(outputDir, { recursive: true })
@@ -142,7 +142,39 @@ plugin.onCommand('translate-screenshot-overlay', async (ctx) => {
     bounds,
     blockCount: rendered.blocks.length
   }
-})
+}
+
+function commandCtx(ctx) {
+  return {
+    ...ctx,
+    progress() {},
+    chunk() {}
+  }
+}
+
+function interactCtx(session, commandId) {
+  return {
+    requestId: 'interact',
+    commandId,
+    isCancelled: () => session.signal.aborted,
+    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true }),
+    progress: (value, message) => session.send({ type: 'progress', progress: value, message }),
+    platform: plugin.platform,
+    dependencies: plugin.dependencies,
+    ui: plugin.ui
+  }
+}
+
+plugin.onCommand('translate-selection', async (ctx) => runTranslateSelection(commandCtx(ctx)))
+plugin.onInteract('translate-selection', async (session) =>
+  runTranslateSelection(interactCtx(session, 'translate-selection'))
+)
+plugin.onCommand('translate-screenshot-overlay', async (ctx) =>
+  runTranslateScreenshotOverlay(commandCtx(ctx))
+)
+plugin.onInteract('translate-screenshot-overlay', async (session) =>
+  runTranslateScreenshotOverlay(interactCtx(session, 'translate-screenshot-overlay'))
+)
 
 plugin.onShutdown(async () => {
   if (translateWindow && !translateWindow.closed) {
