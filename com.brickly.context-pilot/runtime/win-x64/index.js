@@ -21,7 +21,7 @@ const plugin = new BricklyRuntime({ brickId: BRICK_ID })
 let panelWindow = null
 let panelWindowBounds = null
 
-plugin.onCommand('analyze-selection', async (ctx) => {
+async function runAnalyzeSelection(ctx) {
   ctx.progress(0.05, '读取剪贴板快照')
   const before = await safeReadClipboard(ctx)
 
@@ -43,9 +43,9 @@ plugin.onCommand('analyze-selection', async (ctx) => {
     openProgress: 0.38,
     analysisProgress: 0.45
   })
-})
+}
 
-plugin.onCommand('analyze-screenshot', async (ctx) => {
+async function runAnalyzeScreenshot(ctx) {
   ctx.progress(0.05, '框选截图并 OCR')
   const ocrResult = await ctx.dependencies.require('ocr').invoke('capture-text', {
     languageType: 'AUTO',
@@ -63,7 +63,37 @@ plugin.onCommand('analyze-screenshot', async (ctx) => {
     openProgress: 0.42,
     analysisProgress: 0.55
   })
-})
+}
+
+function commandCtx(ctx) {
+  return {
+    ...ctx,
+    progress() {},
+    chunk() {}
+  }
+}
+
+function interactCtx(session, commandId) {
+  return {
+    requestId: 'interact',
+    commandId,
+    isCancelled: () => session.signal.aborted,
+    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true }),
+    progress: (value, message) => session.send({ type: 'progress', progress: value, message }),
+    platform: plugin.platform,
+    dependencies: plugin.dependencies,
+    ui: plugin.ui
+  }
+}
+
+plugin.onCommand('analyze-selection', async (ctx) => runAnalyzeSelection(commandCtx(ctx)))
+plugin.onInteract('analyze-selection', async (session) =>
+  runAnalyzeSelection(interactCtx(session, 'analyze-selection'))
+)
+plugin.onCommand('analyze-screenshot', async (ctx) => runAnalyzeScreenshot(commandCtx(ctx)))
+plugin.onInteract('analyze-screenshot', async (session) =>
+  runAnalyzeScreenshot(interactCtx(session, 'analyze-screenshot'))
+)
 
 async function analyzeSourceText(ctx, sourceText, options = {}) {
   let cancelled = false
