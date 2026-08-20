@@ -113,7 +113,7 @@ async function createResourceFromFile(filePath, mimeType, name) {
   }
 }
 
-async function showAll(ctx, input) {
+async function showAll(input) {
   const title = String((input && input.title) || 'Brickly Render Gallery')
   const dir = ensureDir()
   const textFile = writeTextFile(dir, title)
@@ -259,15 +259,7 @@ summarizePackageJson('./package.json')
     resource
   }
 
-  let index = 0
-  const entries = Object.entries(outputs)
-  for (const [name, value] of entries) {
-    ctx.progress(index / entries.length, `output ${name}`)
-    ctx.output(name, value)
-    index += 1
-  }
-  ctx.progress(1, 'done')
-  return { ok: true, outputs: entries.length, tempDir: dir }
+  return { ok: true, outputs, tempDir: dir }
 }
 
 async function singleImage() {
@@ -282,7 +274,7 @@ function escapeXml(value) {
     .replace(/"/g, '&quot;')
 }
 
-brick.onCommand('show-all', async (ctx, input) => showAll(ctx, input))
+brick.onCommand('show-all', async (_ctx, input) => showAll(input))
 brick.onCommand('single-image', async () => singleImage())
 
 brick.start()
