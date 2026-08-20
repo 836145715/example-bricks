@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.local-search",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
   "name": {
     "zh-CN": "本地搜索",
@@ -74,8 +74,7 @@
           {
             "name": "query",
             "label": "关键词",
-            "type": "string",
-            "default": ""
+            "type": "string"
           },
           {
             "name": "category",
@@ -149,7 +148,6 @@
       "description": "检查本地搜索 Brick 的平台、Everything 安装探测、SDK DLL 和 IPC 可用性。",
       "category": "diagnostics",
       "io": {
-        "inputs": [],
         "outputs": [
           {
             "name": "status",
