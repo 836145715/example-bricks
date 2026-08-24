@@ -320,13 +320,14 @@ async function relayAcrossLanguages(ports) {
 }
 
 async function transformAcrossLanguages(ports) {
+  requirePort(ports.resources.open, 'resources.open')
   const content = Buffer.from('Transform Resource Lab')
   let handle = await ports.resources.create(content)
   try {
     for (const target of ['node', 'python', 'go']) {
-      const next = await ports.invokeRootResource(TARGET_ALIASES[target], 'transform', { resource: handle, mask: 0x20 })
+      const ref = await ports.invokeRoot(TARGET_ALIASES[target], 'transform', { resource: handle, mask: 0x20 })
       await cleanupHandle(handle)
-      handle = next
+      handle = ports.resources.open(ref)
     }
     const actual = await inspect(handle)
     const expected = xorBuffer(xorBuffer(xorBuffer(content)))

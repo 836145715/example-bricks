@@ -180,7 +180,7 @@ const guides: Record<string, ScenarioGuide> = {
     ],
     commonFailures: [
       'echo 未安装/未就绪',
-      '0.3.1 下 echo 未 open(Ref) 导致 resource 未水合',
+      'echo 未 resources.open(Ref) 导致无法读资源',
       '权限或依赖未声明'
     ]
   },
@@ -216,15 +216,16 @@ const guides: Record<string, ScenarioGuide> = {
       '最终 report 与本地 digest 一致',
       '记录 hops'
     ],
-    commonFailures: ['任一语言 echo 失败', '中途 Ref 丢失/未水合']
+    commonFailures: ['任一语言 echo 失败', '中途 ResourceRef 丢失或未 open']
   },
   'transform-cross-language': {
     id: 'transform-cross-language',
     goal: '资源依次经 Node/Python/Go transform（XOR mask），最终内容正确。',
-    why: '验证 invokeResource 固定返回 Handle，以及跨语言再加工链路。',
+    why: '验证 invoke 结果里的 ResourceRef 保持名片，调用方 resources.open(ref) 后再读。',
     steps: [
       'create 原文',
-      '对 node/python/go 各 invokeResource(transform, mask=0x20)',
+      '对 node/python/go 各 invoke(transform, mask=0x20) 得到 ResourceRef',
+      'brick.resources.open(ref) 打开下一跳 Handle',
       '本地三次 XOR 期望值',
       'inspect 最终 Handle 对比'
     ]

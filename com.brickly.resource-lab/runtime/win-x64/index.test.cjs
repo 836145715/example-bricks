@@ -102,8 +102,7 @@ function loadRuntime(t) {
       this.dependencies = {
         require: () => ({
           invokeRoot: async () => ({}),
-          invoke: async () => ({}),
-          invokeResource: async () => fakeHandle(Buffer.from('{}'))
+          invoke: async () => ({})
         })
       }
     }

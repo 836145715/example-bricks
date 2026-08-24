@@ -199,6 +199,44 @@ test('事件场景必须匹配本次 probeId 而不是接受历史残留', async
   assert.ok(calls > 3)
 })
 
+test('transform-cross-language 用 invoke 拿 ResourceRef 再 resources.open', async () => {
+  const content = Buffer.from('Transform Resource Lab')
+  const opened = []
+  const invoked = []
+  let current = fakeHandle(content)
+  const execute = createScenarioExecutor(fakePorts({
+    resources: {
+      create: async () => current,
+      open: (ref) => {
+        opened.push(ref)
+        assert.equal(ref.kind, 'brickly.resource')
+        return current
+      }
+    },
+    invokeRoot: async (alias, commandId, input) => {
+      invoked.push([alias, commandId])
+      assert.equal(commandId, 'transform')
+      assert.equal(input.mask, 0x20)
+      const next = xorBuffer(await collectHandleBytes(input.resource))
+      current = fakeHandle(next)
+      return current.ref
+    }
+  }))
+  const result = await execute(catalog.find((item) => item.id === 'transform-cross-language'), {
+    signal: new AbortController().signal,
+    runId: 'run-transform'
+  })
+  assert.deepEqual(invoked, [
+    ['node_echo', 'transform'],
+    ['python_echo', 'transform'],
+    ['go_echo', 'transform']
+  ])
+  assert.equal(opened.length, 3)
+  assert.deepEqual(result.hops, ['node', 'python', 'go'])
+  assert.equal(result.sizeBytes, content.byteLength)
+  assert.equal(result.sha256, createHash('sha256').update(xorBuffer(xorBuffer(xorBuffer(content)))).digest('hex'))
+})
+
 test('默认 64 MiB 场景经过 Node Python Go 三语言读取', async () => {
   const sizeBytes = 64 * 1024 * 1024
   const digest = createHash('sha256').update(Buffer.alloc(sizeBytes, 0x61)).digest('hex')
@@ -248,9 +286,11 @@ test('慢速 child 收到 run 取消后通过独立命令实际中止', async ()
 
 function fakePorts(overrides = {}) {
   return {
-    resources: { create: async () => fakeHandle(Buffer.alloc(0)) },
+    resources: {
+      create: async () => fakeHandle(Buffer.alloc(0)),
+      open: (ref) => fakeHandle(Buffer.from('{}'), ref?.mimeType ?? 'application/json')
+    },
     invokeRoot: async () => ({}),
-    invokeRootResource: async () => fakeHandle(Buffer.from('{}'), 'application/json'),
     publish: async () => ({ delivered: 1 }),
     tempDir: process.cwd(),
     now: () => Date.now(),
@@ -268,11 +308,23 @@ function fakeHandle(content, mimeType = 'application/octet-stream') {
     },
     async text() { return content.toString('utf8') },
     async json() { return JSON.parse(content.toString('utf8')) },
+    async bytes() { return content },
     async *stream() { yield content },
     async saveTo() {},
     async close() {},
     async revoke() { this.revoked = true }
   }
+}
+
+async function collectHandleBytes(handle) {
+  if (typeof handle?.bytes === 'function') return Buffer.from(await handle.bytes())
+  const chunks = []
+  for await (const chunk of handle.stream()) chunks.push(Buffer.from(chunk))
+  return Buffer.concat(chunks)
+}
+
+function xorBuffer(value, mask = 0x20) {
+  return Buffer.from(value.map((byte) => byte ^ mask))
 }
 
 function codedError(code) {

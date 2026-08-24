@@ -67,7 +67,7 @@ func TestPatternReaderHonorsChunkSizeAndZeroByte(t *testing.T) {
 }
 
 func TestOpenInputResourceUsesRuntimeOpenResource(t *testing.T) {
-	runtime := brickly.New(brickly.Options{BrickID: "com.test.resource-input", Stdin: strings.NewReader(""), Stdout: io.Discard, Stderr: io.Discard})
+	runtime := brickly.New(brickly.Options{BrickID: "com.test.resource-input"})
 	ref := brickly.ResourceRef{
 		Kind: "brickly.resource", ResourceID: "res_go", AccessToken: "token",
 		SizeBytes: 1, SHA256: strings.Repeat("a", 64), ExpiresAt: 2_000_000_000_000,

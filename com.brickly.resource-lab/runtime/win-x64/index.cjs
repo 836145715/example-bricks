@@ -50,9 +50,7 @@ brick.onCommand('suite-run', async (ctx, input) => {
   const ports = {
     ...basePorts,
     invokeRoot: (alias, commandId, value) =>
-      ctx.dependencies.require(alias).invoke(commandId, value),
-    invokeRootResource: (alias, commandId, value) =>
-      ctx.dependencies.require(alias).invokeResource(commandId, value)
+      ctx.dependencies.require(alias).invoke(commandId, value)
   }
   manager.start({ runId, mode, scenarios, executeScenario: createScenarioExecutor(ports) })
   ctx.onCancel(() => { void manager.cancel(runId) })
