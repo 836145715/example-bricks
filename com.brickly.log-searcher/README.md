@@ -7,7 +7,7 @@ last_verified: 2026-08-24
 
 `com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。Host↔Runtime 走现行 gRPC（`invoke` / `interact`），Go 侧用 `brickly.OnCommand` + `ctx.Send`。UI 适合人工排查日志，`search` 声明 `mode: "interact"`，也可被其他 Brick 用 `interact` / `call(..., { onEvent })` 调用。`runtime.instance` 必须显式为 `owned`：搜索结果存在该 Lifetime 独占的 Go 进程内存里，不能 `per-call`，也不能再省略后让宿主默认为 `owned`。
 
-体验窗使用 **`titleBar: "custom"`** 自绘标题栏（拖动区 + 最小化 / 最大化 / 关闭），依赖平台 `window.brickly.window`。`owned` 实例开窗不钉进程：页面必须先 `await window.brickly.start()`，再用 Handle 的 `invoke` / `interact`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束进程就被 SIGTERM。页面侧会话用 `nextEvent()` / `closeInput()` / `cancel()`，不要 `for await events`（过不了 contextBridge）。
+体验窗使用 **`titleBar: "custom"`** 自绘标题栏（拖动区 + 最小化 / 最大化 / 关闭），依赖平台 `window.brickly.window`。`owned` 实例开窗不钉进程：页面必须先 `await window.brickly.start()`，再用 Handle 的 `invoke` / `interact`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束进程就被 SIGTERM。页面侧会话用 `nextEvent()` / `closeInput()` / `cancel()`，不要 `for await events`（过不了 contextBridge）。`window.brickly` 的 TypeScript 类型来自 `@syllm/brickly-ui`；本工具 `types.ts` 只保留检索/配置等业务类型。
 
 ## search 能力
 

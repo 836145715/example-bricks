@@ -1,50 +1,6 @@
 import type { HighlightKeywordTextMap } from './domain/highlight'
 import type { RemoteLogFile } from './domain/logFiles'
 
-export interface BricklyInteractSession {
-  nextEvent(): Promise<unknown>
-  result: Promise<unknown>
-  closeInput(): Promise<void>
-  cancel(reason?: string): void
-}
-
-export interface BricklyStartedHandle {
-  invoke(commandId: string, input: Record<string, any>): Promise<any>
-  interact(commandId: string, input: Record<string, any>): Promise<BricklyInteractSession>
-  call(
-    commandId: string,
-    input: Record<string, any>,
-    options?: { onEvent?: (event: unknown) => unknown | Promise<unknown> }
-  ): Promise<any>
-  dispose(): Promise<void>
-  stop(): Promise<void>
-}
-
-declare global {
-  interface Window {
-    brickly?: {
-      ref: { brickId: string; origin: string; version: string }
-      invoke(commandId: string, input: Record<string, any>): Promise<any>
-      interact(commandId: string, input: Record<string, any>): Promise<BricklyInteractSession>
-      call(
-        commandId: string,
-        input: Record<string, any>,
-        options?: { onEvent?: (event: unknown) => unknown | Promise<unknown> }
-      ): Promise<any>
-      start(): Promise<BricklyStartedHandle>
-      closeWindow?(): void
-      window?: {
-        minimize(): Promise<void>
-        toggleMaximize(): Promise<boolean>
-        close(): Promise<void>
-        isMaximized(): Promise<boolean>
-        onMaximizeChange(callback: (maximized: boolean) => void): () => void
-      }
-      system: any
-    }
-  }
-}
-
 export interface LogFileConfig {
   path: string
   enabled: boolean

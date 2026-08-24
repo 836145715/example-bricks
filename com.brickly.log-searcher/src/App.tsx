@@ -26,9 +26,7 @@ import {
   type JumpAlign
 } from './virtualJump'
 import {
-  BricklyInteractSession,
   BricklySearchEvent,
-  BricklyStartedHandle,
   DEFAULT_GREP_ARGS,
   FALLBACK_RESULTS_SCOPE,
   FileListStatus,
@@ -44,6 +42,7 @@ import {
   SearchStatePayload,
   ServerConfig
 } from './types'
+import type { BricklyInteraction, BricklyStartedHandle } from '@syllm/brickly-ui'
 
 const LOG_ROW_HEIGHT = 22
 const WRAPPED_LOG_ROW_ESTIMATE_HEIGHT = 36
@@ -217,12 +216,12 @@ export function App() {
     }
   }, [])
 
-  const invokeSelf = (commandId: string, input: Record<string, any> = {}) => {
+  const invokeSelf = <TResult = unknown>(commandId: string, input: Record<string, unknown> = {}) => {
     const runtime = runtimeRef.current
     if (!runtime) {
       return Promise.reject(new Error('Runtime 尚未就绪，请稍后重试'))
     }
-    return runtime.invoke(commandId, input)
+    return runtime.invoke<TResult>(commandId, input)
   }
 
   // 刷新拉取当前服务器下的日志文件列表
@@ -679,7 +678,7 @@ export function App() {
     }))
 
     try {
-      const result: PeekResult = await invokeSelf('peek_search_results', {
+      const result = await invokeSelf<PeekResult>('peek_search_results', {
         serverId,
         runId,
         tabId,
@@ -831,7 +830,7 @@ export function App() {
 
     setFindLoadingForServer(activeServerId, true)
     try {
-      const result: FindResult = await invokeSelf('find_search_results', {
+      const result = await invokeSelf<FindResult>('find_search_results', {
         serverId: activeServerId,
         runId,
         tabId: activeTabId,
@@ -1009,7 +1008,7 @@ export function App() {
       return
     }
     try {
-      const res = await invokeSelf('load_config', {})
+      const res = await invokeSelf<{ config?: { servers?: ServerConfig[] } }>('load_config', {})
       const loadedServers = res?.config?.servers || []
       setServers(loadedServers)
       if (loadedServers.length > 0) {
@@ -1219,7 +1218,7 @@ export function App() {
           .filter(log => log.path.trim() !== '')
           .map(log => ({ ...log, path: log.path.trim() }))
       }
-      const res = await invokeSelf('test_connection', { server: serverToTest })
+      const res = await invokeSelf<{ ok?: boolean; message?: string }>('test_connection', { server: serverToTest })
       setConnectionTest({
         status: res?.ok ? 'success' : 'error',
         message: res?.message || (res?.ok ? '连接可用。' : '连接测试失败。')
@@ -1431,7 +1430,7 @@ export function App() {
       showStatus('Runtime 尚未就绪，请稍后重试。', 'error')
       return
     }
-    let session: BricklyInteractSession | null = null
+    let session: BricklyInteraction | null = null
     const handle = {
       cancel() {
         session?.cancel('CANCELLED')
