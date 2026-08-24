@@ -115,6 +115,29 @@ func TestConnPoolReusesSFTPClient(t *testing.T) {
 	}
 }
 
+func TestConnPoolKeepsConnWhileTransferRuns(t *testing.T) {
+	pool := newConnPool()
+	pool.dial = func(Host) (*ssh.Client, error) { return nil, nil }
+
+	if _, err := pool.acquireTerminal(Host{ID: "h1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.acquireTransfer(Host{ID: "h1"}); err != nil {
+		t.Fatal(err)
+	}
+	pool.releaseTerminal("h1")
+	kept, terminals, _ := pool.stats("h1")
+	if !kept || terminals != 0 || pool.transferRefs("h1") != 1 {
+		t.Fatalf("transfer should keep conn: kept=%v terminals=%d transfers=%d", kept, terminals, pool.transferRefs("h1"))
+	}
+
+	pool.releaseTransfer("h1")
+	kept, _, _ = pool.stats("h1")
+	if kept {
+		t.Fatal("last transfer should close pooled connection")
+	}
+}
+
 func TestConnPoolSFTPDoesNotCloseSharedConn(t *testing.T) {
 	pool := newConnPool()
 	pool.dial = func(Host) (*ssh.Client, error) { return nil, nil }

@@ -123,3 +123,16 @@ type bufferCloser struct {
 
 func (b *bufferCloser) Write(p []byte) (int, error) { return b.buf.Write(p) }
 func (b *bufferCloser) Close() error                { return nil }
+
+type fakeSession struct {
+	cols int
+	rows int
+}
+
+func (s *fakeSession) WindowChange(h, w int) error {
+	s.rows = h
+	s.cols = w
+	return nil
+}
+
+func (s *fakeSession) Close() error { return nil }

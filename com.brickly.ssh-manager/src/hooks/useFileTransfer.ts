@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { errorMessage, toBase64, writeSession } from '../brickly'
+import { errorMessage } from '../brickly'
 import { classifyPaste } from '../lib/local-paths'
 import { isUiField } from '../lib/terminal-keys'
 import type { ManagerAction } from '../state/manager-state'
+import type { SessionController } from '../state/session-controller'
 import type { SftpController } from '../state/sftp-controller'
 import type { ConfirmState, Host, SessionTab, TransferState } from '../types'
 
@@ -18,6 +19,7 @@ export function useFileTransfer({
   filesOpen,
   transfer,
   sftp,
+  sessions,
   dispatch
 }: {
   session?: SessionTab
@@ -27,6 +29,7 @@ export function useFileTransfer({
   filesOpen: boolean
   transfer: TransferState | null
   sftp: SftpController | null
+  sessions: SessionController | null
   dispatch: (action: ManagerAction) => void
 }) {
   const pending = useRef<PendingOp | null>(null)
@@ -117,7 +120,7 @@ export function useFileTransfer({
     const op = pending.current
     if (!accepted) {
       if (confirm.kind === 'path' && session && op?.mode === 'upload' && op.pasteText) {
-        void writeSession(session.sessionId, toBase64(op.pasteText)).catch(() => undefined)
+        sessions?.sendData(session.sessionId, op.pasteText)
       }
       pending.current = null
       return

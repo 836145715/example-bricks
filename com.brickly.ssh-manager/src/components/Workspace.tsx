@@ -29,10 +29,11 @@ export function Workspace({
   onCreate,
   onCollapse,
   onTerminalReady,
+  onTerminalInput,
+  onTerminalResize,
   onDropActive,
   onUpload,
   onLocalPathPaste,
-  onCommandSubmit,
   onDownload,
   onDownloadDir,
   onTrackCwd
@@ -60,10 +61,11 @@ export function Workspace({
   onCreate: () => void
   onCollapse: () => void
   onTerminalReady: (sessionId: string, api: { write: StreamWriter; cols: number; rows: number }) => void
+  onTerminalInput?: (sessionId: string, data: string) => void
+  onTerminalResize?: (sessionId: string, cols: number, rows: number) => void
   onDropActive: (active: boolean) => void
   onUpload: (paths: string[]) => void
   onLocalPathPaste?: (path: string) => void
-  onCommandSubmit?: (sessionId: string) => void
   onDownload: (remotePath: string, localDir: string) => void
   onDownloadDir: (dir: string) => void
   onTrackCwd: (track: boolean) => void
@@ -104,10 +106,11 @@ export function Workspace({
           onCreate={onCreate}
           onEdit={onEdit}
           onTerminalReady={onTerminalReady}
+          onTerminalInput={onTerminalInput}
+          onTerminalResize={onTerminalResize}
           onDropActive={onDropActive}
           onUpload={onUpload}
           onLocalPathPaste={onLocalPathPaste}
-          onCommandSubmit={onCommandSubmit}
         />
         {transfer ? <TransferBar transfer={transfer} /> : null}
       </main>

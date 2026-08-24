@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	brickly "github.com/836145715/brickly-sdk-go"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -99,6 +100,23 @@ func cwdReadError(err error, stdout, stderr string) string {
 		return err.Error()
 	}
 	return detail
+}
+
+func emitCwdFromProc(ctx *brickly.CommandContext, sessionID string, emit func(func() error)) {
+	client, hostID, pid, ok := sessions.shellLookup(sessionID)
+	if !ok || client == nil || pid <= 0 {
+		return
+	}
+	timeout, cancel := context.WithTimeout(context.Background(), sessionCwdTimeout)
+	defer cancel()
+	path, err := readSessionCwd(timeout, client, pid, Host{ID: hostID})
+	if err != nil {
+		return
+	}
+	if live := sessions.get(sessionID); live != nil && !live.takeCwd(path) {
+		return
+	}
+	emit(func() error { return sendSessionCwd(ctx, sessionID, path, pid) })
 }
 
 func validRemoteCwd(path string) bool {

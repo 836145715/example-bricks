@@ -12,8 +12,9 @@ export function SessionCanvas({
   onCreate,
   onEdit,
   onTerminalReady,
-  onLocalPathPaste,
-  onCommandSubmit
+  onTerminalInput,
+  onTerminalResize,
+  onLocalPathPaste
 }: {
   tabs: Tab[]
   activeTabId: string | null
@@ -22,8 +23,9 @@ export function SessionCanvas({
   onCreate: () => void
   onEdit: (host: Host) => void
   onTerminalReady: (sessionId: string, api: { write: StreamWriter; cols: number; rows: number }) => void
+  onTerminalInput?: (sessionId: string, data: string) => void
+  onTerminalResize?: (sessionId: string, cols: number, rows: number) => void
   onLocalPathPaste?: (path: string) => void
-  onCommandSubmit?: (sessionId: string) => void
 }) {
   return (
     <div className="canvas">
@@ -46,8 +48,9 @@ export function SessionCanvas({
               active={active}
               message={tab.message}
               onReady={(api) => onTerminalReady(tab.sessionId, api)}
+              onInput={(data) => onTerminalInput?.(tab.sessionId, data)}
+              onResize={(cols, rows) => onTerminalResize?.(tab.sessionId, cols, rows)}
               onLocalPathPaste={onLocalPathPaste}
-              onCommandSubmit={() => onCommandSubmit?.(tab.sessionId)}
             />
           </div>
         )

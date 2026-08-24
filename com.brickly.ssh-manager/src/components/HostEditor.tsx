@@ -71,6 +71,7 @@ export function HostEditor({
                 autoComplete="off"
                 value={draft.password ?? ''}
                 onChange={(event) => onChange({ password: event.target.value })}
+                placeholder={mode === 'edit' ? '已保存，留空则保持不变' : undefined}
               />
             </Field>
           ) : (
@@ -79,7 +80,7 @@ export function HostEditor({
                 <input
                   value={draft.keyPath ?? ''}
                   onChange={(event) => onChange({ keyPath: event.target.value })}
-                  placeholder="C:\\Users\\admin\\.ssh\\id_ed25519"
+                  placeholder={mode === 'edit' ? '已保存，留空则保持不变' : 'C:\\Users\\admin\\.ssh\\id_ed25519'}
                 />
               </Field>
               <Field label="Passphrase">
@@ -88,6 +89,7 @@ export function HostEditor({
                   autoComplete="off"
                   value={draft.passphrase ?? ''}
                   onChange={(event) => onChange({ passphrase: event.target.value })}
+                  placeholder={mode === 'edit' ? '已保存，留空则保持不变' : undefined}
                 />
               </Field>
               <Field label="私钥文本" wide>
@@ -95,7 +97,7 @@ export function HostEditor({
                   rows={5}
                   value={draft.keyText ?? ''}
                   onChange={(event) => onChange({ keyText: event.target.value })}
-                  placeholder="也可直接粘贴私钥内容"
+                  placeholder={mode === 'edit' ? '已保存，留空则保持不变' : '也可直接粘贴私钥内容'}
                 />
               </Field>
             </>

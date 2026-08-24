@@ -121,7 +121,7 @@ func validateHost(host Host) error {
 	return nil
 }
 
-func decodeHost(raw any) (Host, error) {
+func decodeHostDraft(raw any) (Host, error) {
 	if raw == nil {
 		return Host{}, newInputError("host is required")
 	}
@@ -133,11 +133,54 @@ func decodeHost(raw any) (Host, error) {
 	if err := json.Unmarshal(data, &host); err != nil {
 		return Host{}, newInputError("invalid host")
 	}
-	host = normalizeHost(host)
+	return normalizeHost(host), nil
+}
+
+func decodeHost(raw any) (Host, error) {
+	host, err := decodeHostDraft(raw)
+	if err != nil {
+		return Host{}, err
+	}
 	if err := validateHost(host); err != nil {
 		return Host{}, err
 	}
 	return host, nil
+}
+
+func publicHost(host Host) map[string]any {
+	tags := host.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	return map[string]any{
+		"id":          host.ID,
+		"name":        host.Name,
+		"group":       host.Group,
+		"tags":        tags,
+		"host":        host.Host,
+		"port":        host.Port,
+		"user":        host.User,
+		"authType":    host.AuthType,
+		"note":        host.Note,
+		"hasPassword": strings.TrimSpace(host.Password) != "",
+		"hasKey":      host.KeyText != "" || strings.TrimSpace(host.KeyPath) != "",
+	}
+}
+
+func mergeHostSecrets(existing, incoming Host) Host {
+	if incoming.AuthType == authPassword && strings.TrimSpace(incoming.Password) == "" {
+		incoming.Password = existing.Password
+	}
+	if incoming.AuthType == authKey {
+		if incoming.KeyText == "" && strings.TrimSpace(incoming.KeyPath) == "" {
+			incoming.KeyText = existing.KeyText
+			incoming.KeyPath = existing.KeyPath
+		}
+		if incoming.Passphrase == "" {
+			incoming.Passphrase = existing.Passphrase
+		}
+	}
+	return incoming
 }
 
 func hostLogFields(host Host) map[string]any {

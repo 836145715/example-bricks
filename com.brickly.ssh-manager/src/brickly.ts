@@ -67,28 +67,6 @@ export function openSession(
   )
 }
 
-export async function writeSession(sessionId: string, data: string): Promise<void> {
-  await requireRuntime().invoke('write-session', { sessionId, data })
-}
-
-export async function resizeSession(sessionId: string, cols: number, rows: number): Promise<void> {
-  await requireRuntime().invoke('resize-session', { sessionId, cols, rows })
-}
-
-export async function closeSession(sessionId: string): Promise<void> {
-  await requireRuntime().invoke('close-session', { sessionId }).catch(() => undefined)
-}
-
-export async function sessionCwd(sessionId: string): Promise<string | null> {
-  try {
-    const result = await requireRuntime().invoke<{ path?: string }>('session-cwd', { sessionId })
-    if (typeof result?.path === 'string' && result.path.startsWith('/')) return result.path
-  } catch {
-    return null
-  }
-  return null
-}
-
 export async function sftpList(input: {
   hostId: string
   sessionId?: string

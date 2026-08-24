@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	brickly "github.com/836145715/brickly-sdk-go"
@@ -32,10 +33,6 @@ func main() {
 	plugin.OnCommand("test-connection", handleTestConnection)
 	plugin.OnCommand("exec", handleExec)
 	plugin.OnCommand("open-session", handleOpenSession)
-	plugin.OnCommand("write-session", handleWriteSession)
-	plugin.OnCommand("resize-session", handleResizeSession)
-	plugin.OnCommand("close-session", handleCloseSession)
-	plugin.OnCommand("session-cwd", handleSessionCwd)
 	plugin.OnCommand("sftp-list", handleSftpList)
 	plugin.OnCommand("sftp-upload", handleSftpUpload)
 	plugin.OnCommand("sftp-download", handleSftpDownload)
@@ -55,10 +52,10 @@ func handleListHosts(_ *brickly.CommandContext, input json.RawMessage) (any, err
 	if err != nil {
 		return nil, newConfigError(err.Error())
 	}
-	filtered := make([]Host, 0, len(items))
+	filtered := make([]map[string]any, 0, len(items))
 	for _, host := range items {
 		if matchHost(host, params.Query) {
-			filtered = append(filtered, host)
+			filtered = append(filtered, publicHost(host))
 		}
 	}
 	return map[string]any{"hosts": filtered}, nil
@@ -71,19 +68,27 @@ func handleSaveHost(ctx *brickly.CommandContext, input json.RawMessage) (any, er
 	if err := json.Unmarshal(input, &params); err != nil {
 		return nil, newInputError("invalid save-host input")
 	}
-	host, err := decodeHost(params.Host)
+	host, err := decodeHostDraft(params.Host)
 	if err != nil {
 		return nil, err
 	}
 	if host.ID == "" {
 		host.ID = newID()
 	}
+	if existing, ok, err := hosts.Get(host.ID); err != nil {
+		return nil, newConfigError(err.Error())
+	} else if ok {
+		host = mergeHostSecrets(existing, host)
+	}
+	if err := validateHost(host); err != nil {
+		return nil, err
+	}
 	saved, err := hosts.Upsert(host)
 	if err != nil {
 		return nil, newConfigError(err.Error())
 	}
 	ctx.Info("保存主机", hostLogFields(saved))
-	return map[string]any{"host": saved}, nil
+	return map[string]any{"host": publicHost(saved)}, nil
 }
 
 func handleDeleteHost(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
@@ -196,28 +201,56 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 		return nil, err
 	}
 
-	go func() {
-		<-sessionCtx.Done()
-		_ = sess.Close()
-	}()
-
-	ctx.Info("打开终端会话", map[string]any{"sessionId": sessionID, "hostId": host.ID})
-	if err := sendSessionOpened(ctx, sessionID, host.ID); err != nil {
+	if err := ctx.OnEvent(func(event any) {
+		applySessionInput(sessionID, event)
+	}); err != nil {
 		sessions.remove(sessionID)
 		closeLiveSession(live)
 		return nil, err
 	}
 
-	scan := &pidScanner{}
+	go func() {
+		<-sessionCtx.Done()
+		_ = sess.Close()
+	}()
+
+	var emitMu sync.Mutex
+	emit := func(fn func() error) {
+		emitMu.Lock()
+		defer emitMu.Unlock()
+		_ = fn()
+	}
+	live.bindCwdEmitter(func() { emitCwdFromProc(ctx, sessionID, emit) })
+
+	ctx.Info("打开终端会话", map[string]any{"sessionId": sessionID, "hostId": host.ID})
+	var openErr error
+	emit(func() error {
+		openErr = sendSessionOpened(ctx, sessionID, host.ID)
+		return openErr
+	})
+	if openErr != nil {
+		sessions.remove(sessionID)
+		closeLiveSession(live)
+		return nil, openErr
+	}
+
+	scan := &ptyScanner{}
 	copyPTY(sessionCtx, stdout, func(chunk []byte) {
-		visible, pid := scan.push(chunk)
-		if pid > 0 {
-			sessions.setShellPID(sessionID, pid)
+		result := scan.push(chunk)
+		if result.pid > 0 {
+			sessions.setShellPID(sessionID, result.pid)
+			go emitCwdFromProc(ctx, sessionID, emit)
+			sessions.scheduleCwd(sessionID, cwdAfterBoot)
 		}
-		if len(visible) == 0 {
+		if result.cwd != "" {
+			if current := sessions.get(sessionID); current == nil || current.takeCwd(result.cwd) {
+				emit(func() error { return sendSessionCwd(ctx, sessionID, result.cwd, scan.pid) })
+			}
+		}
+		if len(result.visible) == 0 {
 			return
 		}
-		_ = sendSessionData(ctx, sessionID, visible)
+		emit(func() error { return sendSessionData(ctx, sessionID, result.visible) })
 	})
 
 	exitCode := 0
@@ -228,92 +261,11 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 	}
 	sessions.remove(sessionID)
 	closeLiveSession(live)
-	_ = sendSessionStatus(ctx, sessionID, exitCode)
+	emit(func() error { return sendSessionStatus(ctx, sessionID, exitCode) })
 	return map[string]any{
 		"sessionId": sessionID,
 		"exitCode":  exitCode,
 	}, nil
-}
-
-func handleWriteSession(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
-	var params struct {
-		SessionID string `json:"sessionId"`
-		Data      string `json:"data"`
-	}
-	if err := json.Unmarshal(input, &params); err != nil {
-		return nil, newInputError("invalid write-session input")
-	}
-	sessionID := normalizeID(params.SessionID)
-	if sessionID == "" {
-		return nil, newInputError("sessionId is required")
-	}
-	data, err := decodeSessionData(params.Data)
-	if err != nil {
-		return nil, err
-	}
-	if err := sessions.write(sessionID, data); err != nil {
-		return nil, err
-	}
-	return map[string]any{"ok": true}, nil
-}
-
-func handleResizeSession(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
-	var params struct {
-		SessionID string `json:"sessionId"`
-		Cols      int    `json:"cols"`
-		Rows      int    `json:"rows"`
-	}
-	if err := json.Unmarshal(input, &params); err != nil {
-		return nil, newInputError("invalid resize-session input")
-	}
-	sessionID := normalizeID(params.SessionID)
-	if sessionID == "" {
-		return nil, newInputError("sessionId is required")
-	}
-	cols, rows := clampTermSize(params.Cols, params.Rows)
-	if err := sessions.resize(sessionID, cols, rows); err != nil {
-		return nil, err
-	}
-	return map[string]any{"ok": true}, nil
-}
-
-func handleCloseSession(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
-	var params struct {
-		SessionID string `json:"sessionId"`
-	}
-	if err := json.Unmarshal(input, &params); err != nil {
-		return nil, newInputError("invalid close-session input")
-	}
-	sessionID := normalizeID(params.SessionID)
-	if sessionID == "" {
-		return nil, newInputError("sessionId is required")
-	}
-	sessions.close(sessionID)
-	return map[string]any{"ok": true}, nil
-}
-
-func handleSessionCwd(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
-	var params struct {
-		SessionID string `json:"sessionId"`
-	}
-	if err := json.Unmarshal(input, &params); err != nil {
-		return nil, newInputError("invalid session-cwd input")
-	}
-	sessionID := normalizeID(params.SessionID)
-	if sessionID == "" {
-		return nil, newInputError("sessionId is required")
-	}
-	client, hostID, pid, ok := sessions.shellLookup(sessionID)
-	if !ok || client == nil {
-		return nil, newNotFoundError("session not found")
-	}
-	timeout, cancel := context.WithTimeout(ctx.Context(), sessionCwdTimeout)
-	defer cancel()
-	path, err := readSessionCwd(timeout, client, pid, Host{ID: hostID})
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{"path": path, "pid": pid}, nil
 }
 
 func decodeResolvedHost(input json.RawMessage) (Host, error) {

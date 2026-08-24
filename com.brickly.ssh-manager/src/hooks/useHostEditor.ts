@@ -50,7 +50,8 @@ export function useHostEditor(
     dispatch({ type: 'busy', busy: 'test' })
     try {
       const draft = state.editor.draft
-      const result = await testConnection(draft.id ? { hostId: draft.id } : { host: draft })
+      const useStored = Boolean(draft.id) && !draft.password && !draft.keyPath && !draft.keyText
+      const result = await testConnection(useStored ? { hostId: draft.id } : { host: draft })
       dispatch({ type: 'editor-test-message', message: result.message })
       dispatch({ type: 'status', statusText: result.message })
     } catch (error) {

@@ -1,26 +1,16 @@
-import {
-  closeSession,
-  decodeChunkBytes,
-  hasRuntime,
-  newSessionId,
-  openSession,
-  sessionCwd,
-  type StreamWriter
-} from '../brickly'
-import type { Host, SessionEvent, StreamHandle } from '../types'
+import type { BricklyInteraction } from '@syllm/brickly-ui'
+import { decodeChunkBytes, hasRuntime, newSessionId, openSession, toBase64, type StreamWriter } from '../brickly'
+import type { Host, SessionEvent } from '../types'
 import type { ManagerAction } from './manager-state'
 
-const CWD_AFTER_ENTER_MS = 350
+type LiveSession = BricklyInteraction<SessionEvent, { sessionId?: string; exitCode?: number }>
 
 export class SessionController {
   private writers = new Map<string, StreamWriter>()
   private pending = new Map<string, Array<Uint8Array | string>>()
-  private handles = new Map<string, StreamHandle>()
-  private cwdWatch = new Set<string>()
-  private cwdDelay = new Map<string, number>()
-  private cwdBusy = new Set<string>()
-  private cwdQueued = new Set<string>()
-  private lastCwd = new Map<string, string>()
+  private lives = new Map<string, LiveSession>()
+  private outbound = new Map<string, string[]>()
+  private pendingResize = new Map<string, { cols: number; rows: number }>()
 
   constructor(private readonly dispatch: (action: ManagerAction) => void) {}
 
@@ -41,40 +31,29 @@ export class SessionController {
     return sessionId
   }
 
-  startCwdWatch(sessionId: string) {
-    if (this.cwdWatch.has(sessionId)) return
-    this.cwdWatch.add(sessionId)
-    void this.refreshCwd(sessionId)
-    this.cwdDelay.set(
-      sessionId,
-      window.setTimeout(() => {
-        this.cwdDelay.delete(sessionId)
-        void this.refreshCwd(sessionId)
-      }, 600)
-    )
+  sendData(sessionId: string, data: string) {
+    if (!data) return
+    const session = this.lives.get(sessionId)
+    if (!session) {
+      const queued = this.outbound.get(sessionId) ?? []
+      queued.push(data)
+      this.outbound.set(sessionId, queued)
+      return
+    }
+    void session.send({ type: 'data', encoding: 'base64', bytes: toBase64(data) }).catch(() => undefined)
   }
 
-  stopCwdWatch(sessionId?: string) {
-    if (!sessionId) return
-    const delay = this.cwdDelay.get(sessionId)
-    if (delay) window.clearTimeout(delay)
-    this.cwdDelay.delete(sessionId)
-    this.cwdWatch.delete(sessionId)
-    this.cwdBusy.delete(sessionId)
-    this.cwdQueued.delete(sessionId)
+  requestCwd(sessionId: string) {
+    void this.lives.get(sessionId)?.send({ type: 'cwd' }).catch(() => undefined)
   }
 
-  noteCommandSubmit(sessionId: string) {
-    if (!this.cwdWatch.has(sessionId)) return
-    const prev = this.cwdDelay.get(sessionId)
-    if (prev) window.clearTimeout(prev)
-    this.cwdDelay.set(
-      sessionId,
-      window.setTimeout(() => {
-        this.cwdDelay.delete(sessionId)
-        void this.refreshCwd(sessionId)
-      }, CWD_AFTER_ENTER_MS)
-    )
+  sendResize(sessionId: string, cols: number, rows: number) {
+    const session = this.lives.get(sessionId)
+    if (!session) {
+      this.pendingResize.set(sessionId, { cols, rows })
+      return
+    }
+    void session.sendLatest('resize', { type: 'resize', cols, rows }).catch(() => undefined)
   }
 
   attachWriter(sessionId: string, write: StreamWriter) {
@@ -85,17 +64,29 @@ export class SessionController {
   }
 
   close(sessionId: string) {
-    this.stopCwdWatch(sessionId)
-    this.handles.get(sessionId)?.cancel()
-    this.handles.delete(sessionId)
-    this.writers.delete(sessionId)
-    this.pending.delete(sessionId)
-    this.lastCwd.delete(sessionId)
-    void closeSession(sessionId)
+    this.lives.get(sessionId)?.cancel('user')
+    this.forget(sessionId)
   }
 
   closeAll() {
-    for (const sessionId of [...this.handles.keys()]) this.close(sessionId)
+    for (const sessionId of [...this.lives.keys()]) this.close(sessionId)
+  }
+
+  private forget(sessionId: string) {
+    this.lives.delete(sessionId)
+    this.writers.delete(sessionId)
+    this.pending.delete(sessionId)
+    this.outbound.delete(sessionId)
+    this.pendingResize.delete(sessionId)
+  }
+
+  private flushOutbound(sessionId: string) {
+    const queued = this.outbound.get(sessionId) ?? []
+    this.outbound.delete(sessionId)
+    for (const data of queued) this.sendData(sessionId, data)
+    const resize = this.pendingResize.get(sessionId)
+    this.pendingResize.delete(sessionId)
+    if (resize) this.sendResize(sessionId, resize.cols, resize.rows)
   }
 
   private async open(
@@ -110,13 +101,9 @@ export class SessionController {
         cols: size.cols,
         rows: size.rows
       })
-      this.handles.set(sessionId, {
-        cancel() {
-          session.cancel('CANCELLED')
-        }
-      })
+      this.lives.set(sessionId, session)
+      this.flushOutbound(sessionId)
       const pump = this.pump(sessionId, host, session)
-      await session.closeInput()
       await session.result
       await pump
     } catch (error) {
@@ -129,15 +116,11 @@ export class SessionController {
       })
       this.dispatch({ type: 'status', statusText: message })
     } finally {
-      this.handles.delete(sessionId)
+      this.forget(sessionId)
     }
   }
 
-  private async pump(
-    sessionId: string,
-    host: Host,
-    session: { nextEvent(): Promise<SessionEvent | undefined> }
-  ): Promise<void> {
+  private async pump(sessionId: string, host: Host, session: LiveSession): Promise<void> {
     while (true) {
       const event = await session.nextEvent()
       if (event === undefined) return
@@ -150,35 +133,19 @@ export class SessionController {
         this.pushChunk(sessionId, event)
         continue
       }
+      if (event.type === 'cwd') {
+        const path = typeof event.path === 'string' ? event.path : ''
+        if (path.startsWith('/')) {
+          this.dispatch({ type: 'session-updated', sessionId, patch: { cwd: path } })
+        }
+        continue
+      }
       if (event.type === 'status') {
         this.dispatch({
           type: 'session-updated',
           sessionId,
           patch: { status: 'closed', message: '会话已结束' }
         })
-      }
-    }
-  }
-
-  private async refreshCwd(sessionId: string) {
-    if (!this.cwdWatch.has(sessionId)) return
-    if (this.cwdBusy.has(sessionId)) {
-      this.cwdQueued.add(sessionId)
-      return
-    }
-    this.cwdBusy.add(sessionId)
-    try {
-      const path = await sessionCwd(sessionId)
-      if (!path || this.lastCwd.get(sessionId) === path) return
-      this.lastCwd.set(sessionId, path)
-      this.dispatch({ type: 'session-updated', sessionId, patch: { cwd: path } })
-    } catch {
-      return
-    } finally {
-      this.cwdBusy.delete(sessionId)
-      if (this.cwdQueued.has(sessionId) && this.cwdWatch.has(sessionId)) {
-        this.cwdQueued.delete(sessionId)
-        void this.refreshCwd(sessionId)
       }
     }
   }

@@ -45,6 +45,7 @@ export function App() {
     filesOpen: state.sidebarTab === 'files',
     transfer: state.transfer,
     sftp: sftp.current,
+    sessions: sessions.current,
     dispatch
   })
 
@@ -83,12 +84,8 @@ export function App() {
   }, [session?.sessionId, session?.status, session?.sftpDir])
 
   useEffect(() => {
-    if (!session || session.status !== 'open' || !state.trackCwd) {
-      sessions.current?.stopCwdWatch(session?.sessionId)
-      return
-    }
-    sessions.current?.startCwdWatch(session.sessionId)
-    return () => sessions.current?.stopCwdWatch(session.sessionId)
+    if (!session || session.status !== 'open' || !state.trackCwd) return
+    sessions.current?.requestCwd(session.sessionId)
   }, [session?.sessionId, session?.status, state.trackCwd])
 
   useEffect(() => {
@@ -167,10 +164,14 @@ export function App() {
           sessions.current?.attachWriter(sessionId, api.write)
           dispatch({ type: 'session-updated', sessionId, patch: { cols: api.cols, rows: api.rows } })
         }}
+        onTerminalInput={(sessionId, data) => sessions.current?.sendData(sessionId, data)}
+        onTerminalResize={(sessionId, cols, rows) => {
+          sessions.current?.sendResize(sessionId, cols, rows)
+          dispatch({ type: 'session-updated', sessionId, patch: { cols, rows } })
+        }}
         onDropActive={(active) => dispatch({ type: 'drop-set', active })}
         onUpload={(paths) => void transfer.upload(paths, remoteDir)}
         onLocalPathPaste={transfer.offerLocalPath}
-        onCommandSubmit={(sessionId) => sessions.current?.noteCommandSubmit(sessionId)}
         onDownload={(remotePath, localDir) => void transfer.download(remotePath, localDir)}
         onDownloadDir={(dir) => {
           if (profile && session) sftp.current?.rememberDownloadDir(profile.id, session.sessionId, dir)

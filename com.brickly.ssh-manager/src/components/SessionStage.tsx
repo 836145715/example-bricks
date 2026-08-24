@@ -16,10 +16,11 @@ export function SessionStage({
   onCreate,
   onEdit,
   onTerminalReady,
+  onTerminalInput,
+  onTerminalResize,
   onDropActive,
   onUpload,
-  onLocalPathPaste,
-  onCommandSubmit
+  onLocalPathPaste
 }: {
   tabs: Tab[]
   activeTabId: string | null
@@ -31,10 +32,11 @@ export function SessionStage({
   onCreate: () => void
   onEdit: (host: Host) => void
   onTerminalReady: (sessionId: string, api: { write: StreamWriter; cols: number; rows: number }) => void
+  onTerminalInput?: (sessionId: string, data: string) => void
+  onTerminalResize?: (sessionId: string, cols: number, rows: number) => void
   onDropActive: (active: boolean) => void
   onUpload: (paths: string[]) => void
   onLocalPathPaste?: (path: string) => void
-  onCommandSubmit?: (sessionId: string) => void
 }) {
   const allow = (event: DragEvent) => {
     if (!canDrop) return false
@@ -71,10 +73,11 @@ export function SessionStage({
         onConnect={onConnect}
         onCreate={onCreate}
         onEdit={onEdit}
-        onTerminalReady={onTerminalReady}
-        onLocalPathPaste={onLocalPathPaste}
-        onCommandSubmit={onCommandSubmit}
-      />
+          onTerminalReady={onTerminalReady}
+          onTerminalInput={onTerminalInput}
+          onTerminalResize={onTerminalResize}
+          onLocalPathPaste={onLocalPathPaste}
+        />
       {dropActive && canDrop ? <DropMask dest={destLabel} /> : null}
     </div>
   )

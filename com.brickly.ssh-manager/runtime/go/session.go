@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"io"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -14,17 +15,28 @@ const (
 	defaultRows     = 32
 	maxLiveSessions = 16
 	ptyReadSize     = 8192
+	cwdAfterEnter   = 350 * time.Millisecond
+	cwdAfterBoot    = 600 * time.Millisecond
 )
+
+type ptyControl interface {
+	WindowChange(h, w int) error
+	Close() error
+}
 
 type liveSession struct {
 	ID          string
 	HostID      string
 	client      *ssh.Client
-	sess        *ssh.Session
+	sess        ptyControl
 	stdin       io.WriteCloser
 	cancel      context.CancelFunc
 	releaseOnce sync.Once
 	shellPID    int
+	cwdMu       sync.Mutex
+	lastCwd     string
+	cwdTimer    *time.Timer
+	emitCwd     func()
 }
 
 type sessionHub struct {
@@ -80,6 +92,18 @@ func (h *sessionHub) setShellPID(id string, pid int) {
 	session.shellPID = pid
 }
 
+func (h *sessionHub) get(id string) *liveSession {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.items[id]
+}
+
+func (h *sessionHub) scheduleCwd(id string, delay time.Duration) {
+	if session := h.get(id); session != nil {
+		session.scheduleCwd(delay)
+	}
+}
+
 func (h *sessionHub) shellLookup(id string) (*ssh.Client, string, int, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -114,6 +138,9 @@ func (h *sessionHub) resize(id string, cols, rows int) error {
 	if session == nil {
 		return newNotFoundError("session not found")
 	}
+	if session.sess == nil {
+		return newSSHError("SESSION_RESIZE_ERROR", "pty session is missing")
+	}
 	if err := session.sess.WindowChange(rows, cols); err != nil {
 		return newSSHError("SESSION_RESIZE_ERROR", err.Error())
 	}
@@ -143,6 +170,7 @@ func (h *sessionHub) closeAll() {
 }
 
 func closeLiveSession(session *liveSession) {
+	session.stopCwdWatch()
 	if session.cancel != nil {
 		session.cancel()
 	}
@@ -152,6 +180,47 @@ func closeLiveSession(session *liveSession) {
 	session.releaseOnce.Do(func() {
 		conns.releaseTerminal(session.HostID)
 	})
+}
+
+func (s *liveSession) bindCwdEmitter(emit func()) {
+	s.cwdMu.Lock()
+	s.emitCwd = emit
+	s.cwdMu.Unlock()
+}
+
+func (s *liveSession) scheduleCwd(delay time.Duration) {
+	if s == nil {
+		return
+	}
+	s.cwdMu.Lock()
+	defer s.cwdMu.Unlock()
+	if s.emitCwd == nil {
+		return
+	}
+	if s.cwdTimer != nil {
+		s.cwdTimer.Stop()
+	}
+	emit := s.emitCwd
+	s.cwdTimer = time.AfterFunc(delay, emit)
+}
+
+func (s *liveSession) stopCwdWatch() {
+	s.cwdMu.Lock()
+	defer s.cwdMu.Unlock()
+	if s.cwdTimer != nil {
+		s.cwdTimer.Stop()
+		s.cwdTimer = nil
+	}
+}
+
+func (s *liveSession) takeCwd(path string) bool {
+	s.cwdMu.Lock()
+	defer s.cwdMu.Unlock()
+	if s.lastCwd == path {
+		return false
+	}
+	s.lastCwd = path
+	return true
 }
 
 func clampTermSize(cols, rows int) (int, int) {

@@ -9,14 +9,18 @@ export type Host = {
   port: number
   user: string
   authType: AuthType
+  hasPassword?: boolean
+  hasKey?: boolean
+  note?: string
+}
+
+export type HostDraft = Omit<Host, 'id' | 'hasPassword' | 'hasKey'> & {
+  id?: string
   password?: string
   keyPath?: string
   keyText?: string
   passphrase?: string
-  note?: string
 }
-
-export type HostDraft = Omit<Host, 'id'> & { id?: string }
 
 export type SessionStatus = 'connecting' | 'open' | 'closed' | 'error'
 
@@ -65,6 +69,13 @@ export type SessionOpenedEvent = {
   session: { sessionId: string; hostId: string; status: 'open' }
 }
 
+export type SessionCwdEvent = {
+  type: 'cwd'
+  sessionId: string
+  path: string
+  pid?: number
+}
+
 export type SessionDataEvent = {
   type: 'data'
   sessionId: string
@@ -79,7 +90,7 @@ export type SessionStatusEvent = {
   exitCode?: number
 }
 
-export type SessionEvent = SessionOpenedEvent | SessionDataEvent | SessionStatusEvent
+export type SessionEvent = SessionOpenedEvent | SessionDataEvent | SessionStatusEvent | SessionCwdEvent
 
 export type SftpProgressEvent = SftpProgress & {
   type: 'progress'
@@ -160,8 +171,14 @@ export function emptyHostDraft(): HostDraft {
 export function hostToDraft(host: Host): HostDraft {
   return {
     ...emptyHostDraft(),
-    ...host,
+    id: host.id,
+    name: host.name,
+    group: host.group,
     tags: host.tags ?? [],
-    port: host.port || 22
+    host: host.host,
+    port: host.port || 22,
+    user: host.user,
+    authType: host.authType,
+    note: host.note
   }
 }

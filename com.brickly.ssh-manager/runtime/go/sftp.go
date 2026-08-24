@@ -124,6 +124,19 @@ func decodeSFTPRequest(input json.RawMessage) (sftpRequest, Host, error) {
 	return params, host, nil
 }
 
-func withSFTP(host Host, _ string, fn func(remoteFS) error) error {
+func withSFTP(host Host, sessionID string, fn func(remoteFS) error) error {
+	if id := normalizeID(sessionID); id != "" {
+		_, hostID, _, ok := sessions.shellLookup(id)
+		if !ok {
+			return newNotFoundError("session not found")
+		}
+		if hostID != host.ID {
+			return newInputError("session does not match host")
+		}
+	}
+	if err := conns.acquireTransfer(host); err != nil {
+		return err
+	}
+	defer conns.releaseTransfer(host.ID)
 	return conns.useSFTP(host, fn)
 }

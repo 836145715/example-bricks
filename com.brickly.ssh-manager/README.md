@@ -12,7 +12,7 @@ last_verified: 2026-08-24
 
 界面按 Tabby：整窗终端画布、顶栏 Tab、可收起 Profile 侧栏。SFTP 是当前 session 上的右侧抽屉，不是新工具。
 
-它不和 `com.brickly.log-searcher` 共用主机库。配置写在 `~/.brickly/ssh-manager.json`，权限为当前用户可读写。日志和诊断字段不会输出密码、私钥或 passphrase。
+它不和 `com.brickly.log-searcher` 共用主机库。配置写在 `~/.brickly/ssh-manager.json`，权限为当前用户可读写。`list-hosts` / `save-host` 的返回值不含密码、私钥或 passphrase；日志和诊断字段同样不会输出这些字段。
 
 ## 运行依赖
 
@@ -22,9 +22,9 @@ last_verified: 2026-08-24
 
 生命周期是 `stateful` + `runtime.instance: "owned"`。体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke` / `interact`。直接 `window.brickly.invoke` / `stream` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程，PTY 和 SFTP 会断。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
 
-`open-session`、`sftp-upload`、`sftp-download` 必须声明 `"mode": "interact"`。Runtime 用 `ctx.Send` 推 `session` / `data` / `status` 或 `progress` 事件；页面用 `nextEvent()` / `closeInput()` / `cancel()`，不要 `for await session.events`。
+`open-session`、`sftp-upload`、`sftp-download` 必须声明 `"mode": "interact"`。一条终端会话就是一条双工 `open-session`：调用方 `send({ type: "data" })` / `sendLatest("resize", …)`，Runtime `ctx.Send` 推 `session` / `data` / `cwd` / `status`。页面用 `nextEvent()` / `cancel()`，不要 `closeInput()`，也不要 `for await session.events`。关 Tab 用 `cancel()`，不要再调旁路命令。
 
-体验窗使用 `ui.titleBar = "custom"`：宿主开无边框窗口并注入 `window.brickly.window`。标题栏和 Tab 合成一条，Tab 和窗口按钮必须 `no-drag`。打开工具先看到 Start Page，点 Profile 后终端铺满画布；编辑主机走浮层，exec 走底栏抽屉，SFTP 走右侧抽屉。前端状态是 `useReducer` + `SessionController` / `SftpController`，不要把 interact 会话再塞回 React state。
+体验窗使用 `ui.titleBar = "custom"`：宿主开无边框窗口并注入 `window.brickly.window`。标题栏和 Tab 合成一条，Tab 和窗口按钮必须 `no-drag`。打开工具先看到 Start Page，点 Profile 后终端铺满画布；编辑主机走浮层，exec 走底栏抽屉，SFTP 走右侧抽屉。前端状态是 `useReducer` + `SessionController` / `SftpController`，`SessionController` 持有 Interaction，不要把 interact 会话塞回 React state。
 
 ## 构建
 
@@ -48,15 +48,13 @@ cd example-bricks/com.brickly.ssh-manager/runtime/go
 
 ## 命令
 
-- `list-hosts`：列出或按关键词过滤主机。
-- `save-host` / `delete-host`：增改删主机。
+- `list-hosts`：列出或按关键词过滤主机。返回公开档案（`hasPassword` / `hasKey`），不含密钥。
+- `save-host` / `delete-host`：增改删主机。更新时密码、私钥、passphrase 留空则保持原值。
 - `test-connection`：测试登录，可传 `hostId` 或未保存的 `host`。
-- `exec`：执行一条远程命令，返回 stdout / stderr / exitCode。
-- `open-session`：打开交互 PTY，通过 interact 事件输出 `session`、`data`（base64）和 `status`。开会话时用 POSIX 包装记下 shell PID，不把钩子打进终端。
-- `write-session` / `resize-session` / `close-session`：写入、改尺寸、关闭会话。
-- `session-cwd`：在已打开的 SSH 连接上读 shell 的 `/proc/<pid>/cwd`（优先复用 SFTP 通道）。文件管理「追踪」在打开时读一次，之后每次终端回车后再读。
-- `sftp-list`：列出远端目录；`path` 为空时返回家目录。
-- `sftp-upload`：上传本机文件或目录，通过 interact 事件输出 `progress`。
+- `exec`：执行一条远程命令，返回 stdout / stderr / exitCode。适合 Agent 或工作流一次性调用。
+- `open-session`：打开双工交互 PTY。输入事件：`{ type: "data", encoding: "base64", bytes }`、`{ type: "resize", cols, rows }`（resize 用 `sendLatest`）、`{ type: "cwd" }`（立刻重读当前目录）。输出事件：`session`、`data`、`cwd`、`status`。开会话时用 POSIX 包装记下 shell PID；cwd 优先解析 OSC 7，缺席时在启动和每次回车后读 `/proc/<pid>/cwd`，不把钩子打进终端。
+- `sftp-list`：列出远端目录；`path` 为空时返回家目录。传入 `sessionId` 时必须对应仍存活的终端会话。
+- `sftp-upload`：上传本机文件或目录，通过 interact 事件输出 `progress`。传输期间即使关掉终端 Tab，也不会拆掉这条 SSH 连接。
 - `sftp-download`：下载远端文件或目录，通过 interact 事件输出 `progress`。
 
 ## 一期边界
@@ -66,4 +64,4 @@ cd example-bricks/com.brickly.ssh-manager/runtime/go
 - 不做证书登录、二次验证、Windows 远程。
 - 不做 known_hosts 严格校验（当前忽略 host key）。
 - 不做常用命令库、登录自动脚本。
-- 文件管理「追踪」读取 Linux `/proc/<pid>/cwd`，不向终端注入 `PROMPT_COMMAND`。非 Linux 或 `su`/`sudo -i` 后可能不同步。
+- 文件管理「追踪」订阅 Runtime 推送的 `cwd` 事件。默认靠回车后读 Linux `/proc/<pid>/cwd`；远端若发 OSC 7 会立即更新。非 Linux 或 `su`/`sudo -i` 后可能不同步。

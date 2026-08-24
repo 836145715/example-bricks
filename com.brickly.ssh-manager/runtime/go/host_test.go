@@ -74,6 +74,55 @@ func TestUpsertAndRemoveHost(t *testing.T) {
 	}
 }
 
+func TestPublicHostOmitsSecrets(t *testing.T) {
+	view := publicHost(Host{
+		ID:         "h1",
+		Name:       "core",
+		Host:       "10.0.0.1",
+		Port:       22,
+		User:       "root",
+		AuthType:   authPassword,
+		Password:   "super-secret",
+		KeyText:    "PRIVATE",
+		KeyPath:    "C:\\keys\\id",
+		Passphrase: "phrase",
+		Note:       "prod",
+	})
+	if view["password"] != nil || view["keyText"] != nil || view["keyPath"] != nil || view["passphrase"] != nil {
+		t.Fatalf("secrets leaked: %#v", view)
+	}
+	if view["hasPassword"] != true || view["hasKey"] != true {
+		t.Fatalf("secret flags: %#v", view)
+	}
+	if view["note"] != "prod" || view["host"] != "10.0.0.1" {
+		t.Fatalf("public fields: %#v", view)
+	}
+}
+
+func TestMergeHostSecretsKeepsStoredOnBlankUpdate(t *testing.T) {
+	existing := Host{
+		AuthType:   authPassword,
+		Password:   "stored",
+		KeyText:    "OLDKEY",
+		KeyPath:    "/old",
+		Passphrase: "old-phrase",
+	}
+	merged := mergeHostSecrets(existing, Host{AuthType: authPassword, Password: ""})
+	if merged.Password != "stored" {
+		t.Fatalf("password=%q", merged.Password)
+	}
+
+	key := mergeHostSecrets(existing, Host{AuthType: authKey})
+	if key.KeyText != "OLDKEY" || key.KeyPath != "/old" || key.Passphrase != "old-phrase" {
+		t.Fatalf("key merge: %#v", key)
+	}
+
+	replaced := mergeHostSecrets(existing, Host{AuthType: authPassword, Password: "new"})
+	if replaced.Password != "new" {
+		t.Fatalf("should replace password, got %q", replaced.Password)
+	}
+}
+
 func TestHostLogFieldsOmitSecrets(t *testing.T) {
 	fields := hostLogFields(Host{
 		ID:         "h1",

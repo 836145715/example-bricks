@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.ssh-manager",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "apiVersion": ">=0.2.0 <1.0.0",
   "name": {
     "zh-CN": "SSH",
@@ -73,7 +73,7 @@
         "zh-CN": "列出主机",
         "en": "List Hosts"
       },
-      "description": "返回本机保存的 SSH 主机清单，可按名称、地址、分组或标签过滤。",
+      "description": "返回本机保存的 SSH 主机清单（不含密码、私钥），可按名称、地址、分组或标签过滤。",
       "category": "hosts",
       "execution": "parallel",
       "io": {
@@ -100,7 +100,7 @@
         "zh-CN": "保存主机",
         "en": "Save Host"
       },
-      "description": "新增或更新一台 SSH 主机。未提供 id 时自动生成。",
+      "description": "新增或更新一台 SSH 主机。未提供 id 时自动生成。更新时密码/私钥留空则保持原值。",
       "category": "hosts",
       "io": {
         "inputs": [
@@ -247,7 +247,7 @@
         "zh-CN": "打开终端会话",
         "en": "Open Session"
       },
-      "description": "打开交互式 SSH PTY 会话，并通过 interact 事件流式输出终端字节。",
+      "description": "打开双工 SSH PTY 会话。调用方 send data/resize/cwd，Runtime 推 session/data/cwd/status；cancel 关闭会话。",
       "category": "terminal",
       "mode": "interact",
       "execution": "parallel",
@@ -292,6 +292,11 @@
             "description": "流式 PTY 数据，encoding=base64。"
           },
           {
+            "name": "cwd",
+            "type": "json",
+            "description": "终端当前目录，来自 OSC 7 或 /proc 兜底。"
+          },
+          {
             "name": "status",
             "type": "json",
             "description": "会话结束状态。"
@@ -308,136 +313,12 @@
       }
     },
     {
-      "id": "write-session",
-      "name": {
-        "zh-CN": "写入终端",
-        "en": "Write Session"
-      },
-      "description": "向已打开的终端会话写入 base64 编码的键盘或粘贴数据。",
-      "category": "terminal",
-      "execution": "parallel",
-      "timeoutMs": 5000,
-      "io": {
-        "inputs": [
-          {
-            "name": "sessionId",
-            "type": "string",
-            "required": true
-          },
-          {
-            "name": "data",
-            "type": "string",
-            "required": true,
-            "description": "base64 编码的写入字节。"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "ok",
-            "type": "boolean"
-          }
-        ]
-      }
-    },
-    {
-      "id": "resize-session",
-      "name": {
-        "zh-CN": "调整终端尺寸",
-        "en": "Resize Session"
-      },
-      "description": "向远程 PTY 发送窗口尺寸变更。",
-      "category": "terminal",
-      "execution": "parallel",
-      "timeoutMs": 5000,
-      "io": {
-        "inputs": [
-          {
-            "name": "sessionId",
-            "type": "string",
-            "required": true
-          },
-          {
-            "name": "cols",
-            "type": "number",
-            "required": true
-          },
-          {
-            "name": "rows",
-            "type": "number",
-            "required": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "ok",
-            "type": "boolean"
-          }
-        ]
-      }
-    },
-    {
-      "id": "close-session",
-      "name": {
-        "zh-CN": "关闭终端会话",
-        "en": "Close Session"
-      },
-      "description": "关闭指定交互终端会话并断开对应 SSH 连接。",
-      "category": "terminal",
-      "execution": "parallel",
-      "timeoutMs": 5000,
-      "io": {
-        "inputs": [
-          {
-            "name": "sessionId",
-            "type": "string",
-            "required": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "ok",
-            "type": "boolean"
-          }
-        ]
-      }
-    },
-    {
-      "id": "session-cwd",
-      "name": {
-        "zh-CN": "读取终端当前目录",
-        "en": "Session CWD"
-      },
-      "description": "读取交互终端对应 shell 进程的当前工作目录（Linux /proc）。",
-      "category": "terminal",
-      "execution": "parallel",
-      "timeoutMs": 8000,
-      "io": {
-        "inputs": [
-          {
-            "name": "sessionId",
-            "type": "string",
-            "required": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "path",
-            "type": "string"
-          },
-          {
-            "name": "pid",
-            "type": "number"
-          }
-        ]
-      }
-    },
-    {
       "id": "sftp-list",
       "name": {
         "zh-CN": "列出远端目录",
         "en": "SFTP List"
       },
-      "description": "列出远端目录。path 为空时返回家目录。",
+      "description": "列出远端目录。path 为空时返回家目录。传入 sessionId 时必须对应已打开的终端会话。",
       "category": "sftp",
       "execution": "parallel",
       "timeoutMs": 30000,
@@ -453,7 +334,8 @@
             "name": "sessionId",
             "label": "会话 ID",
             "type": "string",
-            "required": false
+            "required": false,
+            "description": "已打开的终端会话；传入后必须仍存活，否则失败。"
           },
           {
             "name": "path",
@@ -495,7 +377,8 @@
           {
             "name": "sessionId",
             "type": "string",
-            "required": false
+            "required": false,
+            "description": "已打开的终端会话；传入后必须仍存活。"
           },
           {
             "name": "localPath",
@@ -546,7 +429,8 @@
           {
             "name": "sessionId",
             "type": "string",
-            "required": false
+            "required": false,
+            "description": "已打开的终端会话；传入后必须仍存活。"
           },
           {
             "name": "remotePath",

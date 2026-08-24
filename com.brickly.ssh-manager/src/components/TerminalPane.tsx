@@ -2,9 +2,9 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import { useEffect, useRef } from 'react'
-import { resizeSession, toBase64, writeSession, type StreamWriter } from '../brickly'
+import type { StreamWriter } from '../brickly'
 import { classifyPaste } from '../lib/local-paths'
-import { containsCommandSubmit, isCopyKey, isPasteKey } from '../lib/terminal-keys'
+import { isCopyKey, isPasteKey } from '../lib/terminal-keys'
 import type { SessionStatus } from '../types'
 
 async function readClipboardText(): Promise<string> {
@@ -29,16 +29,18 @@ export function TerminalPane({
   active,
   message,
   onReady,
-  onLocalPathPaste,
-  onCommandSubmit
+  onInput,
+  onResize,
+  onLocalPathPaste
 }: {
   sessionId: string
   status: SessionStatus
   active: boolean
   message?: string
   onReady: (api: { write: StreamWriter; cols: number; rows: number }) => void
+  onInput?: (data: string) => void
+  onResize?: (cols: number, rows: number) => void
   onLocalPathPaste?: (path: string) => void
-  onCommandSubmit?: () => void
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -47,10 +49,12 @@ export function TerminalPane({
   const flushTimer = useRef<number | null>(null)
   const statusRef = useRef(status)
   const pathPasteRef = useRef(onLocalPathPaste)
-  const submitRef = useRef(onCommandSubmit)
+  const inputRef = useRef(onInput)
+  const resizeRef = useRef(onResize)
   statusRef.current = status
   pathPasteRef.current = onLocalPathPaste
-  submitRef.current = onCommandSubmit
+  inputRef.current = onInput
+  resizeRef.current = onResize
 
   useEffect(() => {
     const container = containerRef.current
@@ -98,7 +102,7 @@ export function TerminalPane({
         flushTimer.current = null
       }
       if (!pending || statusRef.current === 'closed' || statusRef.current === 'error') return
-      void writeSession(sessionId, toBase64(pending)).catch(() => undefined)
+      inputRef.current?.(pending)
     }
 
     const disposable = term.onData((data) => {
@@ -107,7 +111,6 @@ export function TerminalPane({
       if (!flushTimer.current) {
         flushTimer.current = window.setTimeout(flush, 16)
       }
-      if (containsCommandSubmit(data)) submitRef.current?.()
     })
 
     const copySelection = () => {
@@ -157,7 +160,7 @@ export function TerminalPane({
     const observer = new ResizeObserver(() => {
       fit.fit()
       if (statusRef.current === 'open') {
-        void resizeSession(sessionId, term.cols, term.rows).catch(() => undefined)
+        resizeRef.current?.(term.cols, term.rows)
       }
     })
     observer.observe(container)
@@ -179,7 +182,7 @@ export function TerminalPane({
       fitRef.current?.fit()
       const term = termRef.current
       if (term && status === 'open') {
-        void resizeSession(sessionId, term.cols, term.rows).catch(() => undefined)
+        resizeRef.current?.(term.cols, term.rows)
       }
       term?.focus()
     })

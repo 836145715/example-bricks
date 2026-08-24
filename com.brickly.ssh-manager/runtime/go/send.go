@@ -58,6 +58,21 @@ func sendSessionStatus(ctx *brickly.CommandContext, sessionID string, exitCode i
 	})
 }
 
+func sendSessionCwd(ctx *brickly.CommandContext, sessionID, path string, pid int) error {
+	if !validRemoteCwd(path) {
+		return nil
+	}
+	payload := map[string]any{
+		"type":      "cwd",
+		"sessionId": sessionID,
+		"path":      path,
+	}
+	if pid > 0 {
+		payload["pid"] = pid
+	}
+	return sendJSON(ctx, payload)
+}
+
 func sendSftpProgress(ctx *brickly.CommandContext, progress transferProgress) error {
 	payload, err := asJSONValue(progress)
 	if err != nil {

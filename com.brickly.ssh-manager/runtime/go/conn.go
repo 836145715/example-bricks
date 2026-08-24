@@ -20,6 +20,7 @@ type pooledConn struct {
 	client    *ssh.Client
 	sftp      *sftp.Client
 	terminals int
+	transfers int
 }
 
 type connPool struct {
@@ -89,7 +90,39 @@ func (p *connPool) releaseTerminal(hostID string) {
 	if conn.terminals > 0 {
 		conn.terminals--
 	}
-	if conn.terminals == 0 {
+	p.maybeCloseLocked(hostID)
+}
+
+func (p *connPool) acquireTransfer(host Host) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	conn, err := p.ensureLocked(host)
+	if err != nil {
+		return err
+	}
+	conn.transfers++
+	return nil
+}
+
+func (p *connPool) releaseTransfer(hostID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	conn := p.items[hostID]
+	if conn == nil {
+		return
+	}
+	if conn.transfers > 0 {
+		conn.transfers--
+	}
+	p.maybeCloseLocked(hostID)
+}
+
+func (p *connPool) maybeCloseLocked(hostID string) {
+	conn := p.items[hostID]
+	if conn == nil {
+		return
+	}
+	if conn.terminals == 0 && conn.transfers == 0 {
 		p.closeLocked(hostID)
 	}
 }
@@ -148,7 +181,7 @@ func (p *connPool) dropSFTP(hostID string) {
 func (p *connPool) evict(hostID string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if conn := p.items[hostID]; conn != nil && conn.terminals > 0 {
+	if conn := p.items[hostID]; conn != nil && (conn.terminals > 0 || conn.transfers > 0) {
 		return
 	}
 	p.closeLocked(hostID)
@@ -186,4 +219,14 @@ func (p *connPool) stats(hostID string) (dialsKept bool, terminals int, hasSFTP 
 		return false, 0, false
 	}
 	return true, conn.terminals, conn.sftp != nil
+}
+
+func (p *connPool) transferRefs(hostID string) int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	conn := p.items[hostID]
+	if conn == nil {
+		return 0
+	}
+	return conn.transfers
 }
