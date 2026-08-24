@@ -1,10 +1,9 @@
+import type { BricklyStartedHandle, BricklyUiEventEnvelope } from '@syllm/brickly-ui'
 import type {
   ClipItem,
   ClipboardContent,
   ClipboardHistoryChangedEnvelope,
   ClipboardHistoryChangedPayload,
-  ClipboardHistoryChangedResourceEnvelope,
-  ClipboardHistoryEventResourceHandle,
   ClipboardSetResult,
   RuntimeStatus,
   StorageInfo,
@@ -12,6 +11,9 @@ import type {
 } from './types'
 
 const LOG_PREFIX = '[clipboard-history/ui]'
+const BRICK_ID = 'com.brickly.clipboard-history'
+
+let runtime: BricklyStartedHandle | null = null
 
 function logWarn(message: string, detail?: Record<string, unknown>): void {
   if (detail === undefined) {
@@ -21,11 +23,19 @@ function logWarn(message: string, detail?: Record<string, unknown>): void {
   console.warn(`${LOG_PREFIX} ${message}`, detail)
 }
 
+export function bindRuntime(handle: BricklyStartedHandle | null): void {
+  runtime = handle
+}
+
+function invokeApi(): { invoke<TResult = unknown>(commandId: string, input: Record<string, unknown>): Promise<TResult> } | undefined {
+  return runtime ?? window.brickly
+}
+
 async function invoke<T>(commandId: string, input: Record<string, unknown>): Promise<T> {
-  const api = window.brickly
+  const api = invokeApi()
   if (!api?.invoke) throw new Error('当前页面没有可用的 Clipboard History runtime。')
   try {
-    return (await api.invoke(commandId, input)) as T
+    return await api.invoke<T>(commandId, input)
   } catch (error) {
     logWarn('invoke failed', {
       commandId,
@@ -110,20 +120,36 @@ export async function subscribeHistoryChanged(
 }
 
 /**
- * 宿主对事件 payload 统一资源化（encoding:json wrapper），preload 已解包为
- * Handle，这里只读回内容并校验；payload 异常时 reject 由订阅方吞掉。
+ * 宿主对事件 payload 统一资源化。preload 已解包为 Handle，这里只读回内容并校验。
+ * 单测仍可能传入旧的 sourceBrickId 字段，正式信封用 source.ref.brickId。
  */
 async function readEventPayload(
-  envelope: ClipboardHistoryChangedResourceEnvelope
+  envelope: BricklyUiEventEnvelope & { sourceBrickId?: string }
 ): Promise<ClipboardHistoryChangedEnvelope> {
-  const handle = envelope.payload as ClipboardHistoryEventResourceHandle
+  const handle = envelope.payload as { json?: () => Promise<unknown>; close?: () => Promise<void> }
+  if (typeof handle?.json !== 'function') {
+    throw new Error('剪贴板历史事件 payload 结构无效。')
+  }
   try {
-    const payload = await handle.json<unknown>()
+    const payload = await handle.json()
     if (!isHistoryChangedPayload(payload)) throw new Error('剪贴板历史事件 payload 结构无效。')
-    return { ...envelope, payload }
+    return {
+      event: 'clipboard-history:changed',
+      payload,
+      sourceBrickId: sourceBrickIdOf(envelope),
+      publishedAt: envelope.publishedAt
+    }
   } finally {
     await handle.close?.().catch(() => undefined)
   }
+}
+
+function sourceBrickIdOf(envelope: BricklyUiEventEnvelope & { sourceBrickId?: string }): string {
+  if (typeof envelope.sourceBrickId === 'string' && envelope.sourceBrickId) {
+    return envelope.sourceBrickId
+  }
+  if (envelope.source?.kind === 'brick') return envelope.source.ref.brickId
+  return BRICK_ID
 }
 
 function isHistoryChangedPayload(value: unknown): value is ClipboardHistoryChangedPayload {
@@ -170,7 +196,6 @@ export function createHistoryRefreshScheduler(refresh: () => void | Promise<void
         })
       } finally {
         running = false
-        // 收尾瞬间又来事件：再开一轮
         if (active && pending) queueMicrotask(runLoop)
       }
     })()
@@ -190,7 +215,6 @@ export function createHistoryRefreshScheduler(refresh: () => void | Promise<void
       }
 
       pending = true
-      // microtask：跟在当前 IPC/hydrate 回调后立刻跑，不走后台被节流的 setTimeout
       queueMicrotask(runLoop)
     },
     cancel() {

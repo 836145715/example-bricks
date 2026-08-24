@@ -1,13 +1,13 @@
 import {
   closeSession,
   decodeChunkBytes,
-  hasBrickly,
+  hasRuntime,
   newSessionId,
   openSession,
   sessionCwd,
   type StreamWriter
 } from '../brickly'
-import type { Host, StreamHandle } from '../types'
+import type { Host, SessionEvent, StreamHandle } from '../types'
 import type { ManagerAction } from './manager-state'
 
 const CWD_AFTER_ENTER_MS = 350
@@ -25,8 +25,8 @@ export class SessionController {
   constructor(private readonly dispatch: (action: ManagerAction) => void) {}
 
   connect(host: Host, sessionId = newSessionId(), size = { cols: 120, rows: 32 }): string | null {
-    if (!hasBrickly()) {
-      this.dispatch({ type: 'status', statusText: '当前不在 Brickly 宿主中，无法连接运行时' })
+    if (!hasRuntime()) {
+      this.dispatch({ type: 'status', statusText: 'SSH Runtime 尚未就绪' })
       return null
     }
 
@@ -37,45 +37,7 @@ export class SessionController {
     })
     this.dispatch({ type: 'status', statusText: `正在连接 ${host.name || host.host}` })
 
-    const handle = openSession(
-      { hostId: host.id, sessionId, cols: size.cols, rows: size.rows },
-      {
-        onOutput: (name) => {
-          if (name !== 'session') return
-          this.dispatch({ type: 'session-updated', sessionId, patch: { status: 'open', message: '' } })
-          this.dispatch({ type: 'status', statusText: `${host.name || host.host} 已连接` })
-        },
-        onChunk: (name, chunk) => {
-          if (name === 'data') {
-            this.pushChunk(sessionId, chunk)
-            return
-          }
-          if (name === 'status') {
-            this.dispatch({
-              type: 'session-updated',
-              sessionId,
-              patch: { status: 'closed', message: '会话已结束' }
-            })
-          }
-        },
-        onError: (error) => {
-          this.dispatch({
-            type: 'session-updated',
-            sessionId,
-            patch: { status: 'error', message: error.message }
-          })
-          this.dispatch({ type: 'status', statusText: error.message })
-        },
-        onDone: () => {
-          this.dispatch({
-            type: 'session-updated',
-            sessionId,
-            patch: { status: 'closed', message: '会话已结束' }
-          })
-        }
-      }
-    )
-    this.handles.set(sessionId, handle)
+    void this.open(host, sessionId, size)
     return sessionId
   }
 
@@ -134,6 +96,68 @@ export class SessionController {
 
   closeAll() {
     for (const sessionId of [...this.handles.keys()]) this.close(sessionId)
+  }
+
+  private async open(
+    host: Host,
+    sessionId: string,
+    size: { cols: number; rows: number }
+  ): Promise<void> {
+    try {
+      const session = await openSession({
+        hostId: host.id,
+        sessionId,
+        cols: size.cols,
+        rows: size.rows
+      })
+      this.handles.set(sessionId, {
+        cancel() {
+          session.cancel('CANCELLED')
+        }
+      })
+      const pump = this.pump(sessionId, host, session)
+      await session.closeInput()
+      await session.result
+      await pump
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (/CANCELLED/i.test(message)) return
+      this.dispatch({
+        type: 'session-updated',
+        sessionId,
+        patch: { status: 'error', message }
+      })
+      this.dispatch({ type: 'status', statusText: message })
+    } finally {
+      this.handles.delete(sessionId)
+    }
+  }
+
+  private async pump(
+    sessionId: string,
+    host: Host,
+    session: { nextEvent(): Promise<SessionEvent | undefined> }
+  ): Promise<void> {
+    while (true) {
+      const event = await session.nextEvent()
+      if (event === undefined) return
+      if (event.type === 'session') {
+        this.dispatch({ type: 'session-updated', sessionId, patch: { status: 'open', message: '' } })
+        this.dispatch({ type: 'status', statusText: `${host.name || host.host} 已连接` })
+        continue
+      }
+      if (event.type === 'data') {
+        this.pushChunk(sessionId, event)
+        continue
+      }
+      if (event.type === 'status') {
+        this.dispatch({
+          type: 'session-updated',
+          sessionId,
+          patch: { status: 'closed', message: '会话已结束' }
+        })
+      }
+    }
   }
 
   private async refreshCwd(sessionId: string) {

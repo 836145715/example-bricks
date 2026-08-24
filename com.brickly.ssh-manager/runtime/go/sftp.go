@@ -35,7 +35,9 @@ func handleSftpUpload(ctx *brickly.CommandContext, input json.RawMessage) (any, 
 	if params.LocalPath == "" {
 		return nil, newInputError("localPath is required")
 	}
-	progress := newProgressEmitter(func(_ transferProgress) {})
+	progress := newProgressEmitter(func(snapshot transferProgress) {
+		_ = sendSftpProgress(ctx, snapshot)
+	})
 	if conns.has(host.ID) {
 		progress.setPhase("scanning", true)
 	} else {
@@ -69,7 +71,9 @@ func handleSftpDownload(ctx *brickly.CommandContext, input json.RawMessage) (any
 	if params.LocalDir == "" {
 		return nil, newInputError("localDir is required")
 	}
-	progress := newProgressEmitter(func(_ transferProgress) {})
+	progress := newProgressEmitter(func(snapshot transferProgress) {
+		_ = sendSftpProgress(ctx, snapshot)
+	})
 	if conns.has(host.ID) {
 		progress.setPhase("scanning", true)
 	} else {

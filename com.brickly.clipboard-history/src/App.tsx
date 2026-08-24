@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 import {
+  bindRuntime,
   createHistoryRefreshScheduler,
   clearHistory,
   getRuntimeStatus,
@@ -94,6 +96,7 @@ export function App() {
 
   useEffect(() => {
     let alive = true
+    let started: BricklyStartedHandle | null = null
     let unsubscribe: (() => void | Promise<void>) | undefined
 
     const scheduler = createHistoryRefreshScheduler(async () => {
@@ -112,9 +115,23 @@ export function App() {
       let subscriptionError = ''
       let serviceStartError = ''
       try {
-        await startRuntimeService()
+        if (!window.brickly?.start) {
+          throw new Error('底座 API 未注入，请在 AI-Bricks 宿主中运行本应用。')
+        }
+        started = await window.brickly.start()
+        if (!alive) {
+          await started.dispose()
+          return
+        }
+        bindRuntime(started)
       } catch (error) {
         serviceStartError = errorMessage(error)
+        console.warn('[clipboard-history/ui] init start error', { error: serviceStartError })
+      }
+      try {
+        await startRuntimeService()
+      } catch (error) {
+        serviceStartError = serviceStartError || errorMessage(error)
         console.warn('[clipboard-history/ui] init service.start error', { error: serviceStartError })
       }
       try {
@@ -157,7 +174,9 @@ export function App() {
     return () => {
       alive = false
       scheduler.cancel()
+      bindRuntime(null)
       void unsubscribe?.()
+      if (started) void started.dispose()
       window.removeEventListener('focus', onFocusRefresh)
       document.removeEventListener('visibilitychange', onFocusRefresh)
     }

@@ -1,45 +1,52 @@
+import type { BricklyInteraction, BricklyStartedHandle } from '@syllm/brickly-ui'
 import type {
   ExecResult,
   Host,
   HostDraft,
+  SessionEvent,
   SftpListResult,
   SftpProgress,
-  SftpTransferResult,
-  StreamHandle,
-  TestResult
+  SftpProgressEvent,
+  SftpTransferResult
 } from './types'
 
-function requireBrickly() {
-  if (!window.brickly || typeof window.brickly.invoke !== 'function') {
-    throw new Error('SSH 管理接口未注入')
+let runtime: BricklyStartedHandle | null = null
+
+export function bindRuntime(handle: BricklyStartedHandle | null): void {
+  runtime = handle
+}
+
+export function hasRuntime(): boolean {
+  return runtime != null
+}
+
+function requireRuntime(): BricklyStartedHandle {
+  if (!runtime) {
+    throw new Error('SSH Runtime 尚未就绪')
   }
-  return window.brickly
-}
-
-export function hasBrickly(): boolean {
-  return Boolean(window.brickly && typeof window.brickly.invoke === 'function')
-}
-
-export function brickId(): string {
-  return window.brickly?.ref?.brickId ?? window.brickly?.brickId ?? 'com.brickly.ssh-manager'
+  return runtime
 }
 
 export async function listHosts(query = ''): Promise<Host[]> {
-  const result = (await requireBrickly().invoke('list-hosts', { query })) as { hosts?: Host[] }
+  const result = await requireRuntime().invoke<{ hosts?: Host[] }>('list-hosts', { query })
   return Array.isArray(result?.hosts) ? result.hosts : []
 }
 
 export async function saveHost(host: HostDraft): Promise<Host> {
-  const result = (await requireBrickly().invoke('save-host', { host })) as { host: Host }
+  const result = await requireRuntime().invoke<{ host: Host }>('save-host', { host })
   return result.host
 }
 
 export async function deleteHost(hostId: string): Promise<void> {
-  await requireBrickly().invoke('delete-host', { hostId })
+  await requireRuntime().invoke('delete-host', { hostId })
 }
 
-export async function testConnection(input: { hostId?: string; host?: HostDraft }): Promise<TestResult> {
-  return (await requireBrickly().invoke('test-connection', input)) as TestResult
+export async function testConnection(input: { hostId?: string; host?: HostDraft }): Promise<{
+  ok: boolean
+  message: string
+  latencyMs: number
+}> {
+  return requireRuntime().invoke('test-connection', input)
 }
 
 export async function execCommand(input: {
@@ -48,31 +55,33 @@ export async function execCommand(input: {
   command: string
   timeoutMs?: number
 }): Promise<ExecResult> {
-  return (await requireBrickly().invoke('exec', input)) as ExecResult
+  return requireRuntime().invoke<ExecResult>('exec', input)
 }
 
 export function openSession(
-  input: { hostId: string; sessionId: string; cols: number; rows: number },
-  callbacks: Parameters<NonNullable<Window['brickly']>['stream']>[2]
-): StreamHandle {
-  return requireBrickly().stream('open-session', input, callbacks)
+  input: { hostId: string; sessionId: string; cols: number; rows: number }
+): Promise<BricklyInteraction<SessionEvent, { sessionId?: string; exitCode?: number }>> {
+  return requireRuntime().interact<SessionEvent, { sessionId?: string; exitCode?: number }>(
+    'open-session',
+    input
+  )
 }
 
 export async function writeSession(sessionId: string, data: string): Promise<void> {
-  await requireBrickly().invoke('write-session', { sessionId, data })
+  await requireRuntime().invoke('write-session', { sessionId, data })
 }
 
 export async function resizeSession(sessionId: string, cols: number, rows: number): Promise<void> {
-  await requireBrickly().invoke('resize-session', { sessionId, cols, rows })
+  await requireRuntime().invoke('resize-session', { sessionId, cols, rows })
 }
 
 export async function closeSession(sessionId: string): Promise<void> {
-  await requireBrickly().invoke('close-session', { sessionId }).catch(() => undefined)
+  await requireRuntime().invoke('close-session', { sessionId }).catch(() => undefined)
 }
 
 export async function sessionCwd(sessionId: string): Promise<string | null> {
   try {
-    const result = (await requireBrickly().invoke('session-cwd', { sessionId })) as { path?: string }
+    const result = await requireRuntime().invoke<{ path?: string }>('session-cwd', { sessionId })
     if (typeof result?.path === 'string' && result.path.startsWith('/')) return result.path
   } catch {
     return null
@@ -85,33 +94,27 @@ export async function sftpList(input: {
   sessionId?: string
   path?: string
 }): Promise<SftpListResult> {
-  return (await requireBrickly().invoke('sftp-list', input)) as SftpListResult
+  return requireRuntime().invoke<SftpListResult>('sftp-list', input)
 }
 
-export function streamSftpUpload(
-  input: {
-    hostId: string
-    sessionId?: string
-    localPath: string
-    remoteDir?: string
-    overwrite?: boolean
-  },
-  callbacks: Parameters<NonNullable<Window['brickly']>['stream']>[2]
-): StreamHandle {
-  return requireBrickly().stream('sftp-upload', input, callbacks)
+export function interactSftpUpload(input: {
+  hostId: string
+  sessionId?: string
+  localPath: string
+  remoteDir?: string
+  overwrite?: boolean
+}): Promise<BricklyInteraction<SftpProgressEvent, SftpTransferResult>> {
+  return requireRuntime().interact<SftpProgressEvent, SftpTransferResult>('sftp-upload', input)
 }
 
-export function streamSftpDownload(
-  input: {
-    hostId: string
-    sessionId?: string
-    remotePath: string
-    localDir: string
-    overwrite?: boolean
-  },
-  callbacks: Parameters<NonNullable<Window['brickly']>['stream']>[2]
-): StreamHandle {
-  return requireBrickly().stream('sftp-download', input, callbacks)
+export function interactSftpDownload(input: {
+  hostId: string
+  sessionId?: string
+  remotePath: string
+  localDir: string
+  overwrite?: boolean
+}): Promise<BricklyInteraction<SftpProgressEvent, SftpTransferResult>> {
+  return requireRuntime().interact<SftpProgressEvent, SftpTransferResult>('sftp-download', input)
 }
 
 export async function pickDirectory(defaultPath?: string): Promise<string | undefined> {

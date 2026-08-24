@@ -2,8 +2,8 @@
 status: active
 type: brick-guide
 related_code:
-  - bricks/com.brickly.local-search
-last_verified: 2026-08-19
+  - example-bricks/com.brickly.local-search
+last_verified: 2026-08-24
 ---
 
 # 本地搜索 Brick
@@ -17,9 +17,9 @@ last_verified: 2026-08-19
 - 不再扫描用户本机的 Everything 安装。打开工具时若索引通道未接通，会以后台管理员实例启动自带的 `Everything.exe -admin -startup -instance Brickly`，避免弹出 NTFS 权限三选一对话框。Windows 仍可能出现一次 UAC。
 - 索引未完成时只显示 loading，`Everything_IsDBLoaded` 为真后再搜索。
 
-生命周期是普通 `stateful` 会话，不是 `lifecycle.service`。索引由捆绑的 Everything 实例持有；Brick 只在窗口/调用会话里加载 DLL 并查询。
+生命周期是 `stateful` + `runtime.instance: "owned"`，不是 `lifecycle.service`。索引由捆绑的 Everything 实例持有；体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程。
 
-自定义界面通过宿主注入的 `window.brickly.invoke` / `window.brickly.system` 调用命令和打开文件，不再自行拼 `bridge.invoke` 字符串身份。Go runtime 使用 SDK 默认 BPP 版本（当前 `0.4.0`），不要再写死 `0.2.0`。
+自定义界面通过宿主注入的 `window.brickly` 调用命令和打开文件，不再自行拼 `bridge.invoke` 字符串身份。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
 
 体验窗使用 `ui.titleBar = "custom"`：宿主开无边框窗口并注入 `window.brickly.window`（最小化 / 最大化 / 关闭）。界面自绘 36px 标题栏，拖动区用 `-webkit-app-region: drag`，按钮区必须 `no-drag`。改完 titleBar 后需要关掉再打开工具窗口才会生效。
 

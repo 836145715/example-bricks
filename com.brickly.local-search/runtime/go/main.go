@@ -10,7 +10,6 @@ import (
 	"brickly/local-search/internal/preview"
 	"brickly/local-search/internal/quicksearch"
 	"brickly/local-search/internal/search"
-	"brickly/local-search/internal/stdoutguard"
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
@@ -27,10 +26,27 @@ type searchResponse struct {
 	EffectiveQuery string            `json:"effectiveQuery"`
 	Category       search.Category   `json:"category"`
 	CategoryLabel  string            `json:"categoryLabel"`
-	Total          uint32            `json:"total"`
-	Offset         uint32            `json:"offset"`
-	Limit          uint32            `json:"limit"`
+	Total          int64             `json:"total"`
+	Offset         int64             `json:"offset"`
+	Limit          int64             `json:"limit"`
 	Items          []everything.Item `json:"items"`
+}
+
+// asJSONValue 把结构体收成 BrickValue 能编码的 JSON 值。
+// Everything 的 size / attributes 是无符号整数，直接返回结构体会卡在 uint64。
+func asJSONValue(value any) (any, error) {
+	if value == nil {
+		return nil, nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var decoded any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return nil, err
+	}
+	return decoded, nil
 }
 
 func handleSearch(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
@@ -50,20 +66,20 @@ func handleSearch(_ *brickly.CommandContext, input json.RawMessage) (any, error)
 	if err != nil {
 		return nil, toBppError(err)
 	}
-	return searchResponse{
+	return asJSONValue(searchResponse{
 		Query:          params.Query,
 		EffectiveQuery: params.EffectiveQuery,
 		Category:       params.Category,
 		CategoryLabel:  search.CategoryLabel(params.Category),
-		Total:          result.Total,
-		Offset:         result.Offset,
-		Limit:          result.Limit,
+		Total:          int64(result.Total),
+		Offset:         int64(result.Offset),
+		Limit:          int64(result.Limit),
 		Items:          result.Items,
-	}, nil
+	})
 }
 
 func handleHealth(_ *brickly.CommandContext, _ json.RawMessage) (any, error) {
-	return client.Health(buildStamp), nil
+	return asJSONValue(client.Health(buildStamp))
 }
 
 func handlePreview(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
@@ -75,7 +91,7 @@ func handlePreview(_ *brickly.CommandContext, input json.RawMessage) (any, error
 	if err != nil {
 		return nil, brickly.NewBppError("PREVIEW_ERROR", err.Error())
 	}
-	return result, nil
+	return asJSONValue(result)
 }
 
 func handleQuickSearch(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
@@ -84,10 +100,10 @@ func handleQuickSearch(_ *brickly.CommandContext, input json.RawMessage) (any, e
 		return nil, brickly.NewBppError("INVALID_INPUT", err.Error())
 	}
 	if params.Query == "" {
-		return quicksearch.SearchOutput{Results: []quicksearch.ProviderItem{}}, nil
+		return asJSONValue(quicksearch.SearchOutput{Results: []quicksearch.ProviderItem{}})
 	}
 	if health := client.Health(buildStamp); !health.OK {
-		return quicksearch.SearchOutput{Results: []quicksearch.ProviderItem{}}, nil
+		return asJSONValue(quicksearch.SearchOutput{Results: []quicksearch.ProviderItem{}})
 	}
 
 	result, err := client.Search(everything.SearchOptions{
@@ -99,7 +115,7 @@ func handleQuickSearch(_ *brickly.CommandContext, input json.RawMessage) (any, e
 	if err != nil {
 		return nil, toBppError(err)
 	}
-	return quicksearch.BuildOutput(result.Items, params.Limit), nil
+	return asJSONValue(quicksearch.BuildOutput(result.Items, params.Limit))
 }
 
 func handleQuickSearchOpen(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
@@ -161,7 +177,6 @@ func toBppError(err error) error {
 func main() {
 	plugin = brickly.New(brickly.Options{
 		BrickID: brickID,
-		Stdout:  stdoutguard.ProtocolStdout(),
 	})
 	plugin.Info(fmt.Sprintf("started go=%s os=%s arch=%s dll=%s", runtime.Version(), runtime.GOOS, runtime.GOARCH, client.DLLPath()), nil)
 

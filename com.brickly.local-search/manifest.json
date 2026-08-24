@@ -3,8 +3,8 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.local-search",
-  "version": "0.2.0",
-  "apiVersion": ">=0.1.0 <1.0.0",
+  "version": "0.3.0",
+  "apiVersion": ">=0.2.0 <1.0.0",
   "name": {
     "zh-CN": "本地搜索",
     "en": "Local Search"
@@ -31,6 +31,7 @@
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
+    "instance": "owned",
     "platforms": [
       "win-x64"
     ],

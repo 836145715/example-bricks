@@ -3,7 +3,7 @@ status: active
 type: brick-guide
 related_code:
   - example-bricks/com.brickly.ssh-manager
-last_verified: 2026-08-20
+last_verified: 2026-08-24
 ---
 
 # SSH Brick
@@ -20,9 +20,11 @@ last_verified: 2026-08-20
 - 远程主机是 Linux OpenSSH。
 - 鉴权只支持密码或私钥（可选 passphrase）。
 
-生命周期是普通 `stateful` 会话。自定义界面通过 `window.brickly.invoke` / `window.brickly.stream` 调用命令。Go runtime 使用 SDK 默认 BPP 版本，不要写死 `0.2.0`。
+生命周期是 `stateful` + `runtime.instance: "owned"`。体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke` / `interact`。直接 `window.brickly.invoke` / `stream` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程，PTY 和 SFTP 会断。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
 
-体验窗使用 `ui.titleBar = "custom"`：宿主开无边框窗口并注入 `window.brickly.window`。标题栏和 Tab 合成一条，Tab 和窗口按钮必须 `no-drag`。打开工具先看到 Start Page，点 Profile 后终端铺满画布；编辑主机走浮层，exec 走底栏抽屉，SFTP 走右侧抽屉。前端状态是 `useReducer` + `SessionController` / `SftpController`，不要把 stream handle 再塞回 React state。
+`open-session`、`sftp-upload`、`sftp-download` 必须声明 `"mode": "interact"`。Runtime 用 `ctx.Send` 推 `session` / `data` / `status` 或 `progress` 事件；页面用 `nextEvent()` / `closeInput()` / `cancel()`，不要 `for await session.events`。
+
+体验窗使用 `ui.titleBar = "custom"`：宿主开无边框窗口并注入 `window.brickly.window`。标题栏和 Tab 合成一条，Tab 和窗口按钮必须 `no-drag`。打开工具先看到 Start Page，点 Profile 后终端铺满画布；编辑主机走浮层，exec 走底栏抽屉，SFTP 走右侧抽屉。前端状态是 `useReducer` + `SessionController` / `SftpController`，不要把 interact 会话再塞回 React state。
 
 ## 构建
 
@@ -50,12 +52,12 @@ cd example-bricks/com.brickly.ssh-manager/runtime/go
 - `save-host` / `delete-host`：增改删主机。
 - `test-connection`：测试登录，可传 `hostId` 或未保存的 `host`。
 - `exec`：执行一条远程命令，返回 stdout / stderr / exitCode。
-- `open-session`：打开交互 PTY，流式输出 `data` chunk（base64）。开会话时用 POSIX 包装记下 shell PID，不把钩子打进终端。
+- `open-session`：打开交互 PTY，通过 interact 事件输出 `session`、`data`（base64）和 `status`。开会话时用 POSIX 包装记下 shell PID，不把钩子打进终端。
 - `write-session` / `resize-session` / `close-session`：写入、改尺寸、关闭会话。
 - `session-cwd`：在已打开的 SSH 连接上读 shell 的 `/proc/<pid>/cwd`（优先复用 SFTP 通道）。文件管理「追踪」在打开时读一次，之后每次终端回车后再读。
 - `sftp-list`：列出远端目录；`path` 为空时返回家目录。
-- `sftp-upload`：上传本机文件或目录，流式输出 `progress`。
-- `sftp-download`：下载远端文件或目录，流式输出 `progress`。
+- `sftp-upload`：上传本机文件或目录，通过 interact 事件输出 `progress`。
+- `sftp-download`：下载远端文件或目录，通过 interact 事件输出 `progress`。
 
 ## 一期边界
 

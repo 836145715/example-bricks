@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef } from 'react'
-import { errorMessage, hasBrickly, listHosts, newSessionId, newTabId } from './brickly'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
+import { bindRuntime, errorMessage, listHosts, newSessionId, newTabId } from './brickly'
 import { Chrome } from './components/Chrome'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { HostEditor } from './components/HostEditor'
@@ -48,13 +49,32 @@ export function App() {
   })
 
   useEffect(() => {
-    if (!hasBrickly()) {
-      dispatch({ type: 'status', statusText: '当前不在 Brickly 宿主中，无法连接运行时' })
-      return
+    let cancelled = false
+    let started: BricklyStartedHandle | null = null
+    void (async () => {
+      if (!window.brickly?.start) {
+        dispatch({ type: 'status', statusText: '当前不在 Brickly 宿主中，无法连接运行时' })
+        return
+      }
+      try {
+        started = await window.brickly.start()
+        if (cancelled) {
+          await started.dispose()
+          return
+        }
+        bindRuntime(started)
+        const items = await listHosts('')
+        dispatch({ type: 'profiles-loaded', profiles: items })
+      } catch (error) {
+        if (!cancelled) dispatch({ type: 'status', statusText: errorMessage(error) })
+      }
+    })()
+    return () => {
+      cancelled = true
+      sessions.current?.closeAll()
+      bindRuntime(null)
+      if (started) void started.dispose()
     }
-    void listHosts('')
-      .then((items) => dispatch({ type: 'profiles-loaded', profiles: items }))
-      .catch((error) => dispatch({ type: 'status', statusText: errorMessage(error) }))
   }, [])
 
   useEffect(() => {

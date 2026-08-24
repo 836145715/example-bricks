@@ -224,6 +224,8 @@ test('App 不再读取旧 preload 门面或主窗口 API', () => {
 
   assert.doesNotMatch(source, /clipboardHistoryStore|clipboardHistoryPlatform|window\.AIBricks/)
   assert.match(source, /from '\.\/brickly'/)
+  assert.match(source, /window\.brickly\.start/)
+  assert.match(source, /startRuntimeService/)
 })
 
 function loadAdapter(t, windowValue) {

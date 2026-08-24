@@ -49,17 +49,8 @@ export type ClipboardHistoryChangedPayload = {
 export type ClipboardHistoryChangedEnvelope = {
   event: 'clipboard-history:changed'
   payload: ClipboardHistoryChangedPayload
-  sourceBrickId: 'com.brickly.clipboard-history'
+  sourceBrickId: string
   publishedAt: number
-}
-
-export type ClipboardHistoryEventResourceHandle = {
-  json<T = unknown>(): Promise<T>
-  close?(): Promise<void>
-}
-
-export type ClipboardHistoryChangedResourceEnvelope = Omit<ClipboardHistoryChangedEnvelope, 'payload'> & {
-  payload: ClipboardHistoryEventResourceHandle
 }
 
 export type RuntimeStatus = {
@@ -92,36 +83,3 @@ export type SyncResult = {
   item?: ClipItem
 }
 
-export type BricklyWindowControls = {
-  minimize(): Promise<void>
-  toggleMaximize(): Promise<boolean>
-  close(): Promise<void>
-  isMaximized(): Promise<boolean>
-  onMaximizeChange(callback: (maximized: boolean) => void): () => void
-}
-
-export type BricklyUiApi = {
-  brickId?: string
-  instanceId?: string
-  closeWindow?: () => void
-  window?: BricklyWindowControls
-  invoke?: (commandId: string, input: Record<string, unknown>) => Promise<unknown>
-  events?: {
-    subscribe: (
-      event: string,
-      listener: (envelope: ClipboardHistoryChangedResourceEnvelope) => void
-    ) => Promise<() => void | Promise<void>>
-  }
-  service?: {
-    start: () => Promise<unknown>
-  }
-  system?: {
-    getFileIcon?: (filePath: string) => Promise<string>
-  }
-}
-
-declare global {
-  interface Window {
-    brickly?: BricklyUiApi
-  }
-}

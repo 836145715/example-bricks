@@ -1,15 +1,33 @@
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 import { unwrapHealth } from './health'
 import type { HealthStatus, PreviewResult, SearchCategory, SearchResult, SearchSort } from './types'
 
-function requireBrickly() {
-  if (!window.brickly || typeof window.brickly.invoke !== 'function') {
-    throw new Error('本地搜索接口未注入')
-  }
-  return window.brickly
+let runtime: BricklyStartedHandle | null = null
+
+export function bindRuntime(handle: BricklyStartedHandle | null): void {
+  runtime = handle
 }
 
 export function hasBrickly(): boolean {
-  return Boolean(window.brickly && typeof window.brickly.invoke === 'function')
+  return Boolean(window.brickly)
+}
+
+export function hasRuntime(): boolean {
+  return runtime != null
+}
+
+function requireRuntime(): BricklyStartedHandle {
+  if (!runtime) {
+    throw new Error('本地搜索 Runtime 尚未就绪')
+  }
+  return runtime
+}
+
+function requireBrickly() {
+  if (!window.brickly) {
+    throw new Error('本地搜索接口未注入')
+  }
+  return window.brickly
 }
 
 export async function searchFiles(input: {
@@ -19,11 +37,11 @@ export async function searchFiles(input: {
   limit: number
   sort: SearchSort
 }): Promise<SearchResult> {
-  return requireBrickly().invoke('search', input) as Promise<SearchResult>
+  return requireRuntime().invoke<SearchResult>('search', input)
 }
 
 export async function checkHealth(): Promise<HealthStatus> {
-  return unwrapHealth(await requireBrickly().invoke('health', {}))
+  return unwrapHealth(await requireRuntime().invoke('health', {}))
 }
 
 export async function previewFile(input: {
@@ -31,7 +49,7 @@ export async function previewFile(input: {
   maxBytes?: number
   maxEntries?: number
 }): Promise<PreviewResult> {
-  return requireBrickly().invoke('preview', input) as Promise<PreviewResult>
+  return requireRuntime().invoke<PreviewResult>('preview', input)
 }
 
 export async function getFileIcon(path: string): Promise<string> {

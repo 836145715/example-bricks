@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 import {
+  bindRuntime,
   checkHealth,
   copyText,
   getFileIcon,
   hasBrickly,
+  hasRuntime,
   openExternal,
   openPath,
   previewFile,
@@ -46,6 +49,7 @@ export function App() {
   const [notice, setNotice] = useState('准备就绪')
   const [selectedIcon, setSelectedIcon] = useState('')
   const [starting, setStarting] = useState(false)
+  const [runtimeReady, setRuntimeReady] = useState(false)
   const requestRef = useRef(0)
   const previewRequestRef = useRef(0)
   const indexReadyRef = useRef(false)
@@ -70,8 +74,8 @@ export function App() {
   }, [selected, result.items, selectedPath])
 
   const runHealth = useCallback(async () => {
-    if (!hasBrickly()) {
-      setNotice('本地搜索接口未注入')
+    if (!hasRuntime()) {
+      setNotice('本地搜索 Runtime 尚未就绪')
       return
     }
     try {
@@ -89,8 +93,8 @@ export function App() {
 
   const runSearch = useCallback(
     async (nextPage: number) => {
-      if (!hasBrickly()) {
-        setNotice('本地搜索接口未注入')
+      if (!hasRuntime()) {
+        setNotice('本地搜索 Runtime 尚未就绪')
         return
       }
       if (!indexReadyRef.current) {
@@ -134,13 +138,44 @@ export function App() {
   )
 
   useEffect(() => {
-    void runHealth()
-  }, [runHealth])
+    let cancelled = false
+    let started: BricklyStartedHandle | null = null
+    void (async () => {
+      if (!window.brickly?.start) {
+        setNotice('底座 API 未注入，请在 AI-Bricks 宿主中运行本应用。')
+        return
+      }
+      try {
+        started = await window.brickly.start()
+        if (cancelled) {
+          await started.dispose()
+          return
+        }
+        bindRuntime(started)
+        setRuntimeReady(true)
+      } catch (error) {
+        if (!cancelled) setNotice(errorMessage(error))
+      }
+    })()
+    return () => {
+      cancelled = true
+      setRuntimeReady(false)
+      bindRuntime(null)
+      if (started) void started.dispose()
+    }
+  }, [])
 
   useEffect(() => {
-    if (!indexReady) {
-      setResult(emptyResult)
-      setSelected(null)
+    if (!runtimeReady) return
+    void runHealth()
+  }, [runtimeReady, runHealth])
+
+  useEffect(() => {
+    if (!runtimeReady || !indexReady) {
+      if (!indexReady) {
+        setResult(emptyResult)
+        setSelected(null)
+      }
       return
     }
     const timer = window.setTimeout(() => {
@@ -148,14 +183,14 @@ export function App() {
       void runSearch(0)
     }, 160)
     return () => window.clearTimeout(timer)
-  }, [indexReady, category, query, sort, runSearch])
+  }, [runtimeReady, indexReady, category, query, sort, runSearch])
 
   useEffect(() => {
-    if (indexReady) return
+    if (!runtimeReady || indexReady) return
     if (reason === 'missing_sdk' || reason === 'unsupported' || reason === 'not_installed') return
     let cancelled = false
     const tick = async () => {
-      if (cancelled || !hasBrickly()) return
+      if (cancelled || !hasRuntime()) return
       try {
         const next = await checkHealth()
         if (cancelled) return
@@ -174,13 +209,13 @@ export function App() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [indexReady, reason])
+  }, [runtimeReady, indexReady, reason])
 
   const waitForIndex = useCallback(async () => {
     let latest: HealthStatus | null = null
     for (let attempt = 0; attempt < 8; attempt += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 1000))
-      if (!hasBrickly()) return null
+      if (!hasRuntime()) return null
       try {
         latest = await checkHealth()
         setHealth(latest)

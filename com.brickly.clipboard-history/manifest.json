@@ -3,8 +3,8 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.clipboard-history",
-  "version": "0.2.0",
-  "apiVersion": ">=0.1.0 <1.0.0",
+  "version": "0.3.0",
+  "apiVersion": ">=0.2.0 <1.0.0",
   "name": {
     "zh-CN": "剪贴板历史",
     "en": "Clipboard History"
@@ -30,6 +30,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "shared",
     "platforms": [
       "win-x64",
       "win-arm64",

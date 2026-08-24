@@ -33,7 +33,7 @@ export const TitleBar: React.FC = () => {
         </span>
         <span className="titlebar-title font-semibold text-[12.5px] tracking-wide">剪贴板历史</span>
         <span className="titlebar-id text-[10px] text-slate-500 font-mono opacity-80">
-          {window.brickly?.brickId ?? 'com.brickly.clipboard-history'}
+          {window.brickly?.ref?.brickId ?? 'com.brickly.clipboard-history'}
         </span>
       </div>
 

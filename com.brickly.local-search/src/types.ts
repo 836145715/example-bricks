@@ -156,31 +156,3 @@ export interface PreviewResult {
   meta?: Record<string, unknown>
 }
 
-interface BricklySystemApi {
-  getFileIcon(filePath: string): Promise<string>
-  shellOpenPath(fullPath: string): Promise<void>
-  shellShowItemInFolder(fullPath: string): Promise<void>
-  shellOpenExternal(url: string): Promise<void>
-}
-
-interface BricklyWindowApi {
-  minimize(): Promise<void>
-  toggleMaximize(): Promise<boolean>
-  close(): Promise<void>
-  isMaximized(): Promise<boolean>
-  onMaximizeChange(callback: (maximized: boolean) => void): () => void
-}
-
-interface BricklyHostApi {
-  ref?: { brickId: string }
-  invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
-  closeWindow(): void
-  window?: BricklyWindowApi
-  system: BricklySystemApi
-}
-
-declare global {
-  interface Window {
-    brickly?: BricklyHostApi
-  }
-}

@@ -60,6 +60,33 @@ export type StreamHandle = {
   cancel(): void
 }
 
+export type SessionOpenedEvent = {
+  type: 'session'
+  session: { sessionId: string; hostId: string; status: 'open' }
+}
+
+export type SessionDataEvent = {
+  type: 'data'
+  sessionId: string
+  encoding: 'base64'
+  bytes: string
+}
+
+export type SessionStatusEvent = {
+  type: 'status'
+  sessionId: string
+  status: 'closed' | 'error'
+  exitCode?: number
+}
+
+export type SessionEvent = SessionOpenedEvent | SessionDataEvent | SessionStatusEvent
+
+export type SftpProgressEvent = SftpProgress & {
+  type: 'progress'
+  progress?: number
+  message?: string
+}
+
 export type SftpEntry = {
   name: string
   path: string
@@ -112,41 +139,6 @@ export type TransferState = {
 export type ConfirmState =
   | { kind: 'path'; path: string; remoteDir: string }
   | { kind: 'overwrite'; localPath?: string; remotePath?: string; remoteDir: string; mode: 'upload' | 'download' }
-
-export type BricklyApi = {
-  brickId?: string
-  ref?: { brickId: string }
-  invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
-  stream(
-    commandId: string,
-    input: Record<string, unknown>,
-    callbacks: {
-      onProgress?: (progress: number, message?: string) => void
-      onChunk?: (name: string | undefined, chunk: unknown) => void
-      onOutput?: (name: string, value: unknown) => void
-      onResult?: (result: unknown) => void
-      onError?: (error: { code: string; message: string; details?: unknown }) => void
-      onDone?: () => void
-    }
-  ): StreamHandle
-  closeWindow?(): void
-  fs?: {
-    pickDirectory(options?: { defaultPath?: string }): Promise<string | undefined>
-  }
-  window?: {
-    minimize(): Promise<void>
-    toggleMaximize(): Promise<boolean>
-    close(): Promise<void>
-    isMaximized(): Promise<boolean>
-    onMaximizeChange(callback: (maximized: boolean) => void): () => void
-  }
-}
-
-declare global {
-  interface Window {
-    brickly?: BricklyApi
-  }
-}
 
 export function emptyHostDraft(): HostDraft {
   return {

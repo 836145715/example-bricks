@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"brickly/ssh-manager/internal/stdoutguard"
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
@@ -21,7 +20,6 @@ var (
 func main() {
 	plugin = brickly.New(brickly.Options{
 		BrickID: brickID,
-		Stdout:  stdoutguard.ProtocolStdout(),
 	})
 	plugin.OnShutdown(func() error {
 		sessions.closeAll()
@@ -204,6 +202,12 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 	}()
 
 	ctx.Info("打开终端会话", map[string]any{"sessionId": sessionID, "hostId": host.ID})
+	if err := sendSessionOpened(ctx, sessionID, host.ID); err != nil {
+		sessions.remove(sessionID)
+		closeLiveSession(live)
+		return nil, err
+	}
+
 	scan := &pidScanner{}
 	copyPTY(sessionCtx, stdout, func(chunk []byte) {
 		visible, pid := scan.push(chunk)
@@ -213,11 +217,7 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 		if len(visible) == 0 {
 			return
 		}
-		_ = ctx.Events().Publish("ssh-manager:session-data", map[string]any{
-			"sessionId": sessionID,
-			"encoding":  "base64",
-			"bytes":     encodeBytes(visible),
-		})
+		_ = sendSessionData(ctx, sessionID, visible)
 	})
 
 	exitCode := 0
@@ -228,11 +228,7 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 	}
 	sessions.remove(sessionID)
 	closeLiveSession(live)
-	_ = ctx.Events().Publish("ssh-manager:session-status", map[string]any{
-		"sessionId": sessionID,
-		"status":    "closed",
-		"exitCode":  exitCode,
-	})
+	_ = sendSessionStatus(ctx, sessionID, exitCode)
 	return map[string]any{
 		"sessionId": sessionID,
 		"exitCode":  exitCode,
