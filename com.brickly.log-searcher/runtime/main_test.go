@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -58,6 +59,28 @@ func TestParseServerConfigInput(t *testing.T) {
 		t.Fatalf("parseServerConfigInput() error = %v", err)
 	}
 	if server.ID != "srv_test" || len(server.Logs) != 2 {
+		t.Fatalf("unexpected server: %+v", server)
+	}
+}
+
+func TestResolveBrowseServerRequiresServerOrID(t *testing.T) {
+	_, err := resolveBrowseServer(map[string]any{})
+	if err == nil || !strings.Contains(err.Error(), "server or serverId") {
+		t.Fatalf("resolveBrowseServer() error = %v", err)
+	}
+}
+
+func TestResolveBrowseServerUsesInlineServer(t *testing.T) {
+	server, err := resolveBrowseServer(map[string]any{
+		"server": map[string]any{
+			"host": "logs.example.internal",
+			"user": "root",
+		},
+	})
+	if err != nil {
+		t.Fatalf("resolveBrowseServer() error = %v", err)
+	}
+	if server.Host != "logs.example.internal" || server.User != "root" {
 		t.Fatalf("unexpected server: %+v", server)
 	}
 }

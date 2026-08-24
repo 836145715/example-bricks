@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	brickly "github.com/836145715/brickly-sdk-go"
@@ -284,6 +285,44 @@ func handleTestConnection(_ *brickly.CommandContext, input map[string]any) (any,
 		"message":    message,
 		"filesCount": filesCount,
 	}, nil
+}
+
+func resolveBrowseServer(input map[string]any) (ServerConfig, error) {
+	if _, ok := input["server"]; ok {
+		server, err := parseServerConfigInput(input)
+		if err != nil {
+			return ServerConfig{}, commandError("INVALID_INPUT", err.Error())
+		}
+		return server, nil
+	}
+	serverID := stringFromInput(input["serverId"])
+	if serverID == "" {
+		return ServerConfig{}, commandError("INVALID_INPUT", "server or serverId is required")
+	}
+	loaded, err := loadServerConfig(serverID)
+	if err != nil {
+		return ServerConfig{}, err
+	}
+	return *loaded, nil
+}
+
+func handleBrowseRemotePath(ctx *brickly.CommandContext, input map[string]any) (any, error) {
+	server, err := resolveBrowseServer(input)
+	if err != nil {
+		return nil, err
+	}
+	client, err := dialSSHClient(server)
+	if err != nil {
+		return nil, commandError("SSH_CONNECT_ERROR", err.Error())
+	}
+	defer client.Close()
+
+	path := stringFromInput(input["path"])
+	result, err := BrowseRemotePath(ctx.Context(), client, path)
+	if err != nil {
+		return nil, commandError("BROWSE_FAILED", err.Error())
+	}
+	return asJSONValue(result)
 }
 
 func handleListLogFiles(_ *brickly.CommandContext, input map[string]any) (any, error) {
@@ -648,6 +687,11 @@ func handleClearSearchResults(_ *brickly.CommandContext, input map[string]any) (
 	return map[string]any{"ok": true}, nil
 }
 
+func stringFromInput(value any) string {
+	typed, _ := value.(string)
+	return strings.TrimSpace(typed)
+}
+
 func boolFromInput(value any, fallback bool) bool {
 	switch typed := value.(type) {
 	case bool:
@@ -695,6 +739,9 @@ func main() {
 	})
 	runtime.OnCommand("list_log_files", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
 		return handleListLogFiles(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("browse_remote_path", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handleBrowseRemotePath(ctx, decodeCommandInput(input))
 	})
 	runtime.OnCommand("load_config", func(ctx *brickly.CommandContext, _ json.RawMessage) (any, error) {
 		return handleLoadConfig(ctx)

@@ -1,5 +1,8 @@
-import { Check, PlugZap, Plus, Trash2, X } from 'lucide-react'
+import { Check, FolderSearch, PlugZap, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { LOG_PATH_PRESETS, type RemoteBrowseResult } from '../domain/paths'
 import type { ConnectionTestState, LogFileConfig, ServerConfig } from '../types'
+import { RemotePathBrowser } from './RemotePathBrowser'
 
 interface ConfigModalProps {
   server: ServerConfig
@@ -10,6 +13,7 @@ interface ConfigModalProps {
   onAddLogPath: () => void
   onUpdateLogPath: (index: number, fields: Partial<LogFileConfig>) => void
   onRemoveLogPath: (index: number) => void
+  onBrowseRemote: (path: string) => Promise<RemoteBrowseResult>
   onTest: () => void
   onSave: () => void
 }
@@ -23,31 +27,108 @@ export function ConfigModal({
   onAddLogPath,
   onUpdateLogPath,
   onRemoveLogPath,
+  onBrowseRemote,
   onTest,
   onSave
 }: ConfigModalProps) {
+  const [browseOpen, setBrowseOpen] = useState(false)
+  const [browseIndex, setBrowseIndex] = useState<number | null>(null)
+
+  const openBrowser = (index: number | null) => {
+    setBrowseIndex(index)
+    setBrowseOpen(true)
+  }
+
+  const applyPickedPaths = (paths: string[]) => {
+    const cleaned = [...new Set(paths.map(path => path.trim()).filter(Boolean))]
+    if (cleaned.length === 0) {
+      setBrowseOpen(false)
+      return
+    }
+
+    let nextLogs = server.logs.map(item => ({ ...item }))
+    const existing = new Set(nextLogs.map(item => item.path.trim()).filter(Boolean))
+    const insertAt = browseIndex
+
+    cleaned.forEach((path, offset) => {
+      if (offset === 0 && insertAt !== null && nextLogs[insertAt]) {
+        nextLogs[insertAt] = { ...nextLogs[insertAt], path, enabled: true }
+        existing.add(path)
+        return
+      }
+      if (existing.has(path)) return
+      const emptyIndex = nextLogs.findIndex(item => item.path.trim() === '')
+      if (emptyIndex >= 0) {
+        nextLogs[emptyIndex] = { ...nextLogs[emptyIndex], path, enabled: true }
+      } else {
+        nextLogs = [...nextLogs, { path, enabled: true }]
+      }
+      existing.add(path)
+    })
+
+    onChange({ ...server, logs: nextLogs })
+    setBrowseOpen(false)
+  }
+
+  const addPreset = (path: string) => {
+    const exists = server.logs.some(item => item.path.trim() === path)
+    if (exists) return
+    const emptyIndex = server.logs.findIndex(item => item.path.trim() === '')
+    if (emptyIndex >= 0) {
+      onUpdateLogPath(emptyIndex, { path, enabled: true })
+      return
+    }
+    onChange({
+      ...server,
+      logs: [...server.logs, { path, enabled: true }]
+    })
+  }
+
+  const browseStartPath = browseIndex !== null
+    ? (server.logs[browseIndex]?.path || '/var/log')
+    : (server.logs.find(item => item.path.trim())?.path || '/var/log')
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !browseOpen) return
+      event.preventDefault()
+      event.stopPropagation()
+      setBrowseOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [browseOpen])
+
   return (
     <div className="config-modal-backdrop">
       <div
-        className="config-modal"
+        className={`config-modal ${browseOpen ? 'config-modal-browse' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="config-modal-title"
       >
         <div className="config-header">
           <span className="config-title" id="config-modal-title">
-            {isExisting ? '编辑连接' : '添加连接'}
+            {browseOpen ? '浏览远程日志路径' : (isExisting ? '编辑连接' : '添加连接')}
           </span>
           <button
             className="sidebar-action-btn"
-            onClick={onClose}
+            onClick={() => (browseOpen ? setBrowseOpen(false) : onClose())}
             type="button"
-            title="关闭"
+            title={browseOpen ? '返回连接设置' : '关闭'}
           >
             <X size={16} />
           </button>
         </div>
 
+        {browseOpen ? (
+          <RemotePathBrowser
+            initialPath={browseStartPath}
+            onBrowse={onBrowseRemote}
+            onPick={applyPickedPaths}
+            onClose={() => setBrowseOpen(false)}
+          />
+        ) : (
         <div className="config-form">
           <div className="form-group">
             <label>连接名称 *</label>
@@ -139,19 +220,36 @@ export function ConfigModal({
           )}
 
           <div className="form-group">
-            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="path-label">
               <span>检索日志路径 ({server.logs.length})</span>
-              <button
-                className="sidebar-action-btn"
-                onClick={onAddLogPath}
-                title="添加日志路径"
-                type="button"
-                style={{ padding: '2px 6px', fontSize: '11px', display: 'flex', gap: '3px' }}
-              >
-                <Plus size={10} /> 路径
-              </button>
+              <span className="path-label-actions">
+                <button
+                  className="sidebar-action-btn"
+                  onClick={() => openBrowser(null)}
+                  title="浏览远程目录并添加路径"
+                  type="button"
+                >
+                  <FolderSearch size={12} />
+                  浏览远程
+                </button>
+                <button
+                  className="sidebar-action-btn"
+                  onClick={onAddLogPath}
+                  title="手动添加一条路径"
+                  type="button"
+                >
+                  <Plus size={10} /> 路径
+                </button>
+              </span>
             </label>
-
+            <p className="path-hint">可手填通配符，或浏览远程目录后点选文件、目录或 *.log。</p>
+            <div className="path-presets">
+              {LOG_PATH_PRESETS.map(preset => (
+                <button key={preset.path} type="button" onClick={() => addPreset(preset.path)}>
+                  {preset.label}
+                </button>
+              ))}
+            </div>
             <div className="path-list">
               {server.logs.map((logConf, index) => (
                 <div key={index} className="path-item">
@@ -159,7 +257,6 @@ export function ConfigModal({
                     type="checkbox"
                     checked={logConf.enabled}
                     onChange={(event) => onUpdateLogPath(index, { enabled: event.target.checked })}
-                    style={{ accentColor: 'var(--accent-color)', cursor: 'pointer' }}
                   />
                   <input
                     type="text"
@@ -168,6 +265,14 @@ export function ConfigModal({
                     placeholder="/var/log/nginx/*.log"
                     spellCheck={false}
                   />
+                  <button
+                    className="server-item-btn"
+                    onClick={() => openBrowser(index)}
+                    title="从远程目录选择"
+                    type="button"
+                  >
+                    <FolderSearch size={12} />
+                  </button>
                   <button
                     className="server-item-btn"
                     onClick={() => onRemoveLogPath(index)}
@@ -181,7 +286,9 @@ export function ConfigModal({
             </div>
           </div>
         </div>
+        )}
 
+        {!browseOpen && (
         <div className="config-footer">
           {connectionTest.message && (
             <div className={`connection-test-message ${connectionTest.status}`}>
@@ -211,6 +318,7 @@ export function ConfigModal({
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

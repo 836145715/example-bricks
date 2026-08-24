@@ -329,6 +329,61 @@
       }
     },
     {
+      "id": "browse_remote_path",
+      "name": "浏览远程日志路径",
+      "execution": "parallel",
+      "description": {
+        "zh-CN": "浏览远程目录或预览通配符匹配到的文件，用于配置日志路径时点选，而不是只能手填。"
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "server",
+            "type": "json",
+            "required": false,
+            "description": "未保存的 ServerConfig。与 serverId 二选一，编辑连接时优先传 server。"
+          },
+          {
+            "name": "serverId",
+            "type": "string",
+            "required": false,
+            "description": "已保存的服务器 ID。未传 server 时使用。"
+          },
+          {
+            "name": "path",
+            "type": "string",
+            "required": false,
+            "description": "远程目录、文件或通配符。空则默认 /var/log 或家目录。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "type": "string",
+            "description": "当前目录。"
+          },
+          {
+            "name": "parent",
+            "type": "string"
+          },
+          {
+            "name": "pattern",
+            "type": "string",
+            "description": "通配符预览时回传原表达式。"
+          },
+          {
+            "name": "entries",
+            "type": "json",
+            "description": "目录项数组，每项含 name、path、kind（dir|file）、sizeBytes、modifiedAt、searchable。"
+          },
+          {
+            "name": "truncated",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
       "id": "list_log_files",
       "name": "列出日志文件",
       "execution": "parallel",

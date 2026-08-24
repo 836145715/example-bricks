@@ -42,6 +42,7 @@ import {
   SearchStatePayload,
   ServerConfig
 } from './types'
+import type { RemoteBrowseResult } from './domain/paths'
 import type { BricklyInteraction, BricklyStartedHandle } from '@syllm/brickly-ui'
 
 const LOG_ROW_HEIGHT = 22
@@ -1203,6 +1204,22 @@ export function App() {
     }
   }
 
+  const handleBrowseRemotePath = async (path: string): Promise<RemoteBrowseResult> => {
+    if (!runtimeRef.current) {
+      throw new Error('Runtime 尚未就绪，请稍后重试')
+    }
+    if (!editingServer) {
+      throw new Error('请先填写服务器连接信息')
+    }
+    if (!editingServer.host.trim() || !editingServer.user.trim()) {
+      throw new Error('请先填写主机和用户名，再浏览远程目录')
+    }
+    return invokeSelf<RemoteBrowseResult>('browse_remote_path', {
+      server: editingServer,
+      path
+    })
+  }
+
   const handleTestConnection = async () => {
     if (!editingServer) return
     if (!runtimeRef.current) {
@@ -1695,6 +1712,7 @@ export function App() {
           onAddLogPath={handleAddLogPath}
           onUpdateLogPath={handleUpdateLogPath}
           onRemoveLogPath={handleRemoveLogPath}
+          onBrowseRemote={handleBrowseRemotePath}
           onTest={handleTestConnection}
           onSave={handleSaveForm}
         />
