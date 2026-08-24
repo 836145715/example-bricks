@@ -31,6 +31,7 @@
   "license": "MIT",
   "runtime": {
     "type": "python",
+    "instance": "owned",
     "platforms": [
       "win-x64",
       "win-arm64",
@@ -171,6 +172,7 @@
         "en": "Execute read-only SQL with the selected plugin Profile and return rows. Supports streaming for large datasets."
       },
       "category": "operation",
+      "mode": "interact",
       "io": {
         "inputs": [
           {

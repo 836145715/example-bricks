@@ -55,9 +55,9 @@ _plugin = None  # set after BricklyRuntime construction
 
 
 def _log(msg: str) -> None:
-    """Structured log via SDK (runtime.log); never write stderr for business logs."""
+    """业务日志走 brick.log，不要写 stdout/stderr 以免污染协议。"""
     if _plugin is not None:
-        _plugin.info(msg)
+        _plugin.log(msg)
 
 
 def _is_cancelled(req_id: str) -> bool:

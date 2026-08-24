@@ -18,8 +18,8 @@ export default function App() {
     await navigator.clipboard.writeText(vm.status.proxyUrl)
   }
   const copyCurl = async () => {
-    if (!vm.detail || !window.httpInspector) return
-    const result = await window.httpInspector.invoke<{ command: string }>('copy-curl', { id: vm.detail.id, shell: navigator.platform.includes('Win') ? 'powershell' : 'bash' })
+    if (!vm.detail) return
+    const result = await vm.invoke<{ command: string }>('copy-curl', { id: vm.detail.id, shell: navigator.platform.includes('Win') ? 'powershell' : 'bash' })
     await navigator.clipboard.writeText(result.command)
   }
   const exportHar = async () => {

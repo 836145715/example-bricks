@@ -60,9 +60,9 @@ _plugin = None  # set after BricklyRuntime construction
 
 
 def _log(msg: str) -> None:
-    """Structured log via SDK (runtime.log); never write stderr for business logs."""
+    """业务日志走 brick.log，不要写 stdout/stderr 以免污染协议。"""
     if _plugin is not None:
-        _plugin.info(msg)
+        _plugin.log(msg)
 
 
 def _is_cancelled(req_id: str) -> bool:
@@ -263,7 +263,7 @@ def cmd_test_connection(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
         }
 
 
-def cmd_query(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
+def cmd_query(req_id: str, inp: dict[str, Any], ctx: Any = None) -> dict[str, Any]:
     """Execute SELECT query with streaming support."""
     config_id = _resolve_config_id()
     sql = str(inp.get("sql") or "").strip()
@@ -287,26 +287,28 @@ def cmd_query(req_id: str, inp: dict[str, Any]) -> dict[str, Any]:
     try:
         _execute_sql(cursor, sql, params)
 
-        # Get column names
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
 
-        # Stream results
         rows = []
         row_count = 0
-        batch = []
 
         while True:
-            if _is_cancelled(req_id):
+            if (ctx is not None and ctx.is_cancelled()) or _is_cancelled(req_id):
                 raise _bpp_error("CANCELLED", "Query cancelled by user")
 
             batch_row = cursor.fetchmany(fetch_size)
             if not batch_row:
                 break
 
-            batch.extend(batch_row)
+            rows.extend(batch_row)
             row_count += len(batch_row)
-
-        rows = batch
+            if ctx is not None:
+                ctx.send({
+                    "type": "rows",
+                    "columns": columns,
+                    "rows": list(batch_row),
+                    "rowCount": row_count,
+                })
 
         return {
             "rows": rows,
@@ -440,7 +442,7 @@ def _run_command(ctx: Any, handler: Any, inp: dict[str, Any]) -> Any:
     ctx.on_cancel(lambda: _mark_cancelled(req_id))
 
     try:
-        result = handler(req_id, inp)
+        result = handler(req_id, inp, ctx) if handler is cmd_query else handler(req_id, inp)
         with _active_lock:
             active = _active.get(req_id)
             if active is not None and active.get("result") is None:

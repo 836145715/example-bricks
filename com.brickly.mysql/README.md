@@ -4,7 +4,7 @@ MySQL database plugin used as the reference implementation for Brickly plugin Pr
 
 It does not expose a `configure` command. Connection environments are declared in
 `manifest.json` under `config.fields`, created by users in the plugin detail Profiles tab, and
-injected into the runtime through `host.hello.config`.
+injected into the runtime through `ctx.config` (and `plugin.config` on ready).
 
 ## Profile Fields
 
@@ -18,8 +18,9 @@ injected into the runtime through `host.hello.config`.
 | `charset` | No | Defaults to `utf8mb4`. |
 
 Each field is also mapped to a conventional runtime environment variable such as `MYSQL_HOST`,
-`MYSQL_PORT`, and `MYSQL_PASSWORD`. The runtime still reads `host.hello.config` directly; the env
-mapping is there for compatibility with libraries or scripts that expect environment variables.
+`MYSQL_PORT`, and `MYSQL_PASSWORD`. The runtime reads `ctx.config` on each command (falling back
+to `plugin.config`); the env mapping is there for libraries or scripts that expect environment
+variables. Host↔Runtime is gRPC, not `host.hello`.
 
 ## Commands
 
@@ -66,11 +67,10 @@ For transactions:
 
 ## Runtime Notes
 
-The runtime reads Profile config once, when it receives `host.hello`:
+The runtime loads Profile config on ready, and again at the start of each command:
 
 ```python
-if msg_type == "host.hello":
-    profile_config = message.get("config")
+cfg = _config_from_profile(getattr(ctx, "config", None) or plugin.config)
 ```
 
 Editing a Profile does not hot-update an already running runtime instance. Run the command again

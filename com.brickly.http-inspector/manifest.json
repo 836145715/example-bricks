@@ -12,9 +12,9 @@
   "categories": ["developer-tools", "utilities"],
   "author": { "name": "Brickly" },
   "license": "MIT",
-  "preload": "preload.cjs",
   "runtime": {
     "type": "python",
+    "instance": "shared",
     "platforms": [
       "win-x64",
       "win-arm64",
