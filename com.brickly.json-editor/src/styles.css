@@ -109,7 +109,7 @@ button {
 
 .bottombar {
   display: grid;
-  grid-template-columns: 40px minmax(180px, 1fr) minmax(160px, 0.55fr) repeat(13, 34px);
+  grid-template-columns: 40px minmax(180px, 1fr) minmax(160px, 0.55fr) repeat(14, 34px);
   align-items: stretch;
   min-width: 0;
   background: #4b4b4d;
@@ -228,6 +228,11 @@ button {
 
 .notice-error {
   color: var(--bad);
+}
+
+.brand-meta {
+  color: #8a8a8f;
+  font-variant-numeric: tabular-nums;
 }
 
 .stepper {

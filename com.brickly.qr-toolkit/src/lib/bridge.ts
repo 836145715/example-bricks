@@ -11,7 +11,7 @@ export async function decodeQr(input: {
   filePath?: string
   imageBase64?: string
 }): Promise<DecodeResult> {
-  const raw = (await requireBrickly().invoke('decode', input)) as DecodeResult
+  const raw = await requireBrickly().invoke<DecodeResult>('decode', input as Record<string, unknown>)
   return raw
 }
 
@@ -25,7 +25,10 @@ export async function generateQr(input: {
   moduleStyle?: 'square' | 'rounded' | 'dots'
   output?: { mode?: string; dir?: string; fileName?: string }
 }): Promise<GenerateResult> {
-  const raw = (await requireBrickly().invoke('generate', input)) as GenerateResult
+  const raw = await requireBrickly().invoke<GenerateResult>(
+    'generate',
+    input as Record<string, unknown>
+  )
   return raw
 }
 

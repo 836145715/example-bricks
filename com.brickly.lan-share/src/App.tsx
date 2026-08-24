@@ -46,7 +46,7 @@ export function App() {
           </span>
           <div>
             <h1>内网文件共享</h1>
-            <p className="brand-id mono">{window.brickly?.brickId ?? 'com.brickly.lan-share'}</p>
+            <p className="brand-id mono">{window.brickly?.ref?.brickId ?? 'com.brickly.lan-share'}</p>
           </div>
         </div>
         <StatusBadge

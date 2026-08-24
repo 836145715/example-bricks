@@ -12,12 +12,12 @@ export async function resolveDomain(
   recordType: RecordType,
   dnsServers: DnsServerSelection
 ): Promise<ResolveResult> {
-  return requireBrickly().invoke('resolve', { domain, recordType, dnsServers }) as Promise<ResolveResult>
+  return requireBrickly().invoke<ResolveResult>('resolve', { domain, recordType, dnsServers })
 }
 
 export async function resolveAllRecords(
   domain: string,
   dnsServers: DnsServerSelection
 ): Promise<ResolveAllResult> {
-  return requireBrickly().invoke('resolve-all', { domain, dnsServers }) as Promise<ResolveAllResult>
+  return requireBrickly().invoke<ResolveAllResult>('resolve-all', { domain, dnsServers })
 }

@@ -14,10 +14,18 @@ import {
   ShieldCheck,
   Sparkles,
   Upload,
-  WrapText
+  WrapText,
+  X
 } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
+import {
+  bricklyIsDev,
+  bricklyLog,
+  closeExperienceWindow,
+  localizeManifestName,
+  readExperienceManifest
+} from './brickly'
 
 type NoticeKind = 'idle' | 'ok' | 'warn' | 'error'
 
@@ -52,7 +60,24 @@ export function App() {
   })
   const [wrap, setWrap] = useState(false)
   const [indent, setIndent] = useState(2)
+  const [brandTitle, setBrandTitle] = useState('JSON 编辑器')
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const manifest = await readExperienceManifest()
+      if (cancelled || !manifest) return
+      const name = localizeManifestName(manifest.name, 'JSON 编辑器')
+      const dev = await bricklyIsDev()
+      setBrandTitle(dev && manifest.version ? `${name} · v${manifest.version} · dev` : name)
+      document.title = name
+      bricklyLog('info', 'JSON 编辑器已打开', { id: manifest.id, version: manifest.version })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const parsed = useMemo(() => parseJson(value), [value])
   const stats = useMemo(() => jsonStats(value, parsed), [parsed, value])
@@ -119,18 +144,22 @@ export function App() {
     const result = parseJson(value)
     if (!result.ok) {
       setNotice({ text: result.error, kind: 'error' })
+      bricklyLog('error', result.error)
       return
     }
     setEditorValue(JSON.stringify(result.value, null, indent), '已格式化', 'ok')
+    bricklyLog('info', '已格式化')
   }
 
   const minify = () => {
     const result = parseJson(value)
     if (!result.ok) {
       setNotice({ text: result.error, kind: 'error' })
+      bricklyLog('error', result.error)
       return
     }
     setEditorValue(JSON.stringify(result.value), '已压缩为单行', 'ok')
+    bricklyLog('info', '已压缩为单行')
   }
 
   const validate = () => {
@@ -138,10 +167,12 @@ export function App() {
       setNotice({ text: '请输入 JSON', kind: 'warn' })
       return
     }
+    const text = parsed.ok ? `JSON 有效 · ${stats.nodes} 节点 · 深度 ${stats.depth}` : parsed.error
     setNotice({
-      text: parsed.ok ? `JSON 有效 · ${stats.nodes} 节点 · 深度 ${stats.depth}` : parsed.error,
+      text,
       kind: parsed.ok ? 'ok' : 'error'
     })
+    bricklyLog(parsed.ok ? 'info' : 'error', text)
   }
 
   const paste = async () => {
@@ -259,6 +290,7 @@ export function App() {
         </label>
         <ToolbarButton title="下载 JSON" onClick={download} icon={<Download size={16} />} disabled={!value} />
         <ToolbarButton title="清空" onClick={() => setEditorValue('', '已清空', 'idle')} icon={<Eraser size={16} />} />
+        <ToolbarButton title="关闭窗口" onClick={closeExperienceWindow} icon={<X size={16} />} />
       </footer>
 
       <aside className="statusline">
@@ -266,6 +298,7 @@ export function App() {
           <Sparkles size={13} />
           {notice.text}
         </span>
+        <span className="brand-meta">{brandTitle}</span>
         <span>{stats.lines} 行</span>
         <span>{formatBytes(stats.size)}</span>
         <span>{stats.type}</span>

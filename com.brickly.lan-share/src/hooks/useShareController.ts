@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 import {
+  bindRuntime,
   clearLog as clearLogApi,
   fetchStatus,
   getBrickServiceStatus,
@@ -112,18 +114,32 @@ export function useShareController() {
 
   useEffect(() => {
     let cancelled = false
+    let started: BricklyStartedHandle | null = null
     mountedRef.current = true
-    void loadShareSnapshot(lifecycleApi, settingsRef.current)
-      .then((snapshot) => {
+
+    void (async () => {
+      try {
+        if (!window.brickly?.start) {
+          throw new Error('window.brickly.start 不可用，请在 Brickly Webview 中打开本工具。')
+        }
+        started = await window.brickly.start()
+        if (cancelled) {
+          await started.dispose()
+          return
+        }
+        bindRuntime(started)
+        const snapshot = await loadShareSnapshot(lifecycleApi, settingsRef.current)
         if (!cancelled) applySnapshot(snapshot)
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!cancelled) applyError(error)
-      })
+      }
+    })()
 
     return () => {
       cancelled = true
       mountedRef.current = false
+      bindRuntime(null)
+      if (started) void started.dispose()
     }
   }, [applyError, applySnapshot])
 

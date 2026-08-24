@@ -64,28 +64,3 @@ export interface BrickServiceRecord {
   instanceId?: string
   lastError?: string
 }
-
-export interface BricklyApi {
-  brickId: string
-  instanceId?: string
-  invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
-  service: {
-    getStatus(): Promise<BrickServiceRecord>
-    start(): Promise<BrickServiceRecord>
-    stop(): Promise<BrickServiceRecord>
-    restart(): Promise<BrickServiceRecord>
-  }
-  fs: {
-    pickDirectory(options?: { defaultPath?: string }): Promise<string | undefined>
-  }
-  system: {
-    shellOpenPath(fullPath: string): Promise<void>
-    shellOpenExternal(url: string): Promise<void>
-  }
-}
-
-declare global {
-  interface Window {
-    brickly?: BricklyApi
-  }
-}

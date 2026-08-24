@@ -11,7 +11,7 @@
 
   let info = {
     windowId: window.brickly.windowId,
-    brickId: window.brickly.brickId
+    brickId: window.brickly.ref?.brickId
   }
 
   function line(msg) {

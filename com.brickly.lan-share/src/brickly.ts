@@ -1,3 +1,4 @@
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 import type {
   BrickServiceRecord,
   ListEntriesResult,
@@ -5,12 +6,29 @@ import type {
   ShareStatus
 } from './types'
 
-/** 封装 window.brickly.invoke，集中处理可用性校验与类型断言。 */
+let runtime: BricklyStartedHandle | null = null
+
+export function bindRuntime(handle: BricklyStartedHandle | null): void {
+  runtime = handle
+}
+
 function requireBrickly() {
   if (!window.brickly || typeof window.brickly.invoke !== 'function') {
     throw new Error('window.brickly.invoke 不可用，请在 Brickly Webview 中打开本工具。')
   }
   return window.brickly
+}
+
+function invokeApi(): { invoke<TResult = unknown>(commandId: string, input: Record<string, unknown>): Promise<TResult> } | undefined {
+  return runtime ?? window.brickly
+}
+
+async function invoke<T>(commandId: string, input: Record<string, unknown>): Promise<T> {
+  const api = invokeApi()
+  if (!api?.invoke) {
+    throw new Error('window.brickly.invoke 不可用，请在 Brickly Webview 中打开本工具。')
+  }
+  return api.invoke<T>(commandId, input)
 }
 
 function requireService() {
@@ -22,7 +40,7 @@ function requireService() {
 }
 
 export async function getBrickServiceStatus(): Promise<BrickServiceRecord> {
-  return requireService().getStatus()
+  return (await requireService().getStatus()) as BrickServiceRecord
 }
 
 export async function startBrickService(): Promise<void> {
@@ -33,32 +51,32 @@ export async function stopBrickService(): Promise<void> {
   await requireService().stop()
 }
 
-export async function fetchStatus(): Promise<ShareStatus> {
-  return requireBrickly().invoke('status', {}) as Promise<ShareStatus>
+export function fetchStatus(): Promise<ShareStatus> {
+  return invoke<ShareStatus>('status', {})
 }
 
-export async function startShare(input: ShareConfigInput): Promise<ShareStatus> {
-  return requireBrickly().invoke('start', input as Record<string, unknown>) as Promise<ShareStatus>
+export function startShare(input: ShareConfigInput): Promise<ShareStatus> {
+  return invoke<ShareStatus>('start', input as Record<string, unknown>)
 }
 
-export async function stopShare(): Promise<ShareStatus> {
-  return requireBrickly().invoke('stop', {}) as Promise<ShareStatus>
+export function stopShare(): Promise<ShareStatus> {
+  return invoke<ShareStatus>('stop', {})
 }
 
 export async function updateConfig(input: ShareConfigInput): Promise<void> {
-  await requireBrickly().invoke('update-config', input as Record<string, unknown>)
+  await invoke('update-config', input as Record<string, unknown>)
 }
 
-export async function fetchDefaultRoot(): Promise<string> {
-  return requireBrickly().invoke('default-root', {}) as Promise<string>
+export function fetchDefaultRoot(): Promise<string> {
+  return invoke<string>('default-root', {})
 }
 
-export async function listEntries(subPath: string): Promise<ListEntriesResult> {
-  return requireBrickly().invoke('list-entries', { subPath }) as Promise<ListEntriesResult>
+export function listEntries(subPath: string): Promise<ListEntriesResult> {
+  return invoke<ListEntriesResult>('list-entries', { subPath })
 }
 
 export async function clearLog(): Promise<void> {
-  await requireBrickly().invoke('clear-log', {})
+  await invoke('clear-log', {})
 }
 
 export async function pickDirectory(options?: {

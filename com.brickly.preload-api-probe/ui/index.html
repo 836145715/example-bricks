@@ -273,7 +273,7 @@
             <code>window.brickly.log.*</code> 写入日志中心（scope ≈ brick:本 id）；与 preload · 门面 Trace 不同
           </div>
           <div class="actions">
-            <button type="button" class="secondary" data-act="brick-id">读 brickId</button>
+            <button type="button" class="secondary" data-act="brick-id">读 ref</button>
             <button type="button" class="secondary" data-act="manifest">getManifest</button>
             <button type="button" data-act="log-info">log.info</button>
             <button type="button" class="warn" data-act="log-warn">log.warn</button>
@@ -339,7 +339,7 @@
         const b = window.brickly
         setPill('pill-probe', p ? 'preloadProbe: ok' : 'preloadProbe: missing', Boolean(p))
         setPill('pill-legacy', l ? 'legacy: ok' : 'legacy: missing', Boolean(l))
-        setPill('pill-brickly', b ? `brickly: ${b.brickId || 'ok'}` : 'brickly: missing', Boolean(b))
+        setPill('pill-brickly', b ? `brickly: ${b.ref?.brickId || 'ok'}` : 'brickly: missing', Boolean(b))
       }
 
       function setPill(id, text, ok) {
@@ -415,7 +415,7 @@
           })
         },
         async 'brick-id'() {
-          await run('window.brickly.brickId', () => ({ brickId: window.brickly?.brickId }))
+          await run('window.brickly.ref', () => window.brickly?.ref)
         },
         async manifest() {
           await run('window.brickly.getManifest', () => window.brickly.getManifest())

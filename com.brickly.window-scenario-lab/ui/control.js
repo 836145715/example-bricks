@@ -11,7 +11,7 @@
     return
   }
 
-  meta.textContent = `control · window#${window.brickly.windowId} · ${window.brickly.brickId}`
+  meta.textContent = `control · window#${window.brickly.windowId} · ${window.brickly.ref?.brickId || '?'}`
 
   const DEFAULT_SCENARIOS = [
     { id: 'standard', label: '标准窗' },

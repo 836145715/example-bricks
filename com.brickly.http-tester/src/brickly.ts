@@ -8,7 +8,7 @@ function requireBrickly() {
 }
 
 export async function sendRequest(input: SendInput): Promise<SendResult> {
-  return requireBrickly().invoke('send', { ...input }) as Promise<SendResult>
+  return requireBrickly().invoke<SendResult>('send', { ...input } as Record<string, unknown>)
 }
 
 export function isBricklyAvailable(): boolean {

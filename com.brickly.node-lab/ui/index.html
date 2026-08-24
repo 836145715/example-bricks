@@ -256,14 +256,14 @@
         <div class="card">
           <h2>读 / 写文本文件</h2>
           <div class="desc">
-            宿主 preload 提供的 <code>window.AIBricks.fs.pickFile</code>
-            能弹原生文件选择器；读到路径后交给 <code>window.nodeLab.fs.readText</code> 读内容。
+            体验窗现行 API 是 <code>window.brickly.fs.pickDirectory</code>，
+            选目录后再补文件名，交给 <code>window.nodeLab.fs.readText</code> 读内容。
             写入直接落在指定路径，请小心使用。
           </div>
           <div class="row">
             <label>文件</label>
-            <input type="text" id="fs-file" placeholder="点击「选择文件」或手动输入绝对路径" />
-            <button class="action secondary" id="btn-fs-pick">选择文件</button>
+            <input type="text" id="fs-file" placeholder="点击「选择目录」后补全文件名，或手动输入绝对路径" />
+            <button class="action secondary" id="btn-fs-pick">选择目录</button>
             <button class="action" id="btn-fs-read">读取</button>
           </div>
           <textarea id="fs-content" rows="8" placeholder="读取到的内容 / 准备写入的内容"></textarea>
@@ -453,8 +453,11 @@
         } catch {}
       }
       $('btn-fs-pick').onclick = async () => {
-        // 使用宿主 preload 的文件选择对话框 —— 纯 Web 没法弹原生对话框
-        const p = await window.AIBricks.fs.pickFile?.()
+        if (!window.brickly?.fs?.pickDirectory) {
+          setStatus($('fs-rw-status'), 'window.brickly.fs.pickDirectory 不可用', 'err')
+          return
+        }
+        const p = await window.brickly.fs.pickDirectory()
         if (p) $('fs-file').value = p
       }
       $('btn-fs-read').onclick = async () => {

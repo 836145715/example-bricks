@@ -30,6 +30,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "shared",
     "platforms": [
       "win-x64",
       "win-arm64",

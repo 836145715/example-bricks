@@ -9,16 +9,23 @@ import {
   Clipboard,
   Copy,
   Eraser,
-  FileText,
   Moon,
   RotateCcw,
   Rows3,
   SearchCode,
   Sun,
-  WrapText
+  WrapText,
+  X
 } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IDisposable, editor } from 'monaco-editor'
+import {
+  bricklyIsDev,
+  bricklyLog,
+  closeExperienceWindow,
+  localizeManifestName,
+  readExperienceManifest
+} from './brickly'
 
 const SAMPLE_LEFT = `{
   "name": "brickly",
@@ -111,6 +118,8 @@ export function App() {
   const [records, setRecords] = useState<DiffRecord[]>([])
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice>({ text: 'Ctrl+Shift+E 格式化 · Ctrl+S 添加记录', kind: 'idle' })
+  const [brandTitle, setBrandTitle] = useState('代码对比')
+  const [brandMeta, setBrandMeta] = useState('Monaco Diff Editor')
   const diffEditorRef = useRef<editor.IStandaloneDiffEditor | null>(null)
   const disposablesRef = useRef<IDisposable[]>([])
   const actionsRef = useRef<DiffActions>({
@@ -150,6 +159,26 @@ export function App() {
     }),
     [diffMode, wrap]
   )
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const manifest = await readExperienceManifest()
+      if (cancelled || !manifest) return
+      const name = localizeManifestName(manifest.name, '代码对比')
+      const dev = await bricklyIsDev()
+      const meta = [manifest.version ? `v${manifest.version}` : null, dev ? 'dev' : null]
+        .filter(Boolean)
+        .join(' · ')
+      setBrandTitle(name)
+      setBrandMeta(meta || 'Monaco Diff Editor')
+      document.title = name
+      bricklyLog('info', '代码对比已打开', { id: manifest.id, version: manifest.version })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const updateStats = useCallback(() => {
     const editorValue = diffEditorRef.current
@@ -211,7 +240,9 @@ export function App() {
   const formatBoth = useCallback(() => {
     const leftResult = formatText(left, language)
     const rightResult = formatText(right, language)
-    replaceContent(leftResult.text, rightResult.text, leftResult.ok && rightResult.ok ? '已格式化两侧内容' : '部分内容无法格式化', leftResult.ok && rightResult.ok ? 'ok' : 'warn')
+    const ok = leftResult.ok && rightResult.ok
+    replaceContent(leftResult.text, rightResult.text, ok ? '已格式化两侧内容' : '部分内容无法格式化', ok ? 'ok' : 'warn')
+    bricklyLog(ok ? 'info' : 'warn', ok ? '已格式化两侧内容' : '部分内容无法格式化')
   }, [language, left, replaceContent, right])
 
   const sortJson = useCallback(() => {
@@ -221,7 +252,9 @@ export function App() {
     }
     const leftResult = sortJsonText(left)
     const rightResult = sortJsonText(right)
-    replaceContent(leftResult.text, rightResult.text, leftResult.ok && rightResult.ok ? 'JSON 已按 key 重排' : 'JSON 解析失败，无法重排', leftResult.ok && rightResult.ok ? 'ok' : 'error')
+    const ok = leftResult.ok && rightResult.ok
+    replaceContent(leftResult.text, rightResult.text, ok ? 'JSON 已按 key 重排' : 'JSON 解析失败，无法重排', ok ? 'ok' : 'error')
+    bricklyLog(ok ? 'info' : 'error', ok ? 'JSON 已按 key 重排' : 'JSON 解析失败，无法重排')
   }, [language, left, replaceContent, right])
 
   const clearAll = useCallback(() => {
@@ -292,8 +325,8 @@ export function App() {
         <div className="brand">
           <SearchCode size={19} />
           <div>
-            <strong>代码对比</strong>
-            <span>Monaco Diff Editor</span>
+            <strong>{brandTitle}</strong>
+            <span>{brandMeta}</span>
           </div>
         </div>
 
@@ -315,6 +348,7 @@ export function App() {
           />
           <ToolbarButton title={wrap ? '关闭换行' : '开启换行'} active={wrap} onClick={() => setWrap((current) => !current)} icon={<WrapText size={16} />} />
           <ToolbarButton title={theme === 'dark' ? '浅色主题' : '深色主题'} onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))} icon={theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} />
+          <ToolbarButton title="关闭窗口" onClick={closeExperienceWindow} icon={<X size={16} />} />
         </div>
       </section>
 

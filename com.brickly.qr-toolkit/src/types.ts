@@ -55,25 +55,8 @@ export interface QrToolkitPreload {
   getBasename: (filePath: string, ext?: string) => string
 }
 
-export interface BricklyApi {
-  invoke: (commandId: string, input?: unknown) => Promise<unknown>
-  stream?: (
-    commandId: string,
-    input: unknown,
-    handlers: {
-      onProgress?: (p: number, msg?: string) => void
-      onResult?: (r: unknown) => void
-      onError?: (e: { message: string }) => void
-    },
-  ) => void
-  fs?: {
-    pickDirectory?: () => Promise<string | undefined>
-  }
-}
-
 declare global {
   interface Window {
-    brickly?: BricklyApi
     qrToolkitPreload?: QrToolkitPreload
   }
 }

@@ -40,17 +40,3 @@ export interface HistoryItem {
   durationMs?: number
   error?: string
 }
-
-export interface BricklyApi {
-  brickId: string
-  instanceId?: string
-  invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
-}
-
-declare global {
-  interface Window {
-    brickly?: BricklyApi
-  }
-}
-
-export {}

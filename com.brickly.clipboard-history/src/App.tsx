@@ -116,7 +116,7 @@ export function App() {
       let serviceStartError = ''
       try {
         if (!window.brickly?.start) {
-          throw new Error('底座 API 未注入，请在 AI-Bricks 宿主中运行本应用。')
+          throw new Error('底座 API 未注入，请在 Brickly 宿主中运行本应用。')
         }
         started = await window.brickly.start()
         if (!alive) {

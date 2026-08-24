@@ -8,7 +8,7 @@
  *  - 点 ⟳ 刷新 → brickly.sendToParent('lab:query', { reqId })
  *  - brickly.on('lab:state', { state }) 接收 30+ 个 is* / get* 调用的结果字典并铺到状态表
  *
- * preload 提供的 API：window.brickly.sendToParent / on / brickId / windowId
+ * preload 提供的 API：window.brickly.sendToParent / on / ref / windowId
  */
 ;(function () {
   const $ = (sel) => document.querySelector(sel)
@@ -22,7 +22,8 @@
       '<li class="err">window.brickly preload 不可用，无法与 runtime 通信</li>'
     return
   }
-  winInfo.textContent = `window#${window.brickly.windowId} · ${window.brickly.brickId}`
+  const brickId = window.brickly.ref?.brickId || '?'
+  winInfo.textContent = `window#${window.brickly.windowId} · ${brickId}`
 
   let seq = 0
   function nextId(prefix) {
