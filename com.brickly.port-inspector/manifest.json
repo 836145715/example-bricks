@@ -32,6 +32,7 @@
   "license": "MIT",
   "runtime": {
     "type": "native",
+    "instance": "per-call",
     "platforms": [
       "win-x64",
       "win-arm64",

@@ -113,7 +113,7 @@ export function App() {
       <StatusBar
         platform={result?.platform}
         method={result?.method}
-        brickId={window.brickly?.brickId}
+        brickId={window.brickly?.ref?.brickId}
       />
 
       <ConfirmKillModal

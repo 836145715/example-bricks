@@ -70,8 +70,7 @@ export interface BricklyWindowApi {
 }
 
 export interface BricklyApi {
-  brickId: string
-  instanceId?: string
+  ref?: { brickId: string }
   window?: BricklyWindowApi
   closeWindow?(): void
   invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>

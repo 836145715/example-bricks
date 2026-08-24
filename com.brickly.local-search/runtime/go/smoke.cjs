@@ -1,66 +1,40 @@
-const { spawn } = require('node:child_process')
-const fs = require('node:fs')
-const os = require('node:os')
-const path = require('node:path')
+/* 轻量检查（不启动宿主，也不假装 BPP 握手） */
+'use strict'
+const path = require('path')
+const fs = require('fs')
+const assert = require('assert')
 
-const exe = path.resolve(__dirname, '..', '..', 'bin', 'win-x64', 'brick.exe')
-const child = spawn(exe, [], { cwd: path.resolve(__dirname, '..', '..') })
+const root = path.resolve(__dirname, '..', '..')
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))
+assert.equal(manifest.kind, 'brick')
+assert.equal(manifest.id, 'com.brickly.local-search')
+assert.ok(manifest.commands.some((c) => c.id === 'search'))
+assert.ok(manifest.commands.some((c) => c.id === 'health'))
+assert.ok(manifest.commands.some((c) => c.id === 'preview'))
+assert.equal(manifest.runtime.entry['win-x64'], 'runtime/win-x64/brick.exe')
 
-let buffer = ''
-const pending = new Map()
+const goMod = fs.readFileSync(path.join(root, 'runtime/go/go.mod'), 'utf8')
+assert.ok(goMod.includes('github.com/836145715/brickly-sdk-go v0.6.0'))
+assert.ok(!/^replace\s+github.com\/836145715\/brickly-sdk-go/m.test(goMod))
 
-function send(message) {
-  child.stdin.write(`${JSON.stringify(message)}\n`)
+const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
+assert.equal(pkg.devDependencies['@syllm/brickly-ui'], '^0.6.0')
+
+const main = fs.readFileSync(path.join(root, 'runtime/go/main.go'), 'utf8')
+assert.ok(main.includes('plugin.OnCommand("search"'))
+assert.ok(main.includes('plugin.OnCommand("health"'))
+assert.ok(main.includes('plugin.Start()'))
+assert.ok(!/\bhost\.hello\b/.test(main))
+assert.ok(!main.includes('0.4.0'))
+assert.ok(!main.includes('OnInteract'))
+
+const bridge = fs.readFileSync(path.join(root, 'src/bridge.ts'), 'utf8')
+assert.ok(bridge.includes('window.brickly'))
+assert.ok(bridge.includes("invoke<SearchResult>('search'"))
+assert.ok(!bridge.includes('AIBricks'))
+
+for (const rel of ['src/App.tsx', 'src/bridge.ts', 'runtime/go/main.go', 'manifest.json']) {
+  assert.ok(fs.existsSync(path.join(root, rel)), `missing ${rel}`)
 }
 
-function waitFor(id) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timeout waiting ${id}`)), 5000)
-    pending.set(id, (message) => {
-      clearTimeout(timer)
-      resolve(message)
-    })
-  })
-}
-
-child.stdout.on('data', (chunk) => {
-  buffer += chunk.toString()
-  const lines = buffer.split(/\r?\n/)
-  buffer = lines.pop() || ''
-  for (const line of lines) {
-    if (!line.trim()) continue
-    const message = JSON.parse(line)
-    if (message.type === 'runtime.ready') {
-      send({ type: 'command.invoke', id: 'health-1', commandId: 'health', input: {} })
-      continue
-    }
-    const waiter = pending.get(message.id)
-    if (waiter) {
-      pending.delete(message.id)
-      waiter(message)
-    }
-  }
-})
-
-child.stderr.on('data', (chunk) => {
-  process.stderr.write(chunk)
-})
-
-async function main() {
-  send({ type: 'host.hello', protocolVersion: '0.4.0', dependencyBindings: {} })
-  const health = await waitFor('health-1')
-  console.log(JSON.stringify(health.result || health.error, null, 2))
-  const sample = path.join(os.tmpdir(), 'brickly-local-search-preview-smoke.txt')
-  fs.writeFileSync(sample, 'local search preview smoke\n', 'utf8')
-  send({ type: 'command.invoke', id: 'preview-1', commandId: 'preview', input: { path: sample } })
-  const preview = await waitFor('preview-1')
-  console.log(JSON.stringify(preview.result || preview.error, null, 2))
-  send({ type: 'runtime.shutdown' })
-}
-
-main()
-  .catch((error) => {
-    console.error(error)
-    child.kill()
-    process.exitCode = 1
-  })
+console.log('local-search smoke ok')

@@ -13,6 +13,7 @@ export GOOS=darwin
 export GOARCH=arm64
 export CGO_ENABLED=0
 
+cd "$SCRIPT_DIR"
 go build -trimpath -ldflags "-s -w" -o "$OUT_FILE" .
 
 echo "Build success. Size: $(wc -c < "$OUT_FILE") bytes"

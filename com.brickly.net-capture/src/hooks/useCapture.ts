@@ -1,6 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CaptureStatus, DriverMode, SessionDetail, SessionRow, SortField, SortOrder, StatusFilter } from '../types'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
+import type {
+  CaptureStatus,
+  DriverMode,
+  ListResult,
+  SessionDetail,
+  SessionRow,
+  SortField,
+  SortOrder,
+  StatusFilter
+} from '../types'
 import { errorMessage } from '../utils/formatters'
+
+const CHANGE_EVENT = 'net-capture:changed'
+
+function requireBrickly() {
+  if (!window.brickly?.invoke || !window.brickly.start) {
+    throw new Error('window.brickly 不可用，请确认应用已在 Brickly 中打开')
+  }
+  return window.brickly
+}
 
 const defaultCapabilities: CaptureStatus['capabilities'] = {
   platformKey: 'unknown',
@@ -91,8 +110,14 @@ export function useCapture() {
   const lastIdRef = useRef(0)
   const listBusyRef = useRef(false)
   const viewportRef = useRef<HTMLDivElement | null>(null)
+  const handleRef = useRef<BricklyStartedHandle | null>(null)
+  const [ready, setReady] = useState(false)
 
-  const api = window.netCapture
+  const invoke = useCallback(async <T,>(commandId: string, input: Record<string, unknown> = {}) => {
+    const handle = handleRef.current
+    if (handle) return handle.invoke<T>(commandId, input)
+    return requireBrickly().invoke<T>(commandId, input)
+  }, [])
 
   // 切换主题
   const toggleTheme = useCallback(() => {
@@ -226,8 +251,8 @@ export function useCapture() {
   )
 
   const refreshStatus = useCallback(async () => {
-    if (!api) return
-    const next = normalizeStatus(await api.status())
+    if (!handleRef.current && !window.brickly?.invoke) return
+    const next = normalizeStatus(await invoke<CaptureStatus>('status'))
     setStatus(next)
     if (!controlsHydratedRef.current || next.running) {
       setPort(next.port || 2025)
@@ -236,17 +261,18 @@ export function useCapture() {
       setDriverMode(normalizeDriverMode(next.driverMode))
       controlsHydratedRef.current = true
     }
-  }, [api])
+  }, [invoke])
 
   const pullRows = useCallback(
     async (reset = false) => {
-      if (!api || listBusyRef.current) return
+      if ((!handleRef.current && !window.brickly?.invoke) || listBusyRef.current) return
       listBusyRef.current = true
       try {
         const since = reset ? 0 : lastIdRef.current
-        const result = await api.list({ since, limit: 500, query, protocol })
+        const result = await invoke<ListResult>('list', { since, limit: 500, query, protocol })
+        const items = Array.isArray(result.items) ? result.items : []
         lastIdRef.current = Math.max(lastIdRef.current, result.lastId || 0)
-        
+
         setStatus((current) => ({
           ...current,
           running: result.running,
@@ -256,7 +282,7 @@ export function useCapture() {
         }))
 
         setRows((current) => {
-          const merged = reset ? result.items : [...current, ...result.items]
+          const merged = reset ? items : [...current, ...items]
           const unique = new Map<number, SessionRow>()
           for (const item of merged) unique.set(item.id, item)
           return [...unique.values()].slice(-3000)
@@ -265,21 +291,24 @@ export function useCapture() {
         listBusyRef.current = false
       }
     },
-    [api, protocol, query]
+    [invoke, protocol, query]
   )
+
+  const pullRowsRef = useRef(pullRows)
+  pullRowsRef.current = pullRows
 
   const loadDetail = useCallback(
     async (id: number) => {
-      if (!api) return
+      if (!handleRef.current && !window.brickly?.invoke) return
       setSelectedId(id)
-      const result = await api.detail(id)
+      const result = await invoke<{ item: SessionDetail }>('detail', { id })
       setDetail(result.item)
     },
-    [api]
+    [invoke]
   )
 
   const start = async () => {
-    if (!api) return
+    if (!handleRef.current && !window.brickly?.invoke) return
     setBusy(true)
     try {
       const selectedDriver = status.capabilities.driverModes.find((item) => item.value === driverMode)
@@ -287,19 +316,21 @@ export function useCapture() {
         setNotice(selectedDriver.reason || '当前平台不支持所选驱动模式')
         return
       }
-      const next = normalizeStatus(await api.start({
-        port,
-        captureTcp,
-        captureUdp,
-        driverMode,
-        captureAllProcesses: driverMode !== 'off',
-        stopNetworkOnce: false,
-        processNames: [],
-        processPids: [],
-        installCert: false,
-        setSystemProxy: true,
-        maxBodyPreviewBytes: 8192
-      }))
+      const next = normalizeStatus(
+        await invoke<CaptureStatus>('start', {
+          port,
+          captureTcp,
+          captureUdp,
+          driverMode,
+          captureAllProcesses: driverMode !== 'off',
+          stopNetworkOnce: false,
+          processNames: [],
+          processPids: [],
+          installCert: false,
+          setSystemProxy: true,
+          maxBodyPreviewBytes: 8192
+        })
+      )
       setStatus(next)
       const proxyNotice = next.systemProxy ? `代理已启动并设置系统代理：${next.proxyUrl}` : `代理已启动：${next.proxyUrl}`
       const platformNote = next.capabilities.notes?.[0]
@@ -312,15 +343,15 @@ export function useCapture() {
   }
 
   const stop = async () => {
-    if (!api) return
-    const next = normalizeStatus(await api.stop())
+    if (!handleRef.current && !window.brickly?.invoke) return
+    const next = normalizeStatus(await invoke<CaptureStatus>('stop'))
     setStatus(next)
     setNotice('抓包已停止')
   }
 
   const clear = async () => {
-    if (!api) return
-    await api.clear()
+    if (!handleRef.current && !window.brickly?.invoke) return
+    await invoke('clear')
     setRows([])
     setDetail(null)
     setSelectedId(null)
@@ -329,22 +360,24 @@ export function useCapture() {
   }
 
   const installCert = async () => {
-    if (!api) return
+    if (!handleRef.current && !window.brickly?.invoke) return
     if (!status.capabilities.installCert) {
       setNotice('当前平台不支持自动安装根证书')
       return
     }
-    const result = await api.installCert()
+    const result = await invoke<{ ok: boolean; message?: string }>('install-cert')
     setNotice(result.ok ? '证书安装请求已完成' : result.message || '证书安装可能需要管理员权限')
   }
 
   const toggleSystemProxy = async () => {
-    if (!api) return
+    if (!handleRef.current && !window.brickly?.invoke) return
     if (!status.capabilities.systemProxy) {
       setNotice('当前平台不支持自动设置系统代理')
       return
     }
-    const result = await api.setSystemProxy(!status.systemProxy)
+    const result = await invoke<{ ok: boolean; enabled: boolean }>('set-system-proxy', {
+      enabled: !status.systemProxy
+    })
     setStatus((current) => ({ ...current, systemProxy: result.enabled }))
     setNotice(result.enabled ? '系统代理已设置' : '系统代理已取消')
   }
@@ -374,25 +407,49 @@ export function useCapture() {
   }, [rows])
 
   useEffect(() => {
+    let alive = true
+    let started: BricklyStartedHandle | null = null
+    let unsubscribe: (() => void | Promise<void>) | undefined
+    void (async () => {
+      try {
+        const brickly = requireBrickly()
+        started = await brickly.start()
+        if (!alive) {
+          await started.dispose()
+          return
+        }
+        handleRef.current = started
+        unsubscribe = await brickly.events.subscribe(CHANGE_EVENT, () => {
+          if (alive) void pullRowsRef.current(false)
+        })
+        if (alive) setReady(true)
+      } catch (error) {
+        if (alive) setNotice(errorMessage(error))
+      }
+    })()
+    return () => {
+      alive = false
+      handleRef.current = null
+      setReady(false)
+      void unsubscribe?.()
+      if (started) void started.dispose()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!ready) return
     void refreshStatus()
     void pullRows(true)
-  }, [refreshStatus, pullRows])
+  }, [ready, refreshStatus, pullRows])
 
-  // 自动订阅 + 定时器轮询
   useEffect(() => {
-    if (!api) return
-    const unsubscribe = api.subscribe(() => {
-      void pullRows(false)
-    })
+    if (!ready) return
     const timer = window.setInterval(() => {
       void refreshStatus()
       void pullRows(false)
     }, 1200)
-    return () => {
-      unsubscribe()
-      window.clearInterval(timer)
-    }
-  }, [api, pullRows, refreshStatus])
+    return () => window.clearInterval(timer)
+  }, [ready, pullRows, refreshStatus])
 
   useEffect(() => {
     lastIdRef.current = 0

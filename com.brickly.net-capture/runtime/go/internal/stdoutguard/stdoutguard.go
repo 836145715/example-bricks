@@ -9,7 +9,7 @@ func init() {
 	os.Stdout = os.Stderr
 }
 
-// ProtocolStdout 返回进程启动时的原始 stdout，专供 BPP JSON Lines 使用。
+// ProtocolStdout 返回进程启动时的原始 stdout。Host↔Runtime 已走 gRPC，不再把它当协议通道。
 func ProtocolStdout() *os.File {
 	if protocolStdout == nil {
 		return os.Stdout

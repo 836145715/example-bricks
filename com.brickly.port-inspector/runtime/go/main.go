@@ -7,7 +7,7 @@ import (
 
 	"brickly/port-inspector/internal/nettable"
 	"brickly/port-inspector/internal/procinfo"
-	"brickly/port-inspector/internal/stdoutguard"
+	_ "brickly/port-inspector/internal/stdoutguard"
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
@@ -18,7 +18,6 @@ var buildStamp = "dev"
 func main() {
 	plugin := brickly.New(brickly.Options{
 		BrickID: brickID,
-		Stdout:  stdoutguard.ProtocolStdout(),
 	})
 
 	plugin.OnCommand("lookup", handleLookup)

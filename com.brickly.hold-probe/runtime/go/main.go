@@ -10,7 +10,7 @@ import (
 
 	"brickly/hold-probe/internal/pathnorm"
 	"brickly/hold-probe/internal/procinfo"
-	"brickly/hold-probe/internal/stdoutguard"
+	_ "brickly/hold-probe/internal/stdoutguard"
 	"brickly/hold-probe/internal/winlock"
 	brickly "github.com/836145715/brickly-sdk-go"
 )
@@ -20,7 +20,6 @@ const brickID = "com.brickly.hold-probe"
 func main() {
 	plugin := brickly.New(brickly.Options{
 		BrickID: brickID,
-		Stdout:  stdoutguard.ProtocolStdout(),
 	})
 
 	plugin.OnCommand("probe", handleProbe)

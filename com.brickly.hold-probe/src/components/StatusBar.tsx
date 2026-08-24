@@ -29,7 +29,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({ holdersCount }) => {
         <span className="hotkey-tip">快捷键: 按 <b>Enter</b> 触发扫描 · 按 <b>Esc</b> 关闭详情</span>
         <span className="sep">|</span>
         <span className="brick-tag">
-          {window.brickly?.brickId ?? 'com.brickly.hold-probe'}
+          {window.brickly?.ref?.brickId ?? 'com.brickly.hold-probe'}
         </span>
       </div>
     </footer>

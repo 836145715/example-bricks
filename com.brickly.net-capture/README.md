@@ -53,4 +53,4 @@ go test ./...
 
 SunnyNet 在 Windows / macOS 上都包含 cgo 或系统 API 路径，因此构建脚本对该 runtime 启用 `CGO_ENABLED=1`。`build.ps1` 默认只构建 Windows 目标；macOS 目标优先在 macOS 机器上通过 `build.sh` 构建。macOS 证书安装通过 `security add-trusted-cert` 写入当前用户的 login keychain，系统可能弹出授权确认。
 
-SunnyNet `src/public/constobj.go` 会在 package init 阶段向 stdout 打印 banner。Brickly native runtime 的 stdout 是 BPP JSON Lines 协议通道，不能混入普通文本；runtime 通过 `internal/stdoutguard` 在最早初始化阶段把普通 stdout 重定向到 stderr，并把原始 stdout 显式交给 `brickly-sdk-go` 作为协议通道，避免宿主报 `Invalid JSON line`。
+SunnyNet `src/public/constobj.go` 会在 package init 阶段向 stdout 打印 banner。Host↔Runtime 已是 gRPC，不再走 stdout 上的 BPP；runtime 仍通过 `internal/stdoutguard` 在最早初始化阶段把普通 stdout 重定向到 stderr，避免 SunnyNet banner 污染进程输出。

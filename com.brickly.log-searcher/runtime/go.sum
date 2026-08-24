@@ -1,3 +1,5 @@
+github.com/836145715/brickly-sdk-go v0.6.0 h1:LWN3c2HUPc6BL53A1/sp+EuwRLZGPm2ElU965BFTGbs=
+github.com/836145715/brickly-sdk-go v0.6.0/go.mod h1:Sd3SwU/PEmXjN7V0jp9xCmqcw+PIjEa6CizSnQR3qZM=
 github.com/go-logr/logr v1.4.2 h1:6pFjapn8bFcIbiKo3XT4j/BhANplGihG6tvd+8rYgrY=
 github.com/go-logr/logr v1.4.2/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=

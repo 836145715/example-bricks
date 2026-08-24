@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"brickly/net-capture/internal/stdoutguard"
+	_ "brickly/net-capture/internal/stdoutguard"
 	brickly "github.com/836145715/brickly-sdk-go"
 	"github.com/qtgolang/SunnyNet/SunnyNet"
 	sunnyHTTP "github.com/qtgolang/SunnyNet/src/http"
@@ -1112,7 +1112,6 @@ func min(a, b int) int {
 func main() {
 	plugin = brickly.New(brickly.Options{
 		BrickID: brickID,
-		Stdout:  stdoutguard.ProtocolStdout(),
 	})
 	plugin.Info(fmt.Sprintf("started go=%s sunny=%s", runtime.Version(), public.SunnyVersion), nil)
 

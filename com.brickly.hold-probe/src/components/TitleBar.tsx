@@ -30,7 +30,7 @@ export const TitleBar: React.FC = () => {
       <div className="titlebar-drag">
         <span className="titlebar-mark" aria-hidden />
         <span className="titlebar-title">文件占用排查</span>
-        <span className="titlebar-id">{window.brickly?.brickId ?? 'com.brickly.hold-probe'}</span>
+        <span className="titlebar-id">{window.brickly?.ref?.brickId ?? 'com.brickly.hold-probe'}</span>
       </div>
 
       <div className="titlebar-controls">

@@ -210,6 +210,10 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 	}
 
 	go func() {
+		<-ctx.Closed()
+		cancel()
+	}()
+	go func() {
 		<-sessionCtx.Done()
 		_ = sess.Close()
 	}()

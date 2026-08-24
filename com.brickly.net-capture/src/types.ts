@@ -77,22 +77,12 @@ export type DetailTab = {
   label: string
 }
 
-export type NetCaptureApi = {
-  start(options: Record<string, unknown>): Promise<CaptureStatus>
-  stop(): Promise<CaptureStatus>
-  status(): Promise<CaptureStatus>
-  list(input: Record<string, unknown>): Promise<{ items: SessionRow[]; lastId: number; total: number; dropped: number; running: boolean }>
-  detail(id: number): Promise<{ item: SessionDetail }>
-  clear(): Promise<{ ok: boolean }>
-  installCert(): Promise<{ ok: boolean; message?: string }>
-  setSystemProxy(enabled: boolean): Promise<{ ok: boolean; enabled: boolean }>
-  subscribe(callback: (event: unknown) => void): () => void
-}
-
-declare global {
-  interface Window {
-    netCapture?: NetCaptureApi
-  }
+export type ListResult = {
+  items: SessionRow[]
+  lastId: number
+  total: number
+  dropped: number
+  running: boolean
 }
 
 // 扩展类型：用于排序与过滤

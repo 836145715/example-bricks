@@ -36,6 +36,7 @@
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
+    "instance": "owned",
     "platforms": [
       "win-x64",
       "win-arm64",

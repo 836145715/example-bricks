@@ -69,8 +69,7 @@ export interface BricklyWindowControls {
 
 /** Brickly 全局 Bridge API */
 export interface BricklyApi {
-  brickId: string
-  instanceId?: string
+  ref?: { brickId: string }
   invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
   closeWindow?(): void
   window?: BricklyWindowControls
