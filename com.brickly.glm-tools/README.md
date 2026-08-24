@@ -2,7 +2,7 @@
 status: active
 type: brick-note
 related_code: manifest.json,runtime/win-x64/index.js,runtime/win-x64/src
-last_verified: 2026-05-29
+last_verified: 2026-08-24
 ---
 
 # GLM 工具 API

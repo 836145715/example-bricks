@@ -20,6 +20,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "owned",
     "platforms": [
       "win-x64",
       "win-arm64",
@@ -161,6 +162,7 @@
   "commands": [
     {
       "id": "capture-annotate",
+      "mode": "interact",
       "name": {
         "zh-CN": "框选截图并 OCR 标注",
         "en": "Capture Region and Annotate OCR"
@@ -276,6 +278,7 @@
     },
     {
       "id": "capture-text",
+      "mode": "interact",
       "name": {
         "zh-CN": "框选截图并返回 OCR 文本",
         "en": "Capture Region and Return OCR Text"

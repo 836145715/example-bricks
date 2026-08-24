@@ -90,7 +90,7 @@ function writeVideoPlaceholder(dir) {
 }
 
 /**
- * 通过统一资源 API 注册文件内容（0.3.x：不再使用 host.resource.register）。
+ * 通过 SDK 0.6.0 资源 API 登记文件内容，不再使用 host.resource.register。
  * 返回适合结果区 `format: resource` 渲染的元数据卡片，不暴露 accessToken / 本地路径。
  */
 async function createResourceFromFile(filePath, mimeType, name) {

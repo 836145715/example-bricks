@@ -2,7 +2,7 @@
 status: active
 type: brick-note
 related_code: manifest.json,runtime/win-x64/index.js,runtime/win-x64/src
-last_verified: 2026-05-29
+last_verified: 2026-08-24
 ---
 
 # GLM 截图 OCR 标注
@@ -13,7 +13,7 @@ last_verified: 2026-05-29
 2. 使用 Brickly Node SDK 调用 `com.brickly.glm-tools` 的 `ocr` 命令。
 3. 按命令形态返回纯文本 OCR 结果，或打开 H5 弹窗绘制截图、OCR 位置框和文字结果。
 
-当前截图能力由宿主 `host.platform.screenshot.selectRegion` 统一提供：
+当前截图能力由宿主 `ctx.platform.screenshot.selectRegion` 统一提供：
 
 - 宿主截取鼠标所在屏幕的冻结帧。
 - 弹出置顶覆盖窗口让用户框选区域。
@@ -21,12 +21,12 @@ last_verified: 2026-05-29
 
 本 Brick 只负责调用宿主截图能力、上传 OCR、组装渲染数据和开窗；不再自行直接适配各平台截图工具。
 
-Manifest 声明 `dependencies.com.brickly.glm-tools.commands=["ocr"]`。这一个依赖声明同时用于依赖展示、开发期类型生成和运行时跨 Brick 调用授权。
+Manifest 声明 `dependencies.glm` → `com.brickly.glm-tools` 的 `ocr`。`capture-annotate` 与 `capture-text` 显式 `"mode": "interact"`（`ui.streaming: true`），进度走 `ctx.send`，不要用 `ui.streaming` 推断 mode。
 
 ## 命令边界
 
 - `capture-annotate`：面向用户的可见命令。截图后调用 GLM OCR，并打开标注窗口展示截图、识别框和文字结果。
-- `capture-text`：隐藏命令，供其它 Brick 复用。截图后调用 GLM OCR，只返回 `wordsText`、`wordsResult`、`ocrResponse`、可选 `screenshotPath` 和截图区域 `bounds`，不打开标注窗口。`com.brickly.context-pilot` 使用该命令完成截图 OCR 后的句子翻译解构，`com.brickly.quick-translate` 使用 `bounds` 将截图翻译覆盖层贴回原屏幕位置。
+- `capture-text`：可复用命令。截图后调用 GLM OCR，只返回 `wordsText`、`wordsResult`、`ocrResponse`、可选 `screenshotPath` 和截图区域 `bounds`，不打开标注窗口。`com.brickly.context-pilot` 使用该命令完成截图 OCR 后的句子翻译解构，`com.brickly.quick-translate` 使用 `bounds` 将截图翻译覆盖层贴回原屏幕位置。
 
 ## 渲染方式
 

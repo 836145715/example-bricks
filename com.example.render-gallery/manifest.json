@@ -33,6 +33,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "per-call",
     "platforms": [
       "win-x64",
       "win-arm64",

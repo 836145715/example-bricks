@@ -5,6 +5,7 @@ const { GlmToolsClient } = require('./glm-client')
 const { makeError } = require('./errors')
 
 function createAbortSignal(ctx) {
+  if (ctx.signal) return ctx.signal
   const abortController = new AbortController()
   ctx.onCancel(() => abortController.abort())
   return abortController.signal

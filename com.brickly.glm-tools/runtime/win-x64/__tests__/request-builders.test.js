@@ -107,10 +107,9 @@ test('buildOcrFields 将 boolean 转为 multipart 字符串', () => {
 test('parseFileSync 未确认付费调用时不会继续执行', async () => {
   const ctx = {
     config: {},
+    signal: new AbortController().signal,
     onCancel() {},
-    isCancelled: () => false,
-    progress() {},
-    output() {}
+    isCancelled: () => false
   }
 
   await assert.rejects(

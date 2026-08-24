@@ -10,8 +10,8 @@
     "en": "Screen API Demo"
   },
   "description": {
-    "zh-CN": "用于测试 host.platform.screen.pickColor 和 captureRegion 的最小示例 Brick。",
-    "en": "Minimal demo brick for testing host.platform.screen.pickColor and captureRegion."
+    "zh-CN": "用于测试 ctx.platform.screen.pickColor 和 captureRegion 的最小示例 Brick。",
+    "en": "Minimal demo brick for testing ctx.platform.screen.pickColor and captureRegion."
   },
   "keywords": [
     "screen",
@@ -31,6 +31,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "per-call",
     "platforms": [
       "win-x64",
       "win-arm64",

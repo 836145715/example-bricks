@@ -16,8 +16,8 @@ test('captureText 框选截图后返回 OCR 文本且默认清理临时截图', 
   const calls = []
   const ctx = {
     isCancelled: () => false,
-    progress: (value, message) => calls.push({ type: 'progress', value, message }),
-    output: (name, value) => calls.push({ type: 'output', name, value }),
+    signal: new AbortController().signal,
+    send: async (event) => calls.push({ type: 'send', event }),
     platform: {
       screenshot: {
         selectRegion: async (input) => {
@@ -49,6 +49,10 @@ test('captureText 框选截图后返回 OCR 文本且默认清理临时截图', 
   )
   assert.equal(calls.find((item) => item.type === 'invoke').commandId, 'ocr')
   assert.equal(calls.find((item) => item.type === 'invoke').input.languageType, 'ENG')
+  assert.deepEqual(
+    calls.filter((item) => item.type === 'send').map((item) => item.event.message),
+    ['capturing', 'ocr', 'done']
+  )
   await assert.rejects(() => fs.stat(screenshotPath), /ENOENT/)
 })
 

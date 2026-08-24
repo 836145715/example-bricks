@@ -4,7 +4,7 @@
 
 它同时覆盖两条调用链：
 
-- **UI preload facade**：页面直接调用 `window.brickly.system.*`。
+- **UI preload facade**：页面直接调用 `window.brickly.system.*`。体验窗不注入 `window.AIBricks`，探测时应断言它不存在。
 - **Runtime SDK**：页面通过 `window.brickly.invoke('run-system-suite')` 调用 Node runtime，runtime 内部使用 `ctx.platform.system.*`。
 
 示例还包含 `preload/system-lab-preload.cjs`，用于验证自定义 preload 的 Node.js 能力。页面本身不直接获得 Node、Electron 或 `ipcRenderer`，只使用 preload 暴露的 `window.systemLabNode` 创建安全的临时测试文件。
@@ -50,7 +50,7 @@
 
 ## 设计说明
 
-- UI 和 runtime 共用同一份测试意图，便于观察 `window.brickly.system.*` 与 `ctx.platform.system.*` 是否对齐。
+- UI 和 runtime 共用同一份测试意图，便于观察 `window.brickly.system.*` 与 `ctx.platform.system.*` 是否对齐。体验窗身份读 `window.brickly.ref`，不要读 `instanceId`，也不要依赖 `window.AIBricks`。
 - Runtime 使用 `lifecycle.state: "stateless"` + `idleTimeoutMs: 0`，无占用后立即回收进程，避免诊断结果被旧缓存代码影响。
 - `shellTrashItem()` 只作用于示例创建的临时文件，避免影响用户真实文件。
 - 测试面板只按实际调用结果展示状态：成功就是 `ok`，失败就是 `error`。平台差异通过返回值或错误码判断，不在面板里伪装成通过。

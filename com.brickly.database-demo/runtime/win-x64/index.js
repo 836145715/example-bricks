@@ -24,10 +24,6 @@ function log(message, details) {
   brick.log.info(message, details)
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 function defaultTables() {
   return {
     users: [
@@ -143,8 +139,13 @@ async function handleConnect(ctx, input) {
 async function handleQuery(ctx, input) {
   const conn = getConnection(String(input.connectionId || ''))
   const sql = String(input.sql || '')
-  if (ctx.isCancelled()) throw new BppError('CANCELLED', 'Cancelled')
+  if ((ctx.signal && ctx.signal.aborted) || ctx.isCancelled()) {
+    throw new BppError('CANCELLED', 'Cancelled')
+  }
+  await ctx.send({ type: 'progress', progress: 0, message: 'querying' })
   const result = executeSelect(conn, sql)
+  await ctx.send({ type: 'output', name: 'rows', value: result.rows })
+  await ctx.send({ type: 'progress', progress: 1, message: 'done' })
   return result
 }
 
