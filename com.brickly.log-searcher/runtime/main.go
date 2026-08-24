@@ -1,14 +1,13 @@
-// BPP 协议主循环与命令分发器
+// 日志查询工具 runtime：gRPC Runtime + invoke/interact。
+// search 走 interact（ctx.Send 推 progress / searchState / logLine），其余命令走 invoke。
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	brickly "github.com/836145715/brickly-sdk-go"
@@ -34,48 +33,24 @@ type ServerConfig struct {
 
 const brickID = "com.brickly.log-searcher"
 
-var (
-	stdoutMu       sync.Mutex
-	stdout         = bufio.NewWriter(os.Stdout)
-	cancelMu       sync.Mutex
-	cancelled      = make(map[string]bool)
-	activeCancels  = make(map[string]context.CancelFunc)
-	activeMu       sync.Mutex
-	activeCommands = make(map[string]*activeCommand)
-	// brickRuntime 供包内日志走 runtime.log，禁止 stderr 业务输出
-	brickRuntime *brickly.Runtime
-)
+// brickRuntime 供包内日志走 SDK；禁止 stderr 业务输出。
+var brickRuntime *brickly.Runtime
 
-type activeCommand struct {
-	ctx    *brickly.CommandContext
-	result any
-	err    error
-}
-
-// BPP 消息结构
-type invokeMsg struct {
-	Type      string         `json:"type"`
-	ID        string         `json:"id"`
-	CommandID string         `json:"commandId"`
-	Input     map[string]any `json:"input"`
-}
-
-// Grep 参数
 type GrepArgs struct {
-	IgnoreCase   bool           `json:"ignoreCase"`   // -i
-	Invert       bool           `json:"invert"`       // -v
-	WordRegexp   bool           `json:"wordRegexp"`   // -w
-	Regexp       bool           `json:"regexp"`       // -E
-	ContextA     int            `json:"contextA"`     // -A
-	ContextB     int            `json:"contextB"`     // -B
-	ContextC     int            `json:"contextC"`     // -C
-	OnlyMatch    bool           `json:"onlyMatch"`    // -o
-	MaxCount     int            `json:"maxCount"`     // 每文件保留最新 N 条命中，0 表示不限
-	ShowLineNum  bool           `json:"showLineNum"`  // -n
-	ShowFilename bool           `json:"showFilename"` // -H
-	FromTail     bool           `json:"fromTail"`     // 仅搜索文件尾部窗口
-	TailLines    int            `json:"tailLines"`    // 尾部窗口行数
-	Filters      []FilterConfig `json:"filters"`      // 链式过滤条件
+	IgnoreCase   bool           `json:"ignoreCase"`
+	Invert       bool           `json:"invert"`
+	WordRegexp   bool           `json:"wordRegexp"`
+	Regexp       bool           `json:"regexp"`
+	ContextA     int            `json:"contextA"`
+	ContextB     int            `json:"contextB"`
+	ContextC     int            `json:"contextC"`
+	OnlyMatch    bool           `json:"onlyMatch"`
+	MaxCount     int            `json:"maxCount"`
+	ShowLineNum  bool           `json:"showLineNum"`
+	ShowFilename bool           `json:"showFilename"`
+	FromTail     bool           `json:"fromTail"`
+	TailLines    int            `json:"tailLines"`
+	Filters      []FilterConfig `json:"filters"`
 }
 
 type FilterConfig struct {
@@ -95,13 +70,67 @@ type searchInput struct {
 	HasExplicitFiles bool
 }
 
-// -------------------- 协议消息读写 --------------------
+func commandError(code, message string) error {
+	return brickly.NewBppError(code, message)
+}
 
-// gRPC Runtime 不再写 BPP stdout 帧。进度/chunk 仅在 interact 可用，当前命令走 invoke 返回值。
-func send(_ map[string]any) {}
+func decodeCommandInput(input json.RawMessage) map[string]any {
+	payload := map[string]any{}
+	if len(input) > 0 {
+		_ = json.Unmarshal(input, &payload)
+	}
+	return payload
+}
 
-// -------------------- 结构化日志（plugin.log.* / runtime.log）--------------------
-// 禁止业务日志写 stderr；宿主会把 stderr 记为 [已废弃] error。
+// asJSONValue 把结构体收成 BrickValue 能编码的 JSON 值（map / slice / 标量）。
+func asJSONValue(value any) (any, error) {
+	if value == nil {
+		return nil, nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var decoded any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return nil, err
+	}
+	return decoded, nil
+}
+
+func sendProgress(ctx *brickly.CommandContext, progress float64, message string) error {
+	return ctx.Send(map[string]any{
+		"type":     "progress",
+		"progress": progress,
+		"message":  message,
+	})
+}
+
+func sendLogLine(ctx *brickly.CommandContext, line GrepLine) error {
+	payload, err := asJSONValue(line)
+	if err != nil {
+		return err
+	}
+	return ctx.Send(map[string]any{
+		"type":    "logLine",
+		"logLine": payload,
+	})
+}
+
+func sendSearchState(ctx *brickly.CommandContext, state SearchStatePayload) error {
+	payload, err := asJSONValue(state)
+	if err != nil {
+		return err
+	}
+	return ctx.Send(map[string]any{
+		"type":        "searchState",
+		"searchState": payload,
+	})
+}
+
+func searchCancelled(ctx context.Context) bool {
+	return ctx.Err() != nil
+}
 
 func logDebug(message string, fields map[string]any) {
 	if brickRuntime != nil {
@@ -127,179 +156,64 @@ func logError(message string, err error, fields map[string]any) {
 	}
 }
 
-// 若在命令上下文内，优先挂到当前 command Span
-func logWarnOn(requestID, message string, fields map[string]any) {
-	if active := getActiveCommand(requestID); active != nil && active.ctx != nil {
-		active.ctx.Warn(message, fields)
-		return
-	}
-	logWarn(message, fields)
-}
-
-func logErrorOn(requestID, message string, err error, fields map[string]any) {
-	if active := getActiveCommand(requestID); active != nil && active.ctx != nil {
-		active.ctx.Error(message, err, fields)
-		return
-	}
-	logError(message, err, fields)
-}
-
-// -------------------- 协议消息辅助 --------------------
-
-func sendProgress(_ string, _ float64, _ string) {}
-
-func sendChunk(_ string, _ GrepLine) {}
-
-func sendSearchState(_ string, _ SearchStatePayload) {}
-
-func sendResult(id string, result any) {
-	if active := getActiveCommand(id); active != nil {
-		active.result = result
-		return
-	}
-	m := map[string]any{"type": "command.result", "id": id}
-	if result != nil {
-		m["result"] = result
-	}
-	send(m)
-}
-
-func sendError(id, code, message string) {
-	if active := getActiveCommand(id); active != nil {
-		active.err = brickly.NewBppError(code, message)
-		return
-	}
-	send(map[string]any{
-		"type":  "command.error",
-		"id":    id,
-		"error": map[string]any{"code": code, "message": message},
-	})
-}
-
-func setActiveCommand(id string, active *activeCommand) {
-	activeMu.Lock()
-	defer activeMu.Unlock()
-	activeCommands[id] = active
-}
-
-func getActiveCommand(id string) *activeCommand {
-	activeMu.Lock()
-	defer activeMu.Unlock()
-	return activeCommands[id]
-}
-
-func deleteActiveCommand(id string) {
-	activeMu.Lock()
-	defer activeMu.Unlock()
-	delete(activeCommands, id)
-}
-
-// -------------------- 取消机制 --------------------
-
-func markCancelled(id string) {
-	var cancel context.CancelFunc
-	cancelMu.Lock()
-	cancelled[id] = true
-	cancel = activeCancels[id]
-	cancelMu.Unlock()
-	if cancel != nil {
-		cancel()
-	}
-}
-
-func clearCancelled(id string) {
-	cancelMu.Lock()
-	delete(cancelled, id)
-	delete(activeCancels, id)
-	cancelMu.Unlock()
-}
-
-func isCancelled(id string) bool {
-	cancelMu.Lock()
-	defer cancelMu.Unlock()
-	return cancelled[id]
-}
-
-func registerCancel(id string, cancel context.CancelFunc) {
-	cancelMu.Lock()
-	activeCancels[id] = cancel
-	shouldCancel := cancelled[id]
-	cancelMu.Unlock()
-	if shouldCancel {
-		cancel()
-	}
-}
-
-// -------------------- 配置文件读写 --------------------
-
 func getConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 	dir := filepath.Join(home, ".brickly")
-	// 确保目录存在
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
 	return filepath.Join(dir, "log-searcher.json"), nil
 }
 
-func handleLoadConfig(id string) {
+func handleLoadConfig(_ *brickly.CommandContext) (any, error) {
 	path, err := getConfigPath()
 	if err != nil {
-		sendError(id, "CONFIG_DIR_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_DIR_ERROR", err.Error())
 	}
 
-	// 如果配置文件不存在，返回空的默认配置
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		sendResult(id, map[string]any{
+		return map[string]any{
 			"config": map[string]any{"servers": []any{}},
-		})
-		return
+		}, nil
 	}
 
 	data, err := configFiles.Read(path)
 	if err != nil {
-		sendError(id, "CONFIG_READ_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_READ_ERROR", err.Error())
 	}
 
 	var parsed map[string]any
 	if err := json.Unmarshal(data, &parsed); err != nil {
-		sendError(id, "CONFIG_PARSE_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_PARSE_ERROR", err.Error())
 	}
 
-	sendResult(id, map[string]any{"config": parsed})
+	return map[string]any{"config": parsed}, nil
 }
 
-func handleSaveConfig(id string, input map[string]any) {
+func handleSaveConfig(_ *brickly.CommandContext, input map[string]any) (any, error) {
 	configVal, ok := input["config"]
 	if !ok {
-		sendError(id, "INVALID_INPUT", "config is required")
-		return
+		return nil, commandError("INVALID_INPUT", "config is required")
 	}
 
 	path, err := getConfigPath()
 	if err != nil {
-		sendError(id, "CONFIG_DIR_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_DIR_ERROR", err.Error())
 	}
 
 	data, err := json.MarshalIndent(configVal, "", "  ")
 	if err != nil {
-		sendError(id, "CONFIG_MARSHAL_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_MARSHAL_ERROR", err.Error())
 	}
 
 	if err := configFiles.Write(path, data); err != nil {
-		sendError(id, "CONFIG_WRITE_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_WRITE_ERROR", err.Error())
 	}
 
-	sendResult(id, map[string]any{"ok": true})
+	return map[string]any{"ok": true}, nil
 }
 
 func parseServerConfigInput(input map[string]any) (ServerConfig, error) {
@@ -340,17 +254,15 @@ func enabledLogPaths(server ServerConfig) []string {
 	return paths
 }
 
-func handleTestConnection(id string, input map[string]any) {
+func handleTestConnection(_ *brickly.CommandContext, input map[string]any) (any, error) {
 	server, err := parseServerConfigInput(input)
 	if err != nil {
-		sendError(id, "INVALID_INPUT", err.Error())
-		return
+		return nil, commandError("INVALID_INPUT", err.Error())
 	}
 	logPaths := enabledLogPaths(server)
 	client, err := dialSSHClient(server)
 	if err != nil {
-		sendError(id, "SSH_CONNECT_ERROR", err.Error())
-		return
+		return nil, commandError("SSH_CONNECT_ERROR", err.Error())
 	}
 	defer client.Close()
 
@@ -358,8 +270,7 @@ func handleTestConnection(id string, input map[string]any) {
 	if len(logPaths) > 0 {
 		files, err := ExpandRemotePaths(client, logPaths)
 		if err != nil {
-			sendError(id, "SSH_PATH_ERROR", err.Error())
-			return
+			return nil, commandError("SSH_PATH_ERROR", err.Error())
 		}
 		filesCount = len(files)
 	}
@@ -368,39 +279,34 @@ func handleTestConnection(id string, input map[string]any) {
 	if len(logPaths) > 0 {
 		message = fmt.Sprintf("SSH 连接成功，找到 %d 个日志文件。", filesCount)
 	}
-	sendResult(id, map[string]any{
+	return map[string]any{
 		"ok":         true,
 		"message":    message,
 		"filesCount": filesCount,
-	})
+	}, nil
 }
 
-// 列出当前服务器配置下的所有日志具体文件列表
-func handleListLogFiles(id string, input map[string]any) {
+func handleListLogFiles(_ *brickly.CommandContext, input map[string]any) (any, error) {
 	serverId, _ := input["serverId"].(string)
 	if serverId == "" {
-		sendError(id, "INVALID_INPUT", "serverId is required")
-		return
+		return nil, commandError("INVALID_INPUT", "serverId is required")
 	}
 
 	path, err := getConfigPath()
 	if err != nil {
-		sendError(id, "CONFIG_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_ERROR", err.Error())
 	}
 
 	data, err := configFiles.Read(path)
 	if err != nil {
-		sendError(id, "CONFIG_NOT_FOUND", "Please configure servers first.")
-		return
+		return nil, commandError("CONFIG_NOT_FOUND", "Please configure servers first.")
 	}
 
 	var appConfig struct {
 		Servers []ServerConfig `json:"servers"`
 	}
 	if err := json.Unmarshal(data, &appConfig); err != nil {
-		sendError(id, "CONFIG_PARSE_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_PARSE_ERROR", err.Error())
 	}
 
 	var targetServer *ServerConfig
@@ -412,15 +318,12 @@ func handleListLogFiles(id string, input map[string]any) {
 	}
 
 	if targetServer == nil {
-		sendError(id, "SERVER_NOT_FOUND", "Server config not found: "+serverId)
-		return
+		return nil, commandError("SERVER_NOT_FOUND", "Server config not found: "+serverId)
 	}
 	if err := validateSSHServer(*targetServer); err != nil {
-		sendError(id, "INVALID_SERVER_CONFIG", err.Error())
-		return
+		return nil, commandError("INVALID_SERVER_CONFIG", err.Error())
 	}
 
-	// 提取出所有日志路径配置（不管是否 Enabled，都列出来供前台多选）
 	var configPaths []string
 	for _, logConf := range targetServer.Logs {
 		if logConf.Path != "" {
@@ -429,24 +332,21 @@ func handleListLogFiles(id string, input map[string]any) {
 	}
 
 	if len(configPaths) == 0 {
-		sendResult(id, map[string]any{
+		return asJSONValue(map[string]any{
 			"files":     []string{},
 			"fileInfos": []RemoteLogFile{},
 		})
-		return
 	}
 
 	client, err := dialSSHClient(*targetServer)
 	if err != nil {
-		sendError(id, "SSH_CONNECT_ERROR", err.Error())
-		return
+		return nil, commandError("SSH_CONNECT_ERROR", err.Error())
 	}
 	defer client.Close()
 
 	expandedFiles, err := ExpandRemotePaths(client, configPaths)
 	if err != nil {
-		sendError(id, "SSH_EXPAND_ERROR", err.Error())
-		return
+		return nil, commandError("SSH_EXPAND_ERROR", err.Error())
 	}
 	fileInfos, err := ReadRemoteLogFileInfo(client, expandedFiles)
 	files := expandedFiles
@@ -468,13 +368,11 @@ func handleListLogFiles(id string, input map[string]any) {
 		fileInfos = filteredFileInfos
 	}
 
-	sendResult(id, map[string]any{
+	return asJSONValue(map[string]any{
 		"files":     files,
 		"fileInfos": fileInfos,
 	})
 }
-
-// -------------------- 检索命令处理 --------------------
 
 func parseGrepArgs(input map[string]any) GrepArgs {
 	argsInput, _ := input["args"].(map[string]any)
@@ -523,109 +421,100 @@ func parseSearchInput(input map[string]any, targetServer ServerConfig) searchInp
 	return parsed
 }
 
-func handleSearch(id string, input map[string]any) {
-	serverId, _ := input["serverId"].(string)
-
+func loadServerConfig(serverId string) (*ServerConfig, error) {
 	if serverId == "" {
-		sendError(id, "INVALID_INPUT", "serverId is required")
-		return
+		return nil, commandError("INVALID_INPUT", "serverId is required")
 	}
 
-	// 获取服务器连接与路径配置
 	path, err := getConfigPath()
 	if err != nil {
-		sendError(id, "CONFIG_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_ERROR", err.Error())
 	}
 
 	data, err := configFiles.Read(path)
 	if err != nil {
-		sendError(id, "CONFIG_NOT_FOUND", "Please configure servers first.")
-		return
+		return nil, commandError("CONFIG_NOT_FOUND", "Please configure servers first.")
 	}
 
 	var appConfig struct {
 		Servers []ServerConfig `json:"servers"`
 	}
 	if err := json.Unmarshal(data, &appConfig); err != nil {
-		sendError(id, "CONFIG_PARSE_ERROR", err.Error())
-		return
+		return nil, commandError("CONFIG_PARSE_ERROR", err.Error())
 	}
 
-	// 查找当前选中的服务器
-	var targetServer *ServerConfig
 	for i := range appConfig.Servers {
 		if appConfig.Servers[i].ID == serverId {
-			targetServer = &appConfig.Servers[i]
-			break
+			target := &appConfig.Servers[i]
+			if err := validateSSHServer(*target); err != nil {
+				return nil, commandError("INVALID_SERVER_CONFIG", err.Error())
+			}
+			return target, nil
 		}
 	}
+	return nil, commandError("SERVER_NOT_FOUND", "Server config not found: "+serverId)
+}
 
-	if targetServer == nil {
-		sendError(id, "SERVER_NOT_FOUND", "Server config not found: "+serverId)
-		return
-	}
-	if err := validateSSHServer(*targetServer); err != nil {
-		sendError(id, "INVALID_SERVER_CONFIG", err.Error())
-		return
+func handleSearch(cmd *brickly.CommandContext, input map[string]any) (any, error) {
+	serverId, _ := input["serverId"].(string)
+	targetServer, err := loadServerConfig(serverId)
+	if err != nil {
+		return nil, err
 	}
 
 	search := parseSearchInput(input, *targetServer)
 
 	if search.HasExplicitFiles && len(search.LogPaths) == 0 {
-		sendError(id, "NO_FILES_SELECTED", "Select at least one loaded log file before searching.")
-		return
+		return nil, commandError("NO_FILES_SELECTED", "Select at least one loaded log file before searching.")
 	}
 	if len(search.LogPaths) == 0 {
-		sendError(id, "NO_LOG_PATHS", "No log files or paths specified for this search.")
-		return
+		return nil, commandError("NO_LOG_PATHS", "No log files or paths specified for this search.")
 	}
 
 	if search.ResultMode == storeResultMode {
-		handleStoredSearch(id, *targetServer, search)
-		return
+		return handleStoredSearch(cmd, *targetServer, search)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	registerCancel(id, cancel)
-	defer clearCancelled(id)
+	searchCtx := cmd.Context()
+	if err := sendProgress(cmd, 0.1, "Connecting & searching logs..."); err != nil {
+		return nil, err
+	}
 
-	sendProgress(id, 0.1, "Connecting & searching logs...")
-
-	searchErr := RunRemoteGrep(ctx, *targetServer, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) {
-		if ctx.Err() != nil || isCancelled(id) {
+	searchErr := RunRemoteGrep(searchCtx, *targetServer, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) {
+		if searchCancelled(searchCtx) {
 			return
 		}
-		sendChunk(id, line)
+		_ = sendLogLine(cmd, line)
 	})
 
 	if searchErr != nil {
-		if ctx.Err() != nil || isCancelled(id) {
-			sendError(id, "CANCELLED", "Search cancelled by user.")
-		} else {
-			sendError(id, "SEARCH_FAILED", searchErr.Error())
+		if searchCancelled(searchCtx) {
+			return nil, commandError("CANCELLED", "Search cancelled by user.")
 		}
-		return
+		return nil, commandError("SEARCH_FAILED", searchErr.Error())
 	}
 
-	sendProgress(id, 1.0, "Search completed successfully.")
-	sendResult(id, map[string]any{"completed": true})
+	if err := sendProgress(cmd, 1.0, "Search completed successfully."); err != nil {
+		return nil, err
+	}
+	return map[string]any{"completed": true}, nil
 }
 
-func handleStoredSearch(id string, targetServer ServerConfig, search searchInput) {
-	ctx, cancel := context.WithCancel(context.Background())
+func handleStoredSearch(cmd *brickly.CommandContext, targetServer ServerConfig, search searchInput) (any, error) {
+	searchCtx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 	runID, activeSearch := storedSearches.Start(search.ServerID, search.LogPaths, cancel)
 	defer storedSearches.Finish(search.ServerID, activeSearch)
-	registerCancel(id, cancel)
-	defer clearCancelled(id)
 
 	if state, ok := searchResults.State(search.ServerID, runID); ok {
-		sendSearchState(id, state)
+		if err := sendSearchState(cmd, state); err != nil {
+			return nil, err
+		}
 	}
 
-	sendProgress(id, 0.1, "Connecting & searching logs...")
+	if err := sendProgress(cmd, 0.1, "Connecting & searching logs..."); err != nil {
+		return nil, err
+	}
 
 	lastStateSent := time.Time{}
 	emitState := func(force bool) {
@@ -633,13 +522,14 @@ func handleStoredSearch(id string, targetServer ServerConfig, search searchInput
 			return
 		}
 		if state, ok := searchResults.State(search.ServerID, runID); ok {
-			sendSearchState(id, state)
-			lastStateSent = time.Now()
+			if err := sendSearchState(cmd, state); err == nil {
+				lastStateSent = time.Now()
+			}
 		}
 	}
 
 	appendLine := func(line GrepLine) {
-		if ctx.Err() != nil || isCancelled(id) {
+		if searchCancelled(searchCtx) {
 			return
 		}
 		tabID := line.File
@@ -659,31 +549,33 @@ func handleStoredSearch(id string, targetServer ServerConfig, search searchInput
 		startStoredSearchFile(searchResults, search.ServerID, runID, tabID, emitState)
 	}
 
-	searchErr := runStoredRemoteGrep(ctx, targetServer, search, runID, startFile, appendLine, finishFile)
+	searchErr := runStoredRemoteGrep(searchCtx, targetServer, search, runID, startFile, appendLine, finishFile)
 
 	if searchErr != nil {
 		status := searchStatusError
 		message := searchErr.Error()
-		if ctx.Err() != nil || isCancelled(id) {
+		if searchCancelled(searchCtx) {
 			status = searchStatusCancelled
 			message = "Search cancelled by user."
 		}
 		if state, ok := searchResults.FinishRun(search.ServerID, runID, status, message); ok {
-			sendSearchState(id, state)
+			_ = sendSearchState(cmd, state)
 		}
 		if status == searchStatusCancelled {
-			sendError(id, "CANCELLED", message)
-		} else {
-			sendError(id, "SEARCH_FAILED", message)
+			return nil, commandError("CANCELLED", message)
 		}
-		return
+		return nil, commandError("SEARCH_FAILED", message)
 	}
 
 	if state, ok := searchResults.FinishRun(search.ServerID, runID, searchStatusSuccess, ""); ok {
-		sendSearchState(id, state)
+		if err := sendSearchState(cmd, state); err != nil {
+			return nil, err
+		}
 	}
-	sendProgress(id, 1.0, "Search completed successfully.")
-	sendResult(id, map[string]any{"completed": true, "runId": runID})
+	if err := sendProgress(cmd, 1.0, "Search completed successfully."); err != nil {
+		return nil, err
+	}
+	return map[string]any{"completed": true, "runId": runID}, nil
 }
 
 func startStoredSearchFile(
@@ -718,45 +610,42 @@ func runStoredRemoteGrep(
 	})
 }
 
-func handlePeekSearchResults(id string, input map[string]any) {
+func handlePeekSearchResults(_ *brickly.CommandContext, input map[string]any) (any, error) {
 	serverID, _ := input["serverId"].(string)
 	runID, _ := input["runId"].(string)
 	tabID, _ := input["tabId"].(string)
 	if serverID == "" || runID == "" || tabID == "" {
-		sendError(id, "INVALID_INPUT", "serverId, runId and tabId are required")
-		return
+		return nil, commandError("INVALID_INPUT", "serverId, runId and tabId are required")
 	}
 
 	offset := intFromInput(input["offset"], 0)
 	limit := intFromInput(input["limit"], defaultPeekLimit)
-	sendResult(id, searchResults.Peek(serverID, runID, tabID, offset, limit))
+	return asJSONValue(searchResults.Peek(serverID, runID, tabID, offset, limit))
 }
 
-func handleFindSearchResults(id string, input map[string]any) {
+func handleFindSearchResults(_ *brickly.CommandContext, input map[string]any) (any, error) {
 	serverID, _ := input["serverId"].(string)
 	runID, _ := input["runId"].(string)
 	tabID, _ := input["tabId"].(string)
 	keyword, _ := input["keyword"].(string)
 	direction, _ := input["direction"].(string)
 	if serverID == "" || runID == "" || tabID == "" {
-		sendError(id, "INVALID_INPUT", "serverId, runId and tabId are required")
-		return
+		return nil, commandError("INVALID_INPUT", "serverId, runId and tabId are required")
 	}
 
 	fromLine := intFromInput(input["fromLine"], -1)
 	fromColumn := intFromInput(input["fromColumn"], -1)
 	ignoreCase := boolFromInput(input["ignoreCase"], true)
-	sendResult(id, searchResults.Find(serverID, runID, tabID, keyword, direction, fromLine, fromColumn, ignoreCase))
+	return asJSONValue(searchResults.Find(serverID, runID, tabID, keyword, direction, fromLine, fromColumn, ignoreCase))
 }
 
-func handleClearSearchResults(id string, input map[string]any) {
+func handleClearSearchResults(_ *brickly.CommandContext, input map[string]any) (any, error) {
 	serverID, _ := input["serverId"].(string)
 	if serverID == "" {
-		sendError(id, "INVALID_INPUT", "serverId is required")
-		return
+		return nil, commandError("INVALID_INPUT", "serverId is required")
 	}
 	storedSearches.Clear(serverID)
-	sendResult(id, map[string]any{"ok": true})
+	return map[string]any{"ok": true}, nil
 }
 
 func boolFromInput(value any, fallback bool) bool {
@@ -782,48 +671,33 @@ func intFromInput(value any, fallback int) int {
 	return fallback
 }
 
-// SDK 主入口
 func main() {
 	runtime := brickly.New(brickly.Options{BrickID: brickID})
 	brickRuntime = runtime
 
-	registerCommand := func(commandID string, handler func(string, map[string]any)) {
-		runtime.OnCommand(commandID, func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
-			payload := map[string]any{}
-			_ = json.Unmarshal(input, &payload)
-			active := &activeCommand{ctx: ctx}
-			setActiveCommand(ctx.RequestID, active)
-			defer deleteActiveCommand(ctx.RequestID)
-			defer clearCancelled(ctx.RequestID)
-
-			done := make(chan struct{})
-			go func() {
-				select {
-				case <-ctx.Context().Done():
-					markCancelled(ctx.RequestID)
-				case <-done:
-				}
-			}()
-			defer close(done)
-
-			// 不再打 invoke start/end：宿主 Trace 已覆盖调用生命周期，stderr 噪音无价值
-			handler(ctx.RequestID, payload)
-			if active.err != nil {
-				return nil, active.err
-			}
-			return active.result, nil
-		})
-	}
-
-	registerCommand("search", handleSearch)
-	registerCommand("peek_search_results", handlePeekSearchResults)
-	registerCommand("find_search_results", handleFindSearchResults)
-	registerCommand("clear_search_results", handleClearSearchResults)
-	registerCommand("save_config", handleSaveConfig)
-	registerCommand("test_connection", handleTestConnection)
-	registerCommand("list_log_files", handleListLogFiles)
-	registerCommand("load_config", func(id string, _ map[string]any) {
-		handleLoadConfig(id)
+	runtime.OnCommand("search", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handleSearch(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("peek_search_results", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handlePeekSearchResults(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("find_search_results", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handleFindSearchResults(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("clear_search_results", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handleClearSearchResults(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("save_config", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handleSaveConfig(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("test_connection", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handleTestConnection(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("list_log_files", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+		return handleListLogFiles(ctx, decodeCommandInput(input))
+	})
+	runtime.OnCommand("load_config", func(ctx *brickly.CommandContext, _ json.RawMessage) (any, error) {
+		return handleLoadConfig(ctx)
 	})
 
 	runtime.Start()

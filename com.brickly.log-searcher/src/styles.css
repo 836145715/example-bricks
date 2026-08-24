@@ -666,12 +666,20 @@ html, body, #root {
 
 .results-console {
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: #0b0b0c;
   padding: 12px 16px;
   font-family: "JetBrains Mono", Consolas, Menlo, Monaco, monospace;
   font-size: 12px;
   position: relative;
+}
+
+.results-console-list {
+  flex: 1;
+  min-height: 0;
 }
 
 .results-console-with-find {
@@ -741,6 +749,15 @@ html, body, #root {
   width: 100%;
 }
 
+.flow-log-list {
+  width: 100%;
+}
+
+.flow-log-spacer {
+  width: 100%;
+  pointer-events: none;
+}
+
 /* 日志流样式 */
 .log-row {
   display: flex;
@@ -748,10 +765,10 @@ html, body, #root {
   border-radius: 3px;
   overflow: hidden;
   box-sizing: border-box;
-  contain: layout style paint;
 }
 
 .log-row:not(.log-row-wrap) {
+  contain: layout style paint;
   height: 22px;
   line-height: 22px;
 }
@@ -820,10 +837,11 @@ html, body, #root {
   opacity: 0.65;
 }
 
-/* 自动换行模式样式支持 */
+/* 自动换行：高度必须由内容撑开，虚拟列表才能量到真实行高。禁止 !important 盖住测量。 */
 .log-row.log-row-wrap {
   line-height: 1.4;
-  height: auto !important; /* 允许高度随内容自动撑满 */
+  height: auto;
+  overflow: visible;
   padding: 2px 0 3px;
 }
 
@@ -1174,6 +1192,7 @@ html, body, #root {
   justify-content: center;
   padding: 28px 20px 20px;
   background: rgba(8, 8, 10, 0.58);
+  cursor: default;
 }
 
 .config-modal {

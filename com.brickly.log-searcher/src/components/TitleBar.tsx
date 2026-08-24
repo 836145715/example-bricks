@@ -30,7 +30,7 @@ export function TitleBar() {
       <div className="titlebar-drag">
         <span className="titlebar-mark" aria-hidden />
         <span className="titlebar-title">日志查询工具</span>
-        <span className="titlebar-id">{window.brickly?.brickId ?? 'com.brickly.log-searcher'}</span>
+        <span className="titlebar-id">{window.brickly?.ref?.brickId ?? 'com.brickly.log-searcher'}</span>
       </div>
 
       <div className="titlebar-controls">

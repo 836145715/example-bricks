@@ -1,216 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual'
-import {
-  Server,
-  Plus,
-  Settings,
-  Trash2,
-  Search,
-  XCircle,
-  X,
-  Folder,
-  Copy,
-  Play,
-  Check,
-  AlertTriangle,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Palette,
-  PlugZap,
-  TextWrap,
-  ChevronUp,
-  ChevronDown
-} from 'lucide-react'
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import type { VirtuosoHandle } from 'react-virtuoso'
+import { ConfigModal } from './components/ConfigModal'
+import { ResultsPane } from './components/ResultsPane'
+import { SearchToolbar } from './components/SearchToolbar'
+import { ServerSidebar } from './components/ServerSidebar'
+import { StatusBar } from './components/StatusBar'
+import { TitleBar } from './components/TitleBar'
 import {
   DEFAULT_STATUS_HIGHLIGHT_KEYWORDS,
-  HIGHLIGHT_WORD_SEPARATOR,
   HighlightKeywordTextMap,
   StatusHighlightKind,
   buildStatusHighlightRules,
   countFindMatches,
-  escapeRegExp,
-  mergeHighlightRanges
+  escapeRegExp
 } from './domain/highlight'
-import { TitleBar } from './components/TitleBar'
 import {
-  formatLogFileSize,
   getDefaultSelectedFiles,
-  getLogFileName,
   isSearchableLogFile,
   normalizeRemoteLogFiles,
   sortRemoteLogFilesByModifiedAt,
   type RemoteLogFile
 } from './domain/logFiles'
-
-// --- 声明 window 上的全局 brickly 属性类型 ---
-declare global {
-  interface Window {
-    brickly?: {
-      brickId: string
-      invoke(commandId: string, input: Record<string, any>): Promise<any>
-      stream(
-        commandId: string,
-        input: Record<string, any>,
-        callbacks: {
-          onProgress?: (progress: number, message?: string) => void
-          onChunk?: (name: string | undefined, chunk: any) => void
-          onOutput?: (name: string, value: any) => void
-          onResult?: (result: any) => void
-          onError?: (error: { code: string; message: string; details?: any }) => void
-          onDone?: () => void
-        }
-      ): { cancel(): void }
-      closeWindow?(): void
-      window?: {
-        minimize(): Promise<void>
-        toggleMaximize(): Promise<boolean>
-        close(): Promise<void>
-        isMaximized(): Promise<boolean>
-        onMaximizeChange(callback: (maximized: boolean) => void): () => void
-      }
-      system: any
-    }
-  }
-}
-
-interface LogFileConfig {
-  path: string
-  enabled: boolean
-}
-
-interface ServerConfig {
-  id: string
-  name: string
-  host: string
-  port: number
-  user: string
-  authType: 'password' | 'key'
-  password?: string
-  keyPath?: string
-  keyText?: string
-  logs: LogFileConfig[]
-}
-
-interface GrepArgs {
-  ignoreCase: boolean
-  invert: boolean
-  wordRegexp: boolean
-  regexp: boolean
-  contextA: number
-  contextB: number
-  contextC: number
-  onlyMatch: boolean
-  maxCount: number // 每文件保留最新 N 条命中，0 表示不限
-  showLineNum: boolean // 兼容旧调用，UI 固定关闭
-  showFilename: boolean // 兼容旧调用，UI 固定关闭
-  fromTail: boolean // 仅搜索文件尾部窗口
-  tailLines: number // 文件尾部窗口行数
-  filters?: FilterConfig[]
-}
-
-interface FilterConfig {
-  pattern: string
-  regexp: boolean
-  ignoreCase: boolean
-  invert: boolean
-  wordRegexp: boolean
-}
-
-interface ParsedLogLine {
-  id: string
-  index: number
-  file: string
-  content: string
-  isContext: boolean
-  error?: string
-  matches?: Array<[number, number]>
-}
-
-const FALLBACK_RESULTS_SCOPE = '__fallback__'
-
-type FileSearchStatus = 'idle' | 'queued' | 'searching' | 'success' | 'error' | 'cancelled' | 'done'
-type FileListStatus = 'idle' | 'loading' | 'ready' | 'error'
-
-interface FileSearchState {
-  count: number
-  durationMs: number
-  active: boolean
-  status: FileSearchStatus
-  message?: string
-  truncated?: boolean
-}
-
-interface SearchFileStatePayload {
-  tabId: string
-  total: number
-  status: FileSearchStatus
-  message?: string
-  durationMs: number
-  truncated?: boolean
-  active?: boolean
-}
-
-interface SearchStatePayload {
-  serverId: string
-  runId: string
-  tabId?: string
-  tabs?: string[]
-  files?: SearchFileStatePayload[]
-  status: FileSearchStatus
-  message?: string
-  total: number
-  durationMs: number
-  truncated?: boolean
-  active?: boolean
-}
-
-interface PeekResult {
-  runId: string
-  tabId: string
-  total: number
-  offset: number
-  lines: Array<{
-    index: number
-    text: string
-    matches?: Array<[number, number]>
-    file?: string
-    isContext?: boolean
-    error?: string
-  }>
-  status: FileSearchStatus
-  message?: string
-  durationMs: number
-  truncated?: boolean
-}
-
-interface FindResult {
-  runId: string
-  tabId: string
-  keyword: string
-  total: number
-  ordinal: number
-  lineIndex: number
-  start: number
-  end: number
-  status: FileSearchStatus
-  message?: string
-  durationMs: number
-  truncated?: boolean
-}
-
-interface ResultWindowState {
-  runId: string
-  tabId: string
-  offset: number
-  limit: number
-  total: number
-  lines: ParsedLogLine[]
-  status: FileSearchStatus
-  message?: string
-  durationMs: number
-  truncated?: boolean
-  loading: boolean
-}
+import {
+  getJumpPeekWindow,
+  type JumpAlign
+} from './virtualJump'
+import {
+  BricklyInteractSession,
+  BricklySearchEvent,
+  BricklyStartedHandle,
+  DEFAULT_GREP_ARGS,
+  FALLBACK_RESULTS_SCOPE,
+  FileListStatus,
+  FileSearchState,
+  FileSearchStatus,
+  FilterConfig,
+  FindResult,
+  GrepArgs,
+  LogFileConfig,
+  ParsedLogLine,
+  PeekResult,
+  ResultWindowState,
+  SearchStatePayload,
+  ServerConfig
+} from './types'
 
 const LOG_ROW_HEIGHT = 22
 const WRAPPED_LOG_ROW_ESTIMATE_HEIGHT = 36
@@ -289,6 +122,7 @@ export function App() {
   const [findResultMap, setFindResultMap] = useState<Record<string, FindResult | null>>({})
   const [findLoadingMap, setFindLoadingMap] = useState<Record<string, boolean>>({})
   const findInputRef = useRef<HTMLInputElement | null>(null)
+  const runtimeRef = useRef<BricklyStartedHandle | null>(null)
 
   const [statusMessage, setStatusMessage] = useState<string>('就绪')
   const [statusDot, setStatusDot] = useState<'active' | 'warn' | 'error' | ''>('active')
@@ -300,7 +134,9 @@ export function App() {
   }
 
   // 虚拟滚动状态与 Ref
-  const consoleContainerRef = useRef<HTMLDivElement | null>(null)
+  const consoleContainerRef = useRef<HTMLElement | null>(null)
+  const virtuosoRef = useRef<VirtuosoHandle | null>(null)
+  const visibleRangeRef = useRef({ startIndex: 0, endIndex: 0 })
   const scrollTopRef = useRef(0)
   const [wrapLines, setWrapLines] = useState<boolean>(() => {
     return localStorage.getItem(LOG_WRAP_PREFERENCE_KEY) !== 'false'
@@ -372,23 +208,8 @@ export function App() {
   const [availableFilesMap, setAvailableFilesMap] = useState<Record<string, RemoteLogFile[]>>({})
   const [selectedFilesMap, setSelectedFilesMap] = useState<Record<string, string[]>>({})
   const [fileListStatusMap, setFileListStatusMap] = useState<Record<string, FileListStatus>>({})
-  const [dropdownOpen, setDropdownOpen] = useState<boolean>(false)
-  // 文件名筛选按服务器独立，避免切换连接后仍带着上一页的过滤词
-  const [fileFilterTextMap, setFileFilterTextMap] = useState<Record<string, string>>({})
-  const dropdownRef = useRef<HTMLDivElement | null>(null)
   const fileListRequestIDsRef = useRef<Record<string, number>>({})
   const fileListRetryTimersRef = useRef<Record<string, ReturnType<typeof window.setTimeout>>>({})
-
-  // 点击外部自动收起下拉框
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [])
 
   useEffect(() => () => {
     for (const timer of Object.values(fileListRetryTimersRef.current)) {
@@ -396,9 +217,17 @@ export function App() {
     }
   }, [])
 
+  const invokeSelf = (commandId: string, input: Record<string, any> = {}) => {
+    const runtime = runtimeRef.current
+    if (!runtime) {
+      return Promise.reject(new Error('Runtime 尚未就绪，请稍后重试'))
+    }
+    return runtime.invoke(commandId, input)
+  }
+
   // 刷新拉取当前服务器下的日志文件列表
   const fetchAvailableFiles = async (serverId: string, attempt = 0, requestID?: number) => {
-    if (!window.brickly || !serverId) return
+    if (!runtimeRef.current || !serverId) return
 
     let activeRequestID = requestID
     if (activeRequestID === undefined) {
@@ -413,7 +242,7 @@ export function App() {
     setFileListStatusMap(prev => ({ ...prev, [serverId]: 'loading' }))
 
     try {
-      const res = await window.brickly.invoke('list_log_files', { serverId })
+      const res = await invokeSelf('list_log_files', { serverId })
       if (fileListRequestIDsRef.current[serverId] !== activeRequestID) return
       const files = sortRemoteLogFilesByModifiedAt(
         normalizeRemoteLogFiles(res).filter(isSearchableLogFile)
@@ -485,24 +314,8 @@ export function App() {
     return searchPatterns[id] ?? ''
   }
 
-  const defaultGrepArgs: GrepArgs = {
-    ignoreCase: true,
-    invert: false,
-    wordRegexp: false,
-    regexp: false,
-    contextA: 0,
-    contextB: 0,
-    contextC: 0,
-    onlyMatch: false,
-    maxCount: 500,
-    showLineNum: false,
-    showFilename: false,
-    fromTail: false,
-    tailLines: 1000
-  }
-
   const getGrepArgs = (id: string): GrepArgs => {
-    return grepArgsMap[id] ?? defaultGrepArgs
+    return grepArgsMap[id] ?? DEFAULT_GREP_ARGS
   }
 
   const makeScopeKey = (serverId: string, tabId: string): string => {
@@ -533,7 +346,6 @@ export function App() {
   const findKeyword = activeServerId ? (findKeywordMap[activeServerId] ?? '') : ''
   const showFindBar = activeServerId ? !!showFindBarMap[activeServerId] : false
   const findLoading = activeServerId ? !!findLoadingMap[activeServerId] : false
-  const fileFilterText = activeServerId ? (fileFilterTextMap[activeServerId] ?? '') : ''
 
   const setFindKeywordForServer = (serverId: string, keyword: string) => {
     if (!serverId) return
@@ -675,10 +487,11 @@ export function App() {
   const pendingJumpRef = useRef<Record<string, {
     runId: string
     targetIndex: number
-    align: 'start' | 'end'
+    align: JumpAlign
     renderStart: number
     renderEnd: number
   }>>({})
+  const [jumpEpoch, setJumpEpoch] = useState(0)
 
   const getOrCreateSessionRef = (scopeKey: string, serverId?: string, tabId?: string): SessionControl => {
     if (!sessionsRef.current[scopeKey]) {
@@ -844,7 +657,7 @@ export function App() {
     offset: number,
     limit: number
   ) => {
-    if (!window.brickly || !serverId || !runId || !tabId) return
+    if (!runtimeRef.current || !serverId || !runId || !tabId) return
     const scopeKey = makeScopeKey(serverId, tabId)
     setResultWindowMap(prev => ({
       ...prev,
@@ -866,7 +679,7 @@ export function App() {
     }))
 
     try {
-      const result: PeekResult = await window.brickly.invoke('peek_search_results', {
+      const result: PeekResult = await invokeSelf('peek_search_results', {
         serverId,
         runId,
         tabId,
@@ -951,13 +764,37 @@ export function App() {
     }
   }
 
-  const locateFindResult = (scopeKey: string, result: FindResult) => {
+  const beginJump = (targetIndex: number, align: JumpAlign) => {
+    if (!currentScopeKey || totalResultCount <= 0) return
+    const runId = getCurrentRunId(activeServerId)
+    const containerHeight = consoleContainerRef.current?.clientHeight || 600
+    const estimatedRowHeight = wrapLines ? WRAPPED_LOG_ROW_ESTIMATE_HEIGHT : LOG_ROW_HEIGHT
+    const visibleCount = Math.max(1, Math.ceil(containerHeight / estimatedRowHeight))
+    const peekWindow = getJumpPeekWindow(
+      totalResultCount,
+      targetIndex,
+      align,
+      visibleCount,
+      VIRTUAL_OVERSCAN_ROWS,
+      PEEK_MAX_LIMIT
+    )
+    pendingJumpRef.current[currentScopeKey] = {
+      runId,
+      targetIndex,
+      align,
+      renderStart: peekWindow.renderStart,
+      renderEnd: peekWindow.renderEnd
+    }
+    setJumpEpoch(value => value + 1)
+    if (runId && runtimeRef.current) {
+      peekRequestSignaturesRef.current[currentScopeKey] = ''
+      peekResultWindow(activeServerId, runId, activeTabId, peekWindow.offset, peekWindow.limit)
+    }
+  }
+
+  const locateFindResult = (_scopeKey: string, result: FindResult) => {
     if (result.lineIndex < 0) return
-    const prefetchOffset = Math.max(0, result.lineIndex - 25)
-    const prefetchLimit = Math.min(PEEK_MAX_LIMIT, 80)
-    peekRequestSignaturesRef.current[scopeKey] = ''
-    peekResultWindow(activeServerId, result.runId, result.tabId, prefetchOffset, prefetchLimit)
-    rowVirtualizer.scrollToIndex(result.lineIndex, { align: 'center' })
+    beginJump(result.lineIndex, 'center')
   }
 
   const updateStoredScrollTop = (scopeKey: string) => {
@@ -970,53 +807,16 @@ export function App() {
   }
 
   const handleJumpToTop = () => {
-    if (!currentScopeKey || totalResultCount <= 0) return
-    const runId = getCurrentRunId(activeServerId)
-    const limit = Math.min(PEEK_MAX_LIMIT, Math.min(Math.max(80, VIRTUAL_OVERSCAN_ROWS * 4), totalResultCount))
-    if (!runId) {
-      rowVirtualizer.scrollToIndex(0, { align: 'start' })
-      window.requestAnimationFrame(() => updateStoredScrollTop(currentScopeKey))
-      return
-    }
-    pendingJumpRef.current[currentScopeKey] = {
-      runId,
-      targetIndex: 0,
-      align: 'start',
-      renderStart: 0,
-      renderEnd: Math.max(0, limit - 1)
-    }
-    if (runId && window.brickly) {
-      peekRequestSignaturesRef.current[currentScopeKey] = ''
-      peekResultWindow(activeServerId, runId, activeTabId, 0, limit)
-    }
+    beginJump(0, 'start')
   }
 
   const handleJumpToBottom = () => {
-    if (!currentScopeKey || totalResultCount <= 0) return
-    const runId = getCurrentRunId(activeServerId)
-    const targetIndex = totalResultCount - 1
-    const limit = Math.min(PEEK_MAX_LIMIT, Math.min(Math.max(80, VIRTUAL_OVERSCAN_ROWS * 4), totalResultCount))
-    const offset = Math.max(0, totalResultCount - limit)
-    if (!runId) {
-      rowVirtualizer.scrollToIndex(targetIndex, { align: 'end' })
-      window.requestAnimationFrame(() => updateStoredScrollTop(currentScopeKey))
-      return
-    }
-    pendingJumpRef.current[currentScopeKey] = {
-      runId,
-      targetIndex,
-      align: 'end',
-      renderStart: offset,
-      renderEnd: targetIndex
-    }
-    if (runId && window.brickly) {
-      peekRequestSignaturesRef.current[currentScopeKey] = ''
-      peekResultWindow(activeServerId, runId, activeTabId, offset, limit)
-    }
+    if (totalResultCount <= 0) return
+    beginJump(totalResultCount - 1, 'end')
   }
 
   const handleFindNavigate = async (direction: 'next' | 'prev') => {
-    if (!activeServerId || !activeTabId || !currentScopeKey || !window.brickly) return
+    if (!activeServerId || !activeTabId || !currentScopeKey || !runtimeRef.current) return
     const keyword = findKeyword.trim()
     const runId = getCurrentRunId(activeServerId)
     if (!keyword || !runId) return
@@ -1031,7 +831,7 @@ export function App() {
 
     setFindLoadingForServer(activeServerId, true)
     try {
-      const result: FindResult = await window.brickly.invoke('find_search_results', {
+      const result: FindResult = await invokeSelf('find_search_results', {
         serverId: activeServerId,
         runId,
         tabId: activeTabId,
@@ -1055,7 +855,7 @@ export function App() {
   }
 
   const schedulePeekCurrentWindow = () => {
-    if (!activeServerId || !activeTabId || !window.brickly) return
+    if (!activeServerId || !activeTabId || !runtimeRef.current) return
     const runId = getCurrentRunId(activeServerId)
     if (!runId) return
     const scopeKey = makeScopeKey(activeServerId, activeTabId)
@@ -1063,17 +863,16 @@ export function App() {
     const state = getFileSearchState(activeServerId, activeTabId)
     if (state.count <= 0 && !state.active) return
 
-    const virtualItems = rowVirtualizer.getVirtualItems()
     const estimatedRowHeight = wrapLines ? WRAPPED_LOG_ROW_ESTIMATE_HEIGHT : LOG_ROW_HEIGHT
+    const range = visibleRangeRef.current
+    const hasRange = range.endIndex >= range.startIndex && (range.endIndex > 0 || range.startIndex > 0)
     let startIndex = 0
     let limit = 50
 
-    if (virtualItems.length > 0) {
-      const firstVisibleIndex = virtualItems[0].index
-      const lastVisibleIndex = virtualItems[virtualItems.length - 1].index
-      const visibleCount = Math.max(lastVisibleIndex - firstVisibleIndex + 1, 1)
+    if (hasRange) {
+      const visibleCount = Math.max(range.endIndex - range.startIndex + 1, 1)
       const prefetchCount = Math.max(visibleCount, VIRTUAL_OVERSCAN_ROWS)
-      startIndex = Math.max(0, firstVisibleIndex - prefetchCount)
+      startIndex = Math.max(0, range.startIndex - prefetchCount)
       limit = Math.min(PEEK_MAX_LIMIT, Math.max(visibleCount + prefetchCount * 2, 50))
     } else {
       const containerHeight = consoleContainerRef.current?.clientHeight || 600
@@ -1102,19 +901,42 @@ export function App() {
     }, PEEK_DEBOUNCE_MS)
   }
 
-  // 1. 初始化时加载配置
+  // 1. owned 实例必须先 start() 钉住进程，再调命令；直接 invoke 会随 Call 结束被关掉
   useEffect(() => {
-    loadAppConfig()
+    let cancelled = false
+    let started: BricklyStartedHandle | null = null
+    void (async () => {
+      if (!window.brickly?.start) {
+        showStatus('底座 API 未注入，请在 AI-Bricks 宿主中运行本应用。', 'error')
+        return
+      }
+      try {
+        started = await window.brickly.start()
+        if (cancelled) {
+          await started.dispose()
+          return
+        }
+        runtimeRef.current = started
+        await loadAppConfig()
+      } catch (err: any) {
+        if (!cancelled) {
+          showStatus(`Runtime 启动失败: ${err?.message || err}`, 'error')
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+      runtimeRef.current = null
+      if (started) void started.dispose()
+    }
   }, [])
 
   // 2. 切换服务器时还原其对应的滚动位置
   useEffect(() => {
-    const container = consoleContainerRef.current
-    if (container && currentScopeKey) {
-      const sess = getOrCreateSessionRef(currentScopeKey)
-      container.scrollTop = sess.scrollTop
-      scrollTopRef.current = sess.scrollTop
-    }
+    if (!currentScopeKey) return
+    const sess = getOrCreateSessionRef(currentScopeKey)
+    scrollTopRef.current = sess.scrollTop
+    virtuosoRef.current?.scrollTo({ top: sess.scrollTop })
   }, [currentScopeKey])
 
   // Ctrl+F 查找高亮快捷键（只作用于当前服务器页面）
@@ -1162,12 +984,13 @@ export function App() {
   }, [highlightKeywords])
 
   // 滚动处理
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (!currentScopeKey) return
-    const targetScrollTop = e.currentTarget.scrollTop
-    scrollTopRef.current = targetScrollTop
-    const sess = getOrCreateSessionRef(currentScopeKey)
-    sess.scrollTop = targetScrollTop
+  const handleRangeChanged = (startIndex: number, endIndex: number) => {
+    visibleRangeRef.current = { startIndex, endIndex }
+    if (currentScopeKey) {
+      const nextScrollTop = consoleContainerRef.current?.scrollTop ?? scrollTopRef.current
+      scrollTopRef.current = nextScrollTop
+      getOrCreateSessionRef(currentScopeKey).scrollTop = nextScrollTop
+    }
     if (scrollPeekFrameRef.current !== null) return
     scrollPeekFrameRef.current = window.requestAnimationFrame(() => {
       scrollPeekFrameRef.current = null
@@ -1175,14 +998,18 @@ export function App() {
     })
   }
 
+  const handleScrollerRef = (element: HTMLElement | Window | null) => {
+    consoleContainerRef.current = element instanceof HTMLElement ? element : null
+  }
+
   // 加载配置
   const loadAppConfig = async () => {
-    if (!window.brickly) {
+    if (!runtimeRef.current) {
       showStatus('底座 API 未注入，请在 AI-Bricks 宿主中运行本应用。', 'error')
       return
     }
     try {
-      const res = await window.brickly.invoke('load_config', {})
+      const res = await invokeSelf('load_config', {})
       const loadedServers = res?.config?.servers || []
       setServers(loadedServers)
       if (loadedServers.length > 0) {
@@ -1196,9 +1023,9 @@ export function App() {
 
   // 保存配置
   const saveAppConfig = async (nextServers: ServerConfig[]) => {
-    if (!window.brickly) return
+    if (!runtimeRef.current) return
     try {
-      await window.brickly.invoke('save_config', {
+      await invokeSelf('save_config', {
         config: { servers: nextServers }
       })
       setServers(nextServers)
@@ -1249,7 +1076,6 @@ export function App() {
 
   const handleSelectServer = (srv: ServerConfig) => {
     setActiveServerId(srv.id)
-    setDropdownOpen(false)
     if (configPanelOpen) {
       syncConfigPanelToServer(srv)
     }
@@ -1321,7 +1147,7 @@ export function App() {
     if (!confirm('确定要删除该服务器配置吗？')) return
     
     handleStopSearchForServer(srvId)
-    window.brickly?.invoke('clear_search_results', { serverId: srvId }).catch(() => {})
+    void invokeSelf('clear_search_results', { serverId: srvId }).catch(() => {})
     clearPeekTrackingForServer(srvId)
     for (const scopeKey of Object.keys(sessionsRef.current)) {
       if (sessionsRef.current[scopeKey].serverId === srvId) {
@@ -1338,7 +1164,6 @@ export function App() {
     setFindKeywordMap(dropServerKey)
     setShowFindBarMap(dropServerKey)
     setFindLoadingMap(dropServerKey)
-    setFileFilterTextMap(dropServerKey)
     setSearchPatterns(dropServerKey)
     setExtraFiltersMap(dropServerKey)
     setGrepArgsMap(dropServerKey)
@@ -1354,7 +1179,6 @@ export function App() {
     if (activeServerId === srvId) {
       const nextActiveServer = next[0] ?? null
       setActiveServerId(nextActiveServer?.id || '')
-      setDropdownOpen(false)
       if (configPanelOpen) {
         syncConfigPanelToServer(nextActiveServer)
       }
@@ -1382,7 +1206,7 @@ export function App() {
 
   const handleTestConnection = async () => {
     if (!editingServer) return
-    if (!window.brickly) {
+    if (!runtimeRef.current) {
       setConnectionTest({ status: 'error', message: '底座 API 未注入，无法测试连接。' })
       return
     }
@@ -1395,7 +1219,7 @@ export function App() {
           .filter(log => log.path.trim() !== '')
           .map(log => ({ ...log, path: log.path.trim() }))
       }
-      const res = await window.brickly.invoke('test_connection', { server: serverToTest })
+      const res = await invokeSelf('test_connection', { server: serverToTest })
       setConnectionTest({
         status: res?.ok ? 'success' : 'error',
         message: res?.message || (res?.ok ? '连接可用。' : '连接测试失败。')
@@ -1503,7 +1327,7 @@ export function App() {
       showToast('请输入查询关键词或正则表达式')
       return
     }
-    if (!window.brickly) {
+    if (!runtimeRef.current) {
       showStatus('底座 API 未注入，请在 AI-Bricks 宿主中运行本应用。', 'error')
       return
     }
@@ -1602,44 +1426,77 @@ export function App() {
       showStatus(`正在检索 ${fileTabs.length} 个日志视图...`, 'warn')
     }
 
-    const handle = window.brickly.stream('search', {
-      serverId: targetServerId,
-      pattern: currentPattern,
-      args: searchArgs,
-      files: filesToSearch,
-      resultMode: 'store'
-    }, {
-      onProgress: (_progress: number, msg?: string) => {
-        if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) return
-        if (activeServerId === targetServerId) {
-          showStatus(msg || `正在检索 ${fileTabs.length} 个日志视图...`, 'warn')
+    const runtime = runtimeRef.current
+    if (!runtime) {
+      showStatus('Runtime 尚未就绪，请稍后重试。', 'error')
+      return
+    }
+    let session: BricklyInteractSession | null = null
+    const handle = {
+      cancel() {
+        session?.cancel('CANCELLED')
+      }
+    }
+
+    for (const tabId of fileTabs) {
+      const sess = getOrCreateSessionRef(makeScopeKey(targetServerId, tabId), targetServerId, tabId)
+      sess.streamHandle = handle
+      sess.active = true
+    }
+
+    void (async () => {
+      try {
+        session = await runtime.interact('search', {
+          serverId: targetServerId,
+          pattern: currentPattern,
+          args: searchArgs,
+          files: filesToSearch,
+          resultMode: 'store'
+        })
+        const activeSession = session
+        if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) {
+          activeSession.cancel('CANCELLED')
+          return
         }
-      },
-      onChunk: (name: string | undefined, chunk: any) => {
-        if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId || name !== 'searchState') return
-        updateStateFromSearchPayload(chunk as SearchStatePayload)
-      },
-      onResult: (result: any) => {
+
+        const pump = (async () => {
+          while (true) {
+            const raw = await activeSession.nextEvent()
+            if (raw === undefined) return
+            if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) return
+            const event = raw as BricklySearchEvent
+            if (event?.type === 'progress' && activeServerId === targetServerId) {
+              showStatus(event.message || `正在检索 ${fileTabs.length} 个日志视图...`, 'warn')
+            }
+            if (event?.type === 'searchState' && event.searchState) {
+              updateStateFromSearchPayload(event.searchState)
+            }
+          }
+        })()
+
+        await activeSession.closeInput()
+        const result = await activeSession.result as { runId?: string } | undefined
+        await pump
         if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) return
         if (result?.runId) {
           setServerRunIdsMap(prev => ({ ...prev, [targetServerId]: String(result.runId) }))
         }
-      },
-      onError: (err: { code: string; message: string; details?: any }) => {
+      } catch (err: any) {
         if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) return
+        const message = err?.message || String(err)
+        if (/CANCELLED/i.test(message)) return
         setIsSearchingMap(prev => ({ ...prev, [targetServerId]: false }))
         setFileSearchStateMap(prev => ({
           ...prev,
           [targetServerId]: Object.fromEntries(
             Object.entries(prev[targetServerId] ?? {}).map(([tabId, state]) => [
               tabId,
-              { ...state, active: false, status: 'error' as FileSearchStatus, message: err.message || '未知错误' }
+              { ...state, active: false, status: 'error' as FileSearchStatus, message: message || '未知错误' }
             ])
           )
         }))
-        showStatus(`检索出错: ${err.message || '未知错误'}`, 'error')
-      },
-      onDone: () => {
+        showStatus(`检索出错: ${message || '未知错误'}`, 'error')
+      } finally {
         if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) return
         setIsSearchingMap(prev => ({ ...prev, [targetServerId]: false }))
         const states = getFileSearchStates(targetServerId)
@@ -1653,13 +1510,7 @@ export function App() {
           }
         }
       }
-    })
-
-    for (const tabId of fileTabs) {
-      const sess = getOrCreateSessionRef(makeScopeKey(targetServerId, tabId), targetServerId, tabId)
-      sess.streamHandle = handle
-      sess.active = true
-    }
+    })()
   }
 
   // 停止当前服务器搜索
@@ -1677,110 +1528,6 @@ export function App() {
     })
   }
 
-  const getSearchMatchesFromLegacyLine = (
-    log: ParsedLogLine,
-    committedPattern: string,
-    committedArgs: GrepArgs
-  ): Array<[number, number]> => {
-    try {
-      let rePattern = committedArgs.regexp ? committedPattern : escapeRegExp(committedPattern)
-      if (committedArgs.wordRegexp) {
-        rePattern = '\\b' + rePattern + '\\b'
-      }
-      const flags = committedArgs.ignoreCase ? 'gi' : 'g'
-      const re = new RegExp(`(${rePattern})`, flags)
-      const parts = log.content.split(re)
-      let pos = 0
-      const matches: Array<[number, number]> = []
-
-      for (let i = 0; i < parts.length; i++) {
-        if (i % 2 === 1) {
-          matches.push([pos, pos + parts[i].length])
-        }
-        pos += parts[i].length
-      }
-
-      return matches
-    } catch {
-      return []
-    }
-  }
-
-  // 高亮渲染：新协议优先使用后端完整区间，旧协议再按主关键词兜底计算
-  const renderHighlightedContent = (log: ParsedLogLine) => {
-    const committedPattern = committedPatterns[activeServerId]
-    const committedArgs = committedGrepArgs[activeServerId]
-
-    // 收集检索匹配区间
-    let searchMatches: Array<[number, number]> = []
-    if (log.matches !== undefined) {
-      searchMatches = log.matches
-    } else if (committedPattern && !committedArgs?.invert) {
-      searchMatches = getSearchMatchesFromLegacyLine(log, committedPattern, committedArgs)
-    }
-
-    const activeFindResult = currentScopeKey ? findResultMap[currentScopeKey] : null
-    const activeFindRange = activeFindResult
-      && activeFindResult.keyword === findKeyword.trim()
-      && activeFindResult.lineIndex === log.index
-      && activeFindResult.start < activeFindResult.end
-      ? [activeFindResult.start, activeFindResult.end] as [number, number]
-      : null
-    const segments = mergeHighlightRanges(log.content, searchMatches, findRe, statusHighlightRules, activeFindRange)
-
-    return (
-      <span>
-        {segments.map((seg, i) =>
-          seg.className
-            ? <span key={i} className={seg.className}>{seg.text}</span>
-            : <span key={i}>{seg.text}</span>
-        )}
-      </span>
-    )
-  }
-
-  const getTabLabel = (tabId: string): string => {
-    if (tabId === FALLBACK_RESULTS_SCOPE) return '默认路径'
-    return getLogFileName(tabId)
-  }
-
-  const getTabFileSize = (serverId: string, tabId: string): string => {
-    if (tabId === FALLBACK_RESULTS_SCOPE) return ''
-    const file = (availableFilesMap[serverId] ?? []).find(candidate => candidate.path === tabId)
-    return file?.sizeBytes === undefined ? '' : formatLogFileSize(file.sizeBytes)
-  }
-
-  const getTabTitle = (tabId: string): string => {
-    if (tabId === FALLBACK_RESULTS_SCOPE) return '服务器配置中的启用日志路径'
-    return tabId
-  }
-
-  const getFileSearchStatusText = (state: FileSearchState): string => {
-    if (state.status === 'queued') return '等待检索'
-    if (state.status === 'searching') return '正在检索'
-    if (state.status === 'error') return `出错: ${state.message || '未知错误'}`
-    if (state.status === 'cancelled') return '已取消'
-    if (state.status === 'success' || state.status === 'done') {
-      return `已完成，匹配 ${state.count} 行${state.durationMs > 0 ? `，耗时 ${state.durationMs}ms` : ''}`
-    }
-    return '未检索'
-  }
-
-  const getTabStatusClass = (status: FileSearchStatus): string => {
-    if (status === 'queued') return 'queued'
-    if (status === 'searching') return 'searching'
-    if (status === 'error') return 'error'
-    if (status === 'cancelled') return 'warn'
-    if (status === 'success' || status === 'done') return 'success'
-    return ''
-  }
-
-  const getTabTitleWithStatus = (serverId: string, tabId: string): string => {
-    const state = getFileSearchState(serverId, tabId)
-    const fileSize = getTabFileSize(serverId, tabId)
-    return `${getTabTitle(tabId)}${fileSize ? `\n大小: ${fileSize}` : ''}\n${getFileSearchStatusText(state)}`
-  }
-
   const activeServer = servers.find(s => s.id === activeServerId)
   const resultTabs = getResultTabs(activeServerId)
   const visibleResultTabs = activeServerId ? resultTabs : []
@@ -1790,53 +1537,10 @@ export function App() {
   const activeResultWindow = currentScopeKey ? getResultWindow(currentScopeKey) : undefined
   const totalResultCount = Math.max(activeResultWindow?.total ?? 0, activeFileState.count)
   const activeResultCountKey = `${getCurrentRunId(activeServerId)}:${activeFileState.count}`
-  const pendingJump = currentScopeKey ? pendingJumpRef.current[currentScopeKey] : undefined
-  const pendingJumpRangeKey = pendingJump
-    ? `${pendingJump.runId}:${pendingJump.renderStart}:${pendingJump.renderEnd}:${pendingJump.targetIndex}`
-    : ''
   const visibleLogByIndex = React.useMemo(() => {
     return new Map(currentLogs.map(log => [log.index, log]))
   }, [currentLogs])
-  const rangeExtractor = React.useCallback((range: Parameters<typeof defaultRangeExtractor>[0]) => {
-    const indexes = new Set(defaultRangeExtractor(range))
-    const pending = currentScopeKey ? pendingJumpRef.current[currentScopeKey] : undefined
-    if (pending) {
-      for (let index = pending.renderStart; index <= pending.renderEnd; index++) {
-        indexes.add(index)
-      }
-    }
-    return Array.from(indexes).sort((left, right) => left - right)
-  }, [currentScopeKey, pendingJumpRangeKey])
-  const rowVirtualizer = useVirtualizer({
-    count: totalResultCount,
-    getScrollElement: () => consoleContainerRef.current,
-    estimateSize: () => (wrapLines ? WRAPPED_LOG_ROW_ESTIMATE_HEIGHT : LOG_ROW_HEIGHT),
-    getItemKey: (index) => {
-      const runId = activeResultWindow?.runId ?? getCurrentRunId(activeServerId)
-      return `${runId || 'run'}::${activeTabId || 'tab'}::${index}`
-    },
-    measureElement: wrapLines ? undefined : () => LOG_ROW_HEIGHT,
-    overscan: VIRTUAL_OVERSCAN_ROWS,
-    rangeExtractor,
-    useAnimationFrameWithResizeObserver: wrapLines,
-    useFlushSync: false
-  })
-  const virtualRows = rowVirtualizer.getVirtualItems()
-
-  useEffect(() => {
-    if (!pendingJump) {
-      rowVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined
-      return
-    }
-    rowVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = () => false
-    return () => {
-      rowVirtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined
-    }
-  }, [pendingJumpRangeKey, rowVirtualizer])
-
-  useEffect(() => {
-    rowVirtualizer.measure()
-  }, [wrapLines, currentScopeKey, rowVirtualizer])
+  const listKey = `${getCurrentRunId(activeServerId)}:${activeTabId}:${wrapLines ? 'wrap' : 'single'}`
 
   useEffect(() => {
     return () => {
@@ -1847,36 +1551,27 @@ export function App() {
     }
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!currentScopeKey || !activeResultWindow) return
-    const pendingJump = pendingJumpRef.current[currentScopeKey]
-    if (!pendingJump || pendingJump.runId !== activeResultWindow.runId) return
+    const pending = pendingJumpRef.current[currentScopeKey]
+    if (!pending) return
+    if (pending.runId && pending.runId !== activeResultWindow.runId) return
     if (activeResultWindow.loading || activeResultWindow.lines.length === 0) return
+    if (!currentLogs.some(log => log.index === pending.targetIndex)) return
 
-    const start = activeResultWindow.offset
-    const end = activeResultWindow.offset + activeResultWindow.lines.length
-    if (pendingJump.targetIndex < start || pendingJump.targetIndex >= end) {
-      delete pendingJumpRef.current[currentScopeKey]
-      return
-    }
-
-    window.requestAnimationFrame(() => {
-      rowVirtualizer.measure()
-      window.requestAnimationFrame(() => {
-        rowVirtualizer.measure()
-        rowVirtualizer.scrollToIndex(pendingJump.targetIndex, { align: pendingJump.align })
-        window.requestAnimationFrame(() => {
-          rowVirtualizer.scrollToIndex(pendingJump.targetIndex, { align: pendingJump.align })
-          updateStoredScrollTop(currentScopeKey)
-          delete pendingJumpRef.current[currentScopeKey]
-        })
-      })
+    virtuosoRef.current?.scrollToIndex({
+      index: pending.targetIndex,
+      align: pending.align,
+      behavior: 'auto'
     })
+    updateStoredScrollTop(currentScopeKey)
+    delete pendingJumpRef.current[currentScopeKey]
   }, [
     currentScopeKey,
+    jumpEpoch,
+    currentLogs,
     activeResultWindow?.runId,
     activeResultWindow?.offset,
-    activeResultWindow?.lines,
     activeResultWindow?.loading
   ])
 
@@ -1895,972 +1590,116 @@ export function App() {
   return (
     <div className="app-root">
       <TitleBar />
-    <main className={`app-shell ${sidebarCollapsed ? 'app-shell-sidebar-collapsed' : ''}`}>
-      {/* 侧边栏：服务器配置选择 */}
-      <aside className={`sidebar ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <div className="sidebar-topbar">
-          <button
-            className="sidebar-action-btn sidebar-collapse-btn"
-            onClick={handleToggleSidebarCollapsed}
-            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
-            type="button"
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
-          </button>
-        </div>
+      <main className={`app-shell ${sidebarCollapsed ? 'app-shell-sidebar-collapsed' : ''}`}>
+        <ServerSidebar
+          servers={servers}
+          activeServerId={activeServerId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={handleToggleSidebarCollapsed}
+          onAdd={handleAddNewServer}
+          onSelect={handleSelectServer}
+          onEdit={handleEditServer}
+          onClone={handleCloneServer}
+          onDelete={handleDeleteServer}
+        />
 
-        <div className="sidebar-title-section">
-          <span className="sidebar-title">SSH 服务器 ({servers.length})</span>
-          <button
-            className="sidebar-action-btn"
-            onClick={handleAddNewServer}
-            title="添加连接配置"
-            type="button"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
+        <section className="main-content">
+          <SearchToolbar
+            serverId={activeServerId}
+            searchPattern={getSearchPattern(activeServerId)}
+            isSearching={getIsSearching(activeServerId)}
+            toastMessage={toastMessage}
+            grepArgs={getGrepArgs(activeServerId)}
+            extraFilters={getExtraFilters(activeServerId)}
+            highlightPanelOpen={highlightPanelOpen}
+            highlightKeywords={highlightKeywords}
+            availableFiles={availableFilesMap[activeServerId] || []}
+            selectedFiles={selectedFilesMap[activeServerId] || []}
+            fileListStatus={fileListStatusMap[activeServerId] ?? 'idle'}
+            canEditConnection={!!activeServerId}
+            onSearchPatternChange={(value) => setSearchPatterns({ ...searchPatterns, [activeServerId]: value })}
+            onSearch={handleSearch}
+            onStop={handleStopSearch}
+            onToggleConfig={() => {
+              if (configPanelOpen && editingServer?.id === activeServerId) {
+                closeConfigPanel()
+                return
+              }
+              const srv = servers.find(s => s.id === activeServerId)
+              if (srv) {
+                syncConfigPanelToServer(srv)
+                setConfigPanelOpen(true)
+              }
+            }}
+            onUpdateGrepArgs={(fields) => updateGrepArgs(activeServerId, fields)}
+            onAddFilter={() => handleAddExtraFilter(activeServerId)}
+            onUpdateFilter={(index, fields) => handleUpdateExtraFilter(activeServerId, index, fields)}
+            onRemoveFilter={(index) => handleRemoveExtraFilter(activeServerId, index)}
+            onToggleHighlight={handleToggleHighlightPanel}
+            onResetHighlight={resetHighlightKeywords}
+            onUpdateHighlight={updateHighlightKeywords}
+            onRefreshFiles={() => fetchAvailableFiles(activeServerId)}
+            onChangeSelectedFiles={(paths) => setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: paths }))}
+          />
 
-        <nav className="server-list">
-          {servers.map(srv => (
-            <button
-              key={srv.id}
-              className={`server-item ${activeServerId === srv.id ? 'active' : ''}`}
-              onClick={() => handleSelectServer(srv)}
-              title={srv.name}
-              type="button"
-            >
-              <div className="server-item-left">
-                <Server size={14} />
-                <span className="server-name" title={srv.name}>{srv.name}</span>
-              </div>
-              <div className="server-item-actions">
-                <button
-                  className="server-item-btn"
-                  onClick={(e) => handleEditServer(srv, e)}
-                  title="修改配置"
-                  type="button"
-                >
-                  <Settings size={12} />
-                </button>
-                <button
-                  className="server-item-btn"
-                  onClick={(e) => handleCloneServer(srv, e)}
-                  title="克隆配置"
-                  type="button"
-                >
-                  <Copy size={12} />
-                </button>
-                <button
-                  className="server-item-btn"
-                  onClick={(e) => handleDeleteServer(srv.id, e)}
-                  title="删除配置"
-                  type="button"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </button>
-          ))}
-          {servers.length === 0 && (
-            <div style={{ padding: '20px 10px', color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>
-              暂无连接配置，请点击右上角添加。
-            </div>
-          )}
-        </nav>
-      </aside>
+          <section className="workspace">
+            <ResultsPane
+              activeServer={activeServer}
+              activeServerId={activeServerId}
+              activeTabId={activeTabId}
+              visibleResultTabs={visibleResultTabs}
+              availableFiles={availableFilesMap[activeServerId] || []}
+              fileStates={getFileSearchStates(activeServerId)}
+              currentLogs={currentLogs}
+              currentStats={currentStats}
+              activeFileState={activeFileState}
+              totalResultCount={totalResultCount}
+              wrapLines={wrapLines}
+              showFindBar={showFindBar}
+              findKeyword={findKeyword}
+              findLoading={findLoading}
+              findMatchCount={findMatchCount}
+              findResult={currentScopeKey ? findResultMap[currentScopeKey] ?? null : null}
+              findInputRef={findInputRef}
+              listKey={listKey}
+              logsByIndex={visibleLogByIndex}
+              defaultRowHeight={wrapLines ? WRAPPED_LOG_ROW_ESTIMATE_HEIGHT : LOG_ROW_HEIGHT}
+              virtuosoRef={virtuosoRef}
+              committedPattern={committedPatterns[activeServerId]}
+              committedArgs={committedGrepArgs[activeServerId]}
+              findRe={findRe}
+              statusHighlightRules={statusHighlightRules}
+              onSelectTab={(tabId) => setActiveResultTabsMap(prev => ({ ...prev, [activeServerId]: tabId }))}
+              onToggleWrap={handleToggleWrapLines}
+              onCopy={handleCopyLogs}
+              onFindKeywordChange={(value) => setFindKeywordForServer(activeServerId, value)}
+              onFindNavigate={handleFindNavigate}
+              onCloseFind={() => clearFindStateForServer(activeServerId, currentScopeKey)}
+              onRangeChanged={handleRangeChanged}
+              onScrollerRef={handleScrollerRef}
+              onJumpTop={handleJumpToTop}
+              onJumpBottom={handleJumpToBottom}
+            />
+          </section>
 
-      {/* 主面板 */}
-      <section className="main-content">
-        {/* 顶部过滤控制台 */}
-        <header className="toolbar">
-          <div className="search-row">
-            {/* 日志文件多选下拉控件 */}
-            {activeServerId && (
-              <div className="file-select-dropdown" ref={dropdownRef}>
-                <button
-                  className="btn btn-secondary dropdown-trigger"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  type="button"
-                  title="选择需要检索的具体日志文件"
-                >
-                  <Folder size={14} />
-                  <span className="trigger-text">
-                    {(() => {
-                      const status = fileListStatusMap[activeServerId] ?? 'idle'
-                      const selected = selectedFilesMap[activeServerId] || []
-                      const available = availableFilesMap[activeServerId] || []
-                      if (available.length === 0 && status === 'loading') return '加载文件中...'
-                      if (available.length === 0 && status === 'error') return '文件加载失败'
-                      if (available.length === 0) return '未发现可检索的文本日志'
-                      if (selected.length === 0) return '未选文件(默认前5个)'
-                      if (selected.length === available.length) return '已选择全部文件'
-                      return `已选 ${selected.length}/${available.length} 个文件`
-                    })()}
-                  </span>
-                </button>
-
-                {dropdownOpen && (
-                  <div className="dropdown-menu">
-                    <div className="dropdown-search">
-                      <input
-                        type="text"
-                        placeholder="搜索文件名..."
-                        value={fileFilterText}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          setFileFilterTextMap(prev => ({ ...prev, [activeServerId]: value }))
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        spellCheck={false}
-                      />
-                    </div>
-                    
-                    <div className="dropdown-actions">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const available = availableFilesMap[activeServerId] || []
-                          setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: available.map(file => file.path) }))
-                        }}
-                      >
-                        全选
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: [] }))
-                        }}
-                      >
-                        清空
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          fetchAvailableFiles(activeServerId)
-                        }}
-                      >
-                        刷新
-                      </button>
-                    </div>
-
-                    <div className="dropdown-list">
-                      {(() => {
-                        const available = availableFilesMap[activeServerId] || []
-                        const filtered = available.filter(f =>
-                          f.path.toLowerCase().includes(fileFilterText.toLowerCase())
-                        )
-                        if (filtered.length === 0) {
-                          return <div className="dropdown-empty">无匹配的文件</div>
-                        }
-                        const selected = selectedFilesMap[activeServerId] || []
-                        return filtered.map(file => {
-                          const filePath = file.path
-                          const isChecked = selected.includes(filePath)
-                          const fileName = getLogFileName(filePath)
-                          return (
-                            <label key={filePath} className="dropdown-item" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  let nextSelected = [...selected]
-                                  if (e.target.checked) {
-                                    nextSelected.push(filePath)
-                                  } else {
-                                    nextSelected = nextSelected.filter(f => f !== filePath)
-                                  }
-                                  setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: nextSelected }))
-                                }}
-                              />
-                              <div className="file-info" title={filePath}>
-                                <span className="file-name-span">{fileName}</span>
-                                <span className="file-path-span">{filePath}</span>
-                              </div>
-                              {file.sizeBytes !== undefined && (
-                                <span className="file-size-span">{formatLogFileSize(file.sizeBytes)}</span>
-                              )}
-                            </label>
-                          )
-                        })
-                      })()}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div style={{ position: 'relative', flex: 1 }}>
-              <div className="searchbox">
-                <Search size={15} style={{ color: 'var(--text-muted)' }} />
-                <input
-                  value={getSearchPattern(activeServerId)}
-                  onChange={(e) => setSearchPatterns({ ...searchPatterns, [activeServerId]: e.target.value })}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="输入检索关键字或正则表达式... (按下回车开始)"
-                  disabled={getIsSearching(activeServerId)}
-                  spellCheck={false}
-                />
-              </div>
-              {toastMessage && (
-                <div className="toast-bubble">
-                  <AlertTriangle size={13} />
-                  <span>{toastMessage}</span>
-                </div>
-              )}
-            </div>
-            
-            {getIsSearching(activeServerId) ? (
-              <button className="btn btn-danger" onClick={handleStopSearch} type="button">
-                <XCircle size={15} />
-                停止
-              </button>
-            ) : (
-              <button
-                className="btn btn-primary"
-                onClick={handleSearch}
-                disabled={!activeServerId || (availableFilesMap[activeServerId] || []).length === 0}
-                type="button"
-              >
-                <Play size={14} />
-                检索
-              </button>
-            )}
-
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                if (configPanelOpen && editingServer?.id === activeServerId) {
-                  closeConfigPanel()
-                  return
-                }
-                const srv = servers.find(s => s.id === activeServerId)
-                if (srv) {
-                  syncConfigPanelToServer(srv)
-                  setConfigPanelOpen(true)
-                }
-              }}
-              disabled={!activeServerId}
-              type="button"
-            >
-              编辑连接
-            </button>
-          </div>
-
-          {/* Grep 参数面板 */}
-          <div className="params-row">
-            <label className="param-checkbox">
-              <input
-                type="checkbox"
-                checked={getGrepArgs(activeServerId).ignoreCase}
-                onChange={(e) => updateGrepArgs(activeServerId, { ignoreCase: e.target.checked })}
-              />
-              <span>忽略大小写</span>
-            </label>
-
-            <label className="param-checkbox">
-              <input
-                type="checkbox"
-                checked={getGrepArgs(activeServerId).invert}
-                onChange={(e) => updateGrepArgs(activeServerId, { invert: e.target.checked })}
-              />
-              <span>排除匹配行</span>
-            </label>
-
-            <label className="param-checkbox">
-              <input
-                type="checkbox"
-                checked={getGrepArgs(activeServerId).wordRegexp}
-                onChange={(e) => updateGrepArgs(activeServerId, { wordRegexp: e.target.checked })}
-              />
-              <span>只匹配完整词</span>
-            </label>
-
-            <label className="param-checkbox">
-              <input
-                type="checkbox"
-                checked={getGrepArgs(activeServerId).regexp}
-                onChange={(e) => updateGrepArgs(activeServerId, { regexp: e.target.checked })}
-              />
-              <span>使用正则</span>
-            </label>
-
-            <label className="param-checkbox">
-              <input
-                type="checkbox"
-                checked={getGrepArgs(activeServerId).onlyMatch}
-                disabled={getGrepArgs(activeServerId).invert}
-                onChange={(e) => updateGrepArgs(activeServerId, { onlyMatch: e.target.checked })}
-              />
-              <span>只显示命中片段</span>
-            </label>
-
-            <div className="context-input">
-              <span>上下文行数:</span>
-              <input
-                type="number"
-                min="0"
-                max="50"
-                value={getGrepArgs(activeServerId).contextC}
-                onChange={(e) => updateGrepArgs(activeServerId, { contextC: Math.max(0, parseInt(e.target.value) || 0) })}
-              />
-            </div>
-
-            <div className="context-input">
-              <span
-                title="保留每个文件最新的 N 条命中，最终仍按日志原始顺序从旧到新展示。"
-              >
-                每文件最新:
-              </span>
-              <select
-                value={getGrepArgs(activeServerId).maxCount}
-                onChange={(e) => updateGrepArgs(activeServerId, { maxCount: parseInt(e.target.value) || 0 })}
-                style={{
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  color: 'var(--text-main)',
-                  height: '22px',
-                  padding: '0 4px',
-                  outline: 0
-                }}
-              >
-                <option value="500">500 行</option>
-                <option value="1000">1000 行</option>
-                <option value="2000">2000 行</option>
-                <option value="5000">5000 行</option>
-                <option value="10000">10000 行</option>
-                <option value="0">无限制</option>
-              </select>
-            </div>
-
-            <label className="param-checkbox">
-              <input
-                type="checkbox"
-                checked={getGrepArgs(activeServerId).fromTail}
-                onChange={(e) => updateGrepArgs(activeServerId, { fromTail: e.target.checked })}
-              />
-              <span>只搜尾部</span>
-            </label>
-
-            <div className="context-input">
-              <span>尾部行数:</span>
-              <input
-                className="tail-lines-input"
-                type="number"
-                min="10"
-                max="200000"
-                value={getGrepArgs(activeServerId).tailLines}
-                disabled={!getGrepArgs(activeServerId).fromTail}
-                onChange={(e) => updateGrepArgs(activeServerId, { tailLines: Math.max(10, parseInt(e.target.value) || 1000) })}
-              />
-            </div>
-
-            <button
-              className={`inline-tool-btn ${highlightPanelOpen ? 'active' : ''}`}
-              onClick={handleToggleHighlightPanel}
-              type="button"
-              title="配置红色、黄色、绿色状态高亮词"
-            >
-              <Palette size={12} />
-              高亮词
-            </button>
-          </div>
-
-          <div className="filter-chain">
-            <div className="filter-chain-header">
-              <span>链式过滤</span>
-              <button
-                className="filter-add-btn"
-                onClick={() => handleAddExtraFilter(activeServerId)}
-                disabled={!activeServerId || getIsSearching(activeServerId)}
-                type="button"
-              >
-                <Plus size={12} />
-                添加过滤
-              </button>
-            </div>
-            {getExtraFilters(activeServerId).length > 0 && (
-              <div className="filter-list">
-                {getExtraFilters(activeServerId).map((filter, index) => (
-                  <div className="filter-item" key={`${activeServerId}_${index}`}>
-                    <span className="filter-index">继续过滤 {index + 2}</span>
-                    <input
-                      className="filter-pattern-input"
-                      value={filter.pattern}
-                      onChange={(e) => handleUpdateExtraFilter(activeServerId, index, { pattern: e.target.value })}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      placeholder="继续过滤关键词或正则"
-                      disabled={getIsSearching(activeServerId)}
-                      spellCheck={false}
-                    />
-                    <label className="param-checkbox compact">
-                      <input
-                        type="checkbox"
-                        checked={filter.ignoreCase}
-                        onChange={(e) => handleUpdateExtraFilter(activeServerId, index, { ignoreCase: e.target.checked })}
-                        disabled={getIsSearching(activeServerId)}
-                      />
-                      <span>忽略大小写</span>
-                    </label>
-                    <label className="param-checkbox compact">
-                      <input
-                        type="checkbox"
-                        checked={filter.invert}
-                        onChange={(e) => handleUpdateExtraFilter(activeServerId, index, { invert: e.target.checked })}
-                        disabled={getIsSearching(activeServerId)}
-                      />
-                      <span>排除</span>
-                    </label>
-                    <label className="param-checkbox compact">
-                      <input
-                        type="checkbox"
-                        checked={filter.wordRegexp}
-                        onChange={(e) => handleUpdateExtraFilter(activeServerId, index, { wordRegexp: e.target.checked })}
-                        disabled={getIsSearching(activeServerId)}
-                      />
-                      <span>整词</span>
-                    </label>
-                    <label className="param-checkbox compact">
-                      <input
-                        type="checkbox"
-                        checked={filter.regexp}
-                        onChange={(e) => handleUpdateExtraFilter(activeServerId, index, { regexp: e.target.checked })}
-                        disabled={getIsSearching(activeServerId)}
-                      />
-                      <span>正则</span>
-                    </label>
-                    <button
-                      className="filter-remove-btn"
-                      onClick={() => handleRemoveExtraFilter(activeServerId, index)}
-                      disabled={getIsSearching(activeServerId)}
-                      title="移除过滤条件"
-                      type="button"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {highlightPanelOpen && (
-            <div className="highlight-config-panel">
-              <div className="highlight-config-header">
-                <div>
-                  <span className="highlight-config-title">状态高亮词</span>
-                  <span className="highlight-config-hint">固定使用 {HIGHLIGHT_WORD_SEPARATOR} 分隔，例如 error|exception|错误|失败</span>
-                </div>
-                <button className="filter-add-btn" onClick={resetHighlightKeywords} type="button">
-                  恢复默认
-                </button>
-              </div>
-              <div className="highlight-config-grid">
-                <label className="highlight-config-item">
-                  <span>
-                    <i className="highlight-swatch highlight-swatch-error" />
-                    红色
-                  </span>
-                  <textarea
-                    value={highlightKeywords['status-error']}
-                    onChange={(e) => updateHighlightKeywords('status-error', e.target.value)}
-                    placeholder="error|exception|错误|失败"
-                    spellCheck={false}
-                  />
-                </label>
-                <label className="highlight-config-item">
-                  <span>
-                    <i className="highlight-swatch highlight-swatch-warning" />
-                    黄色
-                  </span>
-                  <textarea
-                    value={highlightKeywords['status-warning']}
-                    onChange={(e) => updateHighlightKeywords('status-warning', e.target.value)}
-                    placeholder="warning|warn|警告|告警"
-                    spellCheck={false}
-                  />
-                </label>
-                <label className="highlight-config-item">
-                  <span>
-                    <i className="highlight-swatch highlight-swatch-success" />
-                    绿色
-                  </span>
-                  <textarea
-                    value={highlightKeywords['status-success']}
-                    onChange={(e) => updateHighlightKeywords('status-success', e.target.value)}
-                    placeholder="success|ok|成功|完成"
-                    spellCheck={false}
-                  />
-                </label>
-              </div>
-            </div>
-          )}
-        </header>
-
-        {/* 核心工作区 */}
-        <section className="workspace">
-          {/* 日志结果展示 */}
-          <div className="results-pane">
-            <div className="results-header">
-              <div>
-                当前连接: <strong>{activeServer ? activeServer.name : '未选择'}</strong>
-                {activeServer && ` (${activeServer.host})`}
-              </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                {currentStats.count > 0 && (
-                  <span>
-                    匹配: <strong>{currentStats.count}</strong> 行
-                    {currentStats.durationMs > 0 && ` (耗时 ${currentStats.durationMs}ms)`}
-                    {currentStats.truncated && '，已截断旧结果'}
-                  </span>
-                )}
-                <button
-                  className={`sidebar-action-btn results-mode-btn ${wrapLines ? 'active' : ''}`}
-                  onClick={handleToggleWrapLines}
-                  title={wrapLines ? '当前为自动换行模式，点击切换到单行极速模式' : '当前为单行极速模式，点击切换到自动换行'}
-                  type="button"
-                  aria-pressed={wrapLines}
-                >
-                  <TextWrap size={12} />
-                  <span>{wrapLines ? '换行' : '单行'}</span>
-                </button>
-                {currentLogs.length > 0 && (
-                  <button className="sidebar-action-btn" onClick={handleCopyLogs} title="复制当前已加载视图" type="button">
-                    <Copy size={12} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {visibleResultTabs.length > 1 && (
-              <div className="result-tabs" role="tablist" aria-label="日志文件结果视图">
-                {visibleResultTabs.map(tabId => {
-                  const tabStats = getFileSearchState(activeServerId, tabId)
-
-                  return (
-                    <button
-                      key={tabId}
-                      className={`result-tab ${activeTabId === tabId ? 'active' : ''}`}
-                      onClick={() => setActiveResultTabsMap(prev => ({ ...prev, [activeServerId]: tabId }))}
-                      title={getTabTitleWithStatus(activeServerId, tabId)}
-                      role="tab"
-                      aria-selected={activeTabId === tabId}
-                      type="button"
-                    >
-                      <span className={`result-tab-dot ${getTabStatusClass(tabStats.status)}`} />
-                      <span className="result-tab-label">{getTabLabel(tabId)}</span>
-                      {getTabFileSize(activeServerId, tabId) && <span className="result-tab-size">{getTabFileSize(activeServerId, tabId)}</span>}
-                      {tabStats.count > 0 && <span className="result-tab-count">{tabStats.count}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Ctrl+F 查找框（状态按当前服务器页面隔离） */}
-            {showFindBar && activeServerId && (
-              <div className="find-popover">
-                <input
-                  ref={findInputRef}
-                  className="find-bar-input"
-                  type="text"
-                  placeholder="查找"
-                  value={findKeyword}
-                  onChange={e => setFindKeywordForServer(activeServerId, e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Escape') {
-                      clearFindStateForServer(activeServerId, currentScopeKey)
-                    }
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleFindNavigate(e.shiftKey ? 'prev' : 'next')
-                    }
-                  }}
-                />
-                <span className="find-bar-count">
-                  {(() => {
-                    const findResult = currentScopeKey ? findResultMap[currentScopeKey] : null
-                    if (!findKeyword) return ''
-                    if (findResult?.keyword === findKeyword.trim()) {
-                      return findResult.total > 0 ? `${findResult.ordinal}/${findResult.total}` : '0 处'
-                    }
-                    return `${findMatchCount} 处`
-                  })()}
-                </span>
-                <button
-                  className="find-bar-nav"
-                  onClick={() => handleFindNavigate('prev')}
-                  disabled={!findKeyword.trim() || findLoading}
-                  title="上一个 (Shift+Enter)"
-                  type="button"
-                >
-                  <ChevronUp size={14} />
-                </button>
-                <button
-                  className="find-bar-nav"
-                  onClick={() => handleFindNavigate('next')}
-                  disabled={!findKeyword.trim() || findLoading}
-                  title="下一个 (Enter)"
-                  type="button"
-                >
-                  <ChevronDown size={14} />
-                </button>
-                <button
-                  className="find-bar-close"
-                  onClick={() => clearFindStateForServer(activeServerId, currentScopeKey)}
-                  title="关闭"
-                  type="button"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-
-            <div className={`results-console ${showFindBar ? 'results-console-with-find' : ''}`} ref={consoleContainerRef} onScroll={handleScroll}>
-              {(() => {
-                const currentIsSearching = activeFileState.active
-
-                if (totalResultCount === 0) {
-                  if (activeFileState.status === 'error') {
-                    return (
-                      <div className="empty-state empty-state-error">
-                        <AlertTriangle size={32} />
-                        <h3>文件检索失败</h3>
-                        <p className="empty-state-message">{activeFileState.message || '未知错误'}</p>
-                        <p className="empty-state-detail">{getTabTitle(activeTabId)}</p>
-                      </div>
-                    )
-                  }
-                  if (activeFileState.status === 'queued') {
-                    return (
-                      <div className="empty-state">
-                        <div className="status-dot warn" style={{ width: '12px', height: '12px', marginBottom: '8px' }} />
-                        <h3>等待检索...</h3>
-                        <p style={{ fontSize: '12px' }}>前面的日志文件完成后，会自动检索当前文件。</p>
-                      </div>
-                    )
-                  }
-                  if (activeFileState.status === 'cancelled') {
-                    return (
-                      <div className="empty-state">
-                        <XCircle size={32} style={{ opacity: 0.55 }} />
-                        <h3>检索已取消</h3>
-                        <p style={{ fontSize: '12px' }}>当前文件没有继续输出日志结果。</p>
-                      </div>
-                    )
-                  }
-                  if (!currentIsSearching) {
-	                    return (
-	                      <div className="empty-state">
-	                        <Search size={32} style={{ opacity: 0.4 }} />
-	                        <h3>暂无检索结果</h3>
-                        <p style={{ fontSize: '12px' }}>请输入搜索文本，或确认是否启用了日志文件路径。</p>
-                      </div>
-                    )
-                  } else {
-                    return (
-                      <div className="empty-state">
-                        <div className="status-dot active" style={{ width: '12px', height: '12px', marginBottom: '8px' }} />
-                        <h3>流式连接检索中...</h3>
-                        <p style={{ fontSize: '12px' }}>Go 后端正在扫描日志中，稍后结果会自动输出在此处。</p>
-                      </div>
-                    )
-                  }
-                }
-
-                const errorBanner = activeFileState.status === 'error' ? (
-                  <div className="result-error-banner">
-                    <AlertTriangle size={14} />
-                    <span>当前文件检索失败: {activeFileState.message || '未知错误'}</span>
-                  </div>
-                ) : null
-
-                return (
-                  <>
-                    {errorBanner}
-                    <div
-                      className={`virtual-log-list ${wrapLines ? 'virtual-log-list-wrap' : 'virtual-log-list-single'}`}
-                      style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-                    >
-                      {virtualRows.map((virtualRow) => {
-                        const log = visibleLogByIndex.get(virtualRow.index)
-                        if (!log) {
-                          return (
-                            <div
-                              key={virtualRow.key}
-                              className={`log-row log-row-placeholder ${wrapLines ? 'log-row-wrap' : ''}`}
-                              style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                minHeight: wrapLines ? undefined : `${LOG_ROW_HEIGHT}px`,
-                                transform: `translateY(${virtualRow.start}px)`
-                              }}
-                            >
-                              <div className="log-content log-content-placeholder" />
-                            </div>
-                          )
-                        }
-
-                        return (
-                          <div
-                            key={virtualRow.key}
-                            ref={wrapLines ? rowVirtualizer.measureElement : undefined}
-                            data-index={virtualRow.index}
-                            className={`log-row ${wrapLines ? 'log-row-wrap' : ''} ${log.error ? 'log-row-error' : ''}`}
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              minHeight: wrapLines ? undefined : `${LOG_ROW_HEIGHT}px`,
-                              height: wrapLines ? undefined : `${LOG_ROW_HEIGHT}px`,
-                              transform: `translateY(${virtualRow.start}px)`
-                            }}
-                          >
-                            <div className="log-content">
-                              {renderHighlightedContent(log)}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-
-            {totalResultCount > 0 && (
-              <div className="results-jump-controls" aria-label="日志结果快速滚动">
-                <button
-                  className="results-jump-btn"
-                  onClick={handleJumpToTop}
-                  title="到顶部"
-                  type="button"
-                >
-                  <ChevronUp size={15} />
-                </button>
-                <button
-                  className="results-jump-btn"
-                  onClick={handleJumpToBottom}
-                  title="到底部"
-                  type="button"
-                >
-                  <ChevronDown size={15} />
-                </button>
-              </div>
-            )}
-
-          </div>
-
+          <StatusBar message={statusMessage} dot={statusDot} />
         </section>
+      </main>
 
-        {/* 底部状态栏 */}
-        <footer className="statusbar">
-          <div className="status-left">
-            <div className={`status-dot ${statusDot}`} />
-            <span>{statusMessage}</span>
-          </div>
-          <div>Go Runtime BPP 0.1.0</div>
-        </footer>
-      </section>
-    </main>
-
-    {configPanelOpen && editingServer && (
-      <div
-        className="config-modal-backdrop"
-        onClick={closeConfigPanel}
-      >
-        <div
-          className="config-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="config-modal-title"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="config-header">
-            <span className="config-title" id="config-modal-title">
-              {servers.some(s => s.id === editingServer.id) ? '编辑连接' : '添加连接'}
-            </span>
-            <button
-              className="sidebar-action-btn"
-              onClick={closeConfigPanel}
-              type="button"
-              title="关闭"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-              <div className="config-form">
-                <div className="form-group">
-                  <label>连接名称 *</label>
-                  <input
-                    type="text"
-                    value={editingServer.name}
-                    onChange={(e) => setEditingServer({ ...editingServer, name: e.target.value })}
-                    placeholder="例如：开发环境 nginx"
-                    autoFocus
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>SSH 端口</label>
-                  <input
-                    type="number"
-                    value={editingServer.port || 22}
-                    onChange={(e) => setEditingServer({ ...editingServer, port: parseInt(e.target.value) || 22 })}
-                    placeholder="22"
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>主机 IP/域名 *</label>
-                    <input
-                      type="text"
-                      value={editingServer.host}
-                      onChange={(e) => setEditingServer({ ...editingServer, host: e.target.value })}
-                      placeholder="192.168.1.100"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>SSH 用户名 *</label>
-                    <input
-                      type="text"
-                      value={editingServer.user}
-                      onChange={(e) => setEditingServer({ ...editingServer, user: e.target.value })}
-                      placeholder="root"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>鉴权方式</label>
-                  <select
-                    value={editingServer.authType}
-                    onChange={(e) => setEditingServer({ ...editingServer, authType: e.target.value as 'password' | 'key' })}
-                  >
-                    <option value="password">SSH 密码</option>
-                    <option value="key">SSH 私钥 (Key)</option>
-                  </select>
-                </div>
-
-                {editingServer.authType === 'password' ? (
-                  <div className="form-group">
-                    <label>SSH 密码</label>
-                    <input
-                      type="password"
-                      value={editingServer.password || ''}
-                      onChange={(e) => setEditingServer({ ...editingServer, password: e.target.value })}
-                      placeholder="远程登录密码"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div className="form-group">
-                      <label>私钥文件物理路径 (优先)</label>
-                      <input
-                        type="text"
-                        value={editingServer.keyPath || ''}
-                        onChange={(e) => setEditingServer({ ...editingServer, keyPath: e.target.value })}
-                        placeholder="C:\Users\username\.ssh\id_rsa"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>私钥文本内容</label>
-                      <textarea
-                        value={editingServer.keyText || ''}
-                        onChange={(e) => setEditingServer({ ...editingServer, keyText: e.target.value })}
-                        placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."
-                        spellCheck={false}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* 日志路径管理 */}
-                <div className="form-group">
-                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>检索日志路径 ({editingServer.logs.length})</span>
-                    <button
-                      className="sidebar-action-btn"
-                      onClick={handleAddLogPath}
-                      title="添加日志路径"
-                      type="button"
-                      style={{ padding: '2px 6px', fontSize: '11px', display: 'flex', gap: '3px' }}
-                    >
-                      <Plus size={10} /> 路径
-                    </button>
-                  </label>
-                  
-                  <div className="path-list">
-                    {editingServer.logs.map((logConf, index) => (
-                      <div key={index} className="path-item">
-                        <input
-                          type="checkbox"
-                          checked={logConf.enabled}
-                          onChange={(e) => handleUpdateLogPath(index, { enabled: e.target.checked })}
-                          style={{ accentColor: 'var(--accent-color)', cursor: 'pointer' }}
-                        />
-                        <input
-                          type="text"
-                          value={logConf.path}
-                          onChange={(e) => handleUpdateLogPath(index, { path: e.target.value })}
-                          placeholder="/var/log/nginx/*.log"
-                          spellCheck={false}
-                        />
-                        <button
-                          className="server-item-btn"
-                          onClick={() => handleRemoveLogPath(index)}
-                          title="移除路径"
-                          type="button"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="config-footer">
-                {connectionTest.message && (
-                  <div className={`connection-test-message ${connectionTest.status}`}>
-                    {connectionTest.message}
-                  </div>
-                )}
-                <div className="config-footer-actions">
-                  <button
-                    className="btn btn-secondary"
-                    onClick={handleTestConnection}
-                    disabled={connectionTest.status === 'testing'}
-                    type="button"
-                  >
-                    <PlugZap size={14} />
-                    {connectionTest.status === 'testing' ? '测试中' : '测试连接'}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={closeConfigPanel}
-                    type="button"
-                  >
-                    取消
-                  </button>
-                  <button className="btn btn-primary" onClick={handleSaveForm} type="button">
-                    <Check size={14} />
-                    保存
-                  </button>
-                </div>
-              </div>
-        </div>
-      </div>
-    )}
+      {configPanelOpen && editingServer && (
+        <ConfigModal
+          server={editingServer}
+          isExisting={servers.some(s => s.id === editingServer.id)}
+          connectionTest={connectionTest}
+          onClose={closeConfigPanel}
+          onChange={setEditingServer}
+          onAddLogPath={handleAddLogPath}
+          onUpdateLogPath={handleUpdateLogPath}
+          onRemoveLogPath={handleRemoveLogPath}
+          onTest={handleTestConnection}
+          onSave={handleSaveForm}
+        />
+      )}
     </div>
   )
 }

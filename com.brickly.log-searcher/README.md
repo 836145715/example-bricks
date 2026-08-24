@@ -2,12 +2,12 @@
 
 status: active
 type: brick
-related_code: runtime/main.go, runtime/search_shared.go, runtime/ssh.go, src/App.tsx
-last_verified: 2026-06-08
+related_code: runtime/main.go, runtime/search_shared.go, runtime/ssh.go, src/App.tsx, src/components/LogVirtualList.tsx
+last_verified: 2026-08-24
 
-`com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。UI 适合人工排查日志，`search` command 也可以被其他 Brick、工作流或 Agent 直接调用。
+`com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。Host↔Runtime 走现行 gRPC（`invoke` / `interact`），Go 侧用 `brickly.OnCommand` + `ctx.Send`。UI 适合人工排查日志，`search` 声明 `mode: "interact"`，也可被其他 Brick 用 `interact` / `call(..., { onEvent })` 调用。`runtime.instance` 必须显式为 `owned`：搜索结果存在该 Lifetime 独占的 Go 进程内存里，不能 `per-call`，也不能再省略后让宿主默认为 `owned`。
 
-体验窗使用 **`titleBar: "custom"`** 自绘标题栏（拖动区 + 最小化 / 最大化 / 关闭），依赖平台 `window.brickly.window`。
+体验窗使用 **`titleBar: "custom"`** 自绘标题栏（拖动区 + 最小化 / 最大化 / 关闭），依赖平台 `window.brickly.window`。`owned` 实例开窗不钉进程：页面必须先 `await window.brickly.start()`，再用 Handle 的 `invoke` / `interact`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束进程就被 SIGTERM。页面侧会话用 `nextEvent()` / `closeInput()` / `cancel()`，不要 `for await events`（过不了 contextBridge）。
 
 ## search 能力
 
@@ -20,10 +20,12 @@ last_verified: 2026-06-08
 - `args`：可选，grep 行为选项，包括 `ignoreCase`、`invert`、`wordRegexp`、`regexp`、`contextA`、`contextB`、`contextC`、`onlyMatch`、`maxCount`、`showLineNum`、`showFilename`、`fromTail`、`tailLines`。为兼容旧调用，`args.filters` 仍可传链式过滤，但顶层 `filters` 更直观。
 - `resultMode`：可选。默认不传时保持兼容流式输出；传 `"store"` 时结果存储在 Go runtime 内存中，前端通过 `peek_search_results` 按窗口读取。
 
-输出：
+输出（interact 事件，不是旧 BPP chunk）：
 
-- `logLine`：流式 JSON 对象 `{ text, matches, file, isContext, error }`。
-- `searchState`：仅 `resultMode="store"` 时输出的轻量状态对象，包含 `runId`、`tabs`、各文件 `total/status/message/durationMs/truncated`。
+- `{ type: "progress", progress, message }`：连接/完成提示。
+- `{ type: "logLine", logLine }`：兼容流式行 `{ text, matches, file, isContext, error }`。
+- `{ type: "searchState", searchState }`：仅 `resultMode="store"` 时推送，包含 `runId`、`tabs`、各文件 `total/status/message/durationMs/truncated`。
+- 终态 `result`：`{ completed: true, runId? }`。
 - `text` 是最终展示的日志行。
 - `matches` 是主检索词及正向链式过滤词在 `text` 中的高亮区间 `[start, end)`；排除型过滤不会高亮。区间单位固定为 UTF-16 code unit，可直接用于浏览器 `String.prototype.slice`。
 - `file` 是命中来源文件路径，用于 UI 多文件 Tab 分组；`isContext` 表示该行是否来自上下文输出；`error` 是可选的文件级错误信息。

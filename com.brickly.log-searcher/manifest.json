@@ -3,8 +3,8 @@
   "manifestVersion": 1,
   "kind": "brick",
   "id": "com.brickly.log-searcher",
-  "version": "0.2.0",
-  "apiVersion": ">=0.1.0 <1.0.0",
+  "version": "0.3.0",
+  "apiVersion": ">=0.2.0 <1.0.0",
   "name": {
     "zh-CN": "日志查询工具",
     "en": "Log Searcher"
@@ -32,6 +32,7 @@
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
+    "instance": "owned",
     "platforms": [
       "win-x64",
       "mac-arm64"
@@ -68,6 +69,7 @@
     {
       "id": "search",
       "name": "流式搜索日志",
+      "mode": "interact",
       "execution": "parallel",
       "description": {
         "zh-CN": "通过 SSH 检索指定服务器日志，支持文件列表、链式过滤、grep 选项和流式日志行输出。"
@@ -129,9 +131,6 @@
             "description": "resultMode=store 时输出的轻量状态对象，包含 runId、tabs、files、status、total、durationMs、truncated 等字段。"
           }
         ]
-      },
-      "ui": {
-        "streaming": true
       }
     },
     {

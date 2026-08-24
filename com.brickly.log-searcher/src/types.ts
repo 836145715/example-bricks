@@ -1,0 +1,216 @@
+import type { HighlightKeywordTextMap } from './domain/highlight'
+import type { RemoteLogFile } from './domain/logFiles'
+
+export interface BricklyInteractSession {
+  nextEvent(): Promise<unknown>
+  result: Promise<unknown>
+  closeInput(): Promise<void>
+  cancel(reason?: string): void
+}
+
+export interface BricklyStartedHandle {
+  invoke(commandId: string, input: Record<string, any>): Promise<any>
+  interact(commandId: string, input: Record<string, any>): Promise<BricklyInteractSession>
+  call(
+    commandId: string,
+    input: Record<string, any>,
+    options?: { onEvent?: (event: unknown) => unknown | Promise<unknown> }
+  ): Promise<any>
+  dispose(): Promise<void>
+  stop(): Promise<void>
+}
+
+declare global {
+  interface Window {
+    brickly?: {
+      ref: { brickId: string; origin: string; version: string }
+      invoke(commandId: string, input: Record<string, any>): Promise<any>
+      interact(commandId: string, input: Record<string, any>): Promise<BricklyInteractSession>
+      call(
+        commandId: string,
+        input: Record<string, any>,
+        options?: { onEvent?: (event: unknown) => unknown | Promise<unknown> }
+      ): Promise<any>
+      start(): Promise<BricklyStartedHandle>
+      closeWindow?(): void
+      window?: {
+        minimize(): Promise<void>
+        toggleMaximize(): Promise<boolean>
+        close(): Promise<void>
+        isMaximized(): Promise<boolean>
+        onMaximizeChange(callback: (maximized: boolean) => void): () => void
+      }
+      system: any
+    }
+  }
+}
+
+export interface LogFileConfig {
+  path: string
+  enabled: boolean
+}
+
+export interface ServerConfig {
+  id: string
+  name: string
+  host: string
+  port: number
+  user: string
+  authType: 'password' | 'key'
+  password?: string
+  keyPath?: string
+  keyText?: string
+  logs: LogFileConfig[]
+}
+
+export interface FilterConfig {
+  pattern: string
+  regexp: boolean
+  ignoreCase: boolean
+  invert: boolean
+  wordRegexp: boolean
+}
+
+export interface GrepArgs {
+  ignoreCase: boolean
+  invert: boolean
+  wordRegexp: boolean
+  regexp: boolean
+  contextA: number
+  contextB: number
+  contextC: number
+  onlyMatch: boolean
+  maxCount: number
+  showLineNum: boolean
+  showFilename: boolean
+  fromTail: boolean
+  tailLines: number
+  filters?: FilterConfig[]
+}
+
+export interface ParsedLogLine {
+  id: string
+  index: number
+  file: string
+  content: string
+  isContext: boolean
+  error?: string
+  matches?: Array<[number, number]>
+}
+
+export const FALLBACK_RESULTS_SCOPE = '__fallback__'
+
+export type FileSearchStatus = 'idle' | 'queued' | 'searching' | 'success' | 'error' | 'cancelled' | 'done'
+export type FileListStatus = 'idle' | 'loading' | 'ready' | 'error'
+export type ConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error'
+
+export interface FileSearchState {
+  count: number
+  durationMs: number
+  active: boolean
+  status: FileSearchStatus
+  message?: string
+  truncated?: boolean
+}
+
+export interface SearchFileStatePayload {
+  tabId: string
+  total: number
+  status: FileSearchStatus
+  message?: string
+  durationMs: number
+  truncated?: boolean
+  active?: boolean
+}
+
+export interface SearchStatePayload {
+  serverId: string
+  runId: string
+  tabId?: string
+  tabs?: string[]
+  files?: SearchFileStatePayload[]
+  status: FileSearchStatus
+  message?: string
+  total: number
+  durationMs: number
+  truncated?: boolean
+  active?: boolean
+}
+
+export interface BricklySearchEvent {
+  type?: string
+  progress?: number
+  message?: string
+  searchState?: SearchStatePayload
+}
+
+export interface PeekResult {
+  runId: string
+  tabId: string
+  total: number
+  offset: number
+  lines: Array<{
+    index: number
+    text: string
+    matches?: Array<[number, number]>
+    file?: string
+    isContext?: boolean
+    error?: string
+  }>
+  status: FileSearchStatus
+  message?: string
+  durationMs: number
+  truncated?: boolean
+}
+
+export interface FindResult {
+  runId: string
+  tabId: string
+  keyword: string
+  total: number
+  ordinal: number
+  lineIndex: number
+  start: number
+  end: number
+  status: FileSearchStatus
+  message?: string
+  durationMs: number
+  truncated?: boolean
+}
+
+export interface ResultWindowState {
+  runId: string
+  tabId: string
+  offset: number
+  limit: number
+  total: number
+  lines: ParsedLogLine[]
+  status: FileSearchStatus
+  message?: string
+  durationMs: number
+  truncated?: boolean
+  loading: boolean
+}
+
+export interface ConnectionTestState {
+  status: ConnectionTestStatus
+  message: string
+}
+
+export type { HighlightKeywordTextMap, RemoteLogFile }
+
+export const DEFAULT_GREP_ARGS: GrepArgs = {
+  ignoreCase: true,
+  invert: false,
+  wordRegexp: false,
+  regexp: false,
+  contextA: 0,
+  contextB: 0,
+  contextC: 0,
+  onlyMatch: false,
+  maxCount: 500,
+  showLineNum: false,
+  showFilename: false,
+  fromTail: false,
+  tailLines: 1000
+}

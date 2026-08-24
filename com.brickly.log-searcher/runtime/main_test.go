@@ -9,44 +9,34 @@ import (
 	"testing"
 )
 
-func TestRegisterCancelTriggersContextImmediately(t *testing.T) {
-	id := "test-cancel-immediate"
-	clearCancelled(id)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	registerCancel(id, cancel)
-	markCancelled(id)
-
-	if ctx.Err() == nil {
-		t.Fatalf("context should be cancelled after markCancelled")
+func TestAsJSONValueConvertsSearchStateForBrickValue(t *testing.T) {
+	payload, err := asJSONValue(SearchStatePayload{
+		ServerID: "srv",
+		RunID:    "1",
+		Status:   searchStatusSearching,
+		Total:    2,
+	})
+	if err != nil {
+		t.Fatalf("asJSONValue() error = %v", err)
 	}
-	if !isCancelled(id) {
-		t.Fatalf("cancel flag should be set")
+	object, ok := payload.(map[string]any)
+	if !ok {
+		t.Fatalf("asJSONValue() type = %T, want map[string]any", payload)
 	}
-
-	clearCancelled(id)
-	if isCancelled(id) {
-		t.Fatalf("cancel flag should be cleared")
+	if object["serverId"] != "srv" || object["runId"] != "1" {
+		t.Fatalf("unexpected payload: %#v", object)
 	}
 }
 
-func TestRegisterCancelHonorsEarlierCancelSignal(t *testing.T) {
-	id := "test-cancel-before-register"
-	clearCancelled(id)
-	markCancelled(id)
-
+func TestSearchCancelledUsesContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	registerCancel(id, cancel)
-
-	if ctx.Err() == nil {
-		t.Fatalf("context should be cancelled when id was cancelled before registration")
+	if searchCancelled(ctx) {
+		t.Fatal("fresh context should not be cancelled")
 	}
-
-	clearCancelled(id)
+	cancel()
+	if !searchCancelled(ctx) {
+		t.Fatal("cancelled context should be detected")
+	}
 }
 
 func TestParseServerConfigInput(t *testing.T) {
