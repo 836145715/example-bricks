@@ -165,7 +165,7 @@
         {
           "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。",
           "type": "object",
-          "required": ["type", "platforms", "entry"],
+          "required": ["type", "instance", "platforms", "entry"],
           "additionalProperties": false,
           "allOf": [
             {
@@ -187,6 +187,11 @@
               "type": "string",
               "enum": ["python", "node", "native"],
               "description": "python: 源码 + uv venv；node: 使用 Electron 自带 Node 以子进程方式启动；native: 预编译二进制（Go/Rust/.NET 等）。"
+            },
+            "instance": {
+              "type": "string",
+              "enum": ["per-call", "owned", "shared"],
+              "description": "Runtime 实例策略，宿主必须显式声明，不得缺省或把 scoped 静默映射为 owned。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 ToolRef+Profile 共享实例。"
             },
             "platforms": {
               "description": "Brick 声明支持的具体平台列表。平台是否已经完成审核和发布由市场 package 独立决定。",
@@ -347,7 +352,7 @@
       }
     },
     "config": {
-      "description": "Brick 多环境 Profile 配置声明。字段复用 io.inputs socket 结构，平台在启动 runtime 时通过 host.hello.config 注入选中 Profile。",
+      "description": "Brick 多环境 Profile 配置声明。字段复用 io.inputs socket 结构，平台在启动 runtime 时把选中 Profile 注入命令上下文 ctx.config（以及按字段声明写入的环境变量）。",
       "type": "object",
       "additionalProperties": false,
       "required": ["fields"],
@@ -1419,7 +1424,7 @@
           "inject": {
             "type": "string",
             "enum": ["config", "env", "both"],
-            "description": "Profile 配置注入目标。config=仅 host.hello.config，env=仅环境变量，both=两者都注入。未声明时普通字段默认 config，带 env 字段默认 both。"
+            "description": "Profile 配置注入目标。config=仅命令上下文 ctx.config，env=仅环境变量，both=两者都注入。未声明时普通字段默认 config，带 env 字段默认 both。"
           },
           "accept": {
             "type": "string",
