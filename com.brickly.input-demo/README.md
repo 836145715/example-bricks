@@ -1,6 +1,6 @@
 # com.brickly.input-demo
 
-用于手工验证 `host.platform.input.*` 的演示 Brick。
+用于手工验证 `ctx.platform.input.*` 的演示 Brick。
 
 ## 使用方式
 

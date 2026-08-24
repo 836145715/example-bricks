@@ -20,6 +20,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "owned",
     "platforms": [
       "win-x64",
       "win-arm64",
@@ -148,6 +149,7 @@
         "zh-CN": "通过模拟复制检测当前选区，若文本有效则调用 OpenAI 输出协议化 Markdown 解构结果。",
         "en": "Detect selected text by simulating copy, analyze it with OpenAI, and show a protocol Markdown panel."
       },
+      "mode": "interact",
       "io": {
         "inputs": [],
         "outputs": [
@@ -178,6 +180,7 @@
           }
         ]
       },
+      "mode": "interact",
       "execution": "replace"
     }
   ]

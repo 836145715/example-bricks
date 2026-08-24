@@ -20,6 +20,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "owned",
     "platforms": [
       "win-x64",
       "win-arm64",
@@ -142,6 +143,7 @@
         "zh-CN": "通过模拟复制检测当前选区，若文本有效则调用 OpenAI 翻译并显示窗口。",
         "en": "Detect selected text by simulating copy, translate it with OpenAI, and show a result window."
       },
+      "mode": "interact",
       "io": {
         "inputs": [],
         "outputs": [
@@ -172,6 +174,7 @@
           }
         ]
       },
+      "mode": "interact",
       "timeoutMs": 180000,
       "execution": "queue"
     }

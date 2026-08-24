@@ -20,10 +20,11 @@ async function waitForStart(ctx, delayMs) {
   while (Date.now() - startedAt < delay) {
     ensureNotCancelled(ctx)
     const elapsed = Date.now() - startedAt
-    ctx.progress(
-      Math.min(elapsed / delay, 0.95),
-      `请把焦点切到目标窗口，${Math.ceil((delay - elapsed) / 1000)} 秒后执行`
-    )
+    await ctx.send({
+      type: 'progress',
+      progress: Math.min(elapsed / delay, 0.95),
+      message: `请把焦点切到目标窗口，${Math.ceil((delay - elapsed) / 1000)} 秒后执行`
+    })
     await sleep(Math.min(250, delay - elapsed))
   }
 }
@@ -43,7 +44,11 @@ async function runKeyboardTap(ctx, input) {
   for (let i = 0; i < repeat; i++) {
     ensureNotCancelled(ctx)
     await keyboardTap(ctx, key, modifiers)
-    ctx.progress((i + 1) / repeat, `已发送 ${i + 1}/${repeat}: ${formatKey(key, modifiers)}`)
+    await ctx.send({
+      type: 'progress',
+      progress: (i + 1) / repeat,
+      message: `已发送 ${i + 1}/${repeat}: ${formatKey(key, modifiers)}`
+    })
     if (i + 1 < repeat) await sleep(intervalMs)
   }
 
@@ -66,8 +71,12 @@ async function runTypeText(ctx, input) {
     ensureNotCancelled(ctx)
     const tap = taps[i]
     await keyboardTap(ctx, tap.key, tap.modifiers)
-    ctx.progress((i + 1) / taps.length, `已输入 ${i + 1}/${taps.length}`)
-    ctx.chunk(tap.display)
+    await ctx.send({
+      type: 'progress',
+      progress: (i + 1) / taps.length,
+      message: `已输入 ${i + 1}/${taps.length}`
+    })
+    await ctx.send({ type: 'chunk', chunk: tap.display })
     if (i + 1 < taps.length) await sleep(intervalMs)
   }
 
@@ -96,7 +105,7 @@ async function runMouseAction(ctx, input) {
     throw new BppError('INVALID_INPUT', `未知鼠标动作: ${action}`)
   }
   await run({ x, y })
-  ctx.progress(1, `已执行 ${action} @ (${x}, ${y})`)
+  await ctx.send({ type: 'progress', progress: 1, message: `已执行 ${action} @ (${x}, ${y})` })
   return {
     action,
     x,
@@ -144,37 +153,11 @@ function ensureNotCancelled(ctx) {
   }
 }
 
-function commandCtx(ctx) {
-  return {
-    ...ctx,
-    progress() {},
-    chunk() {}
-  }
-}
-
-function interactCtx(session, commandId) {
-  return {
-    requestId: 'interact',
-    commandId,
-    isCancelled: () => session.signal.aborted,
-    progress: (value, message) => session.send({ type: 'progress', progress: value, message }),
-    chunk: (chunk, name) => session.send({ type: 'chunk', chunk, name }),
-    platform: brick.platform,
-    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true })
-  }
-}
-
 function register(commandId, runner) {
   brick.onCommand(commandId, async (ctx, input = {}) => {
-    log('invoke start', { id: ctx.requestId, commandId })
-    const result = await runner(commandCtx(ctx), input)
-    log('invoke result', { id: ctx.requestId, commandId })
-    return result
-  })
-  brick.onInteract(commandId, async (session) => {
-    log('interact start', { commandId })
-    const result = await runner(interactCtx(session, commandId), session.initial || {})
-    log('interact result', { commandId })
+    log('command start', { id: ctx.requestId, commandId })
+    const result = await runner(ctx, input)
+    log('command result', { id: ctx.requestId, commandId })
     return result
   })
 }

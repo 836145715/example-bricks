@@ -46,7 +46,7 @@ ContextPilot 面向经常阅读英文技术文档的学习者。用户可以选�
 6. 调用 `restoreClipboard(ctx, before)` 尝试恢复触发前剪贴板。
 7. 无有效选区时直接返回 `{ analyzed: false, reason }`，不打开窗口、不调用 OpenAI。
 8. 有有效选区时创建或复用浮窗，发送 `context-pilot:start`。
-9. 通过 manifest 的 `openai` 依赖别名调用 `ctx.dependencies.require('openai').invokeStream('chat-completions', input)`。
+9. 通过 manifest 的 `openai` 依赖别名调用 `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`（`chat-completions` 已声明 `mode: "interact"`）。不要再用已删除的 `invokeStream`。
 10. 收到流式 chunk 后发送 `context-pilot:delta`。
 11. 最终发送 `context-pilot:result` 或 `context-pilot:error`。
 
@@ -109,7 +109,7 @@ UI 向 runtime 发送：
 - `ui/index.html`：解构面板 DOM。
 - `ui/app.js`：协议化 Markdown 解析、流式渲染、复制、关闭、resize。
 - `ui/style.css`：无边框浮窗、精简分区、拖拽区域和流式文本样式。
-- `smoke.cjs`：本 Brick 的轻量协议 smoke 测试。
+- `smoke.cjs`：本 Brick 的本地纯函数 / UI 检查（不握手 Host gRPC）。完整命令路径请在 Brickly 宿主里用热键验证。
 
 ## 验证方式
 
@@ -122,21 +122,14 @@ node .\smoke.cjs
 预期输出：
 
 ```text
-OK: context-pilot smoke passed
+OK: context-pilot local checks passed (no Host gRPC / no host.hello)
 ```
 
-该 smoke 覆盖：
+该本地检查覆盖：
 
-- 无选区时返回 `{ analyzed: false }`。
-- 无选区时不开窗、不调用 OpenAI。
-- 有选区时恢复旧剪贴板。
-- 截图 OCR 命令会调用 manifest 中固定版本的 `ocr` 依赖别名。
-- OCR 为空时不开窗、不调用 OpenAI。
-- 有选区时创建透明无边框窗口。
-- 通过 manifest 中固定版本的 `openai` 依赖别名调用 `chat-completions` 且使用 stream。
-- prompt 使用协议化 section。
-- UI 收到 `context-pilot:start/delta/result`，且消息使用宿主 `requestId` 做轮次隔离。
-- UI 关闭消息会触发窗口关闭。
+- 无选区 / 有选区的剪贴板 hash 判断。
+- 浮窗 UI 只走 `window.brickly`，不依赖 `window.AIBricks`。
+- 过期 `requestId` 的 delta/result/error 不会污染当前面板。
 
 ## 已知边界
 

@@ -34,6 +34,7 @@
   "preload": "preload.cjs",
   "runtime": {
     "type": "node",
+    "instance": "per-call",
     "platforms": [
       "win-x64",
       "mac-x64",
@@ -67,6 +68,7 @@
   "commands": [
     {
       "id": "process-image",
+      "mode": "interact",
       "name": {
         "zh-CN": "处理图片",
         "en": "Process Image"

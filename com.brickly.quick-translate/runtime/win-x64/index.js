@@ -1,7 +1,7 @@
 /* eslint-disable */
 'use strict'
 
-const { BricklyRuntime } = require('@syllm/brickly-sdk')
+const { BricklyRuntime, call } = require('@syllm/brickly-sdk')
 const fs = require('fs/promises')
 const os = require('os')
 const path = require('path')
@@ -10,11 +10,15 @@ const {
   openScreenshotOverlayWindow,
   closeScreenshotOverlayWindow
 } = require('./src/screenshot-overlay-window')
+const {
+  selectedTextFromSnapshots,
+  clipboardContentFromSnapshot,
+  normalizeScreenBounds
+} = require('./lib/text-input')
 
 const BRICK_ID = 'com.brickly.quick-translate'
 const WINDOW_HTML = 'ui/index.html'
 const COPY_SETTLE_MS = 300
-const MAX_SOURCE_CHARS = 8000
 const WINDOW_WIDTH = 360
 const WINDOW_INITIAL_HEIGHT = 138
 const WINDOW_MIN_HEIGHT = 118
@@ -31,14 +35,14 @@ let translateWindow = null
 let translateWindowBounds = null
 
 async function runTranslateSelection(ctx) {
-  ctx.progress(0.05, '读取剪贴板快照')
+  await ctx.send({ type: 'progress', progress: 0.05, message: '读取剪贴板快照' })
   const before = await safeReadClipboard(ctx)
 
-  ctx.progress(0.15, '复制当前选区')
+  await ctx.send({ type: 'progress', progress: 0.15, message: '复制当前选区' })
   await ctx.platform.input.keyboardTap('c', 'control')
   await sleep(COPY_SETTLE_MS)
 
-  ctx.progress(0.3, '检测选中文本')
+  await ctx.send({ type: 'progress', progress: 0.3, message: '检测选中文本' })
   const after = await safeReadClipboard(ctx)
   const selection = selectedTextFromSnapshots(before, after)
   logClipboardDecision(selection, before, after)
@@ -54,14 +58,14 @@ async function runTranslateSelection(ctx) {
   })
 
   try {
-    ctx.progress(0.45, '调用 OpenAI 翻译')
+    await ctx.send({ type: 'progress', progress: 0.45, message: '调用 OpenAI 翻译' })
     const translatedText = await translateWithOpenAI(ctx, selection.text, win)
     await sendToWindow(win, 'translate:result', {
       sourceText: selection.text,
       translatedText,
       completedAt: Date.now()
     })
-    ctx.progress(1, '翻译完成')
+    await ctx.send({ type: 'progress', progress: 1, message: '翻译完成' })
     return { translated: true, sourceText: selection.text, translatedText }
   } catch (error) {
     const payload = {
@@ -75,7 +79,7 @@ async function runTranslateSelection(ctx) {
 }
 
 async function runTranslateScreenshotOverlay(ctx) {
-  ctx.progress(0.05, '请框选要翻译的截图区域')
+  await ctx.send({ type: 'progress', progress: 0.05, message: '请框选要翻译的截图区域' })
   const outputDir = path.join(os.tmpdir(), 'brickly-quick-translate')
   await fs.mkdir(outputDir, { recursive: true })
   const ocrInput = {
@@ -97,10 +101,10 @@ async function runTranslateScreenshotOverlay(ctx) {
     return { translated: false, reason: 'ocr-empty', screenshotPath, bounds }
   }
 
-  ctx.progress(0.45, '翻译截图文字')
+  await ctx.send({ type: 'progress', progress: 0.45, message: '翻译截图文字' })
   const translations = await translateOcrBlocksWithOpenAI(ctx, wordsResult)
 
-  ctx.progress(0.76, '生成覆盖翻译图片')
+  await ctx.send({ type: 'progress', progress: 0.76, message: '生成覆盖翻译图片' })
   const overlayPath = path.join(outputDir, `quick-translate-overlay-${Date.now()}.png`)
   const rendered = await renderScreenshotOverlay({
     screenshotPath,
@@ -116,7 +120,7 @@ async function runTranslateScreenshotOverlay(ctx) {
     blocks: summarizeRenderBlocks(rendered.blocks)
   })
 
-  ctx.progress(0.92, '贴回原屏幕位置')
+  await ctx.send({ type: 'progress', progress: 0.92, message: '贴回原屏幕位置' })
   const overlayPayload = {
     imagePath: overlayPath,
     bounds,
@@ -133,7 +137,7 @@ async function runTranslateScreenshotOverlay(ctx) {
     overlayPath
   })
 
-  ctx.progress(1, '截图翻译已覆盖显示，按 Esc 关闭')
+  await ctx.send({ type: 'progress', progress: 1, message: '截图翻译已覆盖显示，按 Esc 关闭' })
   return {
     translated: true,
     windowId: win.id,
@@ -144,36 +148,9 @@ async function runTranslateScreenshotOverlay(ctx) {
   }
 }
 
-function commandCtx(ctx) {
-  return {
-    ...ctx,
-    progress() {},
-    chunk() {}
-  }
-}
-
-function interactCtx(session, commandId) {
-  return {
-    requestId: 'interact',
-    commandId,
-    isCancelled: () => session.signal.aborted,
-    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true }),
-    progress: (value, message) => session.send({ type: 'progress', progress: value, message }),
-    platform: plugin.platform,
-    dependencies: plugin.dependencies,
-    ui: plugin.ui
-  }
-}
-
-plugin.onCommand('translate-selection', async (ctx) => runTranslateSelection(commandCtx(ctx)))
-plugin.onInteract('translate-selection', async (session) =>
-  runTranslateSelection(interactCtx(session, 'translate-selection'))
-)
+plugin.onCommand('translate-selection', async (ctx) => runTranslateSelection(ctx))
 plugin.onCommand('translate-screenshot-overlay', async (ctx) =>
-  runTranslateScreenshotOverlay(commandCtx(ctx))
-)
-plugin.onInteract('translate-screenshot-overlay', async (session) =>
-  runTranslateScreenshotOverlay(interactCtx(session, 'translate-screenshot-overlay'))
+  runTranslateScreenshotOverlay(ctx)
 )
 
 plugin.onShutdown(async () => {
@@ -195,15 +172,6 @@ async function safeReadClipboard(ctx) {
   }
 }
 
-function selectedTextFromSnapshots(before, after) {
-  if (!after || after.kind !== 'text') return { text: '', reason: 'clipboard-not-text' }
-  const text = typeof after.text === 'string' ? after.text.trim() : ''
-  if (!text) return { text: '', reason: 'clipboard-empty-text' }
-  if (before && before.hash && after.hash && before.hash === after.hash) {
-    return { text: '', reason: 'clipboard-hash-unchanged' }
-  }
-  return { text: text.slice(0, MAX_SOURCE_CHARS), reason: 'selected-text' }
-}
 
 function logClipboardDecision(selection, before, after) {
   plugin.log.debug(
@@ -231,23 +199,6 @@ async function restoreClipboard(ctx, snapshot) {
   }
 }
 
-function clipboardContentFromSnapshot(snapshot) {
-  if (!snapshot || typeof snapshot !== 'object') return null
-  if (snapshot.kind === 'text' && typeof snapshot.text === 'string') {
-    return { kind: 'text', text: snapshot.text }
-  }
-  if (snapshot.kind === 'file' && Array.isArray(snapshot.paths) && snapshot.paths.length > 0) {
-    const paths = snapshot.paths.filter((path) => typeof path === 'string')
-    return paths.length > 0 ? { kind: 'file', paths } : null
-  }
-  if (snapshot.kind === 'image') {
-    if (typeof snapshot.path === 'string' && snapshot.path) return { kind: 'image', path: snapshot.path }
-    if (snapshot.resource && typeof snapshot.resource.filePath === 'string') {
-      return { kind: 'image', path: snapshot.resource.filePath }
-    }
-  }
-  return null
-}
 
 async function ensureTranslateWindow(ctx) {
   const bounds = await getPopupBounds(ctx)
@@ -396,22 +347,20 @@ async function translateWithOpenAI(ctx, sourceText, win) {
     temperature: 0.2
   }
   let streamedText = ''
-  let finalResult = null
-  for await (const event of ctx.dependencies.require('openai').invokeStream('chat-completions', input)) {
-    if (event.type === 'chunk' && event.name === 'text' && typeof event.chunk === 'string') {
-      streamedText += event.chunk
-      await sendToWindow(win, 'translate:delta', {
-        delta: event.chunk,
-        translatedText: streamedText,
-        updatedAt: Date.now()
-      }).catch(() => {})
-    } else if (event.type === 'result') {
-      finalResult = event.result
-    } else if (event.type === 'error') {
-      throw event.error
+  const result = await call(ctx.dependencies.require('openai'), 'chat-completions', input, {
+    signal: ctx.signal,
+    onEvent: async (event) => {
+      if (!event || typeof event !== 'object') return
+      if (event.type === 'chunk' && event.name === 'text' && typeof event.chunk === 'string') {
+        streamedText += event.chunk
+        await sendToWindow(win, 'translate:delta', {
+          delta: event.chunk,
+          translatedText: streamedText,
+          updatedAt: Date.now()
+        }).catch(() => {})
+      }
     }
-  }
-  const result = finalResult || { text: streamedText }
+  })
   const text = extractText(result)
   const translatedText = text || streamedText
   if (!translatedText) throw new Error('OpenAI 未返回可用译文')
@@ -532,20 +481,6 @@ function extractText(value) {
   return ''
 }
 
-function normalizeScreenBounds(value) {
-  if (!value || typeof value !== 'object') return null
-  const x = Number(value.x)
-  const y = Number(value.y)
-  const width = Number(value.width)
-  const height = Number(value.height)
-  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null
-  return {
-    x: Math.round(x),
-    y: Math.round(y),
-    width: Math.round(width),
-    height: Math.round(height)
-  }
-}
 
 function debugLog(label, payload) {
   const message = `[quick-translate][${label}] ${safeJsonStringify(payload)}`

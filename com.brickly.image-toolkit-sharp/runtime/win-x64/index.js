@@ -23,7 +23,7 @@ function log (message, details) {
 
 /**
  * process-image handler: progress/cancel wired into batch dispatcher.
- * @param {{ requestId: string, isCancelled: () => boolean, onCancel: (fn: () => void) => void, progress: (p: number, message?: string) => void }} ctx
+ * @param {import('@syllm/brickly-sdk').CommandContext} ctx
  * @param {object} input
  */
 async function handleProcessImage (ctx, input) {
@@ -44,9 +44,9 @@ async function handleProcessImage (ctx, input) {
       output: (input && input.output) || {},
       common: (input && input.common) || {},
       previewOnly,
-      onProgress: (p, message) => {
+      onProgress: async (p, message) => {
         try {
-          ctx.progress(p, message)
+          await ctx.send({ type: 'progress', progress: p, message })
         } catch (_) {
           /* host may have disconnected */
         }
@@ -72,23 +72,7 @@ async function handleProcessImage (ctx, input) {
   }
 }
 
-brick.onCommand('process-image', async (ctx, input) => {
-  return handleProcessImage({
-    requestId: ctx.requestId,
-    isCancelled: () => ctx.isCancelled(),
-    onCancel: (fn) => ctx.onCancel(fn),
-    progress () {}
-  }, input)
-})
-
-brick.onInteract('process-image', async (session) => {
-  return handleProcessImage({
-    requestId: 'interact',
-    isCancelled: () => session.signal.aborted,
-    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true }),
-    progress: (p, message) => session.send({ type: 'progress', progress: p, message })
-  }, session.initial || {})
-})
+brick.onCommand('process-image', handleProcessImage)
 
 brick.onShutdown(() => {
   log('收到停机指令')

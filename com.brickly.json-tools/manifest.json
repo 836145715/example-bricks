@@ -24,6 +24,7 @@
   "license": "MIT",
   "runtime": {
     "type": "node",
+    "instance": "per-call",
     "platforms": [
       "win-x64",
       "win-arm64",
@@ -54,6 +55,7 @@
       "name": "Format",
       "description": "Pretty-print JSON and stream the formatted text back in chunks.",
       "category": "transform",
+      "mode": "interact",
       "io": {
         "inputs": [
           {

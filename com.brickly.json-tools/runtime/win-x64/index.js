@@ -15,21 +15,21 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-brick.onInteract('format', async (session) => {
-  brick.log.info('interact start', { commandId: 'format' })
+brick.onCommand('format', async (ctx, input) => {
+  brick.log.info('command start', { commandId: 'format' })
   try {
-    await session.send({ type: 'progress', progress: 0, message: 'parsing' })
-    const value = parseInput(session.initial)
+    await ctx.send({ type: 'progress', progress: 0, message: 'parsing' })
+    const value = parseInput(input)
     const formatted = JSON.stringify(value, null, 2)
-    await session.send({ type: 'progress', progress: 0.5, message: 'streaming' })
+    await ctx.send({ type: 'progress', progress: 0.5, message: 'streaming' })
     const step = Math.max(1, Math.ceil(formatted.length / 8))
     for (let i = 0; i < formatted.length; i += step) {
-      if (session.signal.aborted) throw new BppError('CANCELLED', 'Cancelled')
+      if (ctx.signal.aborted || ctx.isCancelled()) throw new BppError('CANCELLED', 'Cancelled')
       await sleep(80)
-      await session.send({ type: 'chunk', chunk: formatted.slice(i, i + step) })
+      await ctx.send({ type: 'chunk', chunk: formatted.slice(i, i + step), name: 'formatted' })
     }
-    await session.send({ type: 'progress', progress: 1, message: 'done' })
-    brick.log.info('interact result', { commandId: 'format', bytes: formatted.length })
+    await ctx.send({ type: 'progress', progress: 1, message: 'done' })
+    brick.log.info('command result', { commandId: 'format', bytes: formatted.length })
     return formatted
   } catch (error) {
     if (error instanceof BppError) throw error

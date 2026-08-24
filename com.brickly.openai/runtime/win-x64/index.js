@@ -179,35 +179,39 @@ function applyConfig(config) {
   if (config && typeof config === 'object') profileConfig = config
 }
 
-function bindAbort(onCancel) {
+function bindAbort(ctx) {
   const abortController = new AbortController()
-  onCancel(() => abortController.abort())
+  ctx.onCancel(() => abortController.abort())
   return abortController
 }
 
-async function runResponsesUnary(input, onCancel) {
+function isAborted(ctx) {
+  return ctx.isCancelled() || (ctx.signal && ctx.signal.aborted)
+}
+
+async function runResponsesUnary(ctx, input) {
   const client = createClient()
   const body = buildResponsesBody(input || {})
   delete body.stream
-  const abortController = bindAbort(onCancel)
+  const abortController = bindAbort(ctx)
   const response = await client.responses.create(body, { signal: abortController.signal })
   return { text: extractResponseText(response), response }
 }
 
-async function runResponsesStream(session, input) {
+async function runResponsesStream(ctx, input) {
   const client = createClient()
   const body = buildResponsesBody(input || {})
   body.stream = true
-  const abortController = bindAbort((fn) => session.signal.addEventListener('abort', fn, { once: true }))
-  await session.send({ type: 'progress', progress: 0.1, message: 'Calling OpenAI Responses API' })
+  const abortController = bindAbort(ctx)
+  await ctx.send({ type: 'progress', progress: 0.1, message: 'Calling OpenAI Responses API' })
 
   let text = ''
   const stream = client.responses.stream(body, { signal: abortController.signal })
   for await (const event of stream) {
-    if (session.signal.aborted) throw makeError('CANCELLED', 'Cancelled by host')
+    if (isAborted(ctx)) throw makeError('CANCELLED', 'Cancelled by host')
     if (event.type === 'response.output_text.delta' && typeof event.delta === 'string') {
       text += event.delta
-      await session.send({ type: 'chunk', chunk: event.delta, name: 'text' })
+      await ctx.send({ type: 'chunk', chunk: event.delta, name: 'text' })
     } else if (event.type === 'response.failed') {
       const message = event.response?.error?.message || 'OpenAI Responses stream failed'
       throw makeError('OPENAI_API_ERROR', message)
@@ -216,63 +220,56 @@ async function runResponsesStream(session, input) {
 
   const finalResponse = await stream.finalResponse()
   if (!text) text = extractResponseText(finalResponse)
-  await session.send({ type: 'progress', progress: 1, message: 'OpenAI response received' })
+  await ctx.send({ type: 'progress', progress: 1, message: 'OpenAI response received' })
   return { text, response: finalResponse }
 }
 
-async function runChatCompletionsUnary(input, onCancel) {
+async function runChatCompletionsUnary(ctx, input) {
   const client = createClient()
   const body = buildChatBody(input || {})
   delete body.stream
-  const abortController = bindAbort(onCancel)
+  const abortController = bindAbort(ctx)
   const response = await client.chat.completions.create(body, { signal: abortController.signal })
   const message = response && response.choices && response.choices[0] ? response.choices[0].message : null
   return { text: extractChatText(response), message, response }
 }
 
-async function runChatCompletionsStream(session, input) {
+async function runChatCompletionsStream(ctx, input) {
   const client = createClient()
   const body = buildChatBody(input || {})
   body.stream = true
-  const abortController = bindAbort((fn) => session.signal.addEventListener('abort', fn, { once: true }))
-  await session.send({ type: 'progress', progress: 0.1, message: 'Calling OpenAI Chat Completions API' })
+  const abortController = bindAbort(ctx)
+  await ctx.send({ type: 'progress', progress: 0.1, message: 'Calling OpenAI Chat Completions API' })
 
   let text = ''
   const stream = client.chat.completions.stream(body, { signal: abortController.signal })
   for await (const chunk of stream) {
-    if (session.signal.aborted) throw makeError('CANCELLED', 'Cancelled by host')
+    if (isAborted(ctx)) throw makeError('CANCELLED', 'Cancelled by host')
     const choice = chunk.choices && chunk.choices[0]
     const delta = choice && choice.delta
     if (delta && typeof delta.content === 'string') {
       text += delta.content
-      await session.send({ type: 'chunk', chunk: delta.content, name: 'text' })
+      await ctx.send({ type: 'chunk', chunk: delta.content, name: 'text' })
     }
   }
 
   const response = await stream.finalChatCompletion()
   const message = response && response.choices && response.choices[0] ? response.choices[0].message : null
   if (!text) text = extractChatText(response)
-  await session.send({ type: 'progress', progress: 1, message: 'OpenAI chat completion received' })
+  await ctx.send({ type: 'progress', progress: 1, message: 'OpenAI chat completion received' })
   return { text, message, response }
 }
 
 plugin.onCommand('responses', async (ctx, input) => {
   try {
     applyConfig(ctx.config)
-    if ((input || {}).stream === true) {
-      throw makeError('INVALID_INPUT', 'stream 请使用 interact')
-    }
-    return await runResponsesUnary(input || {}, (fn) => ctx.onCancel(fn))
-  } catch (error) {
-    throw normalizeOpenAIError(error)
-  }
-})
-
-plugin.onInteract('responses', async (session) => {
-  try {
-    const input = session.initial || {}
-    if (input.stream === true) return await runResponsesStream(session, input)
-    return await runResponsesUnary(input, (fn) => session.signal.addEventListener('abort', fn, { once: true }))
+    plugin.log.info('command start', { commandId: 'responses', stream: (input || {}).stream === true })
+    const result =
+      (input || {}).stream === true
+        ? await runResponsesStream(ctx, input || {})
+        : await runResponsesUnary(ctx, input || {})
+    plugin.log.info('command result', { commandId: 'responses', bytes: (result.text || '').length })
+    return result
   } catch (error) {
     throw normalizeOpenAIError(error)
   }
@@ -281,20 +278,13 @@ plugin.onInteract('responses', async (session) => {
 plugin.onCommand('chat-completions', async (ctx, input) => {
   try {
     applyConfig(ctx.config)
-    if ((input || {}).stream === true) {
-      throw makeError('INVALID_INPUT', 'stream 请使用 interact')
-    }
-    return await runChatCompletionsUnary(input || {}, (fn) => ctx.onCancel(fn))
-  } catch (error) {
-    throw normalizeOpenAIError(error)
-  }
-})
-
-plugin.onInteract('chat-completions', async (session) => {
-  try {
-    const input = session.initial || {}
-    if (input.stream === true) return await runChatCompletionsStream(session, input)
-    return await runChatCompletionsUnary(input, (fn) => session.signal.addEventListener('abort', fn, { once: true }))
+    plugin.log.info('command start', { commandId: 'chat-completions', stream: (input || {}).stream === true })
+    const result =
+      (input || {}).stream === true
+        ? await runChatCompletionsStream(ctx, input || {})
+        : await runChatCompletionsUnary(ctx, input || {})
+    plugin.log.info('command result', { commandId: 'chat-completions', bytes: (result.text || '').length })
+    return result
   } catch (error) {
     throw normalizeOpenAIError(error)
   }

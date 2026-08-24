@@ -1,12 +1,16 @@
 /* eslint-disable */
 'use strict'
 
-const { BricklyRuntime } = require('@syllm/brickly-sdk')
+const { BricklyRuntime, call } = require('@syllm/brickly-sdk')
+const {
+  selectedTextFromSnapshots,
+  clipboardContentFromSnapshot,
+  normalizeOcrText
+} = require('./lib/text-input')
 
 const BRICK_ID = 'com.brickly.context-pilot'
 const WINDOW_HTML = 'ui/index.html'
 const COPY_SETTLE_MS = 300
-const MAX_SOURCE_CHARS = 8000
 const WINDOW_WIDTH = 560
 const WINDOW_INITIAL_HEIGHT = 420
 const WINDOW_MIN_HEIGHT = 260
@@ -22,14 +26,14 @@ let panelWindow = null
 let panelWindowBounds = null
 
 async function runAnalyzeSelection(ctx) {
-  ctx.progress(0.05, '读取剪贴板快照')
+  await ctx.send({ type: 'progress', progress: 0.05, message: '读取剪贴板快照' })
   const before = await safeReadClipboard(ctx)
 
-  ctx.progress(0.15, '复制当前选区')
+  await ctx.send({ type: 'progress', progress: 0.15, message: '复制当前选区' })
   await copySelection(ctx)
   await sleep(COPY_SETTLE_MS)
 
-  ctx.progress(0.3, '检测选中文本')
+  await ctx.send({ type: 'progress', progress: 0.3, message: '检测选中文本' })
   const after = await safeReadClipboard(ctx)
   const selection = selectedTextFromSnapshots(before, after)
   logClipboardDecision(selection, before, after)
@@ -46,7 +50,7 @@ async function runAnalyzeSelection(ctx) {
 }
 
 async function runAnalyzeScreenshot(ctx) {
-  ctx.progress(0.05, '框选截图并 OCR')
+  await ctx.send({ type: 'progress', progress: 0.05, message: '框选截图并 OCR' })
   const ocrResult = await ctx.dependencies.require('ocr').invoke('capture-text', {
     languageType: 'AUTO',
     probability: false,
@@ -65,35 +69,8 @@ async function runAnalyzeScreenshot(ctx) {
   })
 }
 
-function commandCtx(ctx) {
-  return {
-    ...ctx,
-    progress() {},
-    chunk() {}
-  }
-}
-
-function interactCtx(session, commandId) {
-  return {
-    requestId: 'interact',
-    commandId,
-    isCancelled: () => session.signal.aborted,
-    onCancel: (fn) => session.signal.addEventListener('abort', fn, { once: true }),
-    progress: (value, message) => session.send({ type: 'progress', progress: value, message }),
-    platform: plugin.platform,
-    dependencies: plugin.dependencies,
-    ui: plugin.ui
-  }
-}
-
-plugin.onCommand('analyze-selection', async (ctx) => runAnalyzeSelection(commandCtx(ctx)))
-plugin.onInteract('analyze-selection', async (session) =>
-  runAnalyzeSelection(interactCtx(session, 'analyze-selection'))
-)
-plugin.onCommand('analyze-screenshot', async (ctx) => runAnalyzeScreenshot(commandCtx(ctx)))
-plugin.onInteract('analyze-screenshot', async (session) =>
-  runAnalyzeScreenshot(interactCtx(session, 'analyze-screenshot'))
-)
+plugin.onCommand('analyze-selection', async (ctx) => runAnalyzeSelection(ctx))
+plugin.onCommand('analyze-screenshot', async (ctx) => runAnalyzeScreenshot(ctx))
 
 async function analyzeSourceText(ctx, sourceText, options = {}) {
   let cancelled = false
@@ -101,13 +78,17 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
     cancelled = true
   })
   const ensureActive = () => {
-    if (cancelled || ctx.isCancelled()) {
+    if (cancelled || ctx.isCancelled() || ctx.signal?.aborted) {
       throw cancelledError()
     }
   }
 
   ensureActive()
-  ctx.progress(options.openProgress || 0.4, '打开 ContextPilot 面板')
+  await ctx.send({
+    type: 'progress',
+    progress: options.openProgress || 0.4,
+    message: '打开 ContextPilot 面板'
+  })
   const win = await ensurePanelWindow(ctx)
   ensureActive()
   await sendToWindow(win, 'context-pilot:start', {
@@ -119,7 +100,11 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
 
   try {
     ensureActive()
-    ctx.progress(options.analysisProgress || 0.45, '调用 OpenAI 解构')
+    await ctx.send({
+      type: 'progress',
+      progress: options.analysisProgress || 0.45,
+      message: '调用 OpenAI 解构'
+    })
     const markdown = await analyzeWithOpenAI(ctx, sourceText, win, ensureActive)
     ensureActive()
     await sendToWindow(win, 'context-pilot:result', {
@@ -129,12 +114,12 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
       markdown,
       completedAt: Date.now()
     })
-    ctx.progress(1, '解构完成')
+    await ctx.send({ type: 'progress', progress: 1, message: '解构完成' })
     const result = { analyzed: true, source: options.source || 'selection', sourceText, markdown }
     if (options.ocrResult) result.ocrResult = options.ocrResult
     return result
   } catch (error) {
-    if (isCancelledError(error) || cancelled || ctx.isCancelled()) {
+    if (isCancelledError(error) || cancelled || ctx.isCancelled() || ctx.signal?.aborted) {
       throw cancelledError()
     }
     const payload = {
@@ -171,28 +156,6 @@ async function safeReadClipboard(ctx) {
   }
 }
 
-function selectedTextFromSnapshots(before, after) {
-  if (!after || after.kind !== 'text') return { text: '', reason: 'clipboard-not-text' }
-  const text = typeof after.text === 'string' ? after.text.trim() : ''
-  if (!text) return { text: '', reason: 'clipboard-empty-text' }
-  if (before && before.hash && after.hash && before.hash === after.hash) {
-    return { text: '', reason: 'clipboard-hash-unchanged' }
-  }
-  return { text: text.slice(0, MAX_SOURCE_CHARS), reason: 'selected-text' }
-}
-
-function normalizeOcrText(ocrResult) {
-  if (!ocrResult || typeof ocrResult !== 'object') return ''
-  const wordsText = typeof ocrResult.wordsText === 'string' ? ocrResult.wordsText.trim() : ''
-  if (wordsText) return wordsText.slice(0, MAX_SOURCE_CHARS)
-  if (!Array.isArray(ocrResult.wordsResult)) return ''
-  return ocrResult.wordsResult
-    .map((item) => (item && typeof item.words === 'string' ? item.words.trim() : ''))
-    .filter(Boolean)
-    .join('\n')
-    .slice(0, MAX_SOURCE_CHARS)
-}
-
 function logClipboardDecision(selection, before, after) {
   plugin.log.debug(
     [
@@ -219,23 +182,6 @@ async function restoreClipboard(ctx, snapshot) {
   }
 }
 
-function clipboardContentFromSnapshot(snapshot) {
-  if (!snapshot || typeof snapshot !== 'object') return null
-  if (snapshot.kind === 'text' && typeof snapshot.text === 'string') {
-    return { kind: 'text', text: snapshot.text }
-  }
-  if (snapshot.kind === 'file' && Array.isArray(snapshot.paths) && snapshot.paths.length > 0) {
-    const paths = snapshot.paths.filter((path) => typeof path === 'string')
-    return paths.length > 0 ? { kind: 'file', paths } : null
-  }
-  if (snapshot.kind === 'image') {
-    if (typeof snapshot.path === 'string' && snapshot.path) return { kind: 'image', path: snapshot.path }
-    if (snapshot.resource && typeof snapshot.resource.filePath === 'string') {
-      return { kind: 'image', path: snapshot.resource.filePath }
-    }
-  }
-  return null
-}
 
 async function ensurePanelWindow(ctx) {
   if (panelWindow && !panelWindow.closed) {
@@ -398,25 +344,23 @@ async function analyzeWithOpenAI(ctx, sourceText, win, ensureActive) {
     temperature: 0.2
   }
   let streamedMarkdown = ''
-  let finalResult = null
-  for await (const event of ctx.dependencies.require('openai').invokeStream('chat-completions', input)) {
-    ensureActive()
-    if (event.type === 'chunk' && event.name === 'text' && typeof event.chunk === 'string') {
-      streamedMarkdown += event.chunk
-      await sendToWindow(win, 'context-pilot:delta', {
-        requestId: ctx.requestId,
-        delta: event.chunk,
-        markdown: streamedMarkdown,
-        updatedAt: Date.now()
-      }).catch(() => {})
-    } else if (event.type === 'result') {
-      finalResult = event.result
-    } else if (event.type === 'error') {
-      throw event.error
+  const result = await call(ctx.dependencies.require('openai'), 'chat-completions', input, {
+    signal: ctx.signal,
+    onEvent: async (event) => {
+      ensureActive()
+      if (!event || typeof event !== 'object') return
+      if (event.type === 'chunk' && event.name === 'text' && typeof event.chunk === 'string') {
+        streamedMarkdown += event.chunk
+        await sendToWindow(win, 'context-pilot:delta', {
+          requestId: ctx.requestId,
+          delta: event.chunk,
+          markdown: streamedMarkdown,
+          updatedAt: Date.now()
+        }).catch(() => {})
+      }
     }
-  }
+  })
   ensureActive()
-  const result = finalResult || { text: streamedMarkdown }
   const text = extractText(result)
   const markdown = text || streamedMarkdown
   if (!markdown) throw new Error('OpenAI 未返回可用解构内容')
@@ -487,7 +431,9 @@ function isCancelledError(error) {
   return Boolean(
     error &&
       typeof error === 'object' &&
-      (error.code === 'CANCELLED' || error.message === 'Invocation cancelled by host')
+      (error.code === 'CANCELLED' ||
+        error.message === 'Invocation cancelled by host' ||
+        error.message === 'aborted')
   )
 }
 

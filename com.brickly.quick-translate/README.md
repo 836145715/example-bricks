@@ -21,7 +21,7 @@
 核心流程位于 `runtime/win-x64/index.js` 的 `translate-selection` 命令处理器中：
 
 1. 读取触发前剪贴板快照 `before`，主要依赖 `kind`、`hash`、`text` 等字段。
-2. 调用 `host.platform.input.keyboardTap` 模拟 `Ctrl+C`。
+2. 调用 `ctx.platform.input.keyboardTap` 模拟 `Ctrl+C`。
 3. 等待短暂 settle 时间后读取触发后剪贴板快照 `after`。
 4. 对比 `before.hash` 与 `after.hash`：
    - `after.kind !== 'text'` 时认为没有可翻译文本。
@@ -33,10 +33,10 @@
    - 通过鼠标位置与最近屏幕工作区计算浮窗位置。
    - 打开或复用翻译窗口。
    - 向 UI 发送 `translate:start`。
-8. 通过 manifest 的 `openai` 依赖别名调用 `ctx.dependencies.require('openai').invokeStream('chat-completions', input)`：
-   - 收到文本 chunk 时累积译文并发送 `translate:delta`。
-   - 收到 result 时提取最终译文并发送 `translate:result`。
-   - 收到错误或异常时发送 `translate:error` 并向上抛出。
+8. 通过 manifest 的 `openai` 依赖别名调用 `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`（`chat-completions` 已声明 `mode: "interact"`）：
+   - `onEvent` 收到文本 chunk 时累积译文并发送 `translate:delta`。
+   - 最终返回值提取译文后发送 `translate:result`。
+   - 收到错误或异常时发送 `translate:error` 并向上抛出。不要再用已删除的 `invokeStream`。
 
 `translate-screenshot-overlay` 命令流程：
 
@@ -66,20 +66,20 @@ UI 侧 `ui/app.js` 监听以下事件：
 - `ui/app.js`：浮窗交互逻辑，负责监听 `translate:*` 事件、追加流式文本、复制译文、关闭窗口和请求 resize。
 - `ui/style.css`：浮窗视觉样式，包含透明磨砂背景、无边框窗口适配、拖拽区域、流式光标和自适应内容区域。
 - `ui/overlay.html` / `ui/overlay.js` / `ui/overlay.css`：截图覆盖层 UI，只显示渲染后的覆盖图，并支持 `Esc` 或右键关闭。
-- `smoke.cjs`：本 Brick 的轻量 smoke 测试，通过模拟宿主协议验证无选区、新选区、剪贴板恢复、开窗、流式 OpenAI 调用与关闭窗口。
+- `smoke.cjs`：本 Brick 的本地纯函数 / UI 检查（不握手 Host gRPC）。完整命令路径请在 Brickly 宿主里用热键验证。
 
 ## 关键协议与依赖
 
 当前实现依赖以下宿主能力和 Brick 间调用协议：
 
-- `host.platform.clipboard.readContent()`：读取剪贴板快照，用于获取 `kind`、`hash`、`text`、文件路径或图片资源等信息。
-- `host.platform.clipboard.setContent(content)`：恢复触发前剪贴板内容，目前支持文本、文件路径、部分图片路径形式。
-- `host.platform.input.keyboardTap('c', 'control')`：模拟复制当前选区。
-- `host.platform.screen.getCursorScreenPoint()`：获取当前鼠标位置，用于浮窗定位。
-- `host.platform.screen.getDisplayNearestPoint(point)`：获取最近显示器工作区，避免浮窗超出屏幕。
-- `ctx.dependencies.require('openai').invokeStream('chat-completions', input)`：调用 OpenAI Brick 的 Chat Completions 流式接口。
+- `ctx.platform.clipboard.readContent()`：读取剪贴板快照，用于获取 `kind`、`hash`、`text`、文件路径或图片资源等信息。
+- `ctx.platform.clipboard.setContent(content)`：恢复触发前剪贴板内容，目前支持文本、文件路径、部分图片路径形式。
+- `ctx.platform.input.keyboardTap('c', 'control')`：模拟复制当前选区。
+- `ctx.platform.screen.getCursorScreenPoint()`：获取当前鼠标位置，用于浮窗定位。
+- `ctx.platform.screen.getDisplayNearestPoint(point)`：获取最近显示器工作区，避免浮窗超出屏幕。
+- `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`：调用 OpenAI Brick 的 Chat Completions（流式走 `onEvent`）。
 - `ctx.dependencies.require('ocr').invoke('capture-text', input)`：截图并返回 OCR 文本、OCR 明细、截图路径和框选区域 `bounds`。
-- `ctx.dependencies.require('openai').invoke('chat-completions', input)`：截图翻译路径使用非流式调用，请求模型返回 JSON 翻译数组。
+- `call(ctx.dependencies.require('openai'), 'chat-completions', input)`：截图翻译路径使用非流式调用，请求模型返回 JSON 翻译数组。
 
 运行时向浮窗发送的内部事件为：
 
@@ -142,20 +142,15 @@ node .\smoke.cjs
 预期输出：
 
 ```text
-OK: quick-translate smoke passed
+OK: quick-translate local checks passed (no Host gRPC / no host.hello)
 ```
 
-该 smoke 覆盖：
+该本地检查覆盖：
 
-- 无选区时返回 `translated: false`。
-- 无选区时不开窗、不调用 OpenAI。
-- 有选区时恢复旧剪贴板。
-- 有选区时创建透明无边框窗口。
-- 通过 `openai` 依赖别名调用 `chat-completions` 且使用 stream。
-- 向 UI 发送 `translate:start`、`translate:delta`、`translate:result`。
-- UI 关闭消息会触发窗口关闭。
-- 截图覆盖翻译会调用 GLM OCR Brick、调用 OpenAI JSON 翻译、生成覆盖图片，并按截图 `bounds` 创建透明置顶 overlay。
-- overlay UI 关闭消息会触发覆盖窗口关闭。
+- 无选区 / 有选区的剪贴板 hash 判断。
+- 剪贴板快照还原为 `setContent` 入参。
+- 截图 `bounds` 归一化。
+- 浮窗 UI 只走 `window.brickly`，不依赖 `window.AIBricks`。
 
 ## 后续扩展建议
 
