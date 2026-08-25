@@ -172,7 +172,7 @@
         "en": "Execute read-only SQL with the selected plugin Profile and return rows. Supports streaming for large datasets."
       },
       "category": "operation",
-      "mode": "interact",
+      "mode": "call",
       "io": {
         "inputs": [
           {
@@ -202,6 +202,12 @@
             "control": "input"
           }
         ],
+        "outputEvents": [
+          {
+            "name": "batch",
+            "type": "json"
+          }
+        ],
         "outputs": [
           {
             "name": "rows",
@@ -218,7 +224,6 @@
         ]
       },
       "ui": {
-        "streaming": true,
         "submitLabel": "执行查询"
       },
       "examples": [

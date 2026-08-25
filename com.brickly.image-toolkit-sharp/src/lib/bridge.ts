@@ -1,8 +1,4 @@
-import type {
-  BricklyStreamHandlers,
-  ProcessImageInput,
-  ProcessImageResult,
-} from '../types'
+import type { ProcessImageInput, ProcessImageResult } from '../types'
 
 export function streamProcessImage(
   input: ProcessImageInput,
@@ -13,18 +9,29 @@ export function streamProcessImage(
   },
 ): void {
   const brickly = window.brickly
-  if (!brickly?.stream) {
+  if (!brickly?.call) {
     handlers.onError?.({ message: 'SDK 未注入，无法调用后台' })
     return
   }
 
-  const streamHandlers: BricklyStreamHandlers = {
-    onProgress: handlers.onProgress,
-    onResult: handlers.onResult,
-    onError: handlers.onError,
-  }
-
-  brickly.stream('process-image', input, streamHandlers)
+  void brickly
+    .call('process-image', input, {
+      onEvent(event) {
+        if (!event || typeof event !== 'object') return
+        const rec = event as { type?: string; progress?: number; message?: string }
+        if (rec.type === 'progress') {
+          handlers.onProgress?.(Number(rec.progress ?? 0), rec.message)
+        }
+      },
+    })
+    .then((result) => {
+      handlers.onResult?.(result as ProcessImageResult)
+    })
+    .catch((error: unknown) => {
+      handlers.onError?.({
+        message: error instanceof Error ? error.message : String(error),
+      })
+    })
 }
 
 export function getPathForFile(file: File): string {

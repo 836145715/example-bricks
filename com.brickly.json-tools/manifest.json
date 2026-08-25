@@ -55,7 +55,7 @@
       "name": "Format",
       "description": "Pretty-print JSON and stream the formatted text back in chunks.",
       "category": "transform",
-      "mode": "interact",
+      "mode": "call",
       "io": {
         "inputs": [
           {
@@ -63,6 +63,16 @@
             "label": "JSON",
             "type": "json",
             "required": true
+          }
+        ],
+        "outputEvents": [
+          {
+            "name": "progress",
+            "type": "json"
+          },
+          {
+            "name": "chunk",
+            "type": "json"
           }
         ],
         "outputs": [
@@ -73,8 +83,7 @@
         ]
       },
       "ui": {
-        "submitLabel": "格式化",
-        "streaming": true
+        "submitLabel": "格式化"
       },
       "examples": [
         {

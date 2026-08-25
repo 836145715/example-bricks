@@ -1118,7 +1118,8 @@
         rows.push(['AIBricks', aiBricksPresent ? 'present (unexpected)' : 'absent'])
         rows.push(['system', Boolean(brickly && brickly.system)])
         rows.push(['invoke', Boolean(brickly && brickly.invoke)])
-        rows.push(['stream', Boolean(brickly && brickly.stream)])
+        rows.push(['call', Boolean(brickly && brickly.call)])
+        rows.push(['interact', Boolean(brickly && brickly.interact)])
         rows.push(['custom preload', Boolean(window.systemLabNode)])
         if (brickly && brickly.ref) {
           $('brick-id').childNodes[2].textContent = ` brickId: ${brickly.ref.brickId || '-'}`

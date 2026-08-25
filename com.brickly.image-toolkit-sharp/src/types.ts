@@ -113,12 +113,6 @@ export interface ImageToolkitPreload {
   getBasename?: (filePath: string, ext?: string) => string
 }
 
-export interface BricklyStreamHandlers {
-  onProgress?: (progress: number, message?: string) => void
-  onResult?: (result: ProcessImageResult) => void
-  onError?: (error: { message: string; code?: string }) => void
-}
-
 export interface BricklyWindowControls {
   minimize(): Promise<void>
   toggleMaximize(): Promise<boolean>
@@ -130,11 +124,11 @@ export interface BricklyWindowControls {
 export interface BricklyHost {
   brickId?: string
   instanceId?: string
-  stream?: (
+  call?(
     commandId: string,
     input: ProcessImageInput,
-    handlers: BricklyStreamHandlers,
-  ) => void
+    options: { onEvent: (event: unknown) => void },
+  ): Promise<unknown>
   invoke?: (commandId: string, input: unknown) => Promise<unknown>
   closeWindow?(): void
   window?: BricklyWindowControls

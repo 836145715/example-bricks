@@ -95,17 +95,18 @@ export class SessionController {
     size: { cols: number; rows: number }
   ): Promise<void> {
     try {
-      const session = await openSession({
-        hostId: host.id,
-        sessionId,
-        cols: size.cols,
-        rows: size.rows
-      })
+      const session = await openSession(
+        {
+          hostId: host.id,
+          sessionId,
+          cols: size.cols,
+          rows: size.rows
+        },
+        (event) => this.onEvent(sessionId, host, event)
+      )
       this.lives.set(sessionId, session)
       this.flushOutbound(sessionId)
-      const pump = this.pump(sessionId, host, session)
       await session.result
-      await pump
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       if (/CANCELLED/i.test(message)) return
@@ -120,33 +121,29 @@ export class SessionController {
     }
   }
 
-  private async pump(sessionId: string, host: Host, session: LiveSession): Promise<void> {
-    while (true) {
-      const event = await session.nextEvent()
-      if (event === undefined) return
-      if (event.type === 'session') {
-        this.dispatch({ type: 'session-updated', sessionId, patch: { status: 'open', message: '' } })
-        this.dispatch({ type: 'status', statusText: `${host.name || host.host} 已连接` })
-        continue
+  private onEvent(sessionId: string, host: Host, event: SessionEvent): void {
+    if (event.type === 'session') {
+      this.dispatch({ type: 'session-updated', sessionId, patch: { status: 'open', message: '' } })
+      this.dispatch({ type: 'status', statusText: `${host.name || host.host} 已连接` })
+      return
+    }
+    if (event.type === 'data') {
+      this.pushChunk(sessionId, event)
+      return
+    }
+    if (event.type === 'cwd') {
+      const path = typeof event.path === 'string' ? event.path : ''
+      if (path.startsWith('/')) {
+        this.dispatch({ type: 'session-updated', sessionId, patch: { cwd: path } })
       }
-      if (event.type === 'data') {
-        this.pushChunk(sessionId, event)
-        continue
-      }
-      if (event.type === 'cwd') {
-        const path = typeof event.path === 'string' ? event.path : ''
-        if (path.startsWith('/')) {
-          this.dispatch({ type: 'session-updated', sessionId, patch: { cwd: path } })
-        }
-        continue
-      }
-      if (event.type === 'status') {
-        this.dispatch({
-          type: 'session-updated',
-          sessionId,
-          patch: { status: 'closed', message: '会话已结束' }
-        })
-      }
+      return
+    }
+    if (event.type === 'status') {
+      this.dispatch({
+        type: 'session-updated',
+        sessionId,
+        patch: { status: 'closed', message: '会话已结束' }
+      })
     }
   }
 

@@ -5,13 +5,13 @@ type: brick
 related_code: runtime/main.go, runtime/browse.go, runtime/search_shared.go, runtime/ssh.go, src/App.tsx, src/components/FileSelectDropdown.tsx, src/components/RemotePathBrowser.tsx, src/components/LogVirtualList.tsx
 last_verified: 2026-08-24
 
-`com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。Host↔Runtime 走现行 gRPC（`invoke` / `interact`），Go 侧用 `brickly.OnCommand` + `ctx.Send`。UI 适合人工排查日志，`search` 声明 `mode: "interact"`，也可被其他 Brick 用 `interact` / `call(..., { onEvent })` 调用。`runtime.instance` 必须显式为 `owned`：搜索结果存在该 Lifetime 独占的 Go 进程内存里，不能 `per-call`，也不能再省略后让宿主默认为 `owned`。
+`com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。Host↔Runtime 走现行 gRPC（`invoke` / `interact`），Go 侧用 `brickly.OnCommand` + `ctx.Send`。UI 适合人工排查日志，`search` 声明 `mode: "call"`，调用方用 `call(..., { onEvent })` 收 `logLine` / `searchState`。`runtime.instance` 必须显式为 `owned`：搜索结果存在该 Lifetime 独占的 Go 进程内存里，不能 `per-call`，也不能再省略后让宿主默认为 `owned`。
 
 架构取舍、路径选择交互和后续 SearchJob 收口见 [docs/design.md](docs/design.md)。
 
 配置连接时可以浏览远程目录、点选文件或写入 `*.log` 通配符，不必只靠手填。工具栏按目录分组选择本次检索的具体文件；未选时会使用最近修改的 5 个文件，并在选择器里说明。
 
-体验窗使用 **`titleBar: "custom"`** 自绘标题栏（拖动区 + 最小化 / 最大化 / 关闭），依赖平台 `window.brickly.window`。`owned` 实例开窗不钉进程：页面必须先 `await window.brickly.start()`，再用 Handle 的 `invoke` / `interact`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束进程就被 SIGTERM。页面侧会话用 `nextEvent()` / `closeInput()` / `cancel()`，不要 `for await events`（过不了 contextBridge）。`window.brickly` 的 TypeScript 类型来自 `@syllm/brickly-ui`；本工具 `types.ts` 只保留检索/配置等业务类型。
+体验窗使用 **`titleBar: "custom"`** 自绘标题栏（拖动区 + 最小化 / 最大化 / 关闭），依赖平台 `window.brickly.window`。`owned` 实例开窗不钉进程：页面必须先 `await window.brickly.start()`，再用 Handle 的 `invoke` / `call` / `interact`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束进程就被 SIGTERM。`search` 是 `mode=call`：用 `runtime.call(..., { onEvent })` 收 `logLine` / `searchState`，取消走 `AbortController`。`window.brickly` 的 TypeScript 类型来自 `@syllm/brickly-ui`；本工具 `types.ts` 只保留检索/配置等业务类型。
 
 ## search 能力
 

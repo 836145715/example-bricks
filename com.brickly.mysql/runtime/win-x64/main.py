@@ -304,7 +304,7 @@ def cmd_query(req_id: str, inp: dict[str, Any], ctx: Any = None) -> dict[str, An
             row_count += len(batch_row)
             if ctx is not None:
                 ctx.send({
-                    "type": "rows",
+                    "type": "batch",
                     "columns": columns,
                     "rows": list(batch_row),
                     "rowCount": row_count,

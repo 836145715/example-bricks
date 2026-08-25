@@ -109,7 +109,7 @@
     },
     {
       "id": "query",
-      "mode": "interact",
+      "mode": "call",
       "name": {
         "zh-CN": "执行查询",
         "en": "Query"
@@ -133,6 +133,16 @@
             "multiline": true
           }
         ],
+        "outputEvents": [
+          {
+            "name": "progress",
+            "type": "json"
+          },
+          {
+            "name": "output",
+            "type": "json"
+          }
+        ],
         "outputs": [
           {
             "name": "rows",
@@ -149,7 +159,6 @@
         ]
       },
       "ui": {
-        "streaming": true,
         "submitLabel": "查询"
       },
       "examples": [

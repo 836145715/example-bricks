@@ -282,6 +282,16 @@
         ],
         "outputs": [
           {
+            "name": "sessionId",
+            "type": "string"
+          },
+          {
+            "name": "exitCode",
+            "type": "number"
+          }
+        ],
+        "outputEvents": [
+          {
             "name": "session",
             "type": "json",
             "description": "会话建立后立即输出，包含 sessionId、hostId、status。"
@@ -300,14 +310,22 @@
             "name": "status",
             "type": "json",
             "description": "会话结束状态。"
+          }
+        ],
+        "inputEvents": [
+          {
+            "name": "data",
+            "type": "json",
+            "description": "PTY 字节：encoding + bytes"
           },
           {
-            "name": "sessionId",
-            "type": "string"
+            "name": "resize",
+            "type": "json",
+            "description": "cols / rows"
           },
           {
-            "name": "exitCode",
-            "type": "number"
+            "name": "cwd",
+            "type": "json"
           }
         ]
       }
@@ -364,7 +382,7 @@
       },
       "description": "把本机文件或目录上传到远端目录，并通过 interact 事件报告进度。",
       "category": "sftp",
-      "mode": "interact",
+      "mode": "call",
       "execution": "parallel",
       "timeoutMs": 3600000,
       "io": {
@@ -398,11 +416,13 @@
         ],
         "outputs": [
           {
-            "name": "progress",
-            "type": "json"
-          },
-          {
             "name": "result",
+            "type": "json"
+          }
+        ],
+        "outputEvents": [
+          {
+            "name": "progress",
             "type": "json"
           }
         ]
@@ -416,7 +436,7 @@
       },
       "description": "把远端文件或目录下载到本机目录，并通过 interact 事件报告进度。",
       "category": "sftp",
-      "mode": "interact",
+      "mode": "call",
       "execution": "parallel",
       "timeoutMs": 3600000,
       "io": {
@@ -450,11 +470,13 @@
         ],
         "outputs": [
           {
-            "name": "progress",
-            "type": "json"
-          },
-          {
             "name": "result",
+            "type": "json"
+          }
+        ],
+        "outputEvents": [
+          {
+            "name": "progress",
             "type": "json"
           }
         ]

@@ -59,11 +59,13 @@ export async function execCommand(input: {
 }
 
 export function openSession(
-  input: { hostId: string; sessionId: string; cols: number; rows: number }
+  input: { hostId: string; sessionId: string; cols: number; rows: number },
+  onEvent: (event: SessionEvent) => void
 ): Promise<BricklyInteraction<SessionEvent, { sessionId?: string; exitCode?: number }>> {
   return requireRuntime().interact<SessionEvent, { sessionId?: string; exitCode?: number }>(
     'open-session',
-    input
+    input,
+    { onEvent }
   )
 }
 
@@ -75,24 +77,32 @@ export async function sftpList(input: {
   return requireRuntime().invoke<SftpListResult>('sftp-list', input)
 }
 
-export function interactSftpUpload(input: {
-  hostId: string
-  sessionId?: string
-  localPath: string
-  remoteDir?: string
-  overwrite?: boolean
-}): Promise<BricklyInteraction<SftpProgressEvent, SftpTransferResult>> {
-  return requireRuntime().interact<SftpProgressEvent, SftpTransferResult>('sftp-upload', input)
+export function callSftpUpload(
+  input: {
+    hostId: string
+    sessionId?: string
+    localPath: string
+    remoteDir?: string
+    overwrite?: boolean
+  },
+  onEvent: (event: SftpProgressEvent) => void,
+  signal?: AbortSignal
+): Promise<SftpTransferResult> {
+  return requireRuntime().call<SftpTransferResult>('sftp-upload', input, { onEvent, signal })
 }
 
-export function interactSftpDownload(input: {
-  hostId: string
-  sessionId?: string
-  remotePath: string
-  localDir: string
-  overwrite?: boolean
-}): Promise<BricklyInteraction<SftpProgressEvent, SftpTransferResult>> {
-  return requireRuntime().interact<SftpProgressEvent, SftpTransferResult>('sftp-download', input)
+export function callSftpDownload(
+  input: {
+    hostId: string
+    sessionId?: string
+    remotePath: string
+    localDir: string
+    overwrite?: boolean
+  },
+  onEvent: (event: SftpProgressEvent) => void,
+  signal?: AbortSignal
+): Promise<SftpTransferResult> {
+  return requireRuntime().call<SftpTransferResult>('sftp-download', input, { onEvent, signal })
 }
 
 export async function pickDirectory(defaultPath?: string): Promise<string | undefined> {

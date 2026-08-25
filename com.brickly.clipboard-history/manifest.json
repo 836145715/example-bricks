@@ -58,8 +58,8 @@
     }
   },
   "permissions": [
-    "os.clipboard",
-    "event.publish:clipboard-history:changed"
+    "event.publish:clipboard-history:changed",
+    "os.clipboard"
   ],
   "subscriptions": [
     {
@@ -210,7 +210,6 @@
       },
       "description": "返回数据目录、媒体目录、历史 JSON 路径、当前条数。",
       "io": {
-        "inputs": [],
         "outputs": [
           {
             "name": "info",
@@ -228,7 +227,6 @@
       },
       "description": "通过 Runtime clipboard API 读取当前剪贴板，并复用事件入库与去重流程。",
       "io": {
-        "inputs": [],
         "outputs": [
           {
             "name": "result",
@@ -269,7 +267,6 @@
       },
       "description": "返回剪贴板历史 Runtime 自身的监听、存储、去重和事件状态。",
       "io": {
-        "inputs": [],
         "outputs": [
           {
             "name": "status",

@@ -165,7 +165,7 @@
         {
           "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。",
           "type": "object",
-          "required": ["type", "instance", "platforms", "entry"],
+          "required": ["type", "platforms", "entry"],
           "additionalProperties": false,
           "allOf": [
             {
@@ -191,7 +191,7 @@
             "instance": {
               "type": "string",
               "enum": ["per-call", "owned", "shared"],
-              "description": "Runtime 实例策略，宿主必须显式声明，不得缺省或把 scoped 静默映射为 owned。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 ToolRef+Profile 共享实例。"
+              "description": "Runtime 实例策略。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 ToolRef+Profile 共享实例。旧值 scoped 已废弃，必须升级为 owned。"
             },
             "platforms": {
               "description": "Brick 声明支持的具体平台列表。平台是否已经完成审核和发布由市场 package 独立决定。",
@@ -271,7 +271,7 @@
       ]
     },
     "lifecycle": {
-      "description": "工具生命周期：state 表达无状态/有状态；service 仅 stateful 下表示宿主持有的后台服务。详见 docs/superpowers/specs/2026-07-22-runtime-lifecycle-simplification-constitution.md。",
+      "description": "工具生命周期：state 表达无状态/有状态；service 仅 stateful 下表示宿主持有的后台服务。详见 specs/lifecycle.md。",
       "type": "object",
       "additionalProperties": false,
       "allOf": [
@@ -701,6 +701,18 @@
         }
       ]
     },
+    "windows": {
+      "description": "工具窗口静态能力。standalone 为 true 时，允许在 Manifest 声明、平台授权和 start({ allowStandaloneWindows: true }) 同时满足后登记 window retainer。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "standalone": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否允许 standalone 窗口接管 ToolLifetime。不得与 runtime.instance=per-call 同时声明。"
+        }
+      }
+    },
     "commands": {
       "description": "Brick 暴露的命令集合。每个命令是一个可独立调用的功能单元，拥有自己的 IO、UI、权限。LLM Agent 把每个命令视作一个 tool；DAG 画布把每个命令视作一个节点类型。",
       "type": "array",
@@ -1042,10 +1054,16 @@
           "examples": ["extract-text", "merge", "ocr", "format"]
         },
         "execution": {
-          "description": "同一实例内该命令的并发策略（不属于 lifecycle）。默认 queue。",
+          "description": "同一实例内该命令的并发策略（不属于 lifecycle）。只认 queue / parallel，默认 queue。reject / replace 已删除。",
           "type": "string",
-          "enum": ["queue", "parallel", "reject", "replace"],
+          "enum": ["queue", "parallel"],
           "default": "queue"
+        },
+        "mode": {
+          "description": "命令执行原语，必须与调用方法同名。缺省 invoke。不得用通道或 ui 字段推断。",
+          "type": "string",
+          "enum": ["invoke", "call", "interact"],
+          "default": "invoke"
         },
         "name": {
           "description": "命令展示名称，支持本地化对象。",
@@ -1110,6 +1128,14 @@
             "inputs": {
               "$ref": "#/$defs/socketList"
             },
+            "inputEvents": {
+              "description": "仅 interact：调用方开场之后 session.send 的每种事件。name = 线上对象的 type。不用则省略。",
+              "$ref": "#/$defs/socketList"
+            },
+            "outputEvents": {
+              "description": "call / interact：Brick ctx.send 的每种事件。name = 线上对象的 type。不用则省略。",
+              "$ref": "#/$defs/socketList"
+            },
             "outputs": {
               "description": "命令输出 socket 列表。\n - 单输出场景：runtime 通过 command.result 一次返回最终值。\n - 多输出场景（length>=2）：runtime 应通过 command.output / command.chunk 携带 name 字段，按 socket.name 分别投递；UI 会按声明顺序生成多 Tab，每个 Tab 显示对应输出的累积值与状态（pending/streaming/ready）。\n - command.chunk 不带 name 时退化为旧的匿名流。\n - command.result 仍是流终结符，多输出场景下 result 可省略或仅作汇总。",
               "$ref": "#/$defs/socketList"
@@ -1157,11 +1183,6 @@
               "type": "string",
               "default": "执行",
               "description": "执行按钮的文案。"
-            },
-            "streaming": {
-              "type": "boolean",
-              "default": false,
-              "description": "true 时 UI 渲染流式输出区域（进度条 + 实时文本）。"
             }
           }
         },

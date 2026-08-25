@@ -118,7 +118,7 @@
         "en": "Call OpenAI /v1/responses. Use for new projects, stateful conversations, multimodal input, tool use, and structured outputs; pass advanced parameters through extraBody."
       },
       "category": "openai",
-      "mode": "interact",
+      "mode": "call",
       "io": {
         "inputs": [
           {
@@ -190,10 +190,19 @@
             "name": "usage",
             "type": "json"
           }
+        ],
+        "outputEvents": [
+          {
+            "name": "progress",
+            "type": "json"
+          },
+          {
+            "name": "chunk",
+            "type": "json"
+          }
         ]
       },
       "ui": {
-        "streaming": true,
         "submitLabel": "Generate"
       },
       "examples": [
@@ -239,7 +248,7 @@
         "en": "Call OpenAI /v1/chat/completions. Use for compatibility with message-based workflows; prefer Responses API for new projects."
       },
       "category": "openai",
-      "mode": "interact",
+      "mode": "call",
       "io": {
         "inputs": [
           {
@@ -307,10 +316,19 @@
             "name": "usage",
             "type": "json"
           }
+        ],
+        "outputEvents": [
+          {
+            "name": "progress",
+            "type": "json"
+          },
+          {
+            "name": "chunk",
+            "type": "json"
+          }
         ]
       },
       "ui": {
-        "streaming": true,
         "submitLabel": "Generate"
       },
       "examples": [

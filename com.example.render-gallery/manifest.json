@@ -151,7 +151,6 @@
         ]
       },
       "ui": {
-        "streaming": false,
         "submitLabel": "生成画廊"
       },
       "examples": [
@@ -182,7 +181,6 @@
         ]
       },
       "ui": {
-        "streaming": false,
         "submitLabel": "生成图片"
       }
     }

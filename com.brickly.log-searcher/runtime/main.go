@@ -1,5 +1,5 @@
 // 日志查询工具 runtime：gRPC Runtime + invoke/interact。
-// search 走 interact（ctx.Send 推 progress / searchState / logLine），其余命令走 invoke。
+// search 走 call（ctx.Send 推 progress / searchState / logLine），其余命令走 invoke。
 package main
 
 import (

@@ -20,9 +20,9 @@ last_verified: 2026-08-24
 - 远程主机是 Linux OpenSSH。
 - 鉴权只支持密码或私钥（可选 passphrase）。
 
-生命周期是 `stateful` + `runtime.instance: "owned"`。体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke` / `interact`。直接 `window.brickly.invoke` / `stream` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程，PTY 和 SFTP 会断。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
+生命周期是 `stateful` + `runtime.instance: "owned"`。体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke` / `call` / `interact`。直接 `window.brickly.invoke` / `call` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程，PTY 和 SFTP 会断。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
 
-`open-session`、`sftp-upload`、`sftp-download` 必须声明 `"mode": "interact"`。一条终端会话就是一条双工 `open-session`：调用方 `send({ type: "data" })` / `sendLatest("resize", …)`，Runtime `ctx.Send` 推 `session` / `data` / `cwd` / `status`。页面用 `nextEvent()` / `cancel()`，不要 `closeInput()`，也不要 `for await session.events`。关 Tab 用 `cancel()`，不要再调旁路命令。
+`open-session` 声明 `"mode": "interact"`。一条终端会话就是一条双工 `open-session`：调用方 `send({ type: "data" })` / `sendLatest("resize", …)`，Runtime `ctx.Send` 推 `session` / `data` / `cwd` / `status`。页面开会话时传入 `onEvent`，用 `end()` 等结果。关 Tab 用 `cancel()`，不要 `end()`，也不要再调旁路命令。`sftp-upload` / `sftp-download` 是刷进度的 `call`，过程走 `outputEvents.progress`。
 
 体验窗使用 `ui.titleBar = "custom"`：宿主开无边框窗口并注入 `window.brickly.window`。标题栏和 Tab 合成一条，Tab 和窗口按钮必须 `no-drag`。打开工具先看到 Start Page，点 Profile 后终端铺满画布；编辑主机走浮层，exec 走底栏抽屉，SFTP 走右侧抽屉。前端状态是 `useReducer` + `SessionController` / `SftpController`，`SessionController` 持有 Interaction，不要把 interact 会话塞回 React state。
 

@@ -43,7 +43,7 @@ import {
   ServerConfig
 } from './types'
 import type { RemoteBrowseResult } from './domain/paths'
-import type { BricklyInteraction, BricklyStartedHandle } from '@syllm/brickly-ui'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 
 const LOG_ROW_HEIGHT = 22
 const WRAPPED_LOG_ROW_ESTIMATE_HEIGHT = 36
@@ -1447,10 +1447,10 @@ export function App() {
       showStatus('Runtime 尚未就绪，请稍后重试。', 'error')
       return
     }
-    let session: BricklyInteraction | null = null
+    const abort = new AbortController()
     const handle = {
       cancel() {
-        session?.cancel('CANCELLED')
+        abort.abort()
       }
     }
 
@@ -1462,23 +1462,20 @@ export function App() {
 
     void (async () => {
       try {
-        session = await runtime.interact('search', {
+        if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) {
+          abort.abort()
+          return
+        }
+
+        const result = await runtime.call('search', {
           serverId: targetServerId,
           pattern: currentPattern,
           args: searchArgs,
           files: filesToSearch,
           resultMode: 'store'
-        })
-        const activeSession = session
-        if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) {
-          activeSession.cancel('CANCELLED')
-          return
-        }
-
-        const pump = (async () => {
-          while (true) {
-            const raw = await activeSession.nextEvent()
-            if (raw === undefined) return
+        }, {
+          signal: abort.signal,
+          onEvent(raw) {
             if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) return
             const event = raw as BricklySearchEvent
             if (event?.type === 'progress' && activeServerId === targetServerId) {
@@ -1488,11 +1485,7 @@ export function App() {
               updateStateFromSearchPayload(event.searchState)
             }
           }
-        })()
-
-        await activeSession.closeInput()
-        const result = await activeSession.result as { runId?: string } | undefined
-        await pump
+        }) as { runId?: string } | undefined
         if (serverBatchRunIdsRef.current[targetServerId] !== batchRunId) return
         if (result?.runId) {
           setServerRunIdsMap(prev => ({ ...prev, [targetServerId]: String(result.runId) }))

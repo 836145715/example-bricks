@@ -69,7 +69,7 @@
     {
       "id": "search",
       "name": "流式搜索日志",
-      "mode": "interact",
+      "mode": "call",
       "execution": "parallel",
       "description": {
         "zh-CN": "通过 SSH 检索指定服务器日志，支持文件列表、链式过滤、grep 选项和流式日志行输出。"
@@ -118,6 +118,12 @@
           }
         ],
         "outputs": [
+          {
+            "name": "runId",
+            "type": "string"
+          }
+        ],
+        "outputEvents": [
           {
             "name": "logLine",
             "label": "日志行",

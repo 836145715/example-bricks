@@ -68,7 +68,7 @@
   "commands": [
     {
       "id": "process-image",
-      "mode": "interact",
+      "mode": "call",
       "name": {
         "zh-CN": "处理图片",
         "en": "Process Image"
@@ -112,6 +112,12 @@
             "type": "boolean",
             "required": false,
             "description": "为 true 时仅内存处理并返回 previewDataUrl，不写出任何输出文件（PDF 不支持）"
+          }
+        ],
+        "outputEvents": [
+          {
+            "name": "progress",
+            "type": "json"
           }
         ],
         "outputs": [

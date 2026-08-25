@@ -1,14 +1,14 @@
 import {
   asSftpProgress,
   asSftpResult,
+  callSftpDownload,
+  callSftpUpload,
   errorMessage,
-  interactSftpDownload,
-  interactSftpUpload,
   sftpList
 } from '../brickly'
 import { progressToTransfer, transferLine } from '../lib/format'
 import type { ManagerAction } from './manager-state'
-import type { SftpListResult, SftpProgressEvent, StreamHandle, TransferState } from '../types'
+import type { SftpListResult, SftpProgressEvent, SftpTransferResult, StreamHandle, TransferState } from '../types'
 
 const DOWNLOAD_KEY = 'ssh-manager:download-dir'
 
@@ -62,14 +62,18 @@ export class SftpController {
     remoteDir: string
     overwrite?: boolean
   }): Promise<void> {
-    return this.runTransfer('upload', input.remoteDir, () =>
-      interactSftpUpload({
-        hostId: input.hostId,
-        sessionId: input.sessionId,
-        localPath: input.localPath,
-        remoteDir: input.remoteDir || undefined,
-        overwrite: input.overwrite
-      })
+    return this.runTransfer('upload', input.remoteDir, (onEvent, signal) =>
+      callSftpUpload(
+        {
+          hostId: input.hostId,
+          sessionId: input.sessionId,
+          localPath: input.localPath,
+          remoteDir: input.remoteDir || undefined,
+          overwrite: input.overwrite
+        },
+        onEvent,
+        signal
+      )
     )
   }
 
@@ -80,21 +84,28 @@ export class SftpController {
     localDir: string
     overwrite?: boolean
   }): Promise<void> {
-    return this.runTransfer('download', input.remotePath, () =>
-      interactSftpDownload({
-        hostId: input.hostId,
-        sessionId: input.sessionId,
-        remotePath: input.remotePath,
-        localDir: input.localDir,
-        overwrite: input.overwrite
-      })
+    return this.runTransfer('download', input.remotePath, (onEvent, signal) =>
+      callSftpDownload(
+        {
+          hostId: input.hostId,
+          sessionId: input.sessionId,
+          remotePath: input.remotePath,
+          localDir: input.localDir,
+          overwrite: input.overwrite
+        },
+        onEvent,
+        signal
+      )
     )
   }
 
   private async runTransfer(
     mode: 'upload' | 'download',
     remoteDir: string,
-    start: () => ReturnType<typeof interactSftpUpload>
+    start: (
+      onEvent: (event: SftpProgressEvent) => void,
+      signal: AbortSignal
+    ) => Promise<SftpTransferResult>
   ): Promise<void> {
     this.clearHide()
     this.setTransfer({
@@ -104,17 +115,20 @@ export class SftpController {
       remoteDir,
       message: ''
     })
-    const session = await start()
+    const abort = new AbortController()
     this.handle = {
       cancel() {
-        session.cancel('CANCELLED')
+        abort.abort()
       }
     }
     try {
-      const pump = this.pumpProgress(session, remoteDir)
-      await session.closeInput()
-      const result = asSftpResult(await session.result)
-      await pump
+      const result = asSftpResult(
+        await start((event) => {
+          if (event.type !== 'progress') return
+          const progress = asSftpProgress(event)
+          if (progress) this.setTransfer(progressToTransfer(progress, { remoteDir }))
+        }, abort.signal)
+      )
       if (result) this.finishOk(mode, result.remotePath, remoteDir)
     } catch (error) {
       this.setTransfer({
@@ -127,20 +141,6 @@ export class SftpController {
       throw error
     } finally {
       this.handle = null
-    }
-  }
-
-  private async pumpProgress(
-    session: { nextEvent(): Promise<SftpProgressEvent | undefined> },
-    remoteDir: string
-  ): Promise<void> {
-    while (true) {
-      const event = await session.nextEvent()
-      if (event === undefined) return
-      if (event.type !== 'progress') continue
-      const progress = asSftpProgress(event)
-      if (!progress) continue
-      this.setTransfer(progressToTransfer(progress, { remoteDir }))
     }
   }
 
