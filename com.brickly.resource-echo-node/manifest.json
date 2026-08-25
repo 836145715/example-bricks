@@ -40,7 +40,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [],
   "subscriptions": [
     {
       "event": "resource-lab:probe",

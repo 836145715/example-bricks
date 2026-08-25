@@ -50,9 +50,6 @@
     "state": "stateless",
     "idleTimeoutMs": 0
   },
-  "permissions": [
-    "os.exec"
-  ],
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -98,25 +95,44 @@
             "type": "string",
             "default": "all",
             "enum": [
-              { "value": "all", "label": "全部" },
-              { "value": "tcp", "label": "TCP" },
-              { "value": "udp", "label": "UDP" }
+              {
+                "value": "all",
+                "label": "全部"
+              },
+              {
+                "value": "tcp",
+                "label": "TCP"
+              },
+              {
+                "value": "udp",
+                "label": "UDP"
+              }
             ]
           }
         ],
         "outputs": [
-          { "name": "result", "type": "json" }
+          {
+            "name": "result",
+            "type": "json"
+          }
         ]
       },
       "examples": [
         {
           "title": "查询 3000 端口",
-          "input": { "port": 3000, "protocol": "all" }
+          "input": {
+            "port": 3000,
+            "protocol": "all"
+          }
         }
       ],
       "llm": {
         "requireApproval": "never",
-        "tags": ["port", "process", "readonly"]
+        "tags": [
+          "port",
+          "process",
+          "readonly"
+        ]
       },
       "execution": "queue"
     },
@@ -146,9 +162,18 @@
             "type": "string",
             "default": "all",
             "enum": [
-              { "value": "all", "label": "全部" },
-              { "value": "tcp", "label": "TCP" },
-              { "value": "udp", "label": "UDP" }
+              {
+                "value": "all",
+                "label": "全部"
+              },
+              {
+                "value": "tcp",
+                "label": "TCP"
+              },
+              {
+                "value": "udp",
+                "label": "UDP"
+              }
             ]
           },
           {
@@ -169,12 +194,19 @@
           }
         ],
         "outputs": [
-          { "name": "result", "type": "json" }
+          {
+            "name": "result",
+            "type": "json"
+          }
         ]
       },
       "llm": {
         "requireApproval": "never",
-        "tags": ["port", "process", "readonly"]
+        "tags": [
+          "port",
+          "process",
+          "readonly"
+        ]
       },
       "execution": "queue"
     },
@@ -202,18 +234,26 @@
           }
         ],
         "outputs": [
-          { "name": "result", "type": "json" }
+          {
+            "name": "result",
+            "type": "json"
+          }
         ]
       },
       "examples": [
         {
           "title": "查看指定进程详情",
-          "input": { "pid": 12345 }
+          "input": {
+            "pid": 12345
+          }
         }
       ],
       "llm": {
         "requireApproval": "never",
-        "tags": ["process", "readonly"]
+        "tags": [
+          "process",
+          "readonly"
+        ]
       },
       "execution": "queue"
     },
@@ -247,23 +287,34 @@
           }
         ],
         "outputs": [
-          { "name": "result", "type": "json" }
+          {
+            "name": "result",
+            "type": "json"
+          }
         ]
       },
       "examples": [
         {
           "title": "结束指定进程",
-          "input": { "pid": 12345, "force": true }
+          "input": {
+            "pid": 12345,
+            "force": true
+          }
         }
       ],
       "llm": {
         "requireApproval": "always",
-        "tags": ["process", "dangerous"]
+        "tags": [
+          "process",
+          "dangerous"
+        ]
       },
       "execution": "queue"
     }
   ],
   "triggers": [
-    { "type": "manual" }
+    {
+      "type": "manual"
+    }
   ]
 }

@@ -45,12 +45,6 @@
   "lifecycle": {
     "state": "stateful"
   },
-  "permissions": [
-    "fs.read",
-    "fs.write",
-    "net.tcp",
-    "os.clipboard"
-  ],
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",

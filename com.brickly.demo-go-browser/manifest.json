@@ -52,7 +52,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [],
   "trustLevel": "verified",
   "ui": {
     "type": "none"

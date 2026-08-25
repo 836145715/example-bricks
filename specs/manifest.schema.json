@@ -376,7 +376,7 @@
       }
     },
     "trustLevel": {
-      "description": "Brick 信任等级。**作者不应在 manifest 中手动设置**，由 Registry/平台在审核流程中签注（写入 audit 字段后，加载时映射为对应等级）。verified 享受免权限弹窗 + worker 高性能跑法；unverified 走全沙箱与权限审批。",
+      "description": "Brick 信任等级。**作者不应在 manifest 中手动设置**，由 Registry/平台在审核流程中签注（写入 audit 字段后，加载时映射为对应等级）。",
       "type": "string",
       "enum": ["verified", "community", "unverified"],
       "default": "unverified"
@@ -415,27 +415,9 @@
           "items": {
             "type": "string"
           },
-          "description": "审核覆盖的能力范围，必须是 permissions 的超集。客户端运行时检测调用是否超出 scope，超出则拒绝并告警。"
+          "description": "审核覆盖的能力范围，供审核报告追溯。不再作为运行时拦截依据。"
         }
       }
-    },
-    "permissions": {
-      "description": "声明式权限列表。运行时主进程权限网关将依据此列表拦截越权调用。安装时弹窗供用户审批。",
-      "type": "array",
-      "uniqueItems": true,
-      "minItems": 0,
-      "items": {
-        "type": "string",
-        "pattern": "^(fs\\.(read|write)(:[A-Za-z0-9_\\-./]+)?|net\\.(http|https|tcp|udp)(:[A-Za-z0-9_\\-.*]+)?|os\\.(exec|env|clipboard|notification|screenshot|input)|event\\.publish(:[A-Za-z0-9_.*:-]+)?|resource\\.(register|get)|llm\\.invoke|db\\.(read|write))$"
-      },
-      "examples": [
-        [
-          "fs.read:user-pictures",
-          "fs.write:user-pictures",
-          "net.http:api.openai.com"
-        ],
-        ["llm.invoke"]
-      ]
     },
     "subscriptions": {
       "description": "Brick 订阅的宿主中转事件。仅 lifecycle.service 或声明 event trigger 的 Brick 会被事件自动唤醒；payload 应保持轻量，大内容通过 resourceId 按需拉取。",
@@ -1186,14 +1168,6 @@
             }
           }
         },
-        "permissions": {
-          "description": "命令级别附加权限（与顶层 permissions 取并集）。允许把高危能力局限到单个命令上。",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
-          }
-        },
         "timeoutMs": {
           "description": "命令执行超时（毫秒）。",
           "type": "integer",
@@ -1236,7 +1210,7 @@
               "type": "string",
               "enum": ["never", "high-risk", "always"],
               "default": "high-risk",
-              "description": "LLM 调用本命令时是否需要用户确认。high-risk 表示当 permissions 含 fs.write/os.exec/net.* 等高危项时弹窗确认；always 表示每次都弹；never 仅在审核通过且明确无副作用的查询类命令使用。"
+              "description": "LLM 调用本命令时是否需要用户确认。high-risk 表示高危操作弹窗确认；always 表示每次都弹；never 仅在审核通过且明确无副作用的查询类命令使用。"
             },
             "hint": {
               "description": "给 LLM 的额外提示语，会拼到 tool description 末尾。建议写明 '何时该用本命令'、'参数填写注意事项' 等。",

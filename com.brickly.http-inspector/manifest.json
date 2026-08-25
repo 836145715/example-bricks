@@ -5,12 +5,29 @@
   "id": "com.brickly.http-inspector",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
-  "name": { "zh-CN": "HTTP Inspector", "en": "HTTP Inspector" },
-  "description": { "zh-CN": "基于 mitmproxy 的 HTTP、HTTPS 与 WebSocket 调试工具。", "en": "HTTP, HTTPS and WebSocket inspection powered by mitmproxy." },
+  "name": {
+    "zh-CN": "HTTP Inspector",
+    "en": "HTTP Inspector"
+  },
+  "description": {
+    "zh-CN": "基于 mitmproxy 的 HTTP、HTTPS 与 WebSocket 调试工具。",
+    "en": "HTTP, HTTPS and WebSocket inspection powered by mitmproxy."
+  },
   "icon": "assets/icon.svg",
-  "keywords": ["http", "https", "proxy", "mitmproxy", "websocket"],
-  "categories": ["developer-tools", "utilities"],
-  "author": { "name": "Brickly" },
+  "keywords": [
+    "http",
+    "https",
+    "proxy",
+    "mitmproxy",
+    "websocket"
+  ],
+  "categories": [
+    "developer-tools",
+    "utilities"
+  ],
+  "author": {
+    "name": "Brickly"
+  },
   "license": "MIT",
   "runtime": {
     "type": "python",
@@ -29,21 +46,249 @@
     },
     "python": "3.12.*"
   },
-  "lifecycle": { "state": "stateful", "service": { "autoStart": false, "restart": "on-failure", "maxAttempts": 3, "backoffMs": 2000 } },
-  "permissions": ["net.http", "net.https", "fs.read", "fs.write", "os.exec", "event.publish:http-inspector:changed"],
+  "lifecycle": {
+    "state": "stateful",
+    "service": {
+      "autoStart": false,
+      "restart": "on-failure",
+      "maxAttempts": 3,
+      "backoffMs": 2000
+    }
+  },
   "trustLevel": "community",
-  "ui": { "type": "webview", "entry": "ui/index.html", "size": { "width": 1180, "height": 760, "minWidth": 920, "minHeight": 620, "resizable": true }, "windowPolicy": "single", "devTools": "debug-only", "theme": "dark" },
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "size": {
+      "width": 1180,
+      "height": 760,
+      "minWidth": 920,
+      "minHeight": 620,
+      "resizable": true
+    },
+    "windowPolicy": "single",
+    "devTools": "debug-only",
+    "theme": "dark"
+  },
   "commands": [
-    { "id": "start", "hidden": true, "name": "开始抓包", "io": { "inputs": [{ "name": "port", "type": "number", "default": 8899 }, { "name": "maxBodyBytes", "type": "number", "default": 1048576 }, { "name": "excludeHosts", "type": "string", "default": "" }, { "name": "systemProxy", "type": "boolean", "default": true }], "outputs": [{ "name": "status", "type": "json" }] }, "execution": "queue" },
-    { "id": "stop", "hidden": true, "name": "停止抓包", "io": { "inputs": [], "outputs": [{ "name": "status", "type": "json" }] }, "execution": "queue" },
-    { "id": "status", "hidden": true, "name": "抓包状态", "io": { "inputs": [], "outputs": [{ "name": "status", "type": "json" }] } },
-    { "id": "list", "hidden": true, "name": "会话列表", "io": { "inputs": [{ "name": "afterId", "type": "string" }, { "name": "query", "type": "string" }, { "name": "limit", "type": "number", "default": 200 }], "outputs": [{ "name": "sessions", "type": "json" }] } },
-    { "id": "detail", "hidden": true, "name": "会话详情", "io": { "inputs": [{ "name": "id", "type": "string", "required": true }], "outputs": [{ "name": "session", "type": "json" }] } },
-    { "id": "clear", "hidden": true, "name": "清空会话", "io": { "inputs": [], "outputs": [{ "name": "ok", "type": "boolean" }] } },
-    { "id": "copy-curl", "hidden": true, "name": "复制 cURL", "io": { "inputs": [{ "name": "id", "type": "string", "required": true }, { "name": "shell", "type": "string", "default": "bash" }], "outputs": [{ "name": "command", "type": "string" }] } },
-    { "id": "export-har", "hidden": true, "name": "导出 HAR", "permissions": ["fs.write"], "io": { "inputs": [{ "name": "path", "type": "string", "required": true }], "outputs": [{ "name": "path", "type": "string" }] } },
-    { "id": "install-certificate", "hidden": true, "name": "安装根证书", "permissions": ["os.exec"], "io": { "inputs": [], "outputs": [{ "name": "result", "type": "json" }] } },
-    { "id": "remove-certificate", "hidden": true, "name": "移除根证书", "permissions": ["os.exec"], "io": { "inputs": [], "outputs": [{ "name": "result", "type": "json" }] } },
-    { "id": "set-system-proxy", "hidden": true, "name": "设置系统代理", "permissions": ["os.exec"], "io": { "inputs": [{ "name": "enabled", "type": "boolean" }], "outputs": [{ "name": "result", "type": "json" }] } }
+    {
+      "id": "start",
+      "hidden": true,
+      "name": "开始抓包",
+      "io": {
+        "inputs": [
+          {
+            "name": "port",
+            "type": "number",
+            "default": 8899
+          },
+          {
+            "name": "maxBodyBytes",
+            "type": "number",
+            "default": 1048576
+          },
+          {
+            "name": "excludeHosts",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "systemProxy",
+            "type": "boolean",
+            "default": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "stop",
+      "hidden": true,
+      "name": "停止抓包",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "status",
+      "hidden": true,
+      "name": "抓包状态",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "status",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "list",
+      "hidden": true,
+      "name": "会话列表",
+      "io": {
+        "inputs": [
+          {
+            "name": "afterId",
+            "type": "string"
+          },
+          {
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "type": "number",
+            "default": 200
+          }
+        ],
+        "outputs": [
+          {
+            "name": "sessions",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "detail",
+      "hidden": true,
+      "name": "会话详情",
+      "io": {
+        "inputs": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "session",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "clear",
+      "hidden": true,
+      "name": "清空会话",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "ok",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "copy-curl",
+      "hidden": true,
+      "name": "复制 cURL",
+      "io": {
+        "inputs": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "shell",
+            "type": "string",
+            "default": "bash"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "command",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "export-har",
+      "hidden": true,
+      "name": "导出 HAR",
+      "io": {
+        "inputs": [
+          {
+            "name": "path",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "path",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "install-certificate",
+      "hidden": true,
+      "name": "安装根证书",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "remove-certificate",
+      "hidden": true,
+      "name": "移除根证书",
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "set-system-proxy",
+      "hidden": true,
+      "name": "设置系统代理",
+      "io": {
+        "inputs": [
+          {
+            "name": "enabled",
+            "type": "boolean"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      }
+    }
   ]
 }

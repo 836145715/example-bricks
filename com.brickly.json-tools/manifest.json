@@ -45,7 +45,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [],
   "ui": {
     "type": "none"
   },

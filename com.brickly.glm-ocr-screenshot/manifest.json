@@ -40,11 +40,6 @@
     "state": "stateless",
     "idleTimeoutMs": 600000
   },
-  "permissions": [
-    "os.screenshot",
-    "fs.read",
-    "fs.write"
-  ],
   "hotkeys": [
     {
       "id": "capture-annotate",

@@ -54,11 +54,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [
-    "fs.read",
-    "fs.write",
-    "os.clipboard"
-  ],
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",

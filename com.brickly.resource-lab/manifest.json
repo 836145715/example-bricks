@@ -44,10 +44,6 @@
       "restart": "none"
     }
   },
-  "permissions": [
-    "event.publish:resource-lab:run-updated",
-    "event.publish:resource-lab:probe"
-  ],
   "dependencies": {
     "node_echo": {
       "target": {

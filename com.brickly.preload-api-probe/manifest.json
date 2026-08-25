@@ -39,6 +39,5 @@
     }
   },
   "runtime": null,
-  "commands": [],
-  "permissions": []
+  "commands": []
 }

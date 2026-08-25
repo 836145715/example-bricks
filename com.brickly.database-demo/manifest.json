@@ -38,9 +38,6 @@
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
   },
-  "permissions": [
-    "fs.write:user-documents"
-  ],
   "trustLevel": "community",
   "lifecycle": {
     "state": "stateful"

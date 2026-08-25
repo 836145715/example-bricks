@@ -43,7 +43,6 @@
     "state": "stateless",
     "idleTimeoutMs": 0
   },
-  "permissions": [],
   "trustLevel": "community",
   "ui": {
     "type": "none"

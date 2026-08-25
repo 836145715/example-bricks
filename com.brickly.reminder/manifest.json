@@ -57,7 +57,6 @@
       "backoffMs": 2000
     }
   },
-  "permissions": [],
   "trustLevel": "community",
   "config": {
     "required": true,

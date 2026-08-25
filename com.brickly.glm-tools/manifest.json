@@ -56,11 +56,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [
-    "net.https",
-    "fs.read",
-    "os.env"
-  ],
   "trustLevel": "community",
   "config": {
     "required": true,

@@ -53,10 +53,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [
-    "net.https",
-    "fs.write"
-  ],
   "trustLevel": "community",
   "ui": {
     "type": "webview",

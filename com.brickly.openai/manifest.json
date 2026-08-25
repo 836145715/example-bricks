@@ -52,10 +52,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [
-    "net.https",
-    "os.env"
-  ],
   "config": {
     "required": true,
     "fields": [

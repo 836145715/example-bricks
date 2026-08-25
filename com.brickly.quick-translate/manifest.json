@@ -42,11 +42,6 @@
     "state": "stateless",
     "idleTimeoutMs": 600000
   },
-  "permissions": [
-    "os.input",
-    "os.clipboard",
-    "os.screenshot"
-  ],
   "dependencies": {
     "openai": {
       "target": {

@@ -53,9 +53,6 @@
       "backoffMs": 2000
     }
   },
-  "permissions": [
-    "event.publish:net-capture:changed"
-  ],
   "subscriptions": [],
   "ui": {
     "type": "webview",

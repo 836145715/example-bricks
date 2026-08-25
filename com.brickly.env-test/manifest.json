@@ -53,7 +53,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [],
   "trustLevel": "community",
   "config": {
     "required": true,

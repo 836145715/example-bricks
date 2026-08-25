@@ -53,10 +53,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [
-    "fs.read",
-    "os.exec"
-  ],
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -83,9 +79,6 @@
         "en": "Find processes currently using a file or folder."
       },
       "category": "process",
-      "permissions": [
-        "fs.read"
-      ],
       "io": {
         "inputs": [
           {
@@ -131,9 +124,6 @@
         "en": "Read executable path, command line and start time for a process."
       },
       "category": "process",
-      "permissions": [
-        "os.exec"
-      ],
       "io": {
         "inputs": [
           {
@@ -179,9 +169,6 @@
         "en": "Stop a process to release the hold; approval is always required."
       },
       "category": "process",
-      "permissions": [
-        "os.exec"
-      ],
       "io": {
         "inputs": [
           {

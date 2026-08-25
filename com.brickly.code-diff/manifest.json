@@ -41,6 +41,5 @@
     "theme": "dark"
   },
   "runtime": null,
-  "commands": [],
-  "permissions": []
+  "commands": []
 }

@@ -42,10 +42,6 @@
   "lifecycle": {
     "state": "stateful"
   },
-  "permissions": [
-    "fs.read",
-    "os.exec"
-  ],
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -167,9 +163,6 @@
       },
       "description": "按受限大小读取文件预览信息，支持文本、图片、PDF、音视频、ZIP、DOCX 和 XLSX。",
       "category": "files",
-      "permissions": [
-        "fs.read"
-      ],
       "io": {
         "inputs": [
           {
@@ -255,9 +248,6 @@
       "description": "打开或定位宿主快速搜索选中的本地文件结果。",
       "hidden": true,
       "category": "quick-search",
-      "permissions": [
-        "os.exec"
-      ],
       "io": {
         "inputs": [
           {

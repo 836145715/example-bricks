@@ -42,7 +42,6 @@
     "state": "stateless",
     "idleTimeoutMs": 0
   },
-  "permissions": [],
   "trustLevel": "verified",
   "ui": {
     "type": "none"

@@ -52,9 +52,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [
-    "os.screenshot"
-  ],
   "trustLevel": "community",
   "ui": {
     "type": "none"
