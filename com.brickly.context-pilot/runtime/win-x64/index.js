@@ -26,14 +26,10 @@ let panelWindow = null
 let panelWindowBounds = null
 
 async function runAnalyzeSelection(ctx) {
-  await ctx.send({ type: 'progress', progress: 0.05, message: '读取剪贴板快照' })
   const before = await safeReadClipboard(ctx)
-
-  await ctx.send({ type: 'progress', progress: 0.15, message: '复制当前选区' })
   await copySelection(ctx)
   await sleep(COPY_SETTLE_MS)
 
-  await ctx.send({ type: 'progress', progress: 0.3, message: '检测选中文本' })
   const after = await safeReadClipboard(ctx)
   const selection = selectedTextFromSnapshots(before, after)
   logClipboardDecision(selection, before, after)
@@ -42,19 +38,17 @@ async function runAnalyzeSelection(ctx) {
     return { analyzed: false, reason: selection.reason }
   }
 
-  return analyzeSourceText(ctx, selection.text, {
-    source: 'selection',
-    openProgress: 0.38,
-    analysisProgress: 0.45
-  })
+  return analyzeSourceText(ctx, selection.text, { source: 'selection' })
 }
 
 async function runAnalyzeScreenshot(ctx) {
-  await ctx.send({ type: 'progress', progress: 0.05, message: '框选截图并 OCR' })
-  const ocrResult = await ctx.dependencies.require('ocr').invoke('capture-text', {
+  const ocrResult = await call(ctx.dependencies.require('ocr'), 'capture-text', {
     languageType: 'AUTO',
     probability: false,
     keepScreenshot: false
+  }, {
+    signal: ctx.signal,
+    onEvent() {}
   })
   const sourceText = normalizeOcrText(ocrResult)
   if (!sourceText) {
@@ -63,9 +57,7 @@ async function runAnalyzeScreenshot(ctx) {
 
   return analyzeSourceText(ctx, sourceText, {
     source: 'screenshot',
-    ocrResult,
-    openProgress: 0.42,
-    analysisProgress: 0.55
+    ocrResult
   })
 }
 
@@ -84,11 +76,6 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
   }
 
   ensureActive()
-  await ctx.send({
-    type: 'progress',
-    progress: options.openProgress || 0.4,
-    message: '打开 ContextPilot 面板'
-  })
   const win = await ensurePanelWindow(ctx)
   ensureActive()
   await sendToWindow(win, 'context-pilot:start', {
@@ -100,11 +87,6 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
 
   try {
     ensureActive()
-    await ctx.send({
-      type: 'progress',
-      progress: options.analysisProgress || 0.45,
-      message: '调用 OpenAI 解构'
-    })
     const markdown = await analyzeWithOpenAI(ctx, sourceText, win, ensureActive)
     ensureActive()
     await sendToWindow(win, 'context-pilot:result', {
@@ -114,7 +96,6 @@ async function analyzeSourceText(ctx, sourceText, options = {}) {
       markdown,
       completedAt: Date.now()
     })
-    await ctx.send({ type: 'progress', progress: 1, message: '解构完成' })
     const result = { analyzed: true, source: options.source || 'selection', sourceText, markdown }
     if (options.ocrResult) result.ocrResult = options.ocrResult
     return result

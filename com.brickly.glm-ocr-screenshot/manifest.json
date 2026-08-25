@@ -162,7 +162,7 @@
   "commands": [
     {
       "id": "capture-annotate",
-      "mode": "interact",
+      "mode": "invoke",
       "name": {
         "zh-CN": "框选截图并 OCR 标注",
         "en": "Capture Region and Annotate OCR"
@@ -261,8 +261,7 @@
         ]
       },
       "ui": {
-        "submitLabel": "框选截图并识别",
-        "streaming": true
+        "submitLabel": "框选截图并识别"
       },
       "llm": {
         "requireApproval": "always",
@@ -278,7 +277,7 @@
     },
     {
       "id": "capture-text",
-      "mode": "interact",
+      "mode": "call",
       "name": {
         "zh-CN": "框选截图并返回 OCR 文本",
         "en": "Capture Region and Return OCR Text"
@@ -343,6 +342,12 @@
             "default": false
           }
         ],
+        "outputEvents": [
+          {
+            "name": "progress",
+            "type": "json"
+          }
+        ],
         "outputs": [
           {
             "name": "screenshotPath",
@@ -373,8 +378,7 @@
         ]
       },
       "ui": {
-        "submitLabel": "框选截图并识别",
-        "streaming": true
+        "submitLabel": "框选截图并识别"
       },
       "llm": {
         "requireApproval": "always",

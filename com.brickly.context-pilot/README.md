@@ -5,7 +5,7 @@
 ## 实现计划与状态
 
 - [x] 复制 `quick-translate` 的 runtime 型 Brick 骨架，使用 `@syllm/brickly-sdk` npm 依赖、剪贴板选区检测、鼠标附近弹窗、无边框窗口和流式调用基础能力。
-- [x] 新建独立 Brick ID：`com.brickly.context-pilot`，命令为 `analyze-selection`，默认热键仍为双击 `Ctrl`。
+- [x] 新建独立 Brick ID：`com.brickly.context-pilot`，命令为 `analyze-selection`，默认热键仍为双击 `Ctrl`。两条热键命令都是 `mode: "invoke"`，进度只走自己的浮窗，不 `ctx.send`。
 - [x] 继续使用“复制前后剪贴板 hash 对比”检测真实选区，避免无选区时读取历史剪贴板。
 - [x] 继续在检测后 best-effort 恢复用户原剪贴板内容。
 - [x] 将 OpenAI 调用从“只翻译”改为“协议化 Markdown 解构”，避免 UI 强依赖不稳定 JSON。
@@ -35,7 +35,7 @@ ContextPilot 面向经常阅读英文技术文档的学习者。用户可以选�
 
 ### 划词解构
 
-1. `analyze-selection` 被热键触发。
+1. `analyze-selection` 被热键触发。该命令是 `mode: "invoke"`，宿主走 `invokeOnce`，实现里不能 `ctx.send`。进度只推给自己的浮窗。
 2. 调用 `ctx.platform.clipboard.readContent()` 读取触发前剪贴板快照。
 3. 调用 `ctx.platform.input.keyboardTap` 模拟复制当前选区：macOS 使用 `Meta+C`（Command+C），其他平台使用 `Control+C`。
 4. 等待 `COPY_SETTLE_MS` 后再次读取剪贴板快照。
@@ -46,7 +46,7 @@ ContextPilot 面向经常阅读英文技术文档的学习者。用户可以选�
 6. 调用 `restoreClipboard(ctx, before)` 尝试恢复触发前剪贴板。
 7. 无有效选区时直接返回 `{ analyzed: false, reason }`，不打开窗口、不调用 OpenAI。
 8. 有有效选区时创建或复用浮窗，发送 `context-pilot:start`。
-9. 通过 manifest 的 `openai` 依赖别名调用 `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`（`chat-completions` 已声明 `mode: "interact"`）。不要再用已删除的 `invokeStream`。
+9. 通过 manifest 的 `openai` 依赖别名调用 `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`（`chat-completions` 已声明 `mode: "call"`）。不要再用已删除的 `invokeStream`。
 10. 收到流式 chunk 后发送 `context-pilot:delta`。
 11. 最终发送 `context-pilot:result` 或 `context-pilot:error`。
 
@@ -54,8 +54,8 @@ ContextPilot 面向经常阅读英文技术文档的学习者。用户可以选�
 
 ### 截图 OCR 解构
 
-1. `analyze-screenshot` 被独立热键触发。
-2. 通过 manifest 的 `ocr` 依赖别名调用 `ctx.dependencies.require('ocr').invoke('capture-text', ...)`。
+1. `analyze-screenshot` 被独立热键触发。该命令也是 `mode: "invoke"`。
+2. 通过 manifest 的 `ocr` 依赖别名调用 `call(..., 'capture-text', ..., { onEvent })`。`capture-text` 是 `mode: "call"`，不能 `invoke`。
 3. `capture-text` 弹出系统截图框选交互，调用 GLM OCR 后返回 `wordsText`。
 4. `normalizeOcrText(ocrResult)` 提取文本；如果为空，返回 `{ analyzed: false, reason: 'ocr-empty-text' }`，不开窗、不调用 OpenAI。
 5. 有文本时复用 `analyzeSourceText`，打开同一个 ContextPilot 面板并调用 OpenAI 输出协议化 Markdown。

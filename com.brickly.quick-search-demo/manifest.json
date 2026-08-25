@@ -152,7 +152,7 @@
         ]
       },
       "timeoutMs": 1000,
-      "execution": "replace"
+      "execution": "queue"
     },
     {
       "id": "activate-demo",
@@ -186,7 +186,7 @@
         ]
       },
       "timeoutMs": 1000,
-      "execution": "replace"
+      "execution": "queue"
     },
     {
       "id": "action-demo",
@@ -224,7 +224,7 @@
         ]
       },
       "timeoutMs": 1000,
-      "execution": "replace"
+      "execution": "queue"
     }
   ],
   "triggers": [

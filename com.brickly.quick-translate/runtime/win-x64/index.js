@@ -35,14 +35,10 @@ let translateWindow = null
 let translateWindowBounds = null
 
 async function runTranslateSelection(ctx) {
-  await ctx.send({ type: 'progress', progress: 0.05, message: '读取剪贴板快照' })
   const before = await safeReadClipboard(ctx)
-
-  await ctx.send({ type: 'progress', progress: 0.15, message: '复制当前选区' })
   await ctx.platform.input.keyboardTap('c', 'control')
   await sleep(COPY_SETTLE_MS)
 
-  await ctx.send({ type: 'progress', progress: 0.3, message: '检测选中文本' })
   const after = await safeReadClipboard(ctx)
   const selection = selectedTextFromSnapshots(before, after)
   logClipboardDecision(selection, before, after)
@@ -58,14 +54,12 @@ async function runTranslateSelection(ctx) {
   })
 
   try {
-    await ctx.send({ type: 'progress', progress: 0.45, message: '调用 OpenAI 翻译' })
     const translatedText = await translateWithOpenAI(ctx, selection.text, win)
     await sendToWindow(win, 'translate:result', {
       sourceText: selection.text,
       translatedText,
       completedAt: Date.now()
     })
-    await ctx.send({ type: 'progress', progress: 1, message: '翻译完成' })
     return { translated: true, sourceText: selection.text, translatedText }
   } catch (error) {
     const payload = {
@@ -79,7 +73,6 @@ async function runTranslateSelection(ctx) {
 }
 
 async function runTranslateScreenshotOverlay(ctx) {
-  await ctx.send({ type: 'progress', progress: 0.05, message: '请框选要翻译的截图区域' })
   const outputDir = path.join(os.tmpdir(), 'brickly-quick-translate')
   await fs.mkdir(outputDir, { recursive: true })
   const ocrInput = {
@@ -89,7 +82,10 @@ async function runTranslateScreenshotOverlay(ctx) {
     keepScreenshot: true
   }
   debugLog('screenshot-ocr.request', ocrInput)
-  const ocr = await ctx.dependencies.require('ocr').invoke('capture-text', ocrInput)
+  const ocr = await call(ctx.dependencies.require('ocr'), 'capture-text', ocrInput, {
+    signal: ctx.signal,
+    onEvent() {}
+  })
 
   const screenshotPath = typeof ocr?.screenshotPath === 'string' ? ocr.screenshotPath : ''
   const wordsResult = Array.isArray(ocr?.wordsResult) ? ocr.wordsResult : []
@@ -101,10 +97,8 @@ async function runTranslateScreenshotOverlay(ctx) {
     return { translated: false, reason: 'ocr-empty', screenshotPath, bounds }
   }
 
-  await ctx.send({ type: 'progress', progress: 0.45, message: '翻译截图文字' })
   const translations = await translateOcrBlocksWithOpenAI(ctx, wordsResult)
 
-  await ctx.send({ type: 'progress', progress: 0.76, message: '生成覆盖翻译图片' })
   const overlayPath = path.join(outputDir, `quick-translate-overlay-${Date.now()}.png`)
   const rendered = await renderScreenshotOverlay({
     screenshotPath,
@@ -120,7 +114,6 @@ async function runTranslateScreenshotOverlay(ctx) {
     blocks: summarizeRenderBlocks(rendered.blocks)
   })
 
-  await ctx.send({ type: 'progress', progress: 0.92, message: '贴回原屏幕位置' })
   const overlayPayload = {
     imagePath: overlayPath,
     bounds,
@@ -137,7 +130,6 @@ async function runTranslateScreenshotOverlay(ctx) {
     overlayPath
   })
 
-  await ctx.send({ type: 'progress', progress: 1, message: '截图翻译已覆盖显示，按 Esc 关闭' })
   return {
     translated: true,
     windowId: win.id,
@@ -404,7 +396,10 @@ async function translateOcrBlocksWithOpenAI(ctx, wordsResult) {
     items,
     prompt: truncate(input.messages.map((message) => message.content).join('\n\n'), 1200)
   })
-  const result = await ctx.dependencies.require('openai').invoke('chat-completions', input)
+  const result = await call(ctx.dependencies.require('openai'), 'chat-completions', input, {
+    signal: ctx.signal,
+    onEvent() {}
+  })
   const text = extractText(result).trim()
   debugLog('screenshot-translate.response.raw', {
     text: truncate(text, 2000),

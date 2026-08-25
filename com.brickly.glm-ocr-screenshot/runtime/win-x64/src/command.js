@@ -32,14 +32,12 @@ async function captureAnnotate(ctx, rawInput) {
   let screenshotCreated = false
 
   try {
-    await sendProgress(ctx, 0.1, 'capturing')
     const screenshot = await ctx.platform.screenshot.selectRegion({ outputPath: screenshotPath })
     actualScreenshotPath = screenshot.path
     screenshotCreated = true
     const bounds = screenshot.bounds
     ensureActive(ctx)
 
-    await sendProgress(ctx, 0.45, 'ocr')
     const ocrResponse = await ctx.dependencies.require('glm').invoke('ocr', {
       imagePath: actualScreenshotPath,
       languageType: input.languageType,
@@ -52,7 +50,6 @@ async function captureAnnotate(ctx, rawInput) {
       : []
     const wordsText = wordsResult.map((item) => item.words || '').filter(Boolean).join('\n')
 
-    await sendProgress(ctx, 0.8, 'opening-window')
     const renderPayload = await buildOcrRenderPayload({
       screenshotPath: actualScreenshotPath,
       wordsResult,
@@ -63,7 +60,6 @@ async function captureAnnotate(ctx, rawInput) {
     })
     const resultWindow = await openResultWindow(ctx, renderPayload)
     ensureActive(ctx)
-    await sendProgress(ctx, 1, 'done')
 
     return {
       windowId: resultWindow.id,

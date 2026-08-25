@@ -149,7 +149,7 @@
         "zh-CN": "通过模拟复制检测当前选区，若文本有效则调用 OpenAI 输出协议化 Markdown 解构结果。",
         "en": "Detect selected text by simulating copy, analyze it with OpenAI, and show a protocol Markdown panel."
       },
-      "mode": "interact",
+      "mode": "invoke",
       "io": {
         "inputs": [],
         "outputs": [
@@ -159,7 +159,7 @@
           }
         ]
       },
-      "execution": "replace"
+      "execution": "queue"
     },
     {
       "id": "analyze-screenshot",
@@ -180,8 +180,8 @@
           }
         ]
       },
-      "mode": "interact",
-      "execution": "replace"
+      "mode": "invoke",
+      "execution": "queue"
     }
   ]
 }

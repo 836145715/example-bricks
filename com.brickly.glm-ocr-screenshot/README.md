@@ -2,7 +2,7 @@
 status: active
 type: brick-note
 related_code: manifest.json,runtime/win-x64/index.js,runtime/win-x64/src
-last_verified: 2026-08-24
+last_verified: 2026-08-25
 ---
 
 # GLM 截图 OCR 标注
@@ -21,11 +21,11 @@ last_verified: 2026-08-24
 
 本 Brick 只负责调用宿主截图能力、上传 OCR、组装渲染数据和开窗；不再自行直接适配各平台截图工具。
 
-Manifest 声明 `dependencies.glm` → `com.brickly.glm-tools` 的 `ocr`。`capture-annotate` 与 `capture-text` 显式 `"mode": "interact"`（`ui.streaming: true`），进度走 `ctx.send`，不要用 `ui.streaming` 推断 mode。
+Manifest 声明 `dependencies.glm` → `com.brickly.glm-tools` 的 `ocr`。`capture-annotate` 带热键，必须 `"mode": "invoke"`，不能 `ctx.send`。`capture-text` 显式 `"mode": "call"`，进度走 `ctx.send` + `io.outputEvents.progress`；下游要用 `call(..., { onEvent })`，不能 `invoke`。不要写 `ui.streaming`。
 
 ## 命令边界
 
-- `capture-annotate`：面向用户的可见命令。截图后调用 GLM OCR，并打开标注窗口展示截图、识别框和文字结果。
+- `capture-annotate`：面向用户的可见命令，热键入口。截图后调用 GLM OCR，并打开标注窗口展示截图、识别框和文字结果。进度只在自己的窗口里看。
 - `capture-text`：可复用命令。截图后调用 GLM OCR，只返回 `wordsText`、`wordsResult`、`ocrResponse`、可选 `screenshotPath` 和截图区域 `bounds`，不打开标注窗口。`com.brickly.context-pilot` 使用该命令完成截图 OCR 后的句子翻译解构，`com.brickly.quick-translate` 使用 `bounds` 将截图翻译覆盖层贴回原屏幕位置。
 
 ## 渲染方式

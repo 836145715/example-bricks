@@ -4,7 +4,7 @@
 
 ## 功能概览
 
-- 通过 manifest 注册 `translate-selection` 命令和默认热键：双击 `Ctrl`。
+- 通过 manifest 注册 `translate-selection` 命令和默认热键：双击 `Ctrl`。两条热键命令都是 `mode: "invoke"`，进度只走自己的浮窗 / 覆盖层，不 `ctx.send`。
 - 触发后模拟 `Ctrl+C`，通过剪贴板前后快照判断当前是否存在新的文本选区。
 - 仅在检测到新的文本选区时翻译；默认提示词将英文翻译为自然、准确、简洁的简体中文。
 - 通过 manifest 中固定版本的 `openai` 依赖别名调用 `chat-completions` 命令，并使用流式输出。
@@ -33,16 +33,16 @@
    - 通过鼠标位置与最近屏幕工作区计算浮窗位置。
    - 打开或复用翻译窗口。
    - 向 UI 发送 `translate:start`。
-8. 通过 manifest 的 `openai` 依赖别名调用 `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`（`chat-completions` 已声明 `mode: "interact"`）：
+8. 通过 manifest 的 `openai` 依赖别名调用 `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`（`chat-completions` 已声明 `mode: "call"`）：
    - `onEvent` 收到文本 chunk 时累积译文并发送 `translate:delta`。
    - 最终返回值提取译文后发送 `translate:result`。
    - 收到错误或异常时发送 `translate:error` 并向上抛出。不要再用已删除的 `invokeStream`。
 
-`translate-screenshot-overlay` 命令流程：
+`translate-screenshot-overlay` 同样是 `mode: "invoke"`。命令流程：
 
-1. 通过 manifest 的 `ocr` 依赖别名调用 `ctx.dependencies.require('ocr').invoke('capture-text', ...)`，传入 `keepScreenshot: true`，让 OCR Brick 保留截图文件并返回 `bounds`。
+1. 通过 manifest 的 `ocr` 依赖别名调用 `call(..., 'capture-text', ..., { onEvent })`，传入 `keepScreenshot: true`，让 OCR Brick 保留截图文件并返回 `bounds`。`capture-text` 是 `mode: "call"`，不能 `invoke`。
 2. 从 `wordsResult[].words` 和 `wordsResult[].location` 提取 OCR 文本块；若无文本块，返回 `{ translated: false, reason: "ocr-empty" }`。
-3. 通过 manifest 的 `openai` 依赖别名调用 `chat-completions`，要求返回同长度 JSON 数组，字段为 `index` 和 `translatedText`。
+3. 通过 manifest 的 `openai` 依赖别名 `call(..., 'chat-completions', ..., { onEvent })`，要求返回同长度 JSON 数组，字段为 `index` 和 `translatedText`。
 4. 使用 `runtime/win-x64/src/screenshot-overlay-renderer.js` 基于 `sharp` 输出覆盖 PNG。
 5. 使用 `runtime/win-x64/src/screenshot-overlay-window.js` 创建与 `bounds` 一致的透明置顶窗口，并向 `ui/overlay.html` 发送覆盖图路径。
 6. 覆盖窗口收到 `quick-translate-overlay:close` 后关闭；UI 侧按 `Esc` 或右键会发送该消息。
@@ -78,8 +78,8 @@ UI 侧 `ui/app.js` 监听以下事件：
 - `ctx.platform.screen.getCursorScreenPoint()`：获取当前鼠标位置，用于浮窗定位。
 - `ctx.platform.screen.getDisplayNearestPoint(point)`：获取最近显示器工作区，避免浮窗超出屏幕。
 - `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`：调用 OpenAI Brick 的 Chat Completions（流式走 `onEvent`）。
-- `ctx.dependencies.require('ocr').invoke('capture-text', input)`：截图并返回 OCR 文本、OCR 明细、截图路径和框选区域 `bounds`。
-- `call(ctx.dependencies.require('openai'), 'chat-completions', input)`：截图翻译路径使用非流式调用，请求模型返回 JSON 翻译数组。
+- `call(ctx.dependencies.require('ocr'), 'capture-text', input, { signal, onEvent })`：截图并返回 OCR 文本、OCR 明细、截图路径和框选区域 `bounds`。
+- `call(ctx.dependencies.require('openai'), 'chat-completions', input, { signal, onEvent })`：截图翻译路径同样走 `call`；`stream: false` 时 `onEvent` 仍必须传入。
 
 运行时向浮窗发送的内部事件为：
 
