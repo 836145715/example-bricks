@@ -54,7 +54,6 @@
   "lifecycle": {
     "state": "stateless"
   },
-  "permissions": [],
   "trustLevel": "community",
   "ui": {
     "type": "none"

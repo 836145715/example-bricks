@@ -32,7 +32,6 @@
     "state": "stateless"
   },
   "trustLevel": "community",
-  "permissions": [],
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
