@@ -1,0 +1,8 @@
+{
+  "name": "com.brickly.py-window-lab",
+  "private": true,
+  "version": "0.2.0",
+  "scripts": {
+    "setup": "node ../scripts/setup-brick.cjs"
+  }
+}

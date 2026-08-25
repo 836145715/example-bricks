@@ -4,6 +4,7 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "setup": "node ../scripts/setup-brick.cjs",
     "build": "vite build",
     "dev": "vite",
     "preview": "vite preview",
