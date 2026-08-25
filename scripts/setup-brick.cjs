@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 'use strict'
 
+/**
+ * 默认按 lock 从 npm / Go module / PyPI 装已发布的 0.6.0。
+ * 联调旁边的 ai-bricks 源码：`npm run setup -- --local` 或 `BRICKLY_LOCAL=1`。
+ * --local 不改 package.json / go.mod；只在安装后把依赖指到本地包。
+ */
+
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
+
+const GO_SDK_MODULE = 'github.com/836145715/brickly-sdk-go'
 
 const GO_TARGETS = {
   'win-x64': { goos: 'windows', goarch: 'amd64', suffix: '.exe' },
@@ -24,10 +32,73 @@ function currentPlatform() {
   throw new Error(`Unsupported platform: ${platform}/${arch}`)
 }
 
-function brickRootFromArgs() {
-  if (process.argv[2]) return path.resolve(process.argv[2])
+function parseArgs(argv = process.argv.slice(2)) {
+  return {
+    local: argv.includes('--local') || process.env.BRICKLY_LOCAL === '1',
+    brickRoot: argv.find((item) => !item.startsWith('-'))
+  }
+}
+
+function brickRootFromArgs(parsed = parseArgs()) {
+  if (parsed.brickRoot) return path.resolve(parsed.brickRoot)
   if (process.env.npm_package_json) return path.dirname(process.env.npm_package_json)
   return process.cwd()
+}
+
+function resolveBricklyHome() {
+  if (process.env.BRICKLY_HOME) return path.resolve(process.env.BRICKLY_HOME)
+  const sibling = path.resolve(__dirname, '..', '..', 'ai-bricks')
+  if (fs.existsSync(path.join(sibling, 'Brickly', 'packages'))) return sibling
+  return null
+}
+
+function resolveLocalPackages() {
+  const home = resolveBricklyHome()
+  if (!home) {
+    throw new Error(
+      '找不到本地 ai-bricks。把 example-bricks 和 ai-bricks 放在同一父目录，或设置 BRICKLY_HOME。'
+    )
+  }
+  const packages = path.join(home, 'Brickly', 'packages')
+  const pick = (name) => {
+    const dir = path.join(packages, name)
+    return fs.existsSync(dir) ? dir : null
+  }
+  return {
+    home,
+    sdkNode: pick('brickly-sdk-node'),
+    sdkUi: pick('brickly-ui'),
+    sdkGo: pick('brickly-sdk-go'),
+    sdkPy: pick('brickly-sdk-python')
+  }
+}
+
+function ensureNodeSdkBuilt(sdkNode) {
+  if (!sdkNode) return
+  if (fs.existsSync(path.join(sdkNode, 'dist', 'index.js'))) return
+  console.log('building local @syllm/brickly-sdk')
+  run('npm', ['run', 'build'], { cwd: sdkNode })
+}
+
+function linkLocalPackage(brickPkgDir, name, target) {
+  const dest = path.join(brickPkgDir, 'node_modules', ...name.split('/'))
+  fs.mkdirSync(path.dirname(dest), { recursive: true })
+  fs.rmSync(dest, { recursive: true, force: true })
+  fs.symlinkSync(target, dest, process.platform === 'win32' ? 'junction' : 'dir')
+  console.log(`link ${name} -> ${target}`)
+}
+
+function applyLocalNpm(dir, locals) {
+  const pkgFile = path.join(dir, 'package.json')
+  if (!fs.existsSync(pkgFile)) return
+  const pkg = readJson(pkgFile)
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+  if (deps['@syllm/brickly-sdk'] && locals.sdkNode) {
+    linkLocalPackage(dir, '@syllm/brickly-sdk', locals.sdkNode)
+  }
+  if (deps['@syllm/brickly-ui'] && locals.sdkUi) {
+    linkLocalPackage(dir, '@syllm/brickly-ui', locals.sdkUi)
+  }
 }
 
 function readJson(file) {
@@ -111,7 +182,7 @@ function binaryOutput(brickRoot, platform) {
   return path.join(brickRoot, 'runtime', platform, `brick${target.suffix}`)
 }
 
-function installRoot(brickRoot) {
+function installRoot(brickRoot, locals) {
   const pkgFile = path.join(brickRoot, 'package.json')
   const pkg = readJson(pkgFile)
   if (!hasNpmDeps(pkg)) {
@@ -119,19 +190,23 @@ function installRoot(brickRoot) {
     return pkg
   }
   npmInstall(brickRoot)
+  if (locals) applyLocalNpm(brickRoot, locals)
   return pkg
 }
 
-function installRuntime(brickRoot) {
+function installRuntime(brickRoot, locals) {
   const dirs = findRuntimePackageDirs(brickRoot)
   if (dirs.length === 0) {
     console.log('skip runtime npm install (no runtime package.json)')
     return
   }
-  for (const dir of dirs) npmInstall(dir)
+  for (const dir of dirs) {
+    npmInstall(dir)
+    if (locals) applyLocalNpm(dir, locals)
+  }
 }
 
-function syncPython(brickRoot) {
+function syncPython(brickRoot, locals) {
   const dirs = findPyProjectDirs(brickRoot)
   if (dirs.length === 0) {
     console.log('skip python sync (no pyproject.toml)')
@@ -147,6 +222,9 @@ function syncPython(brickRoot) {
       // but still point at the 0.5.0 wheel path, which 404s on PyPI.
       run('uv', ['lock', '--upgrade-package', 'brickly-sdk'], { cwd: dir })
       run('uv', ['sync'], { cwd: dir })
+      if (locals?.sdkPy) {
+        run('uv', ['pip', 'install', '-e', locals.sdkPy], { cwd: dir })
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.warn(`python sync failed in ${dir}: ${message}`)
@@ -155,7 +233,28 @@ function syncPython(brickRoot) {
   }
 }
 
-function buildGo(brickRoot, brickId) {
+function withLocalGoReplace(dir, sdkGo, fn) {
+  if (!sdkGo) return fn()
+  const goMod = path.join(dir, 'go.mod')
+  const goSum = path.join(dir, 'go.sum')
+  if (!fs.existsSync(goMod)) return fn()
+  const modOrig = fs.readFileSync(goMod, 'utf8')
+  const sumExisted = fs.existsSync(goSum)
+  const sumOrig = sumExisted ? fs.readFileSync(goSum) : null
+  const posix = sdkGo.replace(/\\/g, '/')
+  if (!modOrig.includes(`replace ${GO_SDK_MODULE}`)) {
+    fs.appendFileSync(goMod, `\nreplace ${GO_SDK_MODULE} => ${posix}\n`)
+  }
+  try {
+    return fn()
+  } finally {
+    fs.writeFileSync(goMod, modOrig)
+    if (sumOrig) fs.writeFileSync(goSum, sumOrig)
+    else if (!sumExisted && fs.existsSync(goSum)) fs.rmSync(goSum)
+  }
+}
+
+function buildGo(brickRoot, brickId, locals) {
   const dirs = findGoModDirs(brickRoot)
   if (dirs.length === 0) {
     console.log('skip go build (no go.mod)')
@@ -168,7 +267,10 @@ function buildGo(brickRoot, brickId) {
   const platform = currentPlatform()
   const builder = dirs.map((dir) => path.join(dir, 'build.mjs')).find((file) => fs.existsSync(file))
   if (builder) {
-    run(process.execPath, [builder, platform], { cwd: path.dirname(builder) })
+    const dir = path.dirname(builder)
+    withLocalGoReplace(dir, locals?.sdkGo, () => {
+      run(process.execPath, [builder, platform], { cwd: dir })
+    })
     return
   }
 
@@ -178,9 +280,11 @@ function buildGo(brickRoot, brickId) {
   const cgo = CGO_BRICKS.has(brickId) ? '1' : '0'
   for (const dir of dirs) {
     console.log(`Building ${brickId} ${platform} -> ${output}`)
-    run('go', ['build', '-trimpath', '-ldflags', '-s -w', '-o', output, '.'], {
-      cwd: dir,
-      env: { ...process.env, GOOS: target.goos, GOARCH: target.goarch, CGO_ENABLED: cgo }
+    withLocalGoReplace(dir, locals?.sdkGo, () => {
+      run('go', ['build', '-trimpath', '-ldflags', '-s -w', '-o', output, '.'], {
+        cwd: dir,
+        env: { ...process.env, GOOS: target.goos, GOARCH: target.goarch, CGO_ENABLED: cgo }
+      })
     })
   }
 }
@@ -200,28 +304,34 @@ function brickIdOf(brickRoot) {
   return path.basename(brickRoot)
 }
 
-function setupBrick(brickRoot) {
+function setupBrick(brickRoot, options = {}) {
   const pkgFile = path.join(brickRoot, 'package.json')
   if (!fs.existsSync(pkgFile)) {
     throw new Error(`Missing package.json in ${brickRoot}`)
   }
+  const locals = options.local ? resolveLocalPackages() : null
+  if (locals) {
+    console.log(`using local SDK from ${locals.home}`)
+    ensureNodeSdkBuilt(locals.sdkNode)
+  }
   const brickId = brickIdOf(brickRoot)
   console.log(`\n== setup ${brickId} ==\n`)
-  const pkg = installRoot(brickRoot)
-  installRuntime(brickRoot)
-  syncPython(brickRoot)
-  buildGo(brickRoot, brickId)
+  const pkg = installRoot(brickRoot, locals)
+  installRuntime(brickRoot, locals)
+  syncPython(brickRoot, locals)
+  buildGo(brickRoot, brickId, locals)
   buildUi(brickRoot, pkg)
   console.log(`\n== setup ${brickId} done ==\n`)
 }
 
 if (require.main === module) {
   try {
-    setupBrick(brickRootFromArgs())
+    const parsed = parseArgs()
+    setupBrick(brickRootFromArgs(parsed), { local: parsed.local })
   } catch (error) {
     console.error(error instanceof Error ? error.message : error)
     process.exit(1)
   }
 }
 
-module.exports = { setupBrick, currentPlatform }
+module.exports = { setupBrick, currentPlatform, parseArgs }

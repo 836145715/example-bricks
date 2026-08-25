@@ -2,6 +2,7 @@
   "name": "example-bricks",
   "private": true,
   "scripts": {
-    "setup:all": "node scripts/setup-all.cjs"
+    "setup:all": "node scripts/setup-all.cjs",
+    "setup:all:local": "node scripts/setup-all.cjs --local"
   }
 }

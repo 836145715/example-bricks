@@ -3,17 +3,18 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
-const { setupBrick } = require('./setup-brick.cjs')
+const { parseArgs, setupBrick } = require('./setup-brick.cjs')
 
 const root = path.resolve(__dirname, '..')
 const failures = []
+const { local } = parseArgs()
 
 for (const name of fs.readdirSync(root).sort()) {
   const brickDir = path.join(root, name)
   if (!fs.statSync(brickDir).isDirectory()) continue
   if (!fs.existsSync(path.join(brickDir, 'manifest.json'))) continue
   try {
-    setupBrick(brickDir)
+    setupBrick(brickDir, { local })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error(`FAILED ${name}: ${message}`)
