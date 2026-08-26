@@ -1,0 +1,166 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.log-lab",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "日志实验室",
+    "en": "Log Lab"
+  },
+  "description": {
+    "zh-CN": "对照日志中心分层：顶级宿主/工具日志、command 节点日志、数据面事件、子调用节点。",
+    "en": "Visual lab for log-center layers: top-level logs, command logs, data-plane events, and child nodes."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": ["log", "trace", "lab", "diagnostics", "demo"],
+  "categories": ["developer-tools"],
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "instance": "owned",
+    "platforms": ["win-x64", "win-arm64", "mac-x64", "mac-arm64", "linux-x64", "linux-arm64"],
+    "entry": {
+      "win-x64": "runtime/win-x64/index.cjs",
+      "win-arm64": "runtime/win-arm64/index.cjs",
+      "mac-x64": "runtime/mac-x64/index.cjs",
+      "mac-arm64": "runtime/mac-arm64/index.cjs",
+      "linux-x64": "runtime/linux-x64/index.cjs",
+      "linux-arm64": "runtime/linux-arm64/index.cjs"
+    }
+  },
+  "lifecycle": {
+    "state": "stateful",
+    "service": {
+      "autoStart": false,
+      "restart": "none"
+    }
+  },
+  "dependencies": {
+    "child": {
+      "target": {
+        "brickId": "com.brickly.log-lab-child",
+        "origin": "development",
+        "version": "0.1.0"
+      },
+      "commands": ["echo-log"]
+    }
+  },
+  "trustLevel": "community",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "titleBar": "custom",
+    "size": {
+      "width": 1080,
+      "height": 760,
+      "minWidth": 760,
+      "minHeight": 560,
+      "resizable": true
+    },
+    "devTools": "debug-only"
+  },
+  "commands": [
+    {
+      "id": "log-levels",
+      "name": { "zh-CN": "命令内日志", "en": "Logs in command" },
+      "description": {
+        "zh-CN": "brick.log / ctx.log 只进该 command 节点的日志栏。",
+        "en": "brick.log / ctx.log belong to this command node's log lane."
+      },
+      "io": {
+        "inputs": [{ "name": "text", "type": "string", "required": false }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "log-error-keep-success",
+      "name": { "zh-CN": "error 日志仍成功", "en": "log.error then succeed" },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "fail-after-log",
+      "name": { "zh-CN": "打日志后失败", "en": "Log then fail" },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "stream-frames",
+      "name": { "zh-CN": "流式帧", "en": "Stream frames" },
+      "mode": "call",
+      "io": {
+        "inputs": [{ "name": "count", "type": "number", "required": false, "default": 3 }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "chat",
+      "name": { "zh-CN": "交互会话", "en": "Interact chat" },
+      "mode": "interact",
+      "io": {
+        "inputs": [{ "name": "prompt", "type": "string", "required": false }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "publish-in-command",
+      "name": { "zh-CN": "命令内发布", "en": "Publish in command" },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "schedule-idle-log",
+      "name": { "zh-CN": "延后顶级日志", "en": "Idle log after command" },
+      "io": {
+        "inputs": [{ "name": "delayMs", "type": "number", "required": false, "default": 1200 }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "stdout-in-command",
+      "name": { "zh-CN": "命令内裸 stdout", "en": "Stdout in command" },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "schedule-stdout",
+      "name": { "zh-CN": "延后裸 stdout", "en": "Stdout after command" },
+      "io": {
+        "inputs": [{ "name": "delayMs", "type": "number", "required": false, "default": 1200 }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "call-child",
+      "name": { "zh-CN": "调用子工具", "en": "Call child" },
+      "io": {
+        "inputs": [{ "name": "text", "type": "string", "required": false }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    }
+  ]
+}

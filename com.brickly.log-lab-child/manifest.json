@@ -1,0 +1,75 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.log-lab-child",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "日志实验室 · 子工具",
+    "en": "Log Lab Child"
+  },
+  "description": {
+    "zh-CN": "给日志实验室做子调用：自己的 brick.log 必须挂在子节点上，不能进父节点或顶级。",
+    "en": "Child brick for Log Lab. Its brick.log must land on the child node, not the parent or top list."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": ["log", "lab", "demo", "child"],
+  "categories": ["developer-tools"],
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "instance": "per-call",
+    "platforms": ["win-x64", "win-arm64", "mac-x64", "mac-arm64", "linux-x64", "linux-arm64"],
+    "entry": {
+      "win-x64": "runtime/win-x64/index.cjs",
+      "win-arm64": "runtime/win-arm64/index.cjs",
+      "mac-x64": "runtime/mac-x64/index.cjs",
+      "mac-arm64": "runtime/mac-arm64/index.cjs",
+      "linux-x64": "runtime/linux-x64/index.cjs",
+      "linux-arm64": "runtime/linux-arm64/index.cjs"
+    }
+  },
+  "lifecycle": {
+    "state": "stateless",
+    "idleTimeoutMs": 0
+  },
+  "trustLevel": "community",
+  "ui": {
+    "type": "none"
+  },
+  "commands": [
+    {
+      "id": "echo-log",
+      "name": {
+        "zh-CN": "回声并打日志",
+        "en": "Echo and log"
+      },
+      "description": {
+        "zh-CN": "在子节点日志栏写 brick.log / ctx.log，然后原样返回。",
+        "en": "Write brick.log / ctx.log on the child node, then echo the input."
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "text",
+            "type": "string",
+            "required": false,
+            "default": "hello from child"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    }
+  ]
+}

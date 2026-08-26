@@ -1,0 +1,9 @@
+{
+  "name": "com.brickly.log-lab",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "setup": "node ../scripts/setup-brick.cjs",
+    "test": "node --test runtime/node/scenarios.test.cjs"
+  }
+}

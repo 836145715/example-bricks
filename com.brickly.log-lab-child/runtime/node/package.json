@@ -1,0 +1,9 @@
+{
+  "name": "com.brickly.log-lab-child-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@syllm/brickly-sdk": "^0.6.0"
+  }
+}

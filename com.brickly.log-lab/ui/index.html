@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>日志实验室</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="titlebar">
+      <strong>日志实验室</strong>
+      <span>对照日志中心分层</span>
+      <div class="win">
+        <button id="min" type="button" aria-label="最小化">–</button>
+        <button id="max" type="button" aria-label="最大化">□</button>
+        <button id="close" type="button" aria-label="关闭">×</button>
+      </div>
+    </header>
+    <section class="hero">
+      <h1>按卡片跑，到日志中心对层</h1>
+      <p>
+        左侧顶级只该出现：宿主/页面日志、没有当前命令时的工具日志、以及一次 command 节点。
+        点开节点后，日志栏是 brick.log / ctx.log，事件栏是 stream / interact / 命令内 publish。
+      </p>
+      <p class="hint">请同时打开侧栏「日志中心」。主进程改过需先重启 npm run dev。</p>
+    </section>
+    <main id="grid" class="grid"></main>
+    <footer class="statusbar" id="status">启动中…</footer>
+    <script src="./app.js"></script>
+  </body>
+</html>
