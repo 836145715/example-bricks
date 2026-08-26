@@ -1,41 +1,26 @@
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 import type { RendererResourceHandle, RendererResourceRef, RunSnapshot, SuiteCatalog } from './types'
 import { isRunSnapshot } from './run-state'
 
-interface BricklyWindowControls {
-  minimize(): Promise<void>
-  toggleMaximize(): Promise<void>
-  isMaximized(): Promise<boolean>
-  onMaximizeChange(callback: (maximized: boolean) => void): () => void
-  close(): Promise<void>
+let runtime: BricklyStartedHandle | null = null
+
+export function bindRuntime(handle: BricklyStartedHandle | null): void {
+  runtime = handle
 }
 
-interface BricklyApi {
-  brickId?: string
-  invoke(commandId: string, input: Record<string, unknown>): Promise<unknown>
-  stream?(commandId: string, input: Record<string, unknown>, callbacks: {
-    onResult?(result: unknown): void
-    onError?(error: { code?: string; message?: string }): void
-    onDone?(): void
-  }): { cancel(): void }
-  events?: {
-    subscribe(event: string, listener: (envelope: { payload: unknown }) => void): Promise<() => void | Promise<void>>
+export function hasRuntime(): boolean {
+  return runtime != null
+}
+
+function requireRuntime(): BricklyStartedHandle {
+  if (!runtime) {
+    throw new Error('Resource Lab Runtime 尚未就绪，请先 start()。')
   }
-  resources?: { open(ref: RendererResourceRef): RendererResourceHandle }
-  window?: BricklyWindowControls
-  closeWindow?(): void
-}
-
-declare global {
-  interface Window { brickly?: BricklyApi }
-}
-
-/** 纯 stateful：打开体验窗后按需起会话实例，无需 service.start。 */
-export async function startResourceLab(): Promise<void> {
-  requireApi()
+  return runtime
 }
 
 export function listSuite(): Promise<SuiteCatalog> {
-  return invoke<SuiteCatalog>('suite-list', {})
+  return requireRuntime().invoke<SuiteCatalog>('suite-list', {})
 }
 
 export function runSuite(
@@ -43,35 +28,53 @@ export function runSuite(
   onResult: (snapshot: RunSnapshot) => void,
   onError: (error: { code?: string; message?: string }) => void = () => undefined
 ): { cancel(): void } {
-  const stream = requireApi().stream
-  if (!stream) throw new Error('当前窗口不支持可取消的 Resource Lab 流式调用。')
-  return stream('suite-run', input, {
-    onResult: (result) => {
+  const abort = new AbortController()
+  void requireRuntime()
+    .invoke('suite-run', input)
+    .then((result) => {
       try {
         onResult(requireRunSnapshot(result))
       } catch (error) {
+        if (abort.signal.aborted) {
+          onError({ code: 'CANCELLED', message: '测试已取消。' })
+          return
+        }
         onError({ code: 'INVALID_RESPONSE', message: toErrorMessage(error) })
       }
-    },
-    onError
-  })
+    })
+    .catch((error) => {
+      if (abort.signal.aborted || errorCode(error) === 'CANCELLED') {
+        onError({ code: 'CANCELLED', message: '测试已取消。' })
+        return
+      }
+      onError({
+        code: errorCode(error),
+        message: toErrorMessage(error)
+      })
+    })
+  return {
+    cancel() {
+      abort.abort()
+      void cancelRun(input.runId).catch(() => undefined)
+    }
+  }
 }
 
 export function getRunStatus(runId: string): Promise<RunSnapshot> {
-  return invoke<unknown>('suite-status', { runId }).then(requireRunSnapshot)
+  return requireRuntime().invoke('suite-status', { runId }).then(requireRunSnapshot)
 }
 
 export function listRunStatuses(): Promise<{ runs: RunSnapshot[] }> {
-  return invoke<unknown>('suite-status', {}).then(requireRunHistory)
+  return requireRuntime().invoke('suite-status', {}).then(requireRunHistory)
 }
 
 export function cancelRun(runId: string): Promise<RunSnapshot> {
-  return invoke<unknown>('suite-cancel', { runId }).then(requireRunSnapshot)
+  return requireRuntime().invoke('suite-cancel', { runId }).then(requireRunSnapshot)
 }
 
 export async function exportRun(runId: string): Promise<string> {
-  const ref = requireResourceRef(await invoke<unknown>('suite-export', { runId }))
-  const open = requireApi().resources?.open
+  const ref = requireResourceRef(await requireRuntime().invoke('suite-export', { runId }))
+  const open = window.brickly?.resources?.open
   if (!open) throw new Error('当前窗口不支持打开报告资源。')
   const handle = open(ref)
   try {
@@ -82,6 +85,29 @@ export async function exportRun(runId: string): Promise<string> {
   }
 }
 
+export function prepareRestart(runId: string): Promise<{
+  status: string
+  runId: string
+  preparedAt: number
+  checkpoint: Record<string, unknown>
+}> {
+  return requireRuntime().invoke('restart-prepare', { runId })
+}
+
+export function verifyRestart(checkpoint?: Record<string, unknown>): Promise<Record<string, unknown>> {
+  return requireRuntime().invoke('restart-verify', checkpoint ? { checkpoint } : {})
+}
+
+export async function subscribeRunUpdates(
+  listener: (snapshot: RunSnapshot) => void
+): Promise<() => void | Promise<void>> {
+  const events = window.brickly?.events
+  if (!events?.subscribe) throw new Error('当前窗口不支持 Resource Lab 事件订阅。')
+  return events.subscribe('resource-lab:run-updated', (envelope) => {
+    void hydrateSnapshot(envelope.payload).then(listener).catch(() => undefined)
+  })
+}
+
 function requireResourceRef(value: unknown): RendererResourceRef {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Runtime 未返回报告 ResourceRef。')
@@ -89,8 +115,8 @@ function requireResourceRef(value: unknown): RendererResourceRef {
   const ref = value as Partial<RendererResourceRef>
   if (
     ref.kind !== 'brickly.resource' ||
-    typeof ref.resourceId !== 'string' || !ref.resourceId ||
-    typeof ref.accessToken !== 'string' || !ref.accessToken ||
+    typeof ref.resourceId !== 'string' ||
+    !ref.resourceId ||
     typeof ref.sizeBytes !== 'number' ||
     typeof ref.sha256 !== 'string' ||
     typeof ref.expiresAt !== 'number'
@@ -98,22 +124,6 @@ function requireResourceRef(value: unknown): RendererResourceRef {
     throw new Error('Runtime 未返回报告 ResourceRef。')
   }
   return ref as RendererResourceRef
-}
-
-export function prepareRestart(runId: string): Promise<{ status: string; runId: string; preparedAt: number; checkpoint: Record<string, unknown> }> {
-  return invoke('restart-prepare', { runId })
-}
-
-export function verifyRestart(checkpoint?: Record<string, unknown>): Promise<Record<string, unknown>> {
-  return invoke('restart-verify', checkpoint ? { checkpoint } : {})
-}
-
-export async function subscribeRunUpdates(listener: (snapshot: RunSnapshot) => void): Promise<() => void | Promise<void>> {
-  const events = requireApi().events
-  if (!events?.subscribe) throw new Error('当前窗口不支持 Resource Lab 事件订阅。')
-  return events.subscribe('resource-lab:run-updated', (envelope) => {
-    void hydrateSnapshot(envelope.payload).then(listener).catch(() => undefined)
-  })
 }
 
 async function hydrateSnapshot(payload: unknown): Promise<RunSnapshot> {
@@ -141,15 +151,14 @@ function requireRunHistory(value: unknown): { runs: RunSnapshot[] } {
   return { runs }
 }
 
+function errorCode(error: unknown): string | undefined {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code
+    return typeof code === 'string' ? code : undefined
+  }
+  return undefined
+}
+
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Resource Lab 返回结构无效。'
-}
-
-function invoke<T>(commandId: string, input: Record<string, unknown>): Promise<T> {
-  return requireApi().invoke(commandId, input) as Promise<T>
-}
-
-function requireApi(): BricklyApi {
-  if (!window.brickly?.invoke) throw new Error('当前页面没有可用的 Resource Lab Runtime。')
-  return window.brickly
 }

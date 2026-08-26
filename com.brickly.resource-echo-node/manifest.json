@@ -35,7 +35,7 @@
     "python_echo": {
       "target": {
         "brickId": "com.brickly.resource-echo-python",
-        "origin": "installed",
+        "origin": "development",
         "version": "0.2.0"
       },
       "commands": [
@@ -47,7 +47,7 @@
     "go_echo": {
       "target": {
         "brickId": "com.brickly.resource-echo-go",
-        "origin": "installed",
+        "origin": "development",
         "version": "0.2.0"
       },
       "commands": [

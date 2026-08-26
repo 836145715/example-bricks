@@ -21,11 +21,11 @@ try {
     page.on('pageerror', (error) => errors.push(error.message))
     await page.addInitScript(mockBridge)
     await page.goto(url, { waitUntil: 'networkidle' })
-    await page.locator('.result-row').first().click()
+    await page.locator('.nav-item').first().click()
     await page.screenshot({ path: resolve(outputDir, `${viewport.name}.png`), fullPage: true })
     const metrics = await page.evaluate(() => ({
       title: document.querySelector('h1')?.textContent,
-      rows: document.querySelectorAll('.result-row').length,
+      rows: document.querySelectorAll('.nav-item').length,
       width: document.documentElement.scrollWidth,
       viewportWidth: document.documentElement.clientWidth,
       bodyHeight: document.body.getBoundingClientRect().height
@@ -80,10 +80,32 @@ function mockBridge() {
     if (command === 'suite-export') return { text: async () => JSON.stringify(snapshot), close: async () => {}, revoke: async () => {} }
     throw new Error(`未知模拟命令：${command}`)
   }
-  window.brickly = {
+  const started = {
     invoke,
-    stream: (_command, _input, callbacks) => ({ cancel: () => callbacks.onError?.({ code: 'CANCELLED' }) }),
-    service: { start: async () => ({ running: true }) },
-    events: { subscribe: async () => () => {} }
+    call: async (command, input, options) => {
+      const result = await invoke(command, input)
+      if (command === 'suite-run') {
+        await options?.onEvent?.({ type: 'snapshot', snapshot })
+      }
+      return result
+    },
+    interact: async () => ({ send: async () => {}, end: async () => ({}), cancel() {}, result: Promise.resolve({}) }),
+    dispose: async () => {},
+    stop: async () => {}
+  }
+  window.brickly = {
+    ref: { brickId: 'com.brickly.resource-lab', origin: 'development', version: '0.2.0' },
+    start: async () => started,
+    invoke,
+    call: started.call,
+    events: { subscribe: async () => () => {} },
+    resources: { open: () => ({ text: async () => '{}', close: async () => {}, revoke: async () => {} }) },
+    window: {
+      minimize: async () => {},
+      toggleMaximize: async () => false,
+      close: async () => {},
+      isMaximized: async () => false,
+      onMaximizeChange: () => () => {}
+    }
   }
 }

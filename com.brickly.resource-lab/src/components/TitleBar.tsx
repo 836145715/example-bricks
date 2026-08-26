@@ -27,7 +27,7 @@ export function TitleBar() {
       <div className="titlebar-drag">
         <span className="titlebar-mark" aria-hidden />
         <span className="titlebar-title">资源验收测试台</span>
-        <span className="titlebar-id">{window.brickly?.brickId ?? 'com.brickly.resource-lab'}</span>
+        <span className="titlebar-id">{window.brickly?.ref?.brickId ?? 'com.brickly.resource-lab'}</span>
       </div>
       <div className="titlebar-controls">
         <button

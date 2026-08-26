@@ -17,11 +17,16 @@ test('Runtime 注册完整命令并以 runId 隔离运行、查询、导出和�
   assert.ok(listed.scenarios.length >= 25)
   assert.equal(listed.groups.length, 5)
 
-  const completed = await harness.commands.get('suite-run')({ onCancel() {} }, {
+  const sent = []
+  const completed = await harness.commands.get('suite-run')({
+    onCancel() {},
+    send: async (event) => { sent.push(event) }
+  }, {
     runId: 'window-a-run-1', ids: ['create-empty']
   })
   assert.equal(completed.runId, 'window-a-run-1')
   assert.equal(completed.status, 'passed')
+  assert.ok(sent.some((event) => event?.type === 'snapshot' && event.snapshot?.runId === 'window-a-run-1'))
 
   const exported = await harness.commands.get('suite-export')({}, { runId: completed.runId })
   assert.equal(exported.fakeResource, true)
@@ -48,10 +53,9 @@ test('Runtime 注册完整命令并以 runId 隔离运行、查询、导出和�
   assert.equal(recovered.status, 'passed')
 })
 
-test('manifest 不声明资源权限且依赖三种 Echo Brick', () => {
+test('manifest 按现行契约声明 owned 实例、invoke 套件和三种 Echo 依赖', () => {
   const manifest = require(path.join(__dirname, '..', '..', 'manifest.json'))
-  assert.equal(manifest.permissions.some((permission) => permission.startsWith('resource.')), false)
-  assert.ok(manifest.permissions.includes('event.publish:resource-lab:probe'))
+  assert.equal(manifest.permissions, undefined)
   assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
     'go_echo',
     'node_echo',
@@ -59,7 +63,10 @@ test('manifest 不声明资源权限且依赖三种 Echo Brick', () => {
   ])
   assert.equal(manifest.ui.type, 'webview')
   assert.equal(manifest.lifecycle?.state, 'stateful')
+  assert.equal(manifest.runtime?.instance, 'owned')
   assert.deepEqual(manifest.lifecycle?.service, { autoStart: false, restart: 'none' })
+  const suiteRun = manifest.commands.find((command) => command.id === 'suite-run')
+  assert.equal(suiteRun?.mode, 'invoke')
   for (const dependency of Object.values(manifest.dependencies)) {
     const brickId = dependency.target.brickId
     const echoManifest = require(path.join(__dirname, '..', '..', '..', brickId, 'manifest.json'))

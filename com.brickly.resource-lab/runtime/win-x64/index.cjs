@@ -36,9 +36,15 @@ const basePorts = {
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+const runSenders = new Map()
+
 const manager = new RunManager({
   executeScenario: createScenarioExecutor(basePorts),
-  onUpdate: (snapshot) => brick.events.publish(UPDATE_EVENT, snapshot)
+  onUpdate: (snapshot) => {
+    void brick.events.publish(UPDATE_EVENT, snapshot)
+    const send = runSenders.get(snapshot.runId)
+    if (send) void send(snapshot)
+  }
 })
 
 brick.onCommand('suite-list', () => ({ groups: GROUPS, scenarios: catalog }))
@@ -52,9 +58,20 @@ brick.onCommand('suite-run', async (ctx, input) => {
     invokeRoot: (alias, commandId, value) =>
       ctx.dependencies.require(alias).invoke(commandId, value)
   }
-  manager.start({ runId, mode, scenarios, executeScenario: createScenarioExecutor(ports) })
+  runSenders.set(runId, async (snapshot) => {
+    try {
+      await ctx.send({ type: 'snapshot', snapshot })
+    } catch {
+      // invoke 路径没有会话，进度改走事件
+    }
+  })
   ctx.onCancel(() => { void manager.cancel(runId) })
-  return manager.wait(runId)
+  try {
+    manager.start({ runId, mode, scenarios, executeScenario: createScenarioExecutor(ports) })
+    return await manager.wait(runId)
+  } finally {
+    runSenders.delete(runId)
+  }
 })
 
 brick.onCommand('suite-status', (_ctx, input) => {

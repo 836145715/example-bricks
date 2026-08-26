@@ -23,3 +23,25 @@ test('跨 Brick 转发只提取 ResourceRef，不提前打开资源', () => {
   const ref = { kind: 'brickly.resource', resourceId: 'res_relay', accessToken: 'token' }
   assert.equal(getInputResourceRef({ resource: ref }), ref)
 })
+
+test('已是 Handle 的输入不再二次 open', () => {
+  const handle = { stream() {}, ref: { kind: 'brickly.resource', resourceId: 'res_handle' } }
+  const calls = []
+  assert.equal(
+    openInputResource({ open(value) { calls.push(value); return value } }, { resource: handle }),
+    handle
+  )
+  assert.deepEqual(calls, [])
+})
+
+test('事件信封 { encoding: json, resource } 拆包后再 open', () => {
+  const ref = { kind: 'brickly.resource', resourceId: 'res_event' }
+  const handle = { ref }
+  const calls = []
+  const { openEventPayload } = require('./resource-input.cjs')
+  assert.equal(
+    openEventPayload({ open(value) { calls.push(value); return handle } }, { encoding: 'json', resource: ref }),
+    handle
+  )
+  assert.deepEqual(calls, [ref])
+})

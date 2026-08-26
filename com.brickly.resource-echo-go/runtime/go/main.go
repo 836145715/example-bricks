@@ -121,14 +121,14 @@ func main() {
 
 	runtime.OnCommand("event-last", func(_ *brickly.CommandContext, _ json.RawMessage) (any, error) { return lastEvent, nil })
 	runtime.Events.On("resource-lab:probe", func(payload any, _ brickly.EventEnvelope) {
-		handle, ok := payload.(*brickly.ResourceHandle)
-		if !ok {
+		handle, err := openEventPayload(runtime, payload)
+		if err != nil {
 			lastEvent = map[string]any{"runtime": "go", "errorCode": "INVALID_INPUT"}
 			return
 		}
 		defer handle.Close()
 		var value any
-		if err := handle.JSON(&value); err != nil {
+		if jsonErr := handle.JSON(&value); jsonErr != nil {
 			lastEvent = map[string]any{"runtime": "go", "errorCode": "INTERNAL_ERROR"}
 			return
 		}
@@ -136,6 +136,25 @@ func main() {
 		lastEvent = map[string]any{"runtime": "go", "received": true, "probeId": envelope["probeId"]}
 	})
 	runtime.Start()
+}
+
+func openEventPayload(runtime *brickly.Runtime, payload any) (*brickly.ResourceHandle, error) {
+	if handle, ok := payload.(*brickly.ResourceHandle); ok {
+		return handle, nil
+	}
+	envelope, ok := payload.(map[string]any)
+	if !ok || envelope["encoding"] != "json" {
+		return nil, brickly.NewBppError("INVALID_INPUT", "event payload is required")
+	}
+	raw, err := json.Marshal(envelope["resource"])
+	if err != nil {
+		return nil, err
+	}
+	var ref brickly.ResourceRef
+	if err := json.Unmarshal(raw, &ref); err != nil {
+		return nil, err
+	}
+	return runtime.OpenResource(ref)
 }
 
 func inspectReader(reader io.Reader, runtimeName, mimeType string, bufferBytes int) (inspectResult, error) {

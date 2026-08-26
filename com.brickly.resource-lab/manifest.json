@@ -30,7 +30,7 @@
     "node_echo": {
       "target": {
         "brickId": "com.brickly.resource-echo-node",
-        "origin": "installed",
+        "origin": "development",
         "version": "0.2.0"
       },
       "commands": [
@@ -46,7 +46,7 @@
     "python_echo": {
       "target": {
         "brickId": "com.brickly.resource-echo-python",
-        "origin": "installed",
+        "origin": "development",
         "version": "0.2.0"
       },
       "commands": [
@@ -61,7 +61,7 @@
     "go_echo": {
       "target": {
         "brickId": "com.brickly.resource-echo-go",
-        "origin": "installed",
+        "origin": "development",
         "version": "0.2.0"
       },
       "commands": [
@@ -96,6 +96,7 @@
   "commands": [
     {
       "id": "suite-list",
+      "mode": "invoke",
       "name": {
         "zh-CN": "suite-list",
         "en": "suite-list"
@@ -118,6 +119,7 @@
     },
     {
       "id": "suite-run",
+      "mode": "invoke",
       "name": {
         "zh-CN": "suite-run",
         "en": "suite-run"
@@ -140,6 +142,7 @@
     },
     {
       "id": "suite-cancel",
+      "mode": "invoke",
       "name": {
         "zh-CN": "suite-cancel",
         "en": "suite-cancel"
@@ -162,6 +165,7 @@
     },
     {
       "id": "suite-status",
+      "mode": "invoke",
       "name": {
         "zh-CN": "suite-status",
         "en": "suite-status"
@@ -184,6 +188,7 @@
     },
     {
       "id": "suite-export",
+      "mode": "invoke",
       "name": {
         "zh-CN": "suite-export",
         "en": "suite-export"
@@ -206,6 +211,7 @@
     },
     {
       "id": "restart-prepare",
+      "mode": "invoke",
       "name": {
         "zh-CN": "restart-prepare",
         "en": "restart-prepare"
@@ -228,6 +234,7 @@
     },
     {
       "id": "restart-verify",
+      "mode": "invoke",
       "name": {
         "zh-CN": "restart-verify",
         "en": "restart-verify"

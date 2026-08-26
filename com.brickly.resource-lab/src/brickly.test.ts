@@ -1,34 +1,69 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { cancelRun, exportRun, runSuite, subscribeRunUpdates } from './brickly'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
+import {
+  bindRuntime,
+  cancelRun,
+  exportRun,
+  listSuite,
+  runSuite,
+  subscribeRunUpdates
+} from './brickly'
+import type { RunSnapshot } from './types'
 
-test('runSuite 使用可立即返回且可取消的 stream', () => {
-  const calls: unknown[][] = []
-  let callbacks: Record<string, (...args: any[]) => void> | undefined
-  const completed: unknown[] = []
-  installWindow({
-    invoke: async () => undefined,
-    stream: (...args: unknown[]) => {
-      calls.push(args)
-      callbacks = args[2] as typeof callbacks
-      return { cancel: () => calls.push(['cancelled']) }
-    }
-  })
-  const handle = runSuite({ runId: 'window-a-1', mode: 'default' }, (snapshot) => completed.push(snapshot))
-  assert.equal(calls[0]?.[0], 'suite-run')
-  assert.deepEqual(calls[0]?.[1], { runId: 'window-a-1', mode: 'default' })
-  callbacks?.onResult?.(snapshot({ runId: 'window-a-1' }))
-  assert.equal(completed.length, 1)
+test('runSuite 走已绑定 runtime 的 invoke，取消走 suite-cancel', async () => {
+  const completed: RunSnapshot[] = []
+  const invokes: unknown[][] = []
+
+  bindRuntime({
+    invoke: async (commandId, input) => {
+      invokes.push([commandId, input])
+      if (commandId === 'suite-cancel') return snapshot({ runId: 'window-a-1', status: 'cancelled' })
+      return snapshot({ runId: 'window-a-1', status: 'passed' })
+    },
+    call: async () => undefined as never,
+    interact: async () => ({}) as never,
+    dispose: async () => undefined,
+    stop: async () => undefined
+  } as BricklyStartedHandle)
+
+  const handle = runSuite({ runId: 'window-a-1', mode: 'default' }, (item) => completed.push(item))
+  await Promise.resolve()
   handle.cancel()
-  assert.deepEqual(calls.at(-1), ['cancelled'])
+  await Promise.resolve()
+  assert.deepEqual(invokes, [
+    ['suite-run', { runId: 'window-a-1', mode: 'default' }],
+    ['suite-cancel', { runId: 'window-a-1' }]
+  ])
+  assert.equal(completed.at(-1)?.status, 'passed')
 })
 
-test('取消只传指定 runId', async () => {
+test('未 start 绑定时 runSuite 立即失败', () => {
+  bindRuntime(null)
+  installWindow({ invoke: async () => undefined })
+  assert.throws(() => runSuite({ runId: 'x' }, () => undefined), /尚未就绪|Runtime/)
+})
+
+test('listSuite / cancel 走绑定 runtime 的 invoke', async () => {
   const calls: unknown[][] = []
-  installWindow({ invoke: async (...args: unknown[]) => (calls.push(args), snapshot({ runId: 'run-b', status: 'cancelled' })) })
+  bindRuntime({
+    invoke: async (commandId, input) => {
+      calls.push([commandId, input])
+      if (commandId === 'suite-list') return { groups: ['create'], scenarios: [] }
+      return snapshot({ runId: 'run-b', status: 'cancelled' })
+    },
+    call: async () => undefined as never,
+    interact: async () => ({}) as never,
+    dispose: async () => undefined,
+    stop: async () => undefined
+  } as BricklyStartedHandle)
+  assert.deepEqual(await listSuite(), { groups: ['create'], scenarios: [] })
   await cancelRun('run-b')
-  assert.deepEqual(calls[0], ['suite-cancel', { runId: 'run-b' }])
+  assert.deepEqual(calls, [
+    ['suite-list', {}],
+    ['suite-cancel', { runId: 'run-b' }]
+  ])
 })
 
 test('事件 payload 使用 ResourceHandle.json 水合运行快照', async () => {
@@ -36,12 +71,23 @@ test('事件 payload 使用 ResourceHandle.json 水合运行快照', async () =>
   let closed = false
   const received: unknown[] = []
   installWindow({
-    invoke: async () => ({}),
-    events: { subscribe: async (_event: string, listener: (event: unknown) => void) => (handler = listener, () => undefined) }
+    events: {
+      subscribe: async (_event: string, listener: (event: unknown) => void) => {
+        handler = listener
+        return () => undefined
+      }
+    }
   })
-  await subscribeRunUpdates((snapshot) => received.push(snapshot))
+  await subscribeRunUpdates((item) => received.push(item))
   const expected = snapshot({ runId: 'run-event' })
-  handler?.({ payload: { json: async () => expected, close: async () => { closed = true } } })
+  handler?.({
+    payload: {
+      json: async () => expected,
+      close: async () => {
+        closed = true
+      }
+    }
+  })
   await new Promise((resolve) => setImmediate(resolve))
   assert.deepEqual(received, [expected])
   assert.equal(closed, true)
@@ -52,15 +98,21 @@ test('事件资源中的畸形运行快照不会进入订阅回调', async () =>
   let closed = false
   const received: unknown[] = []
   installWindow({
-    invoke: async () => ({}),
-    events: { subscribe: async (_event: string, listener: (event: unknown) => void) => (handler = listener, () => undefined) }
+    events: {
+      subscribe: async (_event: string, listener: (event: unknown) => void) => {
+        handler = listener
+        return () => undefined
+      }
+    }
   })
 
-  await subscribeRunUpdates((snapshot) => received.push(snapshot))
+  await subscribeRunUpdates((item) => received.push(item))
   handler?.({
     payload: {
       json: async () => ({ runId: 'run-event', status: 'running' }),
-      close: async () => { closed = true }
+      close: async () => {
+        closed = true
+      }
     }
   })
   await new Promise((resolve) => setImmediate(resolve))
@@ -69,17 +121,31 @@ test('事件资源中的畸形运行快照不会进入订阅回调', async () =>
   assert.equal(closed, true)
 })
 
-test('导出通过 resources.open 打开报告 Ref 并关闭和撤销句柄', async () => {
+test('导出通过 resources.open 打开报告 Ref，accessToken 可选', async () => {
   let closed = false
   let revoked = false
   const source = resourceRef('report-export')
   let opened: unknown
-  installWindow({
+  bindRuntime({
     invoke: async () => source,
+    call: async () => undefined as never,
+    interact: async () => ({}) as never,
+    dispose: async () => undefined,
+    stop: async () => undefined
+  } as BricklyStartedHandle)
+  installWindow({
     resources: {
       open: (ref: unknown) => {
         opened = ref
-        return { text: async () => '{"ok":true}', close: async () => { closed = true }, revoke: async () => { revoked = true } }
+        return {
+          text: async () => '{"ok":true}',
+          close: async () => {
+            closed = true
+          },
+          revoke: async () => {
+            revoked = true
+          }
+        }
       }
     }
   })
@@ -90,10 +156,10 @@ test('导出通过 resources.open 打开报告 Ref 并关闭和撤销句柄', as
 })
 
 function installWindow(overrides: Record<string, unknown>) {
-  Object.assign(globalThis, { window: { brickly: overrides } })
+  Object.assign(globalThis, { window: { brickly: { ...(globalThis as { window?: { brickly?: object } }).window?.brickly, ...overrides } } })
 }
 
-function snapshot(overrides: Record<string, unknown> = {}) {
+function snapshot(overrides: Record<string, unknown> = {}): RunSnapshot {
   return {
     runId: 'run',
     mode: 'default',
@@ -108,7 +174,6 @@ function resourceRef(resourceId: string) {
   return {
     kind: 'brickly.resource',
     resourceId,
-    accessToken: 'token',
     sizeBytes: 10,
     sha256: 'a'.repeat(64),
     expiresAt: Date.now() + 60_000,

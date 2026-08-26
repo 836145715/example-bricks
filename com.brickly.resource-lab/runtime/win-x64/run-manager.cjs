@@ -156,6 +156,11 @@ class RunManager {
       } else {
         result.status = 'failed'
         result.error = sanitizeError(error)
+        console.error('[resource-lab] scenario failed', {
+          scenarioId: scenario.id,
+          code: error?.code,
+          message: error instanceof Error ? error.message : String(error)
+        })
       }
     } finally {
       result.finishedAt = this.now()

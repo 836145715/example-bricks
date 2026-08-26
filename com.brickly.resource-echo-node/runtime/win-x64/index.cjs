@@ -1,9 +1,9 @@
 'use strict'
 
-const { BricklyRuntime, ResourceHandle } = require('@syllm/brickly-sdk')
+const { BricklyRuntime } = require('@syllm/brickly-sdk')
 const { HoldRegistry } = require('./hold-registry.cjs')
 const { createPatternSource, inspectResource, requireSize, transformSource } = require('./operations.cjs')
-const { getInputResourceRef, openInputResource } = require('./resource-input.cjs')
+const { getInputResourceRef, openEventPayload, openInputResource } = require('./resource-input.cjs')
 
 const BRICK_ID = 'com.brickly.resource-echo-node'
 const brick = new BricklyRuntime({ brickId: BRICK_ID })
@@ -61,20 +61,25 @@ brick.onCommand('event-last', () => lastEvent)
 
 brick.events.on('resource-lab:probe', (payload) => {
   void (async () => {
-    if (!(payload instanceof ResourceHandle)) throw invalidInput('event payload')
+    const handle = openEventPayload(brick.resources, payload)
     try {
-      const envelope = await payload.json()
+      const envelope = typeof handle.json === 'function' ? await handle.json() : envelopeFromPlain(handle)
       const resourceRef = envelope?.resource
       lastEvent = resourceRef && typeof resourceRef === 'object'
         ? { ...(await inspectResource(brick.resources.open(resourceRef))), received: true, probeId: envelope?.probeId }
         : { runtime: 'node', received: true, probeId: envelope?.probeId }
     } finally {
-      await payload.close()
+      await handle.close?.()
     }
   })().catch((error) => {
     lastEvent = { runtime: 'node', errorCode: error?.code ?? 'INTERNAL_ERROR' }
   })
 })
+
+function envelopeFromPlain(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value
+  throw invalidInput('event payload')
+}
 
 function invalidInput(name) {
   const error = new Error(`${name} is required`)

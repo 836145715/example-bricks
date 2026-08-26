@@ -1,9 +1,9 @@
 import threading
 
-from brickly import BricklyRuntime, ResourceHandle
+from brickly import BricklyRuntime
 
 from resource_ops import inspect_resource, pattern_chunks, require_size, transformed_chunks
-from resource_input import open_input_resource
+from resource_input import open_event_payload, open_input_resource
 
 
 BRICK_ID = "com.brickly.resource-echo-python"
@@ -69,17 +69,17 @@ def event_last(_ctx, _input_value):
 
 def on_probe(payload, _envelope):
     global last_event
+    handle = None
     try:
-        if not isinstance(payload, ResourceHandle):
-            raise ValueError("event payload must be a ResourceHandle")
-        envelope = payload.json()
+        handle = open_event_payload(brick.resources, payload)
+        envelope = handle.json() if callable(getattr(handle, "json", None)) else {}
         last_event = {"runtime": "python", "received": True, "probeId": envelope.get("probeId")}
     except Exception as error:
         last_event = {"runtime": "python", "errorCode": getattr(error, "code", "INTERNAL_ERROR")}
     finally:
-        if isinstance(payload, ResourceHandle):
-            payload.close()
+        if handle is not None and callable(getattr(handle, "close", None)):
+            handle.close()
 
 
 brick.events.on("resource-lab:probe", on_probe)
-brick.run()
+brick.start()

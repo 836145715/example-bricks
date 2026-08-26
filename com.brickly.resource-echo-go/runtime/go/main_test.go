@@ -66,6 +66,21 @@ func TestPatternReaderHonorsChunkSizeAndZeroByte(t *testing.T) {
 	}
 }
 
+func TestOpenEventPayloadAcceptsJSONEnvelope(t *testing.T) {
+	runtime := brickly.New(brickly.Options{BrickID: "com.test.resource-event"})
+	ref := map[string]any{
+		"kind": "brickly.resource", "resourceId": "res_event", "accessToken": "token",
+		"sizeBytes": 1, "sha256": strings.Repeat("a", 64), "expiresAt": 2_000_000_000_000,
+	}
+	handle, err := openEventPayload(runtime, map[string]any{"encoding": "json", "resource": ref})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if handle.Ref.ResourceID != "res_event" {
+		t.Fatalf("unexpected handle: %+v", handle.Ref)
+	}
+}
+
 func TestOpenInputResourceUsesRuntimeOpenResource(t *testing.T) {
 	runtime := brickly.New(brickly.Options{BrickID: "com.test.resource-input"})
 	ref := brickly.ResourceRef{

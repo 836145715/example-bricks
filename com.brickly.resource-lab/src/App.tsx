@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import { cancelRun, listSuite, runSuite, startResourceLab, subscribeRunUpdates } from './brickly'
+import type { BricklyStartedHandle } from '@syllm/brickly-ui'
+import {
+  bindRuntime,
+  cancelRun,
+  hasRuntime,
+  listSuite,
+  runSuite,
+  subscribeRunUpdates
+} from './brickly'
 import { createRunId } from './run-state'
 import type { RunSnapshot, ScenarioDefinition, SuiteCatalog, TestResult } from './types'
 import { TitleBar } from './components/TitleBar'
@@ -22,7 +30,8 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ code?: string; message: string; detail?: string }>()
   const activeRunIdRef = useRef<string | undefined>(undefined)
-  const streamRef = useRef<{ cancel(): void } | undefined>(undefined)
+  const sessionRef = useRef<{ cancel(): void } | undefined>(undefined)
+  const startedRef = useRef<BricklyStartedHandle | null>(null)
 
   const applySnapshot = useCallback((snapshot: RunSnapshot) => {
     if (activeRunIdRef.current && snapshot.runId !== activeRunIdRef.current) return
@@ -35,7 +44,7 @@ export default function App() {
     })
     if (snapshot.status !== 'running') {
       setBusy(false)
-      streamRef.current = undefined
+      sessionRef.current = undefined
       activeRunIdRef.current = undefined
       const failed = snapshot.results.find((r) => r.status === 'failed' && r.error)
       if (failed?.error) {
@@ -48,27 +57,46 @@ export default function App() {
     }
   }, [])
 
+  const refreshCatalog = useCallback(async () => {
+    const suite = await listSuite()
+    setCatalog(suite)
+    setFocusId((current) => current ?? suite.scenarios.find((s) => s.mode === 'default')?.id ?? suite.scenarios[0]?.id)
+  }, [])
+
+  const connectRuntime = useCallback(async () => {
+    if (hasRuntime()) return
+    if (!window.brickly?.start) {
+      throw new Error('当前不在 Brickly 宿主中，无法连接运行时。')
+    }
+    const started = await window.brickly.start()
+    startedRef.current = started
+    bindRuntime(started)
+  }, [])
+
   const initialize = useCallback(async () => {
     setError(undefined)
     setResultsById({})
     setBusy(false)
     activeRunIdRef.current = undefined
-    streamRef.current = undefined
+    sessionRef.current = undefined
     try {
-      await startResourceLab()
+      await connectRuntime()
       setRuntimeReady(true)
-      const suite = await listSuite()
-      setCatalog(suite)
-      const first = suite.scenarios.find((s) => s.mode === 'default') ?? suite.scenarios[0]
-      setFocusId(first?.id)
+      await refreshCatalog()
     } catch (reason) {
       setRuntimeReady(false)
       setError(toError(reason))
     }
-  }, [])
+  }, [connectRuntime, refreshCatalog])
 
   useEffect(() => {
     void initialize()
+    return () => {
+      bindRuntime(null)
+      const started = startedRef.current
+      startedRef.current = null
+      if (started) void started.dispose()
+    }
   }, [initialize])
 
   useEffect(() => {
@@ -96,7 +124,6 @@ export default function App() {
     if (!scenarioId || busy) return
     setError(undefined)
     setFocusId(scenarioId)
-    // 清除该场景旧结果，避免闪旧状态
     setResultsById((prev) => {
       const next = { ...prev }
       delete next[scenarioId]
@@ -106,12 +133,12 @@ export default function App() {
     activeRunIdRef.current = runId
     setBusy(true)
     try {
-      const stream = runSuite(
+      const session = runSuite(
         { runId, ids: [scenarioId] },
         (snapshot) => applySnapshot(snapshot),
         (reason) => {
           setBusy(false)
-          streamRef.current = undefined
+          sessionRef.current = undefined
           activeRunIdRef.current = undefined
           if (reason?.code !== 'CANCELLED') {
             setError({
@@ -121,7 +148,7 @@ export default function App() {
           }
         }
       )
-      streamRef.current = stream
+      sessionRef.current = session
     } catch (reason) {
       setBusy(false)
       activeRunIdRef.current = undefined
@@ -131,8 +158,8 @@ export default function App() {
 
   const stop = async () => {
     const runId = activeRunIdRef.current
-    streamRef.current?.cancel()
-    streamRef.current = undefined
+    sessionRef.current?.cancel()
+    sessionRef.current = undefined
     if (runId) {
       try {
         applySnapshot(await cancelRun(runId))
