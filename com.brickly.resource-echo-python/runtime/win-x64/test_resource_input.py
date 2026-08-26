@@ -35,7 +35,7 @@ class ResourceInputTest(unittest.TestCase):
         resources = FakeResources()
         ref = {"kind": "brickly.resource", "resourceId": "res_event"}
         self.assertEqual(
-            open_event_payload(resources, {"encoding": "json", "resource": ref}),
+            open_event_payload(resources, {"probeId": "p1", "resource": ref}),
             {"handle": ref},
         )
         self.assertEqual(resources.opened, [ref])

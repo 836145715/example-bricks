@@ -108,39 +108,32 @@ export async function subscribeHistoryChanged(
   const events = window.brickly?.events
   if (!events?.subscribe) throw new Error('当前页面没有可用的剪贴板历史事件接口。')
   const dispose = await events.subscribe('clipboard-history:changed', (envelope) => {
-    void readEventPayload(envelope)
-      .then((read) => listener(read))
-      .catch((error: unknown) => {
-        logWarn('event payload read failed (swallowed)', {
-          error: error instanceof Error ? error.message : String(error)
-        })
+    try {
+      listener(readEventPayload(envelope))
+    } catch (error: unknown) {
+      logWarn('event payload read failed (swallowed)', {
+        error: error instanceof Error ? error.message : String(error)
       })
+    }
   })
   return dispose
 }
 
 /**
- * 宿主对事件 payload 统一资源化。preload 已解包为 Handle，这里只读回内容并校验。
- * 单测仍可能传入旧的 sourceBrickId 字段，正式信封用 source.ref.brickId。
+ * 事件 payload 就是业务对象。单测仍可能传入旧的 sourceBrickId 字段，正式信封用 source.ref.brickId。
  */
-async function readEventPayload(
+function readEventPayload(
   envelope: BricklyUiEventEnvelope & { sourceBrickId?: string }
-): Promise<ClipboardHistoryChangedEnvelope> {
-  const handle = envelope.payload as { json?: () => Promise<unknown>; close?: () => Promise<void> }
-  if (typeof handle?.json !== 'function') {
+): ClipboardHistoryChangedEnvelope {
+  const payload = envelope.payload
+  if (!isHistoryChangedPayload(payload)) {
     throw new Error('剪贴板历史事件 payload 结构无效。')
   }
-  try {
-    const payload = await handle.json()
-    if (!isHistoryChangedPayload(payload)) throw new Error('剪贴板历史事件 payload 结构无效。')
-    return {
-      event: 'clipboard-history:changed',
-      payload,
-      sourceBrickId: sourceBrickIdOf(envelope),
-      publishedAt: envelope.publishedAt
-    }
-  } finally {
-    await handle.close?.().catch(() => undefined)
+  return {
+    event: 'clipboard-history:changed',
+    payload,
+    sourceBrickId: sourceBrickIdOf(envelope),
+    publishedAt: envelope.publishedAt
   }
 }
 

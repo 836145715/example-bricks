@@ -78,7 +78,6 @@ test('UI 启动服务使用宿主 Brick service 控制面', async (t) => {
 test('事件订阅使用宿主受限 Brick API', async (t) => {
   const received = []
   let disposed = false
-  let resourceClosed = false
   let registeredListener
   const api = loadAdapter(t, {
     brickly: {
@@ -101,25 +100,16 @@ test('事件订阅使用宿主受限 Brick API', async (t) => {
     event: 'clipboard-history:changed',
     sourceBrickId: 'com.brickly.clipboard-history',
     publishedAt: 100,
-    payload: {
-      async json() {
-        return { revision: 1, count: 2, reason: 'insert', at: 100 }
-      },
-      async close() {
-        resourceClosed = true
-      }
-    }
+    payload: { revision: 1, count: 2, reason: 'insert', at: 100 }
   })
-  await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(received.length, 1)
   assert.equal(received[0].payload.revision, 1)
-  assert.equal(resourceClosed, true)
   await dispose()
   assert.equal(disposed, true)
 })
 
-test('事件 payload 无 close 时仍可 hydrate；缺少 json 则忽略', async (t) => {
+test('事件 payload 结构无效时忽略', async (t) => {
   const received = []
   let registeredListener
   const api = loadAdapter(t, {
@@ -139,13 +129,8 @@ test('事件 payload 无 close 时仍可 hydrate；缺少 json 则忽略', async
     event: 'clipboard-history:changed',
     sourceBrickId: 'com.brickly.clipboard-history',
     publishedAt: 100,
-    payload: {
-      async json() {
-        return { revision: 2, count: 1, reason: 'insert', at: 100 }
-      }
-    }
+    payload: { revision: 2, count: 1, reason: 'insert', at: 100 }
   })
-  await new Promise((resolve) => setImmediate(resolve))
   assert.equal(received.length, 1)
   assert.equal(received[0].payload.revision, 2)
 
@@ -155,8 +140,7 @@ test('事件 payload 无 close 时仍可 hydrate；缺少 json 则忽略', async
     publishedAt: 200,
     payload: { ref: { resourceId: 'res_from_ref' } }
   })
-  await new Promise((resolve) => setImmediate(resolve))
-  assert.equal(received.length, 1, '缺少 json 的 payload 不得进入业务回调')
+  assert.equal(received.length, 1, '无效 payload 不得进入业务回调')
 })
 
 test('宿主命令或事件接口缺失时返回明确错误', async (t) => {

@@ -1,7 +1,7 @@
 /* eslint-disable */
 'use strict'
 
-const { BricklyRuntime, BppError, ResourceHandle } = require('@syllm/brickly-sdk')
+const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 
 const BRICK_ID = 'com.brickly.clipboard-history'
 const HISTORY_EVENT = 'clipboard-history:changed'
@@ -50,6 +50,13 @@ function requireId(input) {
   const id = typeof input?.id === 'string' ? input.id.trim() : ''
   if (!id) throw new BppError('INVALID_INPUT', 'id is required')
   return id
+}
+
+function readClipboardNotice(payload) {
+  if (payload && typeof payload === 'object' && typeof payload.historyItemId === 'string') {
+    return payload
+  }
+  throw new BppError('INVALID_INPUT', 'clipboard event payload is missing historyItemId')
 }
 
 function toUiItem(item) {
@@ -192,10 +199,7 @@ brick.onCommand('runtime-status', async (ctx) => {
 
 brick.events.on(SOURCE_EVENT, (payload) => {
   void (async () => {
-    if (!(payload instanceof ResourceHandle)) {
-      throw new BppError('INVALID_INPUT', 'clipboard event payload must be a ResourceHandle')
-    }
-    const notice = await payload.json()
+    const notice = readClipboardNotice(payload)
     if (!notice || typeof notice.historyItemId !== 'string') {
       throw new BppError('INVALID_INPUT', 'clipboard event resource is missing historyItemId')
     }

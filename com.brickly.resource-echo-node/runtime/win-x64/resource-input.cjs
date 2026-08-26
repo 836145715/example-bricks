@@ -15,9 +15,8 @@ function getInputResourceRef(input) {
 
 function openEventPayload(resources, payload) {
   if (isResourceHandle(payload)) return payload
-  if (payload && payload.encoding === 'json' && payload.resource) {
-    return resources.open(payload.resource)
-  }
+  if (payload && isResourceRef(payload.resource)) return resources.open(payload.resource)
+  if (isResourceRef(payload)) return resources.open(payload)
   throw invalidInput('event payload')
 }
 

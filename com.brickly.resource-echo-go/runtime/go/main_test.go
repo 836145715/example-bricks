@@ -72,7 +72,7 @@ func TestOpenEventPayloadAcceptsJSONEnvelope(t *testing.T) {
 		"kind": "brickly.resource", "resourceId": "res_event", "accessToken": "token",
 		"sizeBytes": 1, "sha256": strings.Repeat("a", 64), "expiresAt": 2_000_000_000_000,
 	}
-	handle, err := openEventPayload(runtime, map[string]any{"encoding": "json", "resource": ref})
+	handle, err := openEventPayload(runtime, map[string]any{"probeId": "p1", "resource": ref})
 	if err != nil {
 		t.Fatal(err)
 	}

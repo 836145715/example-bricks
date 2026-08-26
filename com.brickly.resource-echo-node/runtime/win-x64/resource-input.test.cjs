@@ -34,13 +34,13 @@ test('已是 Handle 的输入不再二次 open', () => {
   assert.deepEqual(calls, [])
 })
 
-test('事件信封 { encoding: json, resource } 拆包后再 open', () => {
+test('事件业务对象里的 resource 字段按 ResourceRef 打开', () => {
   const ref = { kind: 'brickly.resource', resourceId: 'res_event' }
   const handle = { ref }
   const calls = []
   const { openEventPayload } = require('./resource-input.cjs')
   assert.equal(
-    openEventPayload({ open(value) { calls.push(value); return handle } }, { encoding: 'json', resource: ref }),
+    openEventPayload({ open(value) { calls.push(value); return handle } }, { probeId: 'p1', resource: ref }),
     handle
   )
   assert.deepEqual(calls, [ref])

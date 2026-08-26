@@ -9,7 +9,7 @@ const MANIFEST_PATH = path.join(__dirname, '..', '..', 'manifest.json')
 
 test('manifest 使用 ResourceHandle 不需要资源权限', () => {
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'))
-  assert.equal(manifest.permissions.some((permission) => permission.startsWith('resource.')), false)
+  assert.equal((manifest.permissions ?? []).some((permission) => permission.startsWith('resource.')), false)
 })
 
 test('历史命令只委托给 Host clipboard.history API', async (t) => {
@@ -63,18 +63,19 @@ test('历史命令只委托给 Host clipboard.history API', async (t) => {
   ])
 })
 
-test('系统剪贴板事件只读取一层 ResourceHandle 并发布刷新事件', async (t) => {
+test('系统剪贴板事件读取普通 payload 并发布刷新事件', async (t) => {
   const runtime = loadRuntime(t)
-  const handle = new runtime.ResourceHandle({ historyItemId: 'clip_1', kind: 'text' })
 
-  runtime.events.get('clipboard:new-content')(handle, {
-    event: 'clipboard:new-content',
-    sourceBrickId: 'system',
-    publishedAt: 10
-  })
+  runtime.events.get('clipboard:new-content')(
+    { historyItemId: 'clip_1', kind: 'text', count: 3 },
+    {
+      event: 'clipboard:new-content',
+      sourceBrickId: 'system',
+      publishedAt: 10
+    }
+  )
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(handle.jsonCalls, 1)
   assert.equal(runtime.published.length, 1)
   assert.equal(runtime.published[0].event, 'clipboard-history:changed')
   assert.equal(runtime.published[0].payload.historyItemId, 'clip_1')
@@ -148,6 +149,11 @@ function loadRuntime(t) {
     constructor() {
       instance = this
       this.log = { info() {}, warn() {} }
+      this.resources = {
+        open() {
+          throw new Error('resources.open not stubbed')
+        }
+      }
       this.events = {
         on: (event, handler) => events.set(event, handler),
         publish: async (event, payload) => (published.push({ event, payload }), { delivered: 1 })
@@ -184,6 +190,7 @@ function loadRuntime(t) {
     published,
     get runtime() { return instance },
     ResourceHandle: FakeResourceHandle,
+    get resources() { return instance.resources },
     get loadedHistoryService() { return loadedHistoryService }
   }
 }
