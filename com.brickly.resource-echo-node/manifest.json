@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.resource-echo-node",
   "version": "0.2.0",
   "apiVersion": ">=0.2.0 <1.0.0",
@@ -13,21 +12,10 @@
     "zh-CN": "Resource Lab 的 Node.js 跨进程资源校验端。",
     "en": "Node.js resource verifier for Resource Lab."
   },
-  "author": {
-    "name": "Brickly Examples"
-  },
-  "license": "MIT",
+  "author": "Brickly Examples",
   "runtime": {
     "type": "node",
     "instance": "per-call",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.cjs",
       "win-arm64": "runtime/win-arm64/index.cjs",
@@ -37,19 +25,10 @@
       "linux-arm64": "runtime/linux-arm64/index.cjs"
     }
   },
-  "lifecycle": {
-    "state": "stateless"
-  },
   "subscriptions": [
     {
       "event": "resource-lab:probe",
       "from": "com.brickly.resource-lab"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "event",
-      "event": "resource-lab:probe"
     }
   ],
   "dependencies": {
@@ -77,13 +56,6 @@
       ]
     }
   },
-  "trustLevel": "community",
-  "ui": {
-    "type": "none"
-  },
-  "categories": [
-    "developer-tools"
-  ],
   "keywords": [
     "resource",
     "test",

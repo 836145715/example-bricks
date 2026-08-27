@@ -5,7 +5,7 @@ type: brick
 related_code: runtime/main.go, runtime/browse.go, runtime/search_shared.go, runtime/ssh.go, src/App.tsx, src/components/FileSelectDropdown.tsx, src/components/RemotePathBrowser.tsx, src/components/LogVirtualList.tsx
 last_verified: 2026-08-24
 
-`com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。Host↔Runtime 走现行 gRPC（`invoke` / `interact`），Go 侧用 `brickly.OnCommand` + `ctx.Send`。UI 适合人工排查日志，`search` 声明 `mode: "call"`，调用方用 `call(..., { onEvent })` 收 `logLine` / `searchState`。`runtime.instance` 必须显式为 `owned`：搜索结果存在该 Lifetime 独占的 Go 进程内存里，不能 `per-call`，也不能再省略后让宿主默认为 `owned`。
+`com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。Host↔Runtime 走现行 gRPC（`invoke` / `interact`），Go 侧用 `brickly.OnCommand` + `ctx.Send`。UI 适合人工排查日志，`search` 声明 `mode: "call"`，调用方用 `call(..., { onEvent })` 收 `logLine` / `searchState`。`runtime.instance` 必须显式为 `owned`：搜索结果存在该 Lifetime 独占的 Go 进程内存里，不能 `per-call`，也不能省略（省略只补 `shared`）。
 
 架构取舍、路径选择交互和后续 SearchJob 收口见 [docs/design.md](docs/design.md)。
 

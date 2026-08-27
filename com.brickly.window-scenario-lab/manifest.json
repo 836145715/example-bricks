@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.window-scenario-lab",
   "version": "0.2.0",
   "apiVersion": "0.1.0",
@@ -13,22 +12,10 @@
     "zh-CN": "专门覆盖多窗口场景：单例复用、强制新建、多窗并存、创建时绑定事件、生命周期事件流、跨窗消息、批量套件与关闭策略。",
     "en": "Window scenario harness: ensure/reuse, spawn-new, multi-window, bind-on-create events, lifecycle stream, cross-window messaging, suite spawn and close policies."
   },
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "runtime": {
     "type": "node",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -38,14 +25,6 @@
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
   },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 600000
-  },
-  "trustLevel": "verified",
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "window",
     "scenario",
@@ -53,10 +32,6 @@
     "lifecycle",
     "test",
     "lab"
-  ],
-  "categories": [
-    "developer-tools",
-    "utilities"
   ],
   "commands": [
     {

@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.http-tester",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -14,10 +13,7 @@
     "en": "Lightweight HTTP debugger: edit method, URL, query, headers and body; inspect status, timing and response."
   },
   "icon": "assets/icon.svg",
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "keywords": [
     "http",
     "request",
@@ -25,21 +21,9 @@
     "rest",
     "debug"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
   "runtime": {
     "type": "node",
     "instance": "per-call",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.cjs",
       "win-arm64": "runtime/win-arm64/index.cjs",
@@ -49,9 +33,6 @@
       "linux-arm64": "runtime/linux-arm64/index.cjs"
     }
   },
-  "lifecycle": {
-    "state": "stateless"
-  },
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -60,8 +41,7 @@
       "height": 800,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "auto"
+    "devTools": "debug-only"
   },
   "commands": [
     {
@@ -172,20 +152,7 @@
           }
         }
       ],
-      "llm": {
-        "requireApproval": "never",
-        "tags": [
-          "http",
-          "network",
-          "debug"
-        ]
-      },
       "execution": "queue"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "manual"
     }
   ]
 }

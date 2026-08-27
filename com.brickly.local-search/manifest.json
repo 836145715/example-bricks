@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.local-search",
   "version": "0.3.0",
   "apiVersion": ">=0.2.0 <1.0.0",
@@ -20,27 +19,14 @@
     "files",
     "local"
   ],
-  "categories": [
-    "productivity",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "platforms": [
-      "win-x64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/brick.exe"
     }
-  },
-  "lifecycle": {
-    "state": "stateful"
   },
   "ui": {
     "type": "webview",
@@ -54,8 +40,7 @@
       "minHeight": 560,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "commands": [
     {
@@ -273,11 +258,6 @@
       },
       "timeoutMs": 3000,
       "execution": "queue"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "manual"
     }
   ],
   "quickSearch": {

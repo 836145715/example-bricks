@@ -4,7 +4,7 @@
   "title": "Brick Manifest",
   "description": "Brickly 统一 Brick 产物的 manifest.json JSON Schema。",
   "type": "object",
-  "required": ["manifestVersion", "kind", "id", "version", "name"],
+  "required": ["manifestVersion", "id", "version", "name"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -80,52 +80,10 @@
       "examples": ["icon.png", "assets/icon.svg"]
     },
     "author": {
-      "description": "作者信息，publicKey 用于 manifest.sig 签名校验。",
-      "type": "object",
-      "required": ["name"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "email": {
-          "type": "string",
-          "format": "email"
-        },
-        "url": {
-          "type": "string",
-          "format": "uri"
-        },
-        "publicKey": {
-          "type": "string",
-          "description": "作者公钥，格式为 <algorithm>:<base64>；当前仅允许 ed25519。",
-          "pattern": "^ed25519:[A-Za-z0-9+/=]+$"
-        }
-      }
-    },
-    "license": {
+      "description": "作者展示名。旧稿若写成对象，加载时取 name。",
       "type": "string",
-      "examples": ["MIT", "Apache-2.0", "GPL-3.0", "Proprietary"]
-    },
-    "homepage": {
-      "type": "string",
-      "format": "uri"
-    },
-    "repository": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["git", "svn", "mercurial"]
-        },
-        "url": {
-          "type": "string",
-          "format": "uri"
-        }
-      },
-      "required": ["type", "url"]
+      "minLength": 1,
+      "maxLength": 80
     },
     "keywords": {
       "description": "搜索关键词，用于市场检索。",
@@ -138,34 +96,12 @@
       "maxItems": 10,
       "uniqueItems": true
     },
-    "categories": {
-      "description": "市场分类标签。",
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "ai-models",
-          "data-processing",
-          "image",
-          "audio",
-          "video",
-          "document",
-          "automation",
-          "developer-tools",
-          "productivity",
-          "utilities",
-          "other"
-        ]
-      },
-      "maxItems": 3,
-      "uniqueItems": true
-    },
     "runtime": {
       "oneOf": [
         {
           "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。",
           "type": "object",
-          "required": ["type", "platforms", "entry"],
+          "required": ["type", "entry"],
           "additionalProperties": false,
           "allOf": [
             {
@@ -180,6 +116,37 @@
               "then": {
                 "required": ["python"]
               }
+            },
+            {
+              "if": {
+                "properties": {
+                  "instance": {
+                    "const": "service"
+                  }
+                },
+                "required": ["instance"]
+              },
+              "then": true
+            },
+            {
+              "if": {
+                "not": {
+                  "properties": {
+                    "instance": {
+                      "const": "service"
+                    }
+                  },
+                  "required": ["instance"]
+                }
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    { "required": ["autoStart"] },
+                    { "required": ["restart"] }
+                  ]
+                }
+              }
             }
           ],
           "properties": {
@@ -190,11 +157,22 @@
             },
             "instance": {
               "type": "string",
-              "enum": ["per-call", "owned", "shared"],
-              "description": "Runtime 实例策略。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 ToolRef+Profile 共享实例。旧值 scoped 已废弃，必须升级为 owned。"
+              "enum": ["per-call", "owned", "shared", "service"],
+              "description": "作者实例策略。缺省 shared。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 Brick+Profile 共享且可空闲回收；service：公用并由宿主钉住。旧值 scoped 已废弃。"
+            },
+            "autoStart": {
+              "type": "boolean",
+              "default": false,
+              "description": "仅 instance=service：宿主启动时是否预热。"
+            },
+            "restart": {
+              "type": "string",
+              "enum": ["none", "on-failure"],
+              "default": "on-failure",
+              "description": "仅 instance=service：非主动停止时的异常重启策略。"
             },
             "platforms": {
-              "description": "Brick 声明支持的具体平台列表。平台是否已经完成审核和发布由市场 package 独立决定。",
+              "description": "可由 entry 的 key 推导；手写可省略。平台是否已经完成审核和发布由市场 package 独立决定。",
               "type": "array",
               "minItems": 1,
               "uniqueItems": true,
@@ -271,7 +249,7 @@
       ]
     },
     "lifecycle": {
-      "description": "工具生命周期：state 表达无状态/有状态；service 仅 stateful 下表示宿主持有的后台服务。详见 specs/lifecycle.md。",
+      "description": "内核展开层。作者不写本字段；instance=service 时由 normalize 写出 service。详见 specs/lifecycle.md。",
       "type": "object",
       "additionalProperties": false,
       "allOf": [
@@ -324,7 +302,7 @@
             "autoStart": {
               "type": "boolean",
               "default": false,
-              "description": "宿主启动时是否预热；与 triggers.host-start 无关。"
+              "description": "宿主启动时是否预热。旧 triggers 会被丢弃，不改本字段。"
             },
             "restart": {
               "type": "string",
@@ -375,52 +353,8 @@
         }
       }
     },
-    "trustLevel": {
-      "description": "Brick 信任等级。**作者不应在 manifest 中手动设置**，由 Registry/平台在审核流程中签注（写入 audit 字段后，加载时映射为对应等级）。",
-      "type": "string",
-      "enum": ["verified", "community", "unverified"],
-      "default": "unverified"
-    },
-    "audit": {
-      "description": "审核签注。由官方 Registry 在审核通过后写入；客户端加载时校验签名，通过则将 trustLevel 升级为 verified。作者无法伪造（签名密钥仅 Registry 持有）。",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["registryId", "reviewedAt", "reportHash", "signature"],
-      "properties": {
-        "registryId": {
-          "type": "string",
-          "description": "审核方标识，如 'ai-bricks.dev'。客户端按此查找对应公钥校验签名。"
-        },
-        "reviewerId": {
-          "type": "string",
-          "description": "审核员标识，用于追溯。"
-        },
-        "reviewedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "reportHash": {
-          "type": "string",
-          "pattern": "^sha256:[a-f0-9]{64}$",
-          "description": "审核报告哈希（报告内容存 Registry，便于事后追溯）。"
-        },
-        "signature": {
-          "type": "string",
-          "pattern": "^ed25519:[A-Za-z0-9+/=]+$",
-          "description": "Registry 用平台私钥对 (manifest hash + reportHash + reviewedAt) 的签名。"
-        },
-        "scope": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
-          },
-          "description": "审核覆盖的能力范围，供审核报告追溯。不再作为运行时拦截依据。"
-        }
-      }
-    },
     "subscriptions": {
-      "description": "Brick 订阅的宿主中转事件。仅 lifecycle.service 或声明 event trigger 的 Brick 会被事件自动唤醒；payload 应保持轻量，大内容通过 resourceId 按需拉取。",
+      "description": "Brick 订阅的宿主中转事件。投递不读本字段；wake=true 或 lifecycle.service 才允许宿主为其申请 Lease。payload 应保持轻量，大内容通过 resourceId 按需拉取。",
       "type": "array",
       "uniqueItems": true,
       "items": {
@@ -431,6 +365,11 @@
           "event": {
             "type": "string",
             "pattern": "^[A-Za-z0-9_.-]+:[A-Za-z0-9_.:-]+$"
+          },
+          "wake": {
+            "type": "boolean",
+            "default": false,
+            "description": "true 时允许宿主为该事件申请 Lease / 列为可唤醒订阅者。预热仍只认 lifecycle.service.autoStart。"
           },
           "from": {
             "oneOf": [
@@ -466,41 +405,6 @@
         }
       }
     },
-    "triggers": {
-      "description": "宿主何时为 Brick 申请 Lease。host-start 跟随宿主启动；manual 只由管理界面启动；event 由事件到来唤醒。",
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["type"],
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["host-start", "manual", "event"]
-          },
-          "event": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_.-]+:[A-Za-z0-9_.:-]+$"
-          }
-        },
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "type": {
-                  "const": "event"
-                }
-              },
-              "required": ["type"]
-            },
-            "then": {
-              "required": ["event"]
-            }
-          }
-        ]
-      }
-    },
     "hotkeys": {
       "description": "Brick 声明的全局热键意图。底座负责注册系统级热键；可直接触发 commandId，也可兼容发布 hotkey:* 事件。用户配置可禁用或改绑，manifest 仅提供默认值。",
       "type": "array",
@@ -523,7 +427,6 @@
             "type": "string",
             "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
           },
-          "input": {},
           "defaultInput": {},
           "name": {
             "oneOf": [
@@ -587,23 +490,8 @@
       }
     },
     "ui": {
-      "description": "用户交互界面承载方式。优先级推荐：schema > webview > none。平台不支持 iframe；当前实现使用 Electron BrowserWindow 承载自定义 UI。",
+      "description": "用户交互界面承载方式。当前实现使用 Electron BrowserWindow 承载 webview；无界面时用 none。",
       "oneOf": [
-        {
-          "description": "Schema-Driven UI：作者只声明字段，平台用 shadcn/ui 渲染原生组件。视觉统一、AI 友好，覆盖 80% 场景。",
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["type", "path"],
-          "properties": {
-            "type": {
-              "const": "schema"
-            },
-            "path": {
-              "type": "string",
-              "default": "ui/schema.json"
-            }
-          }
-        },
         {
           "description": "Webview：基于 Electron BrowserWindow 承载自定义 UI。纯 UI 与带 runtime 的 Brick 体验窗均注入受限的 window.brickly（平台 preload/brick.js）。window.AIBricks 仅平台主窗口使用，不注入 Brick 体验窗。可选顶层 manifest.preload 指定附加 preload（相对 Brick 根目录），在平台 preload 之后链式 require；路径须位于 rootDir 内。",
           "type": "object",
@@ -662,11 +550,6 @@
               "enum": ["always", "debug-only", "never"],
               "default": "debug-only",
               "description": "DevTools 开启策略。debug-only 仅在平台开发模式下可打开。"
-            },
-            "theme": {
-              "type": "string",
-              "enum": ["auto", "light", "dark"],
-              "default": "auto"
             }
           }
         },
@@ -682,18 +565,6 @@
           }
         }
       ]
-    },
-    "windows": {
-      "description": "工具窗口静态能力。standalone 为 true 时，允许在 Manifest 声明、平台授权和 start({ allowStandaloneWindows: true }) 同时满足后登记 window retainer。",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "standalone": {
-          "type": "boolean",
-          "default": false,
-          "description": "是否允许 standalone 窗口接管 ToolLifetime。不得与 runtime.instance=per-call 同时声明。"
-        }
-      }
     },
     "commands": {
       "description": "Brick 暴露的命令集合。每个命令是一个可独立调用的功能单元，拥有自己的 IO、UI、权限。LLM Agent 把每个命令视作一个 tool；DAG 画布把每个命令视作一个节点类型。",
@@ -774,40 +645,6 @@
         }
       }
     },
-    "marketplace": {
-      "description": "市场展示相关字段（仅官方 Registry 使用，作者本地可选）。",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "screenshots": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "maxItems": 6
-        },
-        "pricing": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "model": {
-              "type": "string",
-              "enum": ["free", "paid", "freemium", "trial"]
-            },
-            "priceUsd": {
-              "type": "number",
-              "minimum": 0
-            }
-          },
-          "required": ["model"]
-        },
-        "minPlatformVersion": {
-          "type": "string",
-          "description": "AI-Bricks 宿主最低版本要求。",
-          "examples": [">=0.5.0"]
-        }
-      }
-    },
     "kind": {
       "description": "产物类型。当前统一固定为 brick。",
       "type": "string",
@@ -816,22 +653,6 @@
     "preload": {
       "type": "string",
       "description": "可选的附加 preload 脚本，相对 Brick 根目录（如 preload.cjs）。纯 UI 与带 runtime 的 webview 均可声明。平台先加载 brick.js 注入 window.brickly，再通过 --brickly-brick-preload 链式 require 本脚本；校验路径必须位于 rootDir 内且文件存在。自定义 preload 可 exposeInMainWorld 自有 API，或封装 ipcRenderer 调用平台 channel，不应假设存在 window.AIBricks。"
-    },
-    "storage": {
-      "description": "Brick 级本地存储声明。当前主要用于配额和 schema 元数据，完整隔离存储能力仍在演进中。",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "quotaMB": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 1024,
-          "default": 50
-        },
-        "schema": {
-          "type": "string"
-        }
-      }
     }
   },
   "$defs": {
@@ -1157,10 +978,6 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "schemaPath": {
-              "type": "string",
-              "description": "命令专用的 ui.schema.json 路径。"
-            },
             "submitLabel": {
               "type": "string",
               "default": "执行",
@@ -1188,76 +1005,6 @@
                 "type": "object"
               },
               "output": {}
-            }
-          }
-        },
-        "llm": {
-          "description": "LLM 调用相关配置。命令默认会自动暴露为 LLM tool（基于 description + io.inputs 生成 tool schema）。本字段用于精细化调优。",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "exposeToLLM": {
-              "type": "boolean",
-              "default": true,
-              "description": "是否将本命令暴露为 LLM tool。默认 true。设为 false 等价于 hidden（仅供其他命令或 UI 调用）。"
-            },
-            "toolNameOverride": {
-              "type": "string",
-              "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,63}$",
-              "description": "覆盖默认派生的工具名（默认 = brickId + '__' + commandId，下划线规范化）。仅在自动派生名超长或冲突时使用。"
-            },
-            "requireApproval": {
-              "type": "string",
-              "enum": ["never", "high-risk", "always"],
-              "default": "high-risk",
-              "description": "LLM 调用本命令时是否需要用户确认。high-risk 表示高危操作弹窗确认；always 表示每次都弹；never 仅在审核通过且明确无副作用的查询类命令使用。"
-            },
-            "hint": {
-              "description": "给 LLM 的额外提示语，会拼到 tool description 末尾。建议写明 '何时该用本命令'、'参数填写注意事项' 等。",
-              "oneOf": [
-                {
-                  "type": "string",
-                  "maxLength": 500
-                },
-                {
-                  "type": "object",
-                  "patternProperties": {
-                    "^[a-z]{2}(-[A-Z]{2})?$": {
-                      "type": "string",
-                      "maxLength": 500
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              ]
-            },
-            "tags": {
-              "type": "array",
-              "uniqueItems": true,
-              "items": {
-                "type": "string",
-                "maxLength": 30
-              },
-              "description": "工具标签，用于 LLM tool 检索/过滤（当工具数量很多时，编排器可按标签做相关性筛选，避免上下文爆炸）。",
-              "examples": [
-                ["pdf", "document"],
-                ["sql", "database", "readonly"]
-              ]
-            },
-            "rateLimit": {
-              "type": "object",
-              "additionalProperties": false,
-              "description": "LLM 自动调用本命令的限流策略，防止 Agent 进入循环或过度消耗资源。",
-              "properties": {
-                "perMinute": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "perSession": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              }
             }
           }
         }

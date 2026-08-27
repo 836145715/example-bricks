@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.code-diff",
   "version": "0.1.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -21,14 +20,7 @@
     "code",
     "json"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -37,8 +29,7 @@
       "height": 740,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "runtime": null,
   "commands": []

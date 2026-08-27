@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.image-toolkit-sharp",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -23,33 +22,17 @@
     "batch",
     "toolkit"
   ],
-  "categories": [
-    "image",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly Team"
-  },
-  "license": "MIT",
+  "author": "Brickly Team",
   "preload": "preload.cjs",
   "runtime": {
     "type": "node",
     "instance": "per-call",
-    "platforms": [
-      "win-x64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "mac-x64": "runtime/mac-x64/index.js",
       "mac-arm64": "runtime/mac-arm64/index.js",
       "linux-x64": "runtime/linux-x64/index.js"
     }
-  },
-  "lifecycle": {
-    "state": "stateless"
   },
   "ui": {
     "type": "webview",

@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.hold-probe",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -25,33 +24,17 @@
     "hold",
     "probe"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/brick.exe",
       "win-arm64": "runtime/win-arm64/brick.exe",
       "mac-x64": "runtime/mac-x64/brick",
       "mac-arm64": "runtime/mac-arm64/brick"
     }
-  },
-  "lifecycle": {
-    "state": "stateless"
   },
   "ui": {
     "type": "webview",
@@ -64,8 +47,7 @@
       "minHeight": 520,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "commands": [
     {
@@ -100,15 +82,6 @@
             "name": "result",
             "type": "json"
           }
-        ]
-      },
-      "llm": {
-        "requireApproval": "never",
-        "tags": [
-          "file",
-          "folder",
-          "process",
-          "readonly"
         ]
       },
       "execution": "queue"
@@ -147,13 +120,6 @@
             "name": "result",
             "type": "json"
           }
-        ]
-      },
-      "llm": {
-        "requireApproval": "never",
-        "tags": [
-          "process",
-          "readonly"
         ]
       },
       "execution": "queue"
@@ -200,19 +166,7 @@
           }
         ]
       },
-      "llm": {
-        "requireApproval": "always",
-        "tags": [
-          "process",
-          "dangerous"
-        ]
-      },
       "execution": "queue"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "manual"
     }
   ]
 }

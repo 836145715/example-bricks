@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.http-inspector",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -21,23 +20,10 @@
     "mitmproxy",
     "websocket"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "python",
-    "instance": "shared",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64"
-    ],
+    "instance": "service",
     "entry": {
       "win-x64": "runtime/win-x64/main.py",
       "win-arm64": "runtime/win-arm64/main.py",
@@ -46,16 +32,6 @@
     },
     "python": "3.12.*"
   },
-  "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": false,
-      "restart": "on-failure",
-      "maxAttempts": 3,
-      "backoffMs": 2000
-    }
-  },
-  "trustLevel": "community",
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -67,8 +43,7 @@
       "resizable": true
     },
     "windowPolicy": "single",
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "commands": [
     {

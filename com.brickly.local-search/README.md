@@ -17,7 +17,7 @@ last_verified: 2026-08-24
 - 不再扫描用户本机的 Everything 安装。打开工具时若索引通道未接通，会以后台管理员实例启动自带的 `Everything.exe -admin -startup -instance Brickly`，避免弹出 NTFS 权限三选一对话框。Windows 仍可能出现一次 UAC。
 - 索引未完成时只显示 loading，`Everything_IsDBLoaded` 为真后再搜索。
 
-生命周期是 `stateful` + `runtime.instance: "owned"`，不是 `lifecycle.service`。索引由捆绑的 Everything 实例持有；体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程。
+作者写 `runtime.instance: "owned"`，不要写成 `service`。索引由捆绑的 Everything 实例持有；体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke`。直接 `window.brickly.invoke` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程。
 
 自定义界面通过宿主注入的 `window.brickly` 调用命令和打开文件，不再自行拼 `bridge.invoke` 字符串身份。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
 

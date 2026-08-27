@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.example.fake-work",
   "version": "0.1.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -20,18 +19,7 @@
     "cli",
     "fun"
   ],
-  "categories": [
-    "productivity",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly Demo"
-  },
-  "license": "MIT",
-  "lifecycle": {
-    "state": "stateless"
-  },
-  "trustLevel": "community",
+  "author": "Brickly Demo",
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",

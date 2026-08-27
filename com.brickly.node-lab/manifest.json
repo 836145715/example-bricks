@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.node-lab",
   "version": "0.1.0",
   "name": {
@@ -20,13 +19,7 @@
     "http",
     "shell"
   ],
-  "categories": [
-    "developer-tools"
-  ],
-  "author": {
-    "name": "Brickly Demo"
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "preload": "preload.cjs",
   "apiVersion": ">=0.1.0 <1.0.0",
   "ui": {

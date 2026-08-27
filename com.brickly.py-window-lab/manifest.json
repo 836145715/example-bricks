@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.py-window-lab",
   "version": "0.2.0",
   "apiVersion": "0.1.0",
@@ -13,22 +12,10 @@
     "zh-CN": "Python SDK 版窗口 API 实验室：打开一个控制面板窗口，验证 BrowserWindow / webContents 方法调用。",
     "en": "Python SDK powered Window API Lab for exercising BrowserWindow and webContents calls."
   },
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "runtime": {
     "type": "python",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/main.py",
       "win-arm64": "runtime/win-arm64/main.py",
@@ -39,14 +26,6 @@
     },
     "python": "3.12.*"
   },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 0
-  },
-  "trustLevel": "community",
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "window",
     "browserwindow",
@@ -55,10 +34,6 @@
     "demo",
     "test",
     "lab"
-  ],
-  "categories": [
-    "utilities",
-    "developer-tools"
   ],
   "commands": [
     {

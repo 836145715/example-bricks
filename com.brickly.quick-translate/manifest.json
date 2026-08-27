@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.quick-translate",
   "version": "0.2.0",
   "apiVersion": "0.1.0",
@@ -13,22 +12,10 @@
     "zh-CN": "双击 Ctrl 复制当前选中文本并翻译；也支持框选截图后将中文覆盖贴回原位置。",
     "en": "Double-tap Ctrl to translate selected text, or capture a region and overlay Chinese translation in place."
   },
-  "author": {
-    "name": "Brickly",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "node",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -37,10 +24,6 @@
       "linux-x64": "runtime/linux-x64/index.js",
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
-  },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 600000
   },
   "dependencies": {
     "openai": {
@@ -110,10 +93,6 @@
       }
     }
   ],
-  "trustLevel": "verified",
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "translate",
     "translation",
@@ -122,10 +101,6 @@
     "openai",
     "ocr",
     "screenshot"
-  ],
-  "categories": [
-    "productivity",
-    "utilities"
   ],
   "commands": [
     {

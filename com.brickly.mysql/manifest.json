@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.mysql",
   "version": "1.0.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -20,26 +19,10 @@
     "sql",
     "crud"
   ],
-  "categories": [
-    "data-processing",
-    "developer-tools"
-  ],
-  "author": {
-    "name": "Brickly",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "python",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/main.py",
       "win-arm64": "runtime/win-arm64/main.py",
@@ -50,10 +33,6 @@
     },
     "python": "3.12.*"
   },
-  "lifecycle": {
-    "state": "stateful"
-  },
-  "trustLevel": "community",
   "config": {
     "required": true,
     "fields": [
@@ -121,9 +100,6 @@
         ]
       }
     ]
-  },
-  "ui": {
-    "type": "none"
   },
   "commands": [
     {

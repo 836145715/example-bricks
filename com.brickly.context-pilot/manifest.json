@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.context-pilot",
   "version": "0.2.0",
   "apiVersion": "0.1.0",
@@ -13,22 +12,10 @@
     "zh-CN": "通过划词或截图 OCR 解构英文技术句子，展示翻译、句子主干、短语拆解和表达公式。",
     "en": "Break down selected or screenshot OCR technical English into translation, sentence skeleton, phrases, and patterns."
   },
-  "author": {
-    "name": "Brickly",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "node",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -37,10 +24,6 @@
       "linux-x64": "runtime/linux-x64/index.js",
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
-  },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 600000
   },
   "dependencies": {
     "openai": {
@@ -114,10 +97,6 @@
       }
     }
   ],
-  "trustLevel": "verified",
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "english",
     "context",
@@ -127,11 +106,6 @@
     "openai",
     "ocr",
     "screenshot"
-  ],
-  "categories": [
-    "developer-tools",
-    "productivity",
-    "utilities"
   ],
   "commands": [
     {

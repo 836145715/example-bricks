@@ -20,7 +20,7 @@ last_verified: 2026-08-24
 - 远程主机是 Linux OpenSSH。
 - 鉴权只支持密码或私钥（可选 passphrase）。
 
-生命周期是 `stateful` + `runtime.instance: "owned"`。体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke` / `call` / `interact`。直接 `window.brickly.invoke` / `call` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程，PTY 和 SFTP 会断。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
+作者写 `runtime.instance: "owned"`。体验窗必须先 `window.brickly.start()` 钉住进程，再走 Handle 的 `invoke` / `call` / `interact`。直接 `window.brickly.invoke` / `call` 会建 Call 级临时 Lifetime，命令结束就拆掉 Go 进程，PTY 和 SFTP 会断。Host↔Runtime 是 gRPC `invoke` / `interact`，不要再写 BPP。
 
 `open-session` 声明 `"mode": "interact"`。一条终端会话就是一条双工 `open-session`：调用方 `send({ type: "data" })` / `sendLatest("resize", …)`，Runtime `ctx.Send` 推 `session` / `data` / `cwd` / `status`。页面开会话时传入 `onEvent`，用 `end()` 等结果。关 Tab 用 `cancel()`，不要 `end()`，也不要再调旁路命令。`sftp-upload` / `sftp-download` 是刷进度的 `call`，过程走 `outputEvents.progress`。
 

@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.glm-ocr-screenshot",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -13,21 +12,10 @@
     "zh-CN": "框选屏幕区域截图，调用 GLM OCR，并把识别结果标注回图片。",
     "en": "Select a screen region, call GLM OCR, and annotate recognized text on the image."
   },
-  "author": {
-    "name": "Brickly",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "node",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -35,10 +23,6 @@
       "mac-arm64": "runtime/mac-arm64/index.js",
       "linux-x64": "runtime/linux-x64/index.js"
     }
-  },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 600000
   },
   "hotkeys": [
     {
@@ -78,7 +62,6 @@
       "note": "调用 GLM OCR 命令识别截图中的文字。"
     }
   },
-  "trustLevel": "community",
   "config": {
     "required": false,
     "fields": [
@@ -139,20 +122,12 @@
       }
     ]
   },
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "glm",
     "ocr",
     "screenshot",
     "annotation",
     "image"
-  ],
-  "categories": [
-    "utilities",
-    "image",
-    "data-processing"
   ],
   "commands": [
     {
@@ -257,16 +232,6 @@
       },
       "ui": {
         "submitLabel": "框选截图并识别"
-      },
-      "llm": {
-        "requireApproval": "always",
-        "tags": [
-          "glm",
-          "ocr",
-          "screenshot",
-          "image-annotation"
-        ],
-        "hint": "会启动系统截图工具、读取截图文件，并调用 com.brickly.glm-tools 的 OCR 命令上传图片，再打开 H5 弹窗绘制结果。"
       },
       "execution": "queue"
     },
@@ -374,16 +339,6 @@
       },
       "ui": {
         "submitLabel": "框选截图并识别"
-      },
-      "llm": {
-        "requireApproval": "always",
-        "tags": [
-          "glm",
-          "ocr",
-          "screenshot",
-          "text"
-        ],
-        "hint": "会启动系统截图工具、读取截图文件，并调用 com.brickly.glm-tools 的 OCR 命令上传图片，只返回识别文本。"
       },
       "execution": "queue"
     }

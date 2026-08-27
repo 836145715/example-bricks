@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.port-inspector",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -22,33 +21,16 @@
     "udp",
     "netstat"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "native",
     "instance": "per-call",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/brick.exe",
       "win-arm64": "runtime/win-arm64/brick.exe",
       "mac-x64": "runtime/mac-x64/brick",
       "mac-arm64": "runtime/mac-arm64/brick"
     }
-  },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 0
   },
   "ui": {
     "type": "webview",
@@ -61,8 +43,7 @@
       "minHeight": 480,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "commands": [
     {
@@ -126,14 +107,6 @@
           }
         }
       ],
-      "llm": {
-        "requireApproval": "never",
-        "tags": [
-          "port",
-          "process",
-          "readonly"
-        ]
-      },
       "execution": "queue"
     },
     {
@@ -200,14 +173,6 @@
           }
         ]
       },
-      "llm": {
-        "requireApproval": "never",
-        "tags": [
-          "port",
-          "process",
-          "readonly"
-        ]
-      },
       "execution": "queue"
     },
     {
@@ -248,13 +213,6 @@
           }
         }
       ],
-      "llm": {
-        "requireApproval": "never",
-        "tags": [
-          "process",
-          "readonly"
-        ]
-      },
       "execution": "queue"
     },
     {
@@ -302,19 +260,7 @@
           }
         }
       ],
-      "llm": {
-        "requireApproval": "always",
-        "tags": [
-          "process",
-          "dangerous"
-        ]
-      },
       "execution": "queue"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "manual"
     }
   ]
 }

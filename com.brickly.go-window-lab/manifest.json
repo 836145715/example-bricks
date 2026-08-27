@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.go-window-lab",
   "version": "0.2.0",
   "apiVersion": "0.1.0",
@@ -13,22 +12,10 @@
     "zh-CN": "Go 版的窗口 API 实验室：使用 brickly-sdk-go 实现，覆盖 100+ 个 BrowserWindow / webContents 方法，验证 Go SDK 与 Node SDK 行为完全一致。",
     "en": "Go-powered Window API Lab that exercises 100+ BrowserWindow & webContents methods via brickly-sdk-go, proving parity with the Node SDK."
   },
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/brick.exe",
       "win-arm64": "runtime/win-arm64/brick.exe",
@@ -38,14 +25,6 @@
       "linux-arm64": "runtime/linux-arm64/brick"
     }
   },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 0
-  },
-  "trustLevel": "verified",
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "window",
     "browserwindow",
@@ -53,10 +32,6 @@
     "demo",
     "test",
     "lab"
-  ],
-  "categories": [
-    "utilities",
-    "developer-tools"
   ],
   "commands": [
     {

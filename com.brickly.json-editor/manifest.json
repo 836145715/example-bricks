@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.json-editor",
   "version": "0.1.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -20,14 +19,7 @@
     "monaco",
     "developer"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -36,8 +28,7 @@
       "height": 720,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "runtime": null,
   "commands": []

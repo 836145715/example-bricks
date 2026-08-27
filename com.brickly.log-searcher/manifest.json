@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.log-searcher",
   "version": "0.3.0",
   "apiVersion": ">=0.2.0 <1.0.0",
@@ -21,29 +20,15 @@
     "remote",
     "searcher"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
-  "author": {
-    "name": "Antigravity"
-  },
-  "license": "MIT",
+  "author": "Antigravity",
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "mac-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/brick.exe",
       "mac-arm64": "runtime/mac-arm64/brick"
     }
-  },
-  "lifecycle": {
-    "state": "stateful"
   },
   "ui": {
     "type": "webview",
@@ -57,8 +42,7 @@
       "minHeight": 480,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "commands": [
     {

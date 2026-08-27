@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.glm-tools",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -23,27 +22,10 @@
     "moderation",
     "parser"
   ],
-  "categories": [
-    "ai-models",
-    "developer-tools",
-    "data-processing"
-  ],
-  "author": {
-    "name": "Brickly",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "node",
     "instance": "per-call",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -53,10 +35,6 @@
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
   },
-  "lifecycle": {
-    "state": "stateless"
-  },
-  "trustLevel": "community",
   "config": {
     "required": true,
     "fields": [
@@ -92,9 +70,6 @@
         ]
       }
     ]
-  },
-  "ui": {
-    "type": "none"
   },
   "commands": [
     {
@@ -214,16 +189,7 @@
             "count": 5
           }
         }
-      ],
-      "llm": {
-        "requireApproval": "high-risk",
-        "tags": [
-          "glm",
-          "web-search",
-          "search"
-        ],
-        "hint": "需要已配置 BigModel API Key。网络调用可能产生平台费用。"
-      }
+      ]
     },
     {
       "id": "reader",
@@ -319,15 +285,6 @@
       },
       "ui": {
         "submitLabel": "读取网页"
-      },
-      "llm": {
-        "requireApproval": "high-risk",
-        "tags": [
-          "glm",
-          "reader",
-          "web"
-        ],
-        "hint": "读取外部 URL 前应确认用户意图。"
       }
     },
     {
@@ -410,15 +367,6 @@
       },
       "ui": {
         "submitLabel": "审核"
-      },
-      "llm": {
-        "requireApproval": "high-risk",
-        "tags": [
-          "glm",
-          "moderation",
-          "safety"
-        ],
-        "hint": "用于内容安全审核。多媒体审核要求提供公网可访问 URL。"
       }
     },
     {
@@ -538,15 +486,6 @@
       },
       "ui": {
         "submitLabel": "同步解析"
-      },
-      "llm": {
-        "requireApproval": "always",
-        "tags": [
-          "glm",
-          "file-parser",
-          "sync"
-        ],
-        "hint": "同步文件解析会读取本地文件、上传到 BigModel，并可能立即产生费用；必须传 confirmPaidApiCall=true。"
       }
     },
     {
@@ -651,15 +590,6 @@
       },
       "ui": {
         "submitLabel": "创建任务"
-      },
-      "llm": {
-        "requireApproval": "high-risk",
-        "tags": [
-          "glm",
-          "file-parser",
-          "async"
-        ],
-        "hint": "会读取本地文件并上传到 BigModel 文件解析服务。"
       }
     },
     {
@@ -723,15 +653,6 @@
       },
       "ui": {
         "submitLabel": "获取结果"
-      },
-      "llm": {
-        "requireApproval": "high-risk",
-        "tags": [
-          "glm",
-          "file-parser",
-          "result"
-        ],
-        "hint": "用于查询由 create-file-parse-task 创建的异步解析任务。"
       }
     },
     {
@@ -850,16 +771,6 @@
       },
       "ui": {
         "submitLabel": "识别"
-      },
-      "llm": {
-        "exposeToLLM": false,
-        "requireApproval": "always",
-        "tags": [
-          "glm",
-          "ocr",
-          "image"
-        ],
-        "hint": "内部 OCR 能力，会读取本地图片、上传到 BigModel OCR 服务，并可能产生费用。普通用户请优先使用截图 OCR 标注工具。"
       }
     }
   ]

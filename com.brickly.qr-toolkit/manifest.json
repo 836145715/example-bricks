@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.qr-toolkit",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -22,26 +21,11 @@
     "generate",
     "utilities"
   ],
-  "categories": [
-    "utilities",
-    "image"
-  ],
-  "author": {
-    "name": "Brickly Team"
-  },
-  "license": "MIT",
+  "author": "Brickly Team",
   "preload": "preload.cjs",
   "runtime": {
     "type": "node",
     "instance": "per-call",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -51,9 +35,6 @@
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
   },
-  "lifecycle": {
-    "state": "stateless"
-  },
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -61,8 +42,7 @@
       "width": 1040,
       "height": 720,
       "resizable": true
-    },
-    "theme": "dark"
+    }
   },
   "commands": [
     {
@@ -164,11 +144,6 @@
           }
         ]
       }
-    }
-  ],
-  "triggers": [
-    {
-      "type": "manual"
     }
   ]
 }

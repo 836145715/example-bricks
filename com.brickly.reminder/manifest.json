@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.reminder",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -19,26 +18,10 @@
     "timer",
     "service"
   ],
-  "categories": [
-    "productivity",
-    "automation"
-  ],
-  "author": {
-    "name": "Brickly",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "node",
-    "instance": "shared",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
+    "instance": "service",
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -46,18 +29,9 @@
       "mac-arm64": "runtime/mac-arm64/index.js",
       "linux-x64": "runtime/linux-x64/index.js",
       "linux-arm64": "runtime/linux-arm64/index.js"
-    }
+    },
+    "autoStart": true
   },
-  "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": true,
-      "restart": "on-failure",
-      "maxAttempts": 5,
-      "backoffMs": 2000
-    }
-  },
-  "trustLevel": "community",
   "config": {
     "required": true,
     "fields": [
@@ -113,9 +87,6 @@
         "description": "0 表示不自动关闭。"
       }
     ]
-  },
-  "ui": {
-    "type": "none"
   },
   "commands": [
     {

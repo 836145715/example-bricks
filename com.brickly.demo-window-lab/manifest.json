@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.demo-window-lab",
   "version": "0.2.0",
   "apiVersion": "0.1.0",
@@ -13,22 +12,10 @@
     "zh-CN": "可视化测试 Brick：开一个带控制面板的子窗口，按钮一键调用 90+ 个 BrowserWindow / webContents API，实时展示窗口状态。",
     "en": "Visual playground that opens a control-panel window to exercise 90+ BrowserWindow & webContents methods with live state readouts."
   },
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "runtime": {
     "type": "node",
     "instance": "owned",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -38,24 +25,12 @@
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
   },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 600000
-  },
-  "trustLevel": "verified",
-  "ui": {
-    "type": "none"
-  },
   "keywords": [
     "window",
     "browserwindow",
     "demo",
     "test",
     "lab"
-  ],
-  "categories": [
-    "utilities",
-    "developer-tools"
   ],
   "commands": [
     {

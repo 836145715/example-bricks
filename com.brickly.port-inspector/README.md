@@ -21,7 +21,7 @@ last_verified: 2026-08-05
 
 ## 生命周期
 
-`lifecycle.state = stateless`，且 **`idleTimeoutMs: 0`**：窗口关闭、无占用后立即回收 Go runtime（不会在后台空转 10 分钟）。
+作者写 `runtime.instance: "per-call"`：每次查询独立进程，窗口关掉后不会在后台空转。
 
 ## 能力
 

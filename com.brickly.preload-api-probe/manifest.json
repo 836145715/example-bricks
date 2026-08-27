@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.preload-api-probe",
   "version": "0.1.0",
   "name": {
@@ -20,13 +19,7 @@
     "probe",
     "exposeApi"
   ],
-  "categories": [
-    "developer-tools"
-  ],
-  "author": {
-    "name": "Brickly Dev"
-  },
-  "license": "MIT",
+  "author": "Brickly Dev",
   "preload": "preload.cjs",
   "apiVersion": ">=0.1.0 <1.0.0",
   "ui": {

@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.net-capture",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -21,36 +20,15 @@
     "http",
     "websocket"
   ],
-  "categories": [
-    "developer-tools",
-    "utilities"
-  ],
-  "author": {
-    "name": "Brickly"
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
-    "instance": "shared",
-    "platforms": [
-      "win-x64",
-      "mac-x64",
-      "mac-arm64"
-    ],
+    "instance": "service",
     "entry": {
       "win-x64": "runtime/win-x64/brick.exe",
       "mac-x64": "runtime/mac-x64/brick",
       "mac-arm64": "runtime/mac-arm64/brick"
-    }
-  },
-  "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": false,
-      "restart": "on-failure",
-      "maxAttempts": 3,
-      "backoffMs": 2000
     }
   },
   "subscriptions": [],
@@ -62,8 +40,7 @@
       "height": 760,
       "resizable": true
     },
-    "devTools": "debug-only",
-    "theme": "dark"
+    "devTools": "debug-only"
   },
   "commands": [
     {
@@ -293,11 +270,6 @@
         ]
       },
       "execution": "queue"
-    }
-  ],
-  "triggers": [
-    {
-      "type": "manual"
     }
   ]
 }

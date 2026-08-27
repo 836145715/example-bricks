@@ -3,92 +3,37 @@ status: active
 type: contract-guide
 related_code:
   - specs/manifest.schema.json
-  - Brickly/src/shared/bridge-types.ts
-  - Brickly/src/main/runtime/brick-lifecycle.ts
-  - Brickly/src/main/runtime/process-key.ts
-  - Brickly/src/main/runtime/command-execution.ts
-  - Brickly/src/main/runtime/brick-runtime-manager.ts
-  - Brickly/src/main/runtime/brick-service-supervisor.ts
-  - Brickly/src/main/runtime/lifecycle
 related_docs:
-  - docs/superpowers/specs/2026-07-22-runtime-lifecycle-simplification-constitution.md
-last_verified: 2026-07-23
+  - ai-bricks/specs/lifecycle.md
+last_verified: 2026-08-27
 ---
 
 # Brick Lifecycle
 
-实现唯一语义源（ai-bricks 仓库）：  
-`docs/superpowers/specs/2026-07-22-runtime-lifecycle-simplification-constitution.md`
+实现唯一语义源是 ai-bricks 仓库的 `specs/lifecycle.md`。本目录副本给 example-bricks 作者对照；字段以 `manifest.schema.json` 为准。
 
-本目录副本供 example-bricks 作者对照；字段以 `manifest.schema.json` 为准。
+作者只写 `runtime.instance`，不写顶层 `lifecycle`。
 
-本文是 **作者与宿主契约摘要**；细节与不变量以宪章为准。
+## 作者模型（instance 四值）
 
-## 作者模型（两态）
+| 作者 instance | 内核键 | 监督器 | 说明 |
+| --- | --- | --- | --- |
+| 省略 / `shared` | `shared` | 否 | 命令工具默认；空闲可回收 |
+| `owned` | `owned` | 否 | 跟某次 `start()` / 体验窗 |
+| `per-call` | `per-call` | 否 | 每次调用独立进程，不允许 `start()` |
+| `service` | `shared` | 是 | 宿主钉住的一份；别人仍按普通命令调用 |
+
+开机预热只写 `runtime.autoStart`（仅 `instance=service`）。加载器缺省只补 `shared`，不会按旧 `lifecycle.state` 猜 `owned`。旧顶层 `lifecycle.service` 读成 `instance: service`。
 
 ```json
 {
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 600000
+  "runtime": {
+    "type": "node",
+    "instance": "service",
+    "autoStart": true,
+    "entry": { "win-x64": "runtime/win-x64/index.js" }
   }
 }
 ```
 
-```json
-{
-  "lifecycle": {
-    "state": "stateful"
-  }
-}
-```
-
-```json
-{
-  "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": true,
-      "restart": "on-failure",
-      "maxAttempts": 5,
-      "backoffMs": 2000,
-      "healthyAfterMs": 300000
-    }
-  }
-}
-```
-
-| 字段 | 说明 |
-| --- | --- |
-| `state` | `stateless`（默认）/ `stateful` |
-| `idleTimeoutMs` | 仅 stateless；空闲回收；`0` = 无占用后立即关 |
-| `service` | 仅 stateful；宿主持有的全局后台服务 |
-
-**已删除：** `mode` / `scope` / `concurrency` / `idleTtlMs` / `maxLifetimeMs` / `maxRestarts`（顶层）/ `restart: always`。
-
-命令并发在 **command.execution**（`queue` 默认 / `parallel` / `reject` / `replace`），不属于 lifecycle。
-
-## Profile
-
-- **不需要** Profile 的工具（无 `config.fields`）：调用可不传 `profileId`。
-- **需要** Profile：必须能解析到 id，否则 `INVALID_INPUT`（文案含 `PROFILE_REQUIRED`，UI 应提示选择）。
-- **禁止** 对需要 Profile 的工具静默伪造 default。
-- 进程 **打开时** 快照配置；之后改存储 **不管** 已开进程。
-
-## 进程复用键（实现名 ProcessKey）
-
-| 种类 | 键 | 行为 |
-| --- | --- | --- |
-| 无状态池 | `(brickId)` 或 `(brickId, profileId)` | 空闲按 idleTimeoutMs 回收 |
-| 有状态会话 | `(brickId, usageSessionId[, profileId])` | usage 结束则关 |
-| 服务 | `(brickId)` | 仅 Supervisor 启停；管理 UI 关窗不停服 |
-
-服务预热 **只** 看生效 `service.autoStart`，**不** 读 `triggers: host-start`。
-
-## 验证
-
-```bash
-cd Brickly
-npx tsx --test src/main/runtime/__tests__/brick-lifecycle-resolve.test.ts
-npm run typecheck:node
-```
+窗口应用显式写 `instance: owned`，并保留 `ui.webview`。`per-call` 不能 `start()`，因此不能开 standalone 窗。

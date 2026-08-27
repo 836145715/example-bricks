@@ -1,7 +1,6 @@
 {
   "$schema": "../specs/manifest.schema.json",
   "manifestVersion": 1,
-  "kind": "brick",
   "id": "com.brickly.openai",
   "version": "0.2.0",
   "apiVersion": ">=0.1.0 <1.0.0",
@@ -20,26 +19,10 @@
     "llm",
     "ai"
   ],
-  "categories": [
-    "ai-models",
-    "developer-tools"
-  ],
-  "author": {
-    "name": "Brickly",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly",
   "runtime": {
     "type": "node",
     "instance": "per-call",
-    "platforms": [
-      "win-x64",
-      "win-arm64",
-      "mac-x64",
-      "mac-arm64",
-      "linux-x64",
-      "linux-arm64"
-    ],
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",
@@ -48,9 +31,6 @@
       "linux-x64": "runtime/linux-x64/index.js",
       "linux-arm64": "runtime/linux-arm64/index.js"
     }
-  },
-  "lifecycle": {
-    "state": "stateless"
   },
   "config": {
     "required": true,
@@ -98,9 +78,6 @@
         "placeholder": "gpt-5"
       }
     ]
-  },
-  "ui": {
-    "type": "none"
   },
   "commands": [
     {
@@ -222,16 +199,7 @@
             }
           }
         }
-      ],
-      "llm": {
-        "requireApproval": "high-risk",
-        "tags": [
-          "openai",
-          "responses",
-          "generation"
-        ],
-        "hint": "Requires an OpenAI API key configured in the selected plugin Profile. Network calls may incur OpenAI API costs."
-      }
+      ]
     },
     {
       "id": "chat-completions",
@@ -340,16 +308,7 @@
             "model": "gpt-5"
           }
         }
-      ],
-      "llm": {
-        "requireApproval": "high-risk",
-        "tags": [
-          "openai",
-          "chat-completions",
-          "generation"
-        ],
-        "hint": "Requires an OpenAI API key configured in the selected plugin Profile. Network calls may incur OpenAI API costs."
-      }
+      ]
     }
   ]
 }
