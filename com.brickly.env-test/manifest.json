@@ -85,24 +85,34 @@
         "env": "ENV_TEST_SECRET",
         "inject": "env",
         "placeholder": "例如 secret-token"
-      }
-    ],
-    "env": [
-      {
-        "name": "ENV_TEST_ONLY",
-        "description": "独立 Profile 环境变量，只进入 process.env，不进入 ctx.config。",
-        "required": true
       },
       {
-        "name": "ENV_TEST_OVERRIDE",
-        "description": "用于验证 Profile env 覆盖 runtime.env 默认值。",
+        "name": "envOnly",
+        "label": "只进环境变量",
+        "description": "只会写入 ENV_TEST_ONLY，不会出现在 ctx.config。",
+        "type": "string",
+        "required": true,
+        "env": "ENV_TEST_ONLY",
+        "inject": "env"
+      },
+      {
+        "name": "override",
+        "label": "覆盖 runtime.env",
+        "description": "写入 ENV_TEST_OVERRIDE，覆盖 runtime.env 默认值。",
+        "type": "string",
+        "env": "ENV_TEST_OVERRIDE",
+        "inject": "env",
         "default": "from-profile-default"
       },
       {
-        "name": "ENV_TEST_PROFILE_SECRET",
-        "description": "独立 Profile secret 环境变量，MVP 仍明文落盘。",
+        "name": "profileSecret",
+        "label": "密钥环境变量",
+        "description": "写入 ENV_TEST_PROFILE_SECRET，不进入 ctx.config。",
+        "type": "string",
         "required": true,
-        "secret": true
+        "secret": true,
+        "env": "ENV_TEST_PROFILE_SECRET",
+        "inject": "env"
       }
     ]
   },

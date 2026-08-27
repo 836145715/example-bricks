@@ -330,7 +330,7 @@
       }
     },
     "config": {
-      "description": "Brick 多环境 Profile 配置声明。字段复用 io.inputs socket 结构，平台在启动 runtime 时把选中 Profile 注入命令上下文 ctx.config（以及按字段声明写入的环境变量）。",
+      "description": "Brick 多环境 Profile 配置声明。只写 fields。平台把选中 Profile 注入 ctx.config；字段声明了 env 时同时写入进程环境变量。runtime.env 是作者静态启动环境，不是 Profile。",
       "type": "object",
       "additionalProperties": false,
       "required": ["fields"],
@@ -342,14 +342,6 @@
         },
         "fields": {
           "$ref": "#/$defs/socketList"
-        },
-        "env": {
-          "description": "用户可在 Profile 中填写的独立 runtime 环境变量声明。只声明可填写项；最终启动环境由 runtime.env、字段 env 映射与 Profile env 覆盖合并得到。",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/profileEnvVar"
-          },
-          "default": []
         }
       }
     },
@@ -1010,33 +1002,6 @@
         }
       }
     },
-    "profileEnvVar": {
-      "type": "object",
-      "required": ["name"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
-          "description": "环境变量名。推荐使用大写下划线命名，如 OPENAI_API_KEY。"
-        },
-        "description": {
-          "type": "string"
-        },
-        "default": {
-          "type": "string"
-        },
-        "required": {
-          "type": "boolean",
-          "default": false
-        },
-        "secret": {
-          "type": "boolean",
-          "default": false,
-          "description": "UI 提示：渲染为密码输入，MVP 仍明文落盘。"
-        }
-      }
-    },
     "socketList": {
       "type": "array",
       "items": {
@@ -1161,12 +1126,12 @@
           "env": {
             "type": "string",
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
-            "description": "Profile 配置提示：启动 runtime 时将该字段值额外映射为指定环境变量。仅适合 Brick 明确需要 env 的兼容场景。推荐使用大写下划线命名，如 MYSQL_HOST。"
+            "description": "启动 runtime 时把该字段值写入指定环境变量。未写 env 只进 ctx.config；写了默认两边都进。推荐 MYSQL_HOST、OPENAI_API_KEY。"
           },
           "inject": {
             "type": "string",
             "enum": ["config", "env", "both"],
-            "description": "Profile 配置注入目标。config=仅命令上下文 ctx.config，env=仅环境变量，both=两者都注入。未声明时普通字段默认 config，带 env 字段默认 both。"
+            "description": "注入目标。日常可省略：无 env 等于 config，有 env 等于 both。inject=env 仅给 MCP 等密钥不要进 ctx.config 的场景。"
           },
           "accept": {
             "type": "string",

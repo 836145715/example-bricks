@@ -44,7 +44,7 @@ function inspect(config) {
       configOnlyInConfig: config.configOnly !== undefined,
       configOnlyNotInEnv: process.env.ENV_TEST_CONFIG_ONLY === undefined,
       profileEnvOnlyInEnv: Boolean(process.env.ENV_TEST_ONLY),
-      profileEnvOnlyNotInConfig: config.ENV_TEST_ONLY === undefined,
+      profileEnvOnlyNotInConfig: config.envOnly === undefined,
       fieldEnvOnlyInEnv: Boolean(process.env.ENV_TEST_FIELD_ONLY),
       fieldEnvOnlyNotInConfig: config.fieldEnvOnly === undefined,
       bothInConfig: config.bothValue !== undefined,
@@ -54,7 +54,7 @@ function inspect(config) {
       secretNotInConfig: config.secretToken === undefined,
       profileOverrideWins: process.env.ENV_TEST_OVERRIDE === 'from-profile-default',
       profileSecretInEnv: Boolean(process.env.ENV_TEST_PROFILE_SECRET),
-      profileSecretNotInConfig: config.ENV_TEST_PROFILE_SECRET === undefined,
+      profileSecretNotInConfig: config.profileSecret === undefined,
       configKeys
     }
   }
