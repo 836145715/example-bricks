@@ -67,7 +67,7 @@ func TestPatternReaderHonorsChunkSizeAndZeroByte(t *testing.T) {
 }
 
 func TestOpenEventPayloadAcceptsJSONEnvelope(t *testing.T) {
-	runtime := brickly.New(brickly.Options{BrickID: "com.test.resource-event"})
+	runtime := brickly.New()
 	ref := map[string]any{
 		"kind": "brickly.resource", "resourceId": "res_event", "accessToken": "token",
 		"sizeBytes": 1, "sha256": strings.Repeat("a", 64), "expiresAt": 2_000_000_000_000,
@@ -82,7 +82,7 @@ func TestOpenEventPayloadAcceptsJSONEnvelope(t *testing.T) {
 }
 
 func TestOpenInputResourceUsesRuntimeOpenResource(t *testing.T) {
-	runtime := brickly.New(brickly.Options{BrickID: "com.test.resource-input"})
+	runtime := brickly.New()
 	ref := brickly.ResourceRef{
 		Kind: "brickly.resource", ResourceID: "res_go", AccessToken: "token",
 		SizeBytes: 1, SHA256: strings.Repeat("a", 64), ExpiresAt: 2_000_000_000_000,

@@ -11,10 +11,9 @@ import (
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
-const brickID = "com.brickly.demo-go-browser"
 
 func main() {
-	runtime := brickly.New(brickly.Options{BrickID: brickID})
+	runtime := brickly.New()
 	var windowsMu sync.Mutex
 	windows := map[int64]*brickly.ScopedWindowHandle{}
 

@@ -263,7 +263,7 @@ func handleLabMessage(payload any, _ brickly.EventEnvelope) {
 }
 
 func main() {
-	plugin = brickly.New(brickly.Options{BrickID: "com.brickly.go-window-lab"})
+	plugin = brickly.New()
 
 	plugin.OnCommand("open-lab", func(_ *brickly.CommandContext, _ json.RawMessage) (any, error) {
 		return openLab()

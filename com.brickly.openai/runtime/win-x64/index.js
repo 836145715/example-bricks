@@ -9,7 +9,7 @@ const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
 let OpenAI = null
 let profileConfig = {}
 
-const plugin = new BricklyRuntime({ brickId: BRICK_ID })
+const plugin = new BricklyRuntime()
 
 function makeError(code, message) {
   return new BppError(code, message)

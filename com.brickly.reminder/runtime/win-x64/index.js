@@ -6,7 +6,7 @@ const { BricklyRuntime } = require('@syllm/brickly-sdk')
 const BRICK_ID = 'com.brickly.reminder'
 const POPUP_URL = 'ui/reminder.html'
 
-const plugin = new BricklyRuntime({ brickId: BRICK_ID })
+const plugin = new BricklyRuntime()
 
 let profileConfig = {}
 let nextTimer = null

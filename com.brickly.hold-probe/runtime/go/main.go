@@ -15,12 +15,9 @@ import (
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
-const brickID = "com.brickly.hold-probe"
 
 func main() {
-	plugin := brickly.New(brickly.Options{
-		BrickID: brickID,
-	})
+	plugin := brickly.New()
 
 	plugin.OnCommand("probe", handleProbe)
 	plugin.OnCommand("process-info", handleProcessInfo)

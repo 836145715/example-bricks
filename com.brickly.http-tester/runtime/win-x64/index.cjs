@@ -5,7 +5,7 @@ const { BppError, BricklyRuntime } = require('@syllm/brickly-sdk')
 const { sendHttpRequest, ClientError } = require('./services/http-client.cjs')
 
 const BRICK_ID = 'com.brickly.http-tester'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 function normalizeError(error) {
   if (error instanceof BppError) return error

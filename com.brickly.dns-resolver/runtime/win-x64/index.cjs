@@ -11,7 +11,7 @@ const {
 
 const BRICK_ID = 'com.brickly.dns-resolver'
 
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 setLogger(brick.log)
 
 function normalizeError(error) {

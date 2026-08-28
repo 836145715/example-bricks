@@ -17,7 +17,7 @@ const { ShareService } = require('./services/share-service.cjs')
 const BRICK_ID = 'com.brickly.lan-share'
 const DATA_DIR = path.join(os.homedir(), '.brickly', 'apps', BRICK_ID)
 
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 const service = new ShareService({
   dataDir: DATA_DIR,
   log: (message) => brick.log.info(`[${BRICK_ID}] ${message}`)

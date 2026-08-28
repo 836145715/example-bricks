@@ -3,7 +3,7 @@
 
 const { BricklyRuntime } = require('@syllm/brickly-sdk')
 
-const brick = new BricklyRuntime({ brickId: 'com.brickly.screen-demo' })
+const brick = new BricklyRuntime()
 
 function normalizeTimeout(value) {
   const n = Number(value)

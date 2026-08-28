@@ -20,7 +20,7 @@ const CURSOR_OFFSET = { x: 18, y: 22 }
 const FADE_STEPS = [0.12, 0.32, 0.58, 0.82, 1]
 const COPY_MODIFIER = process.platform === 'darwin' ? 'meta' : 'control'
 
-const plugin = new BricklyRuntime({ brickId: BRICK_ID })
+const plugin = new BricklyRuntime()
 
 let panelWindow = null
 let panelWindowBounds = null

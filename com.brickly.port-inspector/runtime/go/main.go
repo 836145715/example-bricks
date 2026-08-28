@@ -11,14 +11,11 @@ import (
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
-const brickID = "com.brickly.port-inspector"
 
 var buildStamp = "dev"
 
 func main() {
-	plugin := brickly.New(brickly.Options{
-		BrickID: brickID,
-	})
+	plugin := brickly.New()
 
 	plugin.OnCommand("lookup", handleLookup)
 	plugin.OnCommand("list", handleList)

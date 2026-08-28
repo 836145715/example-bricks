@@ -154,7 +154,7 @@ class InspectorService:
         self.store.close()
 
 
-runtime = BricklyRuntime(BRICK_ID)
+runtime = BricklyRuntime()
 service = InspectorService(runtime)
 
 

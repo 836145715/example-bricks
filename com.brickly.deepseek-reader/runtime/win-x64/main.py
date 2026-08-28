@@ -399,7 +399,7 @@ def _run_command(ctx: Any, handler: Any, inp: dict[str, Any]) -> Any:
         with _active_lock:
             _active.pop(req_id, None)
 
-plugin = BricklyRuntime(BRICK_ID)
+plugin = BricklyRuntime()
 _plugin = plugin
 plugin.on_command("save", lambda ctx, inp: _run_command(ctx, cmd_save, inp or {}))
 

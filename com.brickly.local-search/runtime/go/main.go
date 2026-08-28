@@ -13,7 +13,6 @@ import (
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
-const brickID = "com.brickly.local-search"
 
 var (
 	buildStamp = "dev"
@@ -175,9 +174,7 @@ func toBppError(err error) error {
 }
 
 func main() {
-	plugin = brickly.New(brickly.Options{
-		BrickID: brickID,
-	})
+	plugin = brickly.New()
 	plugin.Info(fmt.Sprintf("started go=%s os=%s arch=%s dll=%s", runtime.Version(), runtime.GOOS, runtime.GOARCH, client.DLLPath()), nil)
 
 	plugin.OnCommand("search", handleSearch)

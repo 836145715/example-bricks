@@ -3,7 +3,7 @@
 
 const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 
-const brick = new BricklyRuntime({ brickId: 'com.brickly.json-tools' })
+const brick = new BricklyRuntime()
 
 function parseInput(input) {
   const raw = input && typeof input === 'object' && 'json' in input ? input.json : input

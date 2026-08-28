@@ -11,7 +11,6 @@ import (
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
-const brickID = "com.brickly.resource-echo-go"
 
 type inspectResult struct {
 	Runtime    string `json:"runtime"`
@@ -43,7 +42,7 @@ type patternReader struct {
 }
 
 func main() {
-	runtime := brickly.New(brickly.Options{BrickID: brickID})
+	runtime := brickly.New()
 	var lastEvent any
 
 	runtime.OnCommand("inspect", func(ctx *brickly.CommandContext, raw json.RawMessage) (any, error) {

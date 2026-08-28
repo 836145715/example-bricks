@@ -29,7 +29,7 @@ const {
 } = require('./open-windows')
 const { setControlMessagesPlugin, onWindowMessage } = require('./control-messages')
 
-const plugin = new BricklyRuntime({ brickId: 'com.brickly.window-scenario-lab' })
+const plugin = new BricklyRuntime()
 
 setNotifyPlugin(plugin)
 setOpenWindowsPlugin(plugin)

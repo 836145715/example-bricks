@@ -23,7 +23,7 @@ const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 
 const LAB_HTML = 'ui/lab.html'
 
-const plugin = new BricklyRuntime({ brickId: 'com.brickly.demo-window-lab' })
+const plugin = new BricklyRuntime()
 
 /** 当前打开的 lab 窗口（profile-scoped cached instance）。 */
 let lab = null

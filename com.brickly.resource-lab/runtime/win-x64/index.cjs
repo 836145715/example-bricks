@@ -10,7 +10,7 @@ const { createScenarioExecutor } = require('./scenarios.cjs')
 
 const BRICK_ID = 'com.brickly.resource-lab'
 const UPDATE_EVENT = 'resource-lab:run-updated'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 const basePorts = {
   resources: brick.resources,

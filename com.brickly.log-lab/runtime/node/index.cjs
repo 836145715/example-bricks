@@ -14,7 +14,7 @@ const {
 } = require('./scenarios.cjs')
 
 const BRICK_ID = 'com.brickly.log-lab'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 brick.onCommand('log-levels', (ctx, input) => logLevels(brick.log, ctx.log, input))
 

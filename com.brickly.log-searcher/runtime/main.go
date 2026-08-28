@@ -32,7 +32,6 @@ type ServerConfig struct {
 	Logs     []LogFileConfig `json:"logs"`
 }
 
-const brickID = "com.brickly.log-searcher"
 
 // brickRuntime 供包内日志走 SDK；禁止 stderr 业务输出。
 var brickRuntime *brickly.Runtime
@@ -716,7 +715,7 @@ func intFromInput(value any, fallback int) int {
 }
 
 func main() {
-	runtime := brickly.New(brickly.Options{BrickID: brickID})
+	runtime := brickly.New()
 	brickRuntime = runtime
 
 	runtime.OnCommand("search", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {

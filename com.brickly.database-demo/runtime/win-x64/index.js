@@ -17,7 +17,7 @@ const nanoid = (size = 21) => {
 }
 
 const BRICK_ID = 'com.brickly.database-demo'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 const connections = new Map()
 
 function log(message, details) {

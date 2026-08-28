@@ -8,7 +8,7 @@ const HISTORY_EVENT = 'clipboard-history:changed'
 const SOURCE_EVENT = 'clipboard:new-content'
 const LOG_PREFIX = '[clipboard-history/runtime]'
 
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 const startedAt = Date.now()
 let revision = 0
 let processedEvents = 0

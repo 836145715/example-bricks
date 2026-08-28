@@ -14,7 +14,7 @@ const ENV_KEYS = [
   'ENV_TEST_PROFILE_SECRET'
 ]
 
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 function pickEnv() {
   const out = {}

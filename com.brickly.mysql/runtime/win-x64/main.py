@@ -478,7 +478,7 @@ def _close_connections() -> None:
         _connections.clear()
 
 
-plugin = BricklyRuntime(BRICK_ID)
+plugin = BricklyRuntime()
 _plugin = plugin
 
 

@@ -9,7 +9,6 @@ import (
 	brickly "github.com/836145715/brickly-sdk-go"
 )
 
-const brickID = "com.brickly.ssh-manager"
 
 var (
 	plugin   *brickly.Runtime
@@ -19,9 +18,7 @@ var (
 )
 
 func main() {
-	plugin = brickly.New(brickly.Options{
-		BrickID: brickID,
-	})
+	plugin = brickly.New()
 	plugin.OnShutdown(func() error {
 		sessions.closeAll()
 		conns.closeAll()

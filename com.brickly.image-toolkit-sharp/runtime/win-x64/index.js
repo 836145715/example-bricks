@@ -12,7 +12,7 @@ const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 const { runProcessImage } = require('./lib/batch')
 
 const BRICK_ID = 'com.brickly.image-toolkit-sharp'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 /** @type {Set<string>} */
 const cancelled = new Set()

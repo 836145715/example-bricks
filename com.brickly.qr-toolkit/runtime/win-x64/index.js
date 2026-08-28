@@ -10,7 +10,7 @@ const { decodeQr } = require('./lib/decode')
 const { generateQr } = require('./lib/generate')
 
 const BRICK_ID = 'com.brickly.qr-toolkit'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 function log(message, details) {
   try {

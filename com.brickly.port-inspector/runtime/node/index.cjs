@@ -6,7 +6,7 @@ const { inspectPorts, inspectProcessDetails, killProcess, lookupPort, runtimeInf
 
 const BRICK_ID = 'com.brickly.port-inspector'
 
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 function normalizeError(error) {
   if (error instanceof BppError) return error

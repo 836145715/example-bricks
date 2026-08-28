@@ -7,7 +7,7 @@ const path = require('path')
 const { BricklyRuntime } = require('@syllm/brickly-sdk')
 
 const BRICK_ID = 'com.example.render-gallery'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 function ensureDir() {
   const dir = path.join(os.tmpdir(), 'brickly-render-gallery')

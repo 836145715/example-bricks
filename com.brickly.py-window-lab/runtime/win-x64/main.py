@@ -14,7 +14,7 @@ if sys.platform == "win32":
 
 
 LAB_HTML = "ui/lab.html"
-plugin = BricklyRuntime("com.brickly.py-window-lab")
+plugin = BricklyRuntime()
 lab: Optional[WindowHandle] = None
 
 QUERY_METHODS = [

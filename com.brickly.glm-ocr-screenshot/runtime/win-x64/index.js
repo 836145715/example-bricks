@@ -8,7 +8,7 @@ const { withHotkeyDefaults } = require('./src/hotkey')
 
 const BRICK_ID = 'com.brickly.glm-ocr-screenshot'
 
-const plugin = new BricklyRuntime({ brickId: BRICK_ID })
+const plugin = new BricklyRuntime()
 
 plugin.onCommand('capture-annotate', async (ctx, input) => {
   try {

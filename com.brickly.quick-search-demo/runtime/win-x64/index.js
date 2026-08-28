@@ -4,7 +4,7 @@
 const { BricklyRuntime } = require('@syllm/brickly-sdk')
 
 const BRICK_ID = 'com.brickly.quick-search-demo'
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 const DEMO_ITEMS = [
   {

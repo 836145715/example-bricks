@@ -3,7 +3,7 @@
 
 const { BricklyRuntime, BppError } = require('@syllm/brickly-sdk')
 
-const brick = new BricklyRuntime({ brickId: 'com.brickly.input-demo' })
+const brick = new BricklyRuntime()
 
 function log(message, details) {
   brick.log.info(message, details)

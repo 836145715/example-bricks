@@ -7,7 +7,7 @@ from resource_input import open_input_resource
 
 
 BRICK_ID = "com.brickly.resource-echo-python"
-brick = BricklyRuntime(BRICK_ID)
+brick = BricklyRuntime()
 last_event = None
 
 

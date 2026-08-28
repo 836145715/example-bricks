@@ -7,7 +7,7 @@ const { normalizeError } = require('./src/errors')
 
 const BRICK_ID = 'com.brickly.glm-tools'
 
-const plugin = new BricklyRuntime({ brickId: BRICK_ID })
+const plugin = new BricklyRuntime()
 
 function register(commandId, handler) {
   plugin.onCommand(commandId, async (ctx, input) => {

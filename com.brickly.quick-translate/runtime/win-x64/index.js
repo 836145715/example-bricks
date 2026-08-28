@@ -29,7 +29,7 @@ const FADE_STEPS = [0.12, 0.32, 0.58, 0.82, 1]
 const SCREENSHOT_LANGUAGE = 'AUTO'
 const DEBUG_LOG_FILE = path.join(os.tmpdir(), 'brickly-quick-translate', 'debug.log')
 
-const plugin = new BricklyRuntime({ brickId: BRICK_ID })
+const plugin = new BricklyRuntime()
 
 let translateWindow = null
 let translateWindowBounds = null

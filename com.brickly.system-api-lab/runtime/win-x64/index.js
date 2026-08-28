@@ -29,7 +29,7 @@ const PATH_NAMES = [
   'crashDumps'
 ]
 
-const brick = new BricklyRuntime({ brickId: BRICK_ID })
+const brick = new BricklyRuntime()
 
 function bool(input, key, fallback) {
   if (!input || typeof input !== 'object') return fallback
