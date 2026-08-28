@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>子窗 RPC 实验室</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>子窗 RPC 实验室</h1>
+        <p class="lede">
+          体验窗只负责 <code>start</code> 和开窗。真正的 <code>notify</code> /
+          <code>parent.xxx</code> 在弹出的子窗里测。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>开窗</h2>
+        <div class="row">
+          <button id="attached" type="button">打开 attached</button>
+          <button id="standalone" type="button">打开 standalone</button>
+        </div>
+        <p id="status" class="status">启动 runtime…</p>
+        <p class="lede">
+          attached：这次 invoke 会等到你关掉子窗才返回。<br />
+          standalone：invoke 立刻返回，子窗还在，expose 继续有效。
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>体验窗日志</h2>
+        <pre id="log" class="log"></pre>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

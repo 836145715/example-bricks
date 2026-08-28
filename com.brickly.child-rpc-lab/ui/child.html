@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>子窗 RPC</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>子窗侧</h1>
+        <p class="lede">这里没有 invoke / start。只跟创建它的 runtime 说话。</p>
+        <div class="meta">
+          <span id="kind" class="chip">kind ?</span>
+          <span id="identity" class="chip">window ?</span>
+          <span id="surface" class="chip">api ?</span>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>1. parent.echo 拿返回值</h2>
+        <input id="echoText" type="text" value="hello from child" />
+        <div class="row">
+          <button id="echo" type="button">parent.echo</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2. notify 没有返回值</h2>
+        <div class="row">
+          <button id="ping" class="ghost" type="button">notify('ping')</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3. request + onEvent 进度</h2>
+        <div class="row">
+          <button id="importBtn" type="button">request('import')</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>4. 不填 timeout，只能取消</h2>
+        <div class="row">
+          <button id="hang" type="button">request('hang')</button>
+          <button id="cancelHang" class="danger" type="button" disabled>取消</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>5. 显式 timeoutMs = 2000</h2>
+        <div class="row">
+          <button id="timeout" class="ghost" type="button">2 秒超时的 hang</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>6. 未 expose 的名字</h2>
+        <div class="row">
+          <button id="missing" class="ghost" type="button">parent.noSuch()</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>runtime.send('tick')</h2>
+        <p id="tick" class="status">还没收到 tick</p>
+        <div class="row">
+          <button id="close" class="ghost" type="button">window.close()</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>子窗日志</h2>
+        <pre id="log" class="log"></pre>
+      </section>
+    </main>
+    <script src="./child.js"></script>
+  </body>
+</html>

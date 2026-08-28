@@ -1,0 +1,82 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.child-rpc-lab",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "子窗 RPC 实验室",
+    "en": "Child RPC Lab"
+  },
+  "description": {
+    "zh-CN": "用手点一遍 runtime 子窗：parent.xxx 拿返回值、notify、进度、取消、不填 timeout、attached / standalone。",
+    "en": "Click-through lab for child-window RPC: parent.xxx returns, notify, progress, cancel, no default timeout, attached vs standalone."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": ["window", "rpc", "child", "lab", "demo"],
+  "categories": ["developer-tools"],
+  "author": {
+    "name": "Brickly Demo",
+    "publicKey": "ed25519:QUJDRA=="
+  },
+  "license": "MIT",
+  "runtime": {
+    "type": "node",
+    "instance": "owned",
+    "platforms": ["win-x64", "win-arm64", "mac-x64", "mac-arm64", "linux-x64", "linux-arm64"],
+    "entry": {
+      "win-x64": "runtime/win-x64/index.cjs",
+      "win-arm64": "runtime/win-arm64/index.cjs",
+      "mac-x64": "runtime/mac-x64/index.cjs",
+      "mac-arm64": "runtime/mac-arm64/index.cjs",
+      "linux-x64": "runtime/linux-x64/index.cjs",
+      "linux-arm64": "runtime/linux-arm64/index.cjs"
+    }
+  },
+  "lifecycle": {
+    "state": "stateful"
+  },
+  "trustLevel": "community",
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "titleBar": "system",
+    "size": {
+      "width": 560,
+      "height": 640,
+      "minWidth": 440,
+      "minHeight": 480,
+      "resizable": true
+    },
+    "devTools": "debug-only"
+  },
+  "commands": [
+    {
+      "id": "open-attached",
+      "name": { "zh-CN": "打开 attached 窗", "en": "Open attached window" },
+      "description": {
+        "zh-CN": "开一扇随这次 command 走的子窗。关窗后 command 才 return。",
+        "en": "Open a child window attached to this command. The command returns only after the window closes."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "open-standalone",
+      "name": { "zh-CN": "打开 standalone 窗", "en": "Open standalone window" },
+      "description": {
+        "zh-CN": "开一扇常驻子窗。command 立刻 return，expose 仍有效。",
+        "en": "Open a standalone child window. The command returns immediately; expose stays live."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "parallel"
+    }
+  ]
+}
