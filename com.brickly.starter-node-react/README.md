@@ -5,7 +5,7 @@
 在 `ai-bricks/Brickly/` 下重生（先删本目录）：
 
 ```bash
-npx create-brickly ../../example-bricks/com.brickly.starter-node-react \
+npm run create-brickly -- ../../example-bricks/com.brickly.starter-node-react \
   --id com.brickly.starter-node-react \
   --name "Starter Node React" \
   --author Brickly \
