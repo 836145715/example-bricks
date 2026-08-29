@@ -6,7 +6,7 @@ const assert = require('assert')
 
 const root = __dirname
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))
-assert.equal(manifest.kind, 'brick')
+assert.equal(manifest.manifestVersion, 1)
 assert.equal(manifest.id, 'com.brickly.window-scenario-lab')
 assert.ok(manifest.commands.some((c) => c.id === 'open-control'))
 assert.ok(manifest.commands.some((c) => c.id === 'list-win-sessions'))
@@ -38,19 +38,19 @@ assert.ok(!index.includes('0.4.0'))
 assert.ok(!index.includes('AIBricks'))
 
 const controlJs = fs.readFileSync(path.join(root, 'ui/control.js'), 'utf8')
-assert.ok(controlJs.includes('sendToParent'))
+assert.ok(controlJs.includes('window.brickly.notify'))
 assert.ok(controlJs.includes('window.brickly.ref'))
 assert.ok(!controlJs.includes('window.brickly.brickId'))
 assert.ok(!controlJs.includes('AIBricks'))
 
 const childJs = fs.readFileSync(path.join(root, 'ui/child.js'), 'utf8')
-assert.ok(childJs.includes('sendToParent'))
+assert.ok(childJs.includes('window.brickly.notify'))
 assert.ok(childJs.includes('window.brickly.ref'))
 assert.ok(!childJs.includes('window.brickly.brickId'))
 assert.ok(!childJs.includes('AIBricks'))
 
 const bind = fs.readFileSync(path.join(runtimeDir, 'bind-win-session.js'), 'utf8')
-assert.ok(bind.includes("handle.on('message'"))
+assert.ok(bind.includes('handle.expose'))
 
 for (const rel of [
   'ui/control.html',

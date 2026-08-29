@@ -34,21 +34,16 @@ async function openScreenshotOverlayWindow(ctx, payload) {
   overlayWindow = win
   const timers = []
   const send = () => sendScreenshotOverlay(win, payload)
-  const onMessage = (message) => {
-    if (!message) return
-    if (message.channel === READY_CHANNEL) {
+  win.expose({
+    [READY_CHANNEL]() {
       void send()
-      return
-    }
-    if (message.channel === CLOSE_CHANNEL) {
+    },
+    [CLOSE_CHANNEL]() {
       void closeScreenshotOverlayWindow()
     }
-  }
-
-  win.on('message', onMessage)
+  })
   win.once('closed', () => {
     if (overlayWindow === win) overlayWindow = null
-    win.off('message', onMessage)
     for (const timer of timers) clearTimeout(timer)
   })
 
@@ -74,7 +69,7 @@ async function closeScreenshotOverlayWindow() {
 
 async function sendScreenshotOverlay(win, payload) {
   try {
-    await win.call('webContents.send', [RENDER_CHANNEL, payload])
+    await win.send(RENDER_CHANNEL, payload)
     return true
   } catch {
     return false

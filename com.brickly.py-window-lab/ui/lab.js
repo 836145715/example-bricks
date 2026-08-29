@@ -3,12 +3,11 @@
  * Lab 控制面板前端。
  *
  * 与 runtime 的通信：
- *  - 点按钮 → brickly.sendToParent('lab:op', { reqId, name, args })
- *  - brickly.on('lab:result', { reqId, name, ok, result, error }) 接收回包并打日志
- *  - 点 ⟳ 刷新 → brickly.sendToParent('lab:query', { reqId })
- *  - brickly.on('lab:state', { state }) 接收 30+ 个 is* / get* 调用的结果字典并铺到状态表
+ *  - 点按钮 → brickly.parent.op({ name, args })
+ *  - 点 ⟳ 刷新 → brickly.parent.query()
+ *  - 返回值直接打日志 / 铺状态表
  *
- * preload 提供的 API：window.brickly.sendToParent / on / brickId / windowId
+ * preload 提供的 API：window.brickly.parent / on / ref / windowId
  */
 ;(function () {
   const $ = (sel) => document.querySelector(sel)
@@ -17,18 +16,13 @@
   const stateAt = $('#stateAt')
   const winInfo = $('#winInfo')
 
-  if (!window.brickly || typeof window.brickly.sendToParent !== 'function') {
+  if (!window.brickly || typeof window.brickly.parent?.op !== 'function') {
     logEl.innerHTML =
-      '<li class="err">window.brickly preload 不可用，无法与 runtime 通信</li>'
+      '<li class="err">window.brickly.parent 不可用，无法与 runtime 通信</li>'
     return
   }
-  winInfo.textContent = `window#${window.brickly.windowId} · ${window.brickly.brickId}`
-
-  let seq = 0
-  function nextId(prefix) {
-    seq += 1
-    return `${prefix}-${seq}-${Date.now().toString(36)}`
-  }
+  const brickId = window.brickly.ref?.brickId || '?'
+  winInfo.textContent = `window#${window.brickly.windowId} · ${brickId}`
 
   function fmtTime() {
     const d = new Date()
@@ -50,40 +44,7 @@
     while (logEl.children.length > 200) logEl.removeChild(logEl.lastChild)
   }
 
-  function sendOp(name, args) {
-    const reqId = nextId('op')
-    window.brickly.sendToParent('lab:op', { reqId, name, args: args || [] })
-    appendLog(
-      `→ <span class="name">${name}</span>(${JSON.stringify(args || [])})`
-    )
-    return reqId
-  }
-
-  function sendQuery() {
-    const reqId = nextId('q')
-    window.brickly.sendToParent('lab:query', { reqId })
-    appendLog('→ <span class="name">query state</span>')
-  }
-
-  // —— 接收 runtime 回包 ——
-  window.brickly.on('lab:result', (payload) => {
-    if (!payload) return
-    const { name, ok, result, error } = payload
-    if (ok) {
-      const r = result === null || result === undefined ? 'ok' : JSON.stringify(result)
-      appendLog(`← <span class="ok">✓</span> <span class="name">${name}</span> · ${r}`)
-    } else {
-      appendLog(`← <span class="err">✗</span> <span class="name">${name}</span> · ${error}`)
-    }
-    // 大多数操作后自动刷一次状态
-    if (/^(set|min|max|unmax|restore|hide|show|focus|blur|center|moveTop|moveAbove|remove|flash|invalidate|destroy|webContents\.set|webContents\.toggleDevTools|webContents\.close|webContents\.open)/.test(
-      name
-    )) {
-      setTimeout(sendQuery, 80)
-    }
-  })
-
-  window.brickly.on('lab:state', (payload) => {
+  function renderState(payload) {
     if (!payload || !payload.state) return
     const { state, at } = payload
     stateAt.textContent = '@ ' + new Date(at).toLocaleTimeString()
@@ -99,15 +60,52 @@
       return `<tr><td>${k}</td><td class="val${isErr ? ' err' : ''}">${display}</td></tr>`
     })
     stateTable.innerHTML = rows.join('') || '<tr><td colspan="2" class="hint">(empty)</td></tr>'
-  })
+  }
 
-  // —— 点击事件绑定 ——
+  async function sendOp(name, args) {
+    appendLog(`→ <span class="name">${name}</span>(${JSON.stringify(args || [])})`)
+    try {
+      const payload = await window.brickly.parent.op({ name, args: args || [] })
+      if (payload?.ok) {
+        const r =
+          payload.result === null || payload.result === undefined
+            ? 'ok'
+            : JSON.stringify(payload.result)
+        appendLog(`← <span class="ok">✓</span> <span class="name">${name}</span> · ${r}`)
+      } else {
+        appendLog(
+          `← <span class="err">✗</span> <span class="name">${name}</span> · ${payload?.error || 'failed'}`
+        )
+      }
+      if (
+        /^(set|min|max|unmax|restore|hide|show|focus|blur|center|moveTop|moveAbove|remove|flash|invalidate|destroy|webContents\.set|webContents\.toggleDevTools|webContents\.close|webContents\.open)/.test(
+          name
+        )
+      ) {
+        setTimeout(sendQuery, 80)
+      }
+    } catch (error) {
+      appendLog(
+        `← <span class="err">✗</span> <span class="name">${name}</span> · ${error.message || error}`
+      )
+    }
+  }
+
+  async function sendQuery() {
+    appendLog('→ <span class="name">query state</span>')
+    try {
+      renderState(await window.brickly.parent.query())
+    } catch (error) {
+      appendLog(`← <span class="err">query failed</span> · ${error.message || error}`)
+    }
+  }
+
   document.body.addEventListener('click', (ev) => {
     const btn = ev.target.closest('button')
     if (!btn) return
 
     if (btn.dataset.action === 'query') {
-      sendQuery()
+      void sendQuery()
       return
     }
 
@@ -127,16 +125,14 @@
         return
       }
     }
-    sendOp(op, args)
+    void sendOp(op, args)
 
-    // 几个"破坏性"操作做自动恢复，避免被锁死
-    if (op === 'hide') setTimeout(() => sendOp('show', []), 3000)
+    if (op === 'hide') setTimeout(() => void sendOp('show', []), 3000)
     if (op === 'setEnabled' && Array.isArray(args) && args[0] === false) {
-      setTimeout(() => sendOp('setEnabled', [true]), 3000)
+      setTimeout(() => void sendOp('setEnabled', [true]), 3000)
     }
   })
 
-  // 启动时先拉一次状态
-  setTimeout(sendQuery, 200)
+  setTimeout(() => void sendQuery(), 200)
   appendLog(`<span class="ok">lab ready</span> · windowId=${window.brickly.windowId}`)
 })()

@@ -13,12 +13,12 @@ if (window.brickly?.on) {
 window.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return
   event.preventDefault()
-  window.brickly?.sendToParent?.('quick-translate-overlay:close')
+  window.brickly?.notify?.('quick-translate-overlay:close')
 })
 
 window.addEventListener('contextmenu', (event) => {
   event.preventDefault()
-  window.brickly?.sendToParent?.('quick-translate-overlay:close')
+  window.brickly?.notify?.('quick-translate-overlay:close')
 })
 
-window.brickly?.sendToParent?.('quick-translate-overlay:ready')
+window.brickly?.notify?.('quick-translate-overlay:ready')

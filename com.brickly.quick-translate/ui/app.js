@@ -23,7 +23,7 @@ copyButton.addEventListener('click', async () => {
 })
 
 closeButton.addEventListener('click', () => {
-  window.brickly?.sendToParent?.('quick-translate:close')
+  window.brickly?.notify?.('quick-translate:close')
 })
 
 if (window.brickly?.on) {
@@ -97,13 +97,13 @@ function appendStreamingText(text) {
 }
 
 function requestPanelResize() {
-  if (!window.brickly?.sendToParent) return
+  if (!window.brickly?.notify) return
   cancelAnimationFrame(resizeFrame)
   resizeFrame = requestAnimationFrame(() => {
     const height = Math.ceil(document.querySelector('.shell').scrollHeight + 18)
     if (Math.abs(height - lastRequestedHeight) < 4) return
     lastRequestedHeight = height
-    window.brickly.sendToParent('quick-translate:resize', { height })
+    window.brickly.notify('quick-translate:resize', { height })
   })
 }
 

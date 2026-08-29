@@ -30,7 +30,7 @@ Manifest 声明 `dependencies.glm` → `com.brickly.glm-tools` 的 `ocr`。`capt
 
 ## 渲染方式
 
-runtime 只负责框选截图、上传 OCR、组装渲染数据和开窗；截图标注由 `ui/result.html`、`ui/result.css`、`ui/result.js` 在子窗口中完成。子窗口通过 `window.brickly.on('ocr:render')` 接收 runtime 用 `win.webContents.send` 推送的截图 dataURL 和 OCR 明细。
+runtime 只负责框选截图、上传 OCR、组装渲染数据和开窗；截图标注由 `ui/result.html`、`ui/result.css`、`ui/result.js` 在子窗口中完成。子窗口通过 `window.brickly.on('ocr:render')` 接收 runtime 用 `win.send` 推送的截图 dataURL 和 OCR 明细。
 
 为避免命令返回后窗口被宿主立即回收，本 Brick 使用 `runtime.instance: "owned"`。体验窗先 `start()` 钉住进程，窗口持有期间保活。
 

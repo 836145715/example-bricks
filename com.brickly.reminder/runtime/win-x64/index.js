@@ -109,6 +109,12 @@ async function showPopup(config, source) {
     focusable: true
   })
   popup = handle
+  handle.expose({
+    'reminder:close'() {
+      void handle.close().catch(() => {})
+      if (popup && popup.id === handle.id) popup = null
+    }
+  })
 
   handle.on('closed', () => {
     if (popup && popup.id === handle.id) popup = null
@@ -116,7 +122,7 @@ async function showPopup(config, source) {
 
   await placeTopRight(handle, width, height)
   await handle.showInactive().catch(() => handle.show())
-  await handle.webContents.send('reminder:show', {
+  await handle.send('reminder:show', {
     title: config.title,
     message: config.message,
     source,
@@ -169,14 +175,6 @@ function statusPayload() {
 function applyConfig(config) {
   if (config && typeof config === 'object') profileConfig = config
 }
-
-plugin.events.on('window.message', async (payload) => {
-  if (!payload || !popup || payload.windowId !== popup.id) return
-  if (payload.channel === 'reminder:close') {
-    await popup.close().catch(() => {})
-    popup = null
-  }
-})
 
 plugin.onReady(() => {
   scheduleNext()

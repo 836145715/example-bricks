@@ -21,14 +21,12 @@ async function openResultWindow(ctx, payload) {
 
   const timers = []
   const send = () => sendRenderPayload(win, payload)
-  const onMessage = (message) => {
-    if (!message || message.channel !== READY_CHANNEL) return
-    void send()
-  }
-
-  win.on('message', onMessage)
+  win.expose({
+    [READY_CHANNEL]() {
+      void send()
+    }
+  })
   win.once('closed', () => {
-    win.off('message', onMessage)
     for (const timer of timers) clearTimeout(timer)
   })
 
@@ -42,7 +40,7 @@ async function openResultWindow(ctx, payload) {
 
 async function sendRenderPayload(win, payload) {
   try {
-    await win.webContents.send(RENDER_CHANNEL, payload)
+    await win.send(RENDER_CHANNEL, payload)
     return true
   } catch {
     return false

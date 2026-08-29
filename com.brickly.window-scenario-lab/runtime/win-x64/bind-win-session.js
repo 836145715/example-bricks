@@ -23,7 +23,7 @@ const eventNotifyAt = new Map()
 /** @type {Map<string, { resolve: Function, reject: Function, timer: NodeJS.Timeout }>} */
 const pendingPings = new Map()
 
-/** @type {{ log: { info: Function, warn: Function }, onWindowMessage: Function } | null} */
+/** @type {{ log: { info: Function, warn: Function }, onWindowNotify: Function } | null} */
 let deps = null
 
 function setBindDeps(next) {
@@ -74,9 +74,52 @@ function bindWinSession(handle, meta) {
   }
   setWinSession(handle.id, winSession)
 
-  handle.on('message', (payload) => {
-    void deps?.onWindowMessage(winSession, payload)
-  })
+  const notify = (channel, body) => {
+    void deps?.onWindowNotify(winSession, channel, body && typeof body === 'object' ? body : {})
+  }
+  if (meta.role === 'control') {
+    handle.expose({
+      'control:refresh'(body) {
+        notify('control:refresh', body)
+      },
+      'control:open-scenario'(body) {
+        notify('control:open-scenario', body)
+      },
+      'control:open-suite'(body) {
+        notify('control:open-suite', body)
+      },
+      'control:focus'(body) {
+        notify('control:focus', body)
+      },
+      'control:close'(body) {
+        notify('control:close', body)
+      },
+      'control:close-all'(body) {
+        notify('control:close-all', body)
+      },
+      'control:ping'(body) {
+        notify('control:ping', body)
+      },
+      'control:call'(body) {
+        notify('control:call', body)
+      }
+    })
+  } else {
+    handle.expose({
+      'child:ready'(body) {
+        notify('child:ready', body)
+      },
+      'child:pong'(body) {
+        notify('child:pong', body)
+      },
+      'child:log'(body) {
+        notify('child:log', body)
+      },
+      'child:close-self'(body) {
+        notify('child:close-self', body)
+      }
+    })
+  }
 
   handle.on('closed', () => {
     deps?.log.info(

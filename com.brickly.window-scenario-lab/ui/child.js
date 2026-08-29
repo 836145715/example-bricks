@@ -4,7 +4,7 @@
   const title = document.getElementById('title')
   const logEl = document.getElementById('log')
 
-  if (!window.brickly || typeof window.brickly.sendToParent !== 'function') {
+  if (!window.brickly || typeof window.brickly.notify !== 'function') {
     meta.textContent = 'preload 不可用'
     return
   }
@@ -41,27 +41,27 @@
 
   window.brickly.on('child:ping', (payload) => {
     line(`ping ← ${JSON.stringify(payload || {})}`)
-    window.brickly.sendToParent('child:pong', {
+    window.brickly.notify('child:pong', {
       reqId: payload && payload.reqId,
       text: `pong:${(payload && payload.text) || ''}`
     })
   })
 
   document.getElementById('btnPingParent').onclick = () => {
-    window.brickly.sendToParent('child:log', {
+    window.brickly.notify('child:log', {
       message: `hi from #${window.brickly.windowId} at ${new Date().toLocaleTimeString()}`
     })
     line('sent child:log to parent')
   }
   document.getElementById('btnHello').onclick = () => {
-    window.brickly.sendToParent('child:ready', {})
+    window.brickly.notify('child:ready', {})
     line('sent child:ready')
   }
   document.getElementById('btnClose').onclick = () => {
-    window.brickly.sendToParent('child:close-self', {})
+    window.brickly.notify('child:close-self', {})
   }
 
   render()
-  window.brickly.sendToParent('child:ready', {})
+  window.brickly.notify('child:ready', {})
   line('child ready · events bound on WindowHandle in runtime')
 })()

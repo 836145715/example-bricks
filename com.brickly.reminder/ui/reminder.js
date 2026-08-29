@@ -13,9 +13,7 @@ let closeAt = 0
 let totalMs = 0
 
 function closeWindow() {
-  if (window.brickly && typeof window.brickly.sendToParent === 'function') {
-    window.brickly.sendToParent('reminder:close')
-  }
+  window.brickly?.notify?.('reminder:close')
 }
 
 function startCountdown(seconds) {

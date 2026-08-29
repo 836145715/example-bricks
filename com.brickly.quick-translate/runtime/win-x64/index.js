@@ -228,12 +228,12 @@ async function ensureTranslateWindow(ctx) {
     translateWindow = null
     translateWindowBounds = null
   })
-  translateWindow.on('message', (payload) => {
-    if (!payload) return
-    if (payload.channel === 'quick-translate:close') {
+  translateWindow.expose({
+    'quick-translate:close'() {
       void closeTranslateWindow()
-    } else if (payload.channel === 'quick-translate:resize') {
-      void resizeTranslateWindow(ctx, payload.args?.[0])
+    },
+    'quick-translate:resize'(payload) {
+      void resizeTranslateWindow(ctx, payload)
     }
   })
   await translateWindow.showInactive().catch(() => translateWindow.show())
@@ -319,7 +319,7 @@ function clamp(value, min, max) {
 }
 
 async function sendToWindow(win, channel, payload) {
-  await win.call('webContents.send', [channel, payload])
+  await win.send(channel, payload)
 }
 
 async function translateWithOpenAI(ctx, sourceText, win) {

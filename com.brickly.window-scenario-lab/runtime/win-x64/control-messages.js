@@ -1,12 +1,12 @@
 'use strict'
 
 /**
- * 处理各窗 sendToParent 上来的 channel（创建时已 bind 到对应 WinSession）。
+ * 处理各窗 notify 上来的 channel（创建时已 expose 到对应 WinSession）。
  */
 
 const { listScenarioMeta } = require('./scenarios')
 const { isAlive, getWinSession, listWinSessions } = require('./win-session-store')
-const { notifyControl, notifyWinSession, flushPendingSends } = require('./notify')
+const { notifyControl, notifyWinSession } = require('./notify')
 const { pushEvent, getPendingPings } = require('./bind-win-session')
 const {
   openScenario,
@@ -24,21 +24,17 @@ function setControlMessagesPlugin(plugin) {
   pluginRef = plugin
 }
 
-async function onWindowMessage(winSession, payload) {
-  if (!payload || typeof payload !== 'object') return
-  await flushPendingSends()
+async function onWindowNotify(winSession, channel, body) {
+  if (!channel || typeof channel !== 'string') return
+  const payload = body && typeof body === 'object' ? body : {}
 
-  const channel = payload.channel
-  const args = Array.isArray(payload.args) ? payload.args : []
-  const body = args[0] && typeof args[0] === 'object' ? args[0] : {}
-
-  pushEvent(winSession, 'message', { channel, body })
+  pushEvent(winSession, 'notify', { channel, body: payload })
 
   if (winSession.role === 'control') {
-    await handleControlChannel(channel, body)
+    await handleControlChannel(channel, payload)
     return
   }
-  await handleChildChannel(winSession, channel, body)
+  await handleChildChannel(winSession, channel, payload)
 }
 
 async function handleControlChannel(channel, body) {
@@ -180,5 +176,5 @@ async function handleChildChannel(winSession, channel, body) {
 
 module.exports = {
   setControlMessagesPlugin,
-  onWindowMessage
+  onWindowNotify
 }

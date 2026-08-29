@@ -199,12 +199,12 @@ async function ensurePanelWindow(ctx) {
     panelWindow = null
     panelWindowBounds = null
   })
-  panelWindow.on('message', (payload) => {
-    if (!payload) return
-    if (payload.channel === 'context-pilot:close') {
+  panelWindow.expose({
+    'context-pilot:close'() {
       void closePanelWindow()
-    } else if (payload.channel === 'context-pilot:resize') {
-      void resizePanelWindow(ctx, payload.args?.[0])
+    },
+    'context-pilot:resize'(payload) {
+      void resizePanelWindow(ctx, payload)
     }
   })
   await panelWindow.showInactive().catch(() => panelWindow.show())
@@ -295,7 +295,7 @@ function clamp(value, min, max) {
 }
 
 async function sendToWindow(win, channel, payload) {
-  await win.call('webContents.send', [channel, payload])
+  await win.send(channel, payload)
 }
 
 async function analyzeWithOpenAI(ctx, sourceText, win, ensureActive) {

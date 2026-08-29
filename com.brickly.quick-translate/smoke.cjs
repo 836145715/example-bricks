@@ -75,7 +75,7 @@ function testUiUsesBrickly() {
     window: {
       brickly: {
         on: (channel, handler) => listeners.set(channel, handler),
-        sendToParent: () => {}
+        notify: () => {}
       },
       requestAnimationFrame: (handler) => {
         handler()

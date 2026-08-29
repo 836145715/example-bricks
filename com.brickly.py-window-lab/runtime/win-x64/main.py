@@ -134,6 +134,7 @@ def _open_lab_once() -> dict[str, Any]:
             lab = None
 
     handle.on("closed", on_closed)
+    bind_lab_rpc(handle)
     return {"windowId": handle.id, "reused": False}
 
 
@@ -169,48 +170,20 @@ def query_all_state() -> dict[str, Any]:
     return state
 
 
-def handle_window_message(payload: Any, _envelope: dict[str, Any]) -> None:
-    if not isinstance(payload, dict) or not lab or payload.get("windowId") != lab.id:
-        return
-    channel = payload.get("channel")
-    args = payload.get("args") if isinstance(payload.get("args"), list) else []
-
-    if channel == "lab:op":
-        op = args[0] if args and isinstance(args[0], dict) else {}
-        name = str(op.get("name") or "")
-        req_id = op.get("reqId")
-        op_args = op.get("args") if isinstance(op.get("args"), list) else []
-        result = None
-        error = None
+def bind_lab_rpc(handle: WindowHandle) -> None:
+    def op(payload: Any, _session: Any = None) -> dict[str, Any]:
+        name = str((payload or {}).get("name") or "")
+        op_args = payload.get("args") if isinstance(payload, dict) and isinstance(payload.get("args"), list) else []
         try:
             result = safe_json(call_on_lab(name, op_args))
+            return {"name": name, "ok": True, "result": result, "error": None}
         except Exception as exc:
-            error = str(exc)
-        try:
-            lab.web_contents.send(
-                "lab:result",
-                {
-                    "reqId": req_id,
-                    "name": name,
-                    "ok": error is None,
-                    "result": result,
-                    "error": error,
-                },
-            )
-        except Exception as exc:
-            plugin.log("reply lab:result failed:", repr(exc))
-        return
+            return {"name": name, "ok": False, "result": None, "error": str(exc)}
 
-    if channel == "lab:query":
-        req_id = args[0].get("reqId") if args and isinstance(args[0], dict) else None
-        state = query_all_state()
-        try:
-            lab.web_contents.send("lab:state", {"reqId": req_id, "state": state, "at": int(time.time() * 1000)})
-        except Exception as exc:
-            plugin.log("reply lab:state failed:", repr(exc))
+    def query(_payload: Any = None, _session: Any = None) -> dict[str, Any]:
+        return {"state": query_all_state(), "at": int(time.time() * 1000)}
 
-
-plugin.events.on("window.message", handle_window_message)
+    handle.expose({"op": op, "query": query})
 
 
 @plugin.on_command("open-lab")

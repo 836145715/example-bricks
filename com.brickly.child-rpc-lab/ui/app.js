@@ -4,6 +4,7 @@ const attachedBtn = document.getElementById('attached')
 const standaloneBtn = document.getElementById('standalone')
 
 let handle = null
+let starting = null
 
 function stamp() {
   return new Date().toLocaleTimeString('zh-CN', { hour12: false })
@@ -31,11 +32,21 @@ function formatError(error) {
 }
 
 async function ensureHandle() {
-  if (!handle) {
-    handle = await window.brickly.start({ allowStandaloneWindows: true })
-    log('runtime started（allowStandaloneWindows: true）', 'ok')
+  if (handle) return handle
+  if (!starting) {
+    starting = window.brickly
+      .start({ allowStandaloneWindows: true })
+      .then((started) => {
+        handle = started
+        log('runtime started（allowStandaloneWindows: true）', 'ok')
+        return started
+      })
+      .catch((error) => {
+        starting = null
+        throw error
+      })
   }
-  return handle
+  return starting
 }
 
 async function openWindow(commandId) {

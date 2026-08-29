@@ -7,10 +7,10 @@
  * 模块拆分：
  *   scenarios.js        场景预设
  *   win-session-store.js  WinSession Map / 索引
- *   notify.js           控制台/子窗推送 + ALS 排队
- *   bind-win-session.js 创建时绑定 handle 事件
+ *   notify.js           控制台/子窗推送（win.send）
+ *   bind-win-session.js 创建时 expose / 绑定寿命事件
  *   open-windows.js     开/关/focus/ping
- *   control-messages.js sendToParent 协议处理
+ *   control-messages.js notify 协议处理
  */
 
 const { BricklyRuntime } = require('@syllm/brickly-sdk')
@@ -27,7 +27,7 @@ const {
   pingWinSession,
   listWinSessions
 } = require('./open-windows')
-const { setControlMessagesPlugin, onWindowMessage } = require('./control-messages')
+const { setControlMessagesPlugin, onWindowNotify } = require('./control-messages')
 
 const plugin = new BricklyRuntime()
 
@@ -36,7 +36,7 @@ setOpenWindowsPlugin(plugin)
 setControlMessagesPlugin(plugin)
 setBindDeps({
   log: plugin.log,
-  onWindowMessage
+  onWindowNotify
 })
 
 plugin.onCommand('open-control', async () => openControl())

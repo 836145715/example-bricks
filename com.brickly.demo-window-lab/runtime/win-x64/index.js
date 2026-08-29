@@ -6,10 +6,8 @@
  *
  * 设计：
  *   - 创建一个普通带边框的窗口，UI 即是测试控制面板（lab.html）。
- *   - 子窗口通过 brickly.sendToParent('lab:op', { name, args }) 请求执行某个 API。
- *   - runtime 用 SDK 的 win.call(method, args) 把请求转发给 host，把结果序列化后
- *     通过 win.webContents.send('lab:result', payload) 推回前端展示。
- *   - 'lab:query' 一键拉取全部状态（is* / get* 系列），方便观察"操作前/后"的变化。
+ *   - 子窗口通过 brickly.parent.op / query 请求执行某个 API。
+ *   - runtime 用 win.expose 登记 op / query，把结果作为 request 返回值交回页面。
  *
  *   注意：lab 操作的"目标窗口"就是 lab 自己。这样测试的方法和效果都在同一处可见。
  *
@@ -111,6 +109,7 @@ async function openLabOnce() {
     maximizable: true
   })
   lab = handle
+  bindLabRpc(handle)
 
   handle.on('closed', () => {
     plugin.log.info(`lab window closed id=${handle.id}`)
@@ -162,7 +161,7 @@ async function closeLab() {
 }
 
 /**
- * 调用 lab 窗口上的一个方法。method 可以是顶层 'maximize' 也可以是 'webContents.send'。
+ * 调用 lab 窗口上的一个方法。method 可以是顶层 'maximize' 也可以是白名单里的 'webContents.*'。
  * args 必须是数组。
  */
 async function callOnLab(method, args) {
@@ -198,47 +197,28 @@ async function queryAllState() {
   return out
 }
 
-/** 接收子窗口的请求。 */
-plugin.events.on('window.message', async (payload) => {
-  if (!payload || !lab || payload.windowId !== lab.id) return
-  const { channel, args } = payload
-  if (channel === 'lab:op') {
-    const [op] = args || []
-    if (!op || typeof op !== 'object') return
-    const { name, args: opArgs, reqId } = op
-    let result, error
-    try {
-      result = safeJson(await callOnLab(name, opArgs))
-    } catch (err) {
-      error = String(err && err.message ? err.message : err)
+function bindLabRpc(handle) {
+  handle.expose({
+    async op(payload) {
+      const name = payload?.name
+      const opArgs = payload?.args || []
+      try {
+        const result = safeJson(await callOnLab(name, opArgs))
+        return { name, ok: true, result: result === undefined ? null : result, error: null }
+      } catch (err) {
+        return {
+          name,
+          ok: false,
+          result: null,
+          error: String(err && err.message ? err.message : err)
+        }
+      }
+    },
+    async query() {
+      return { state: await queryAllState(), at: Date.now() }
     }
-    try {
-      if (!isLabAlive(lab)) return
-      // 用 webContents.send 把结果推回子窗口（子窗口通过 brickly.on 接收）
-      await lab.webContents.send('lab:result', {
-        reqId,
-        name,
-        ok: !error,
-        result: result === undefined ? null : result,
-        error: error || null
-      })
-    } catch (err) {
-      plugin.log.warn(`reply lab:result failed: ${err.message}`)
-    }
-    return
-  }
-  if (channel === 'lab:query') {
-    const [{ reqId } = {}] = args || []
-    const state = await queryAllState()
-    try {
-      if (!isLabAlive(lab)) return
-      await lab.webContents.send('lab:state', { reqId, state, at: Date.now() })
-    } catch (err) {
-      plugin.log.warn(`reply lab:state failed: ${err.message}`)
-    }
-    return
-  }
-})
+  })
+}
 
 plugin.onCommand('open-lab', async (ctx) => {
   // 取消时尽快失败；host.createBrowserWindow 仍可能在后台完成，由 closed/下一次 isLabAlive 清理

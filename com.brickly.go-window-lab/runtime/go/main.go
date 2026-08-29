@@ -5,7 +5,7 @@
 // 这样可以直观验证 brickly-sdk-go 与 brickly-sdk-node 行为一致。
 //
 //   - 创建一个带边框的窗口，UI 即测试控制面板（ui/lab.html）。
-//   - 子窗口通过 brickly.sendToParent('lab:op', { reqId, name, args }) 请求执行某个白名单方法。
+//   - 子窗口通过 brickly.parent.op / query 请求执行某个白名单方法。
 //   - runtime 用 win.Call(method, args, &raw) 转发给宿主，把结果通过
 //     win.WebContents().Send('lab:result', payload) 推回前端展示。
 //   - 'lab:query' 一键拉取全部 is*/get* 状态字典。
@@ -137,6 +137,9 @@ func openLabOnce() (map[string]any, error) {
 		plugin.Info(fmt.Sprintf("lab window closed id=%d", h.ID), nil)
 		clearLabIfMatch(h)
 	})
+	if err := bindLabRpc(h); err != nil {
+		return nil, err
+	}
 
 	return map[string]any{"windowId": h.ID, "reused": false}, nil
 }
@@ -198,68 +201,24 @@ func queryAllState() map[string]any {
 	return out
 }
 
-// handleLabMessage 处理子窗口通过 window.message 推上来的请求。
-// payload 形如：{ windowId, channel, args: [{ reqId, name, args }] }
-func handleLabMessage(payload any, _ brickly.EventEnvelope) {
-	m, ok := payload.(map[string]any)
-	if !ok {
-		return
-	}
-	// 仅处理目标 lab 自己的消息
-	h := currentLab()
-	if h == nil {
-		return
-	}
-	widF, _ := m["windowId"].(float64)
-	if int64(widF) != h.ID {
-		return
-	}
-	channel, _ := m["channel"].(string)
-	rawArgs, _ := m["args"].([]any)
-	var first map[string]any
-	if len(rawArgs) > 0 {
-		first, _ = rawArgs[0].(map[string]any)
-	}
-	if first == nil {
-		first = map[string]any{}
-	}
-	reqID, _ := first["reqId"].(string)
-
-	switch channel {
-	case "lab:op":
-		name, _ := first["name"].(string)
-		opArgsRaw, _ := first["args"].([]any)
-		raw, err := callOnLab(name, opArgsRaw)
-		reply := map[string]any{
-			"reqId":  reqID,
-			"name":   name,
-			"ok":     err == nil,
-			"result": nil,
-			"error":  nil,
-		}
-		if err != nil {
-			reply["ok"] = false
-			reply["error"] = err.Error()
-		} else {
-			var v any
-			_ = json.Unmarshal(raw, &v)
-			reply["result"] = v
-		}
-		if sendErr := h.WebContents().Send("lab:result", reply); sendErr != nil {
-			plugin.Warn(fmt.Sprintf("reply lab:result failed: %v", sendErr), nil)
-		}
-
-	case "lab:query":
-		state := queryAllState()
-		reply := map[string]any{
-			"reqId": reqID,
-			"state": state,
-			"at":    time.Now().UnixMilli(),
-		}
-		if sendErr := h.WebContents().Send("lab:state", reply); sendErr != nil {
-			plugin.Warn(fmt.Sprintf("reply lab:state failed: %v", sendErr), nil)
-		}
-	}
+func bindLabRpc(h *brickly.WindowHandle) error {
+	return h.Expose(map[string]brickly.WindowExposeHandler{
+		"op": func(payload any, _ brickly.WindowExposeSession) (any, error) {
+			fields, _ := payload.(map[string]any)
+			name, _ := fields["name"].(string)
+			opArgs, _ := fields["args"].([]any)
+			raw, err := callOnLab(name, opArgs)
+			if err != nil {
+				return map[string]any{"name": name, "ok": false, "result": nil, "error": err.Error()}, nil
+			}
+			var result any
+			_ = json.Unmarshal(raw, &result)
+			return map[string]any{"name": name, "ok": true, "result": result, "error": nil}, nil
+		},
+		"query": func(any, brickly.WindowExposeSession) (any, error) {
+			return map[string]any{"state": queryAllState(), "at": time.Now().UnixMilli()}, nil
+		},
+	})
 }
 
 func main() {
@@ -271,9 +230,6 @@ func main() {
 	plugin.OnCommand("close-lab", func(_ *brickly.CommandContext, _ json.RawMessage) (any, error) {
 		return map[string]any{"closed": closeLab()}, nil
 	})
-
-	// 订阅子窗口消息（lab:op / lab:query 都走 window.message）。
-	plugin.Events.On("window.message", handleLabMessage)
 
 	// 不在 OnReady 自动开窗：避免与命令面板 open-lab 竞态双开。
 

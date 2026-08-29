@@ -6,7 +6,7 @@
   const scenarioList = $('#scenarioList')
   const meta = $('#meta')
 
-  if (!window.brickly || typeof window.brickly.sendToParent !== 'function') {
+  if (!window.brickly || typeof window.brickly.notify !== 'function') {
     meta.textContent = 'preload 不可用 · window.brickly 缺失'
     return
   }
@@ -62,7 +62,7 @@
   }
 
   function send(channel, body) {
-    window.brickly.sendToParent(channel, body || {})
+    window.brickly.notify(channel, body || {})
   }
 
   function renderScenarios() {
@@ -124,11 +124,6 @@
 
   window.brickly.on('winSessions', (payload) => {
     winSessions = (payload && payload.winSessions) || []
-    renderWinSessions()
-  })
-  // 兼容旧通道名
-  window.brickly.on('sessions', (payload) => {
-    winSessions = (payload && (payload.winSessions || payload.sessions)) || []
     renderWinSessions()
   })
   window.brickly.on('scenarios', (payload) => {

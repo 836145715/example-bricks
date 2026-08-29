@@ -17,7 +17,7 @@ related_code: `runtime/win-x64/index.js`, `ui/control.*`, `ui/child.*`
 1. **控制台单例 ensure**：`open-control` 有则 focus，不重复建。  
 2. **场景窗 ensure / new**：同 scenario 复用 vs 强制新建。  
 3. **多窗并存**：套件一键打开 standard/compact/frameless/always-on-top/…  
-4. **创建时绑定**：每个 `WindowHandle` 在 create 后 `on('message'|'closed'|'focus'|…)`，不靠全局 `windowId` 过滤。  
+4. **创建时绑定**：每个 `WindowHandle` 在 create 后 `expose(...)` 并 `on('closed'|'focus'|…)`，不靠全局 `windowId` 过滤。  
 5. **生命周期事件流**：focus/blur/show/hide/move/resize → 控制台日志。  
 6. **跨窗消息**：控制台 Ping → 子窗 pong；子窗 log → 控制台。  
 7. **关闭策略**：关单个 / 关全部子窗（保留控制台）/ 进程 shutdown 全关。  
@@ -52,10 +52,10 @@ related_code: `runtime/win-x64/index.js`, `ui/control.*`, `ui/child.*`
 | `index.js` | 入口：注册命令、注入依赖、`start` |
 | `scenarios.js` | 场景预设与套件列表 |
 | `win-session-store.js` | `WinSession` Map、scenario 索引、control 窗 id |
-| `notify.js` | `webContents.send` + 无 ALS 时排队 flush |
-| `bind-win-session.js` | create 后绑 handle 事件 |
+| `notify.js` | `win.send` 推给控制台 / 子窗 |
+| `bind-win-session.js` | create 后 expose 与寿命事件 |
 | `open-windows.js` | open/focus/close/ping |
-| `control-messages.js` | `sendToParent` 协议分发 |
+| `control-messages.js` | `notify` 协议分发 |
 
 ## 本地依赖
 

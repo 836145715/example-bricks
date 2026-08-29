@@ -39,7 +39,7 @@ copyButton.addEventListener('click', async () => {
 })
 
 closeButton.addEventListener('click', () => {
-  window.brickly?.sendToParent?.('context-pilot:close')
+  window.brickly?.notify?.('context-pilot:close')
 })
 
 if (window.brickly?.on) {
@@ -201,13 +201,13 @@ function acceptAnalysisPayload(payload) {
 }
 
 function requestPanelResize() {
-  if (!window.brickly?.sendToParent) return
+  if (!window.brickly?.notify) return
   cancelAnimationFrame(resizeFrame)
   resizeFrame = requestAnimationFrame(() => {
     const height = Math.ceil(document.querySelector('.shell').scrollHeight + 18)
     if (Math.abs(height - lastRequestedHeight) < 4) return
     lastRequestedHeight = height
-    window.brickly.sendToParent('context-pilot:resize', { height })
+    window.brickly.notify('context-pilot:resize', { height })
   })
 }
 

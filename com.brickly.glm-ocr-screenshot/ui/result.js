@@ -36,8 +36,8 @@
   let startPanY = 0
 
   function sendReady() {
-    if (window.brickly && typeof window.brickly.sendToParent === 'function') {
-      window.brickly.sendToParent('ocr:ready')
+    if (window.brickly && typeof window.brickly.notify === 'function') {
+      window.brickly.notify('ocr:ready')
     }
   }
 

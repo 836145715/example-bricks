@@ -69,7 +69,7 @@ function testUiIgnoresStaleAnalysisMessages() {
     window: {
       brickly: {
         on: (channel, handler) => listeners.set(channel, handler),
-        sendToParent: () => {}
+        notify: () => {}
       },
       setTimeout: () => {},
       requestAnimationFrame: (handler) => {

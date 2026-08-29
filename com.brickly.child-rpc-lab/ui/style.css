@@ -21,6 +21,12 @@ body {
   min-height: 100%;
 }
 
+html:has(.page--child),
+html:has(.page--child) body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", serif;
   background:
@@ -33,6 +39,32 @@ body {
   display: grid;
   gap: 20px;
   padding: 28px 24px 36px;
+}
+
+.page--child {
+  height: 100dvh;
+  min-height: 0;
+  padding-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.page-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.log-dock {
+  flex: 0 0 auto;
+}
+
+.page--child .log {
+  min-height: 140px;
+  max-height: 28vh;
 }
 
 h1,
