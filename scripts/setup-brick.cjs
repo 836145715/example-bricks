@@ -166,9 +166,18 @@ function walkFiles(root, depth, visit) {
   }
 }
 
-function findRuntimePackageDirs(brickRoot) {
+function findRuntimePackageDirs(brickRoot, local = false) {
+  const runtimeRoot = path.join(brickRoot, 'runtime')
+  if (local) {
+    const dirs = []
+    for (const name of ['node', currentPlatform()]) {
+      const pkg = path.join(runtimeRoot, name, 'package.json')
+      if (fs.existsSync(pkg)) dirs.push(path.dirname(pkg))
+    }
+    if (dirs.length > 0) return dirs
+  }
   const dirs = []
-  walkFiles(path.join(brickRoot, 'runtime'), 3, (file) => {
+  walkFiles(runtimeRoot, 3, (file) => {
     if (path.basename(file) === 'package.json') dirs.push(path.dirname(file))
   })
   return dirs
@@ -191,9 +200,16 @@ function pythonExtraSpecs(dir) {
     .filter((spec) => !spec.startsWith('brickly-sdk'))
 }
 
-function findPyProjectDirs(brickRoot) {
+function findPyProjectDirs(brickRoot, local = false) {
+  const runtimeRoot = path.join(brickRoot, 'runtime')
+  if (local) {
+    for (const name of [currentPlatform(), 'win-x64']) {
+      const dir = path.join(runtimeRoot, name)
+      if (fs.existsSync(path.join(dir, 'pyproject.toml'))) return [dir]
+    }
+  }
   const dirs = []
-  walkFiles(path.join(brickRoot, 'runtime'), 3, (file) => {
+  walkFiles(runtimeRoot, 3, (file) => {
     if (path.basename(file) === 'pyproject.toml') dirs.push(path.dirname(file))
   })
   return dirs
@@ -223,7 +239,7 @@ function installRoot(brickRoot, locals) {
 }
 
 function installRuntime(brickRoot, locals) {
-  const dirs = findRuntimePackageDirs(brickRoot)
+  const dirs = findRuntimePackageDirs(brickRoot, Boolean(locals))
   if (dirs.length === 0) {
     console.log('skip runtime npm install (no runtime package.json)')
     return
@@ -235,7 +251,7 @@ function installRuntime(brickRoot, locals) {
 }
 
 function syncPython(brickRoot, locals) {
-  const dirs = findPyProjectDirs(brickRoot)
+  const dirs = findPyProjectDirs(brickRoot, Boolean(locals))
   if (dirs.length === 0) {
     console.log('skip python sync (no pyproject.toml)')
     return
