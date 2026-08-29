@@ -13,7 +13,7 @@ assert.ok(manifest.commands.some((c) => c.id === 'open-lab'))
 assert.ok(manifest.commands.some((c) => c.id === 'close-lab'))
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'runtime/win-x64/package.json'), 'utf8'))
-assert.equal(pkg.dependencies['@syllm/brickly-sdk'], '^0.6.0')
+assert.equal(pkg.dependencies['@syllm/brickly-sdk'], '^0.7.0')
 
 const runtimePath = path.join(root, 'runtime/win-x64/index.js')
 const runtime = fs.readFileSync(runtimePath, 'utf8')

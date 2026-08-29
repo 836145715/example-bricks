@@ -142,7 +142,7 @@ function fakeHandle(content) {
   return {
     fakeResource: true,
     content: content.toString('utf8'),
-    ref: { kind: 'brickly.resource', resourceId: `res_${sha256.slice(0, 8)}`, accessToken: 'secret', sizeBytes: content.length, mimeType: 'application/octet-stream', sha256 },
+    ref: { kind: 'brickly.resource', resourceId: `res_${sha256.slice(0, 8)}`, sizeBytes: content.length, mimeType: 'application/octet-stream', sha256 },
     async text() { return content.toString('utf8') },
     async json() { return JSON.parse(content.toString('utf8')) },
     async *stream() { yield content },

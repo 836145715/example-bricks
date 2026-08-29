@@ -3,6 +3,6 @@ name = "brickly-mysql-runtime"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
-  "brickly-sdk==0.6.0",
+  "brickly-sdk==0.7.0",
   "pymysql>=1.1.0",
 ]

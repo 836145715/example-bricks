@@ -3,7 +3,7 @@ name = "brickly-http-inspector-runtime"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
-  "brickly-sdk==0.6.0",
+  "brickly-sdk==0.7.0",
   "mitmproxy==12.2.3",
   "pytest>=8,<9",
 ]

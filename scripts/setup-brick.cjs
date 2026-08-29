@@ -2,7 +2,7 @@
 'use strict'
 
 /**
- * 默认按 lock 从 npm / Go module / PyPI 装已发布的 0.6.0。
+ * 默认按 lock 从 npm / Go module / PyPI 装已发布的 0.7.0。
  * 联调旁边的 ai-bricks 源码：`npm run setup -- --local` 或 `BRICKLY_LOCAL=1`。
  * --local 不改 package.json / go.mod；只在安装后把依赖指到本地包。
  */
@@ -132,9 +132,28 @@ function hasNpmDeps(pkg) {
   )
 }
 
-function npmInstall(dir) {
+function npmInstall(dir, local = false) {
+  if (local) {
+    installPublishedNpmDeps(dir)
+    return
+  }
   const args = fs.existsSync(path.join(dir, 'package-lock.json')) ? ['ci'] : ['install']
   run('npm', args, { cwd: dir })
+}
+
+/** --local 不从 npm 拉未发布的 @syllm/brickly-sdk@0.7.0，只装其余依赖，SDK 随后 symlink。 */
+function installPublishedNpmDeps(dir) {
+  const pkg = readJson(path.join(dir, 'package.json'))
+  const names = []
+  for (const [name, spec] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })) {
+    if (name === '@syllm/brickly-sdk') continue
+    names.push(`${name}@${spec}`)
+  }
+  if (names.length === 0) {
+    fs.mkdirSync(path.join(dir, 'node_modules'), { recursive: true })
+    return
+  }
+  run('npm', ['install', '--no-save', '--no-package-lock', ...names], { cwd: dir })
 }
 
 function walkFiles(root, depth, visit) {
@@ -163,6 +182,15 @@ function findGoModDirs(brickRoot) {
   return dirs
 }
 
+function pythonExtraSpecs(dir) {
+  const text = fs.readFileSync(path.join(dir, 'pyproject.toml'), 'utf8')
+  const block = text.match(/dependencies\s*=\s*\[([\s\S]*?)\]/)
+  if (!block) return []
+  return [...block[1].matchAll(/"([^"]+)"/g)]
+    .map((match) => match[1])
+    .filter((spec) => !spec.startsWith('brickly-sdk'))
+}
+
 function findPyProjectDirs(brickRoot) {
   const dirs = []
   walkFiles(path.join(brickRoot, 'runtime'), 3, (file) => {
@@ -189,7 +217,7 @@ function installRoot(brickRoot, locals) {
     console.log('skip root npm install (no dependencies)')
     return pkg
   }
-  npmInstall(brickRoot)
+  npmInstall(brickRoot, Boolean(locals))
   if (locals) applyLocalNpm(brickRoot, locals)
   return pkg
 }
@@ -201,7 +229,7 @@ function installRuntime(brickRoot, locals) {
     return
   }
   for (const dir of dirs) {
-    npmInstall(dir)
+    npmInstall(dir, Boolean(locals))
     if (locals) applyLocalNpm(dir, locals)
   }
 }
@@ -218,13 +246,16 @@ function syncPython(brickRoot, locals) {
   }
   for (const dir of dirs) {
     try {
-      // Refresh brickly-sdk URLs/hashes. Old locks were hand-bumped to 0.6.0
+      if (locals?.sdkPy) {
+        const extras = pythonExtraSpecs(dir)
+        run('uv', ['venv'], { cwd: dir })
+        run('uv', ['pip', 'install', '-e', locals.sdkPy, ...extras], { cwd: dir })
+        continue
+      }
+      // Refresh brickly-sdk URLs/hashes. Old locks were hand-bumped to 0.7.0
       // but still point at the 0.5.0 wheel path, which 404s on PyPI.
       run('uv', ['lock', '--upgrade-package', 'brickly-sdk'], { cwd: dir })
       run('uv', ['sync'], { cwd: dir })
-      if (locals?.sdkPy) {
-        run('uv', ['pip', 'install', '-e', locals.sdkPy], { cwd: dir })
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.warn(`python sync failed in ${dir}: ${message}`)

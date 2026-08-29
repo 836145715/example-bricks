@@ -4,7 +4,7 @@
 const { BricklyRuntime } = require('@syllm/brickly-sdk')
 
 
-const brick = new BricklyRuntime({ brickId: 'com.brickly.starter-node-react' })
+const brick = new BricklyRuntime()
 const toolDependencies = []
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 

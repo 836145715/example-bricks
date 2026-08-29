@@ -55,7 +55,7 @@ class InspectorService:
         try:
             self.runtime.events.publish(CHANGE_EVENT, {"total": self.total})
         except Exception as exc:
-            self.runtime.log("发布抓包变更事件失败", {"error": str(exc)})
+            self.runtime.warn("发布抓包变更事件失败", {"error": str(exc)})
 
     def start(self, value: dict[str, Any]) -> dict[str, Any]:
         port = int(value.get("port") or 8899)

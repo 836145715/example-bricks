@@ -11,11 +11,11 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "brickly-sdk", specifier = "==0.6.0" }]
+requires-dist = [{ name = "brickly-sdk", specifier = "==0.7.0" }]
 
 [[package]]
 name = "brickly-sdk"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },

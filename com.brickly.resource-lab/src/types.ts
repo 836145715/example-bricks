@@ -77,8 +77,6 @@ export interface RendererResourceHandle {
 export interface RendererResourceRef {
   kind: 'brickly.resource'
   resourceId: string
-  /** Host Catalog grant 是唯一授权，token 已不再作为必填。 */
-  accessToken?: string
   sizeBytes: number
   sha256: string
   expiresAt: number

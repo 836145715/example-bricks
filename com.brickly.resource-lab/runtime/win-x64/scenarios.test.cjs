@@ -129,7 +129,7 @@ test('TTL 场景按 Host 返回的 expiresAt 等待而不是假定 1 秒', async
   assert.ok(slept >= 60 && slept < 500)
 })
 
-test('伪造 token 接受资源层 RESOURCE_ACCESS_DENIED 错误码', async () => {
+test('伪造 resourceId 接受资源层 RESOURCE_ACCESS_DENIED 错误码', async () => {
   const execute = createScenarioExecutor(fakePorts({
     resources: { create: async () => fakeHandle(Buffer.from('capability')) },
     openForged: async () => { throw codedError('RESOURCE_ACCESS_DENIED') }
@@ -302,7 +302,7 @@ function fakePorts(overrides = {}) {
 function fakeHandle(content, mimeType = 'application/octet-stream') {
   return {
     ref: {
-      kind: 'brickly.resource', resourceId: 'res_test', accessToken: 'secret',
+      kind: 'brickly.resource', resourceId: 'res_test',
       sizeBytes: content.byteLength, mimeType,
       sha256: createHash('sha256').update(content).digest('hex')
     },

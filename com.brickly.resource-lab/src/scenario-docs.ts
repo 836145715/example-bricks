@@ -266,12 +266,12 @@ const guides: Record<string, ScenarioGuide> = {
   },
   'forged-token': {
     id: 'forged-token',
-    goal: '伪造 accessToken 的 open/读应被拒绝。',
-    why: 'ResourceRef 是能力令牌，不可伪造。',
+    goal: '伪造或未知 resourceId 的 open/读应被拒绝。',
+    why: 'Host Catalog grant 是唯一授权；ResourceRef 不再携带 accessToken。',
     steps: [
       'create 资源得到真实 Ref',
-      'openForged({ ...ref, accessToken: forged })',
-      '期望 ACCESS_DENIED / PERMISSION_DENIED / EXPIRED'
+      'open({ ...ref, resourceId: forged })',
+      '期望 ACCESS_DENIED / PERMISSION_DENIED / NOT_FOUND'
     ]
   },
   'immutable-snapshot': {

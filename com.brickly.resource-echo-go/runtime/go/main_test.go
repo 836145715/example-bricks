@@ -69,7 +69,7 @@ func TestPatternReaderHonorsChunkSizeAndZeroByte(t *testing.T) {
 func TestOpenEventPayloadAcceptsJSONEnvelope(t *testing.T) {
 	runtime := brickly.New()
 	ref := map[string]any{
-		"kind": "brickly.resource", "resourceId": "res_event", "accessToken": "token",
+		"kind": "brickly.resource", "resourceId": "res_event",
 		"sizeBytes": 1, "sha256": strings.Repeat("a", 64), "expiresAt": 2_000_000_000_000,
 	}
 	handle, err := openEventPayload(runtime, map[string]any{"probeId": "p1", "resource": ref})
@@ -84,10 +84,10 @@ func TestOpenEventPayloadAcceptsJSONEnvelope(t *testing.T) {
 func TestOpenInputResourceUsesRuntimeOpenResource(t *testing.T) {
 	runtime := brickly.New()
 	ref := brickly.ResourceRef{
-		Kind: "brickly.resource", ResourceID: "res_go", AccessToken: "token",
+		Kind: "brickly.resource", ResourceID: "res_go",
 		SizeBytes: 1, SHA256: strings.Repeat("a", 64), ExpiresAt: 2_000_000_000_000,
 	}
-	input, handle, err := openInputResource(runtime, json.RawMessage(`{"resource":{"kind":"brickly.resource","resourceId":"res_go","accessToken":"token","sizeBytes":1,"sha256":"`+strings.Repeat("a", 64)+`","expiresAt":2000000000000}}`))
+	input, handle, err := openInputResource(runtime, json.RawMessage(`{"resource":{"kind":"brickly.resource","resourceId":"res_go","sizeBytes":1,"sha256":"`+strings.Repeat("a", 64)+`","expiresAt":2000000000000}}`))
 	if err != nil {
 		t.Fatal(err)
 	}

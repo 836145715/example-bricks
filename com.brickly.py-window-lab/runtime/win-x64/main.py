@@ -129,7 +129,7 @@ def _open_lab_once() -> dict[str, Any]:
 
     def on_closed(_payload: Any) -> None:
         global lab
-        plugin.log(f"lab window closed id={handle.id}")
+        plugin.info(f"lab window closed id={handle.id}")
         if lab and lab.id == handle.id:
             lab = None
 
@@ -145,7 +145,7 @@ def close_lab() -> int:
     try:
         lab.close()
     except Exception as error:
-        plugin.log("close_lab failed:", repr(error))
+        plugin.warn("close_lab failed", {"error": repr(error)})
     lab = None
     return 1
 

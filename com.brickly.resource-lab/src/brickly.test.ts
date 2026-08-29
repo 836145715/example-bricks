@@ -121,7 +121,7 @@ test('事件资源中的畸形运行快照不会进入订阅回调', async () =>
   assert.equal(closed, true)
 })
 
-test('导出通过 resources.open 打开报告 Ref，accessToken 可选', async () => {
+test('导出通过 resources.open 打开报告 Ref', async () => {
   let closed = false
   let revoked = false
   const source = resourceRef('report-export')

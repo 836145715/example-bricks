@@ -15,7 +15,7 @@ class FakeResources:
 class ResourceInputTest(unittest.TestCase):
     def test_opens_plain_resource_ref(self):
         resources = FakeResources()
-        ref = {"kind": "brickly.resource", "resourceId": "res_python", "accessToken": "token"}
+        ref = {"kind": "brickly.resource", "resourceId": "res_python"}
         self.assertEqual(open_input_resource(resources, {"resource": ref}), {"handle": ref})
         self.assertEqual(resources.opened, [ref])
 

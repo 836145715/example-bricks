@@ -18,7 +18,7 @@ const basePorts = {
     brick.dependencies.require(alias).invokeRoot(commandId, value),
   publish: (event, payload) => brick.events.publish(event, payload),
   openForged: async (ref) => {
-    // open 校验格式；读流才校验 capability。伪造 token 应在 text() 阶段被拒。
+    // open 校验格式；读流才校验 grant。伪造 resourceId 应在 text() 阶段被拒。
     const handle = brick.resources.open(ref)
     try {
       return await handle.text()

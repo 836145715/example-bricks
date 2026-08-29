@@ -3,8 +3,8 @@ const { join, relative } = require('node:path')
 
 const root = __dirname
 const goModule = 'github.com/836145715/brickly-sdk-go'
-const goVersion = 'v0.6.0'
-const pythonRequirement = 'brickly-sdk==0.6.0'
+const goVersion = 'v0.7.0'
+const pythonRequirement = 'brickly-sdk==0.7.0'
 const protocolVersion = 'brickly.runtime.v1'
 const protocolVersionPattern = /protocolVersion\s*[=:]\s*['"]([^'"]+)['"]/g
 const failures = []
@@ -78,4 +78,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`OK: example Go SDK is ${goVersion}, Python SDK is 0.6.0, protocol is ${protocolVersion}`)
+console.log(`OK: example Go SDK is ${goVersion}, Python SDK is 0.7.0, protocol is ${protocolVersion}`)

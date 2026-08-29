@@ -407,7 +407,7 @@ async function forgedToken(ports) {
   if (typeof ports.openForged !== 'function') throw new SkipScenario('当前 SDK 端口不支持伪造句柄验收')
   const handle = await ports.resources.create('capability')
   try {
-    await expectCode(() => ports.openForged({ ...handle.ref, accessToken: 'forged-token' }), ['RESOURCE_ACCESS_DENIED', 'PERMISSION_DENIED', 'RESOURCE_EXPIRED'])
+    await expectCode(() => ports.openForged({ ...handle.ref, resourceId: 'res_forged' }), ['RESOURCE_ACCESS_DENIED', 'PERMISSION_DENIED', 'RESOURCE_NOT_FOUND'])
     return { sizeBytes: handle.ref.sizeBytes, forgedTokenRejected: true }
   } finally { await cleanupHandle(handle) }
 }

@@ -18,7 +18,7 @@ const SAFE_ERROR_MESSAGES = Object.freeze({
  * 结果摘要用的资源元数据（会进入 suite 快照 / 事件 / command.result）。
  *
  * 注意：0.3.1 起 SDK dehydrate 遇到 `kind: 'brickly.resource'` 但字段不完整
- * （例如故意去掉 accessToken）会抛 INVALID_RESOURCE_REF「ResourceRef 格式无效」。
+ * （例如伪造 resourceId）会抛 INVALID_RESOURCE_REF / ACCESS_DENIED。
  * 因此脱敏摘要不得再冒充 wire ResourceRef，改用 resource-summary。
  */
 function sanitizeResourceRef(ref) {
