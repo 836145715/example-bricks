@@ -15,8 +15,8 @@
       <header>
         <h1>子窗 RPC 实验室</h1>
         <p class="lede">
-          体验窗只负责 <code>start</code> 和开窗。真正的 <code>notify</code> /
-          <code>parent.xxx</code> 在弹出的子窗里测。
+          体验窗只负责 <code>start</code> 和开窗。子窗里测 <code>request</code> /
+          <code>notify</code> / <code>on</code>。不填 timeout 的 invoke 会一直等到关窗，不应在 30 秒失败。
         </p>
       </header>
 
@@ -27,10 +27,12 @@
           <button id="standalone" type="button">打开 standalone</button>
         </div>
         <p id="status" class="status">启动 runtime…</p>
-        <p class="lede">
-          attached：这次 invoke 会等到你关掉子窗才返回。<br />
-          standalone：invoke 立刻返回，子窗还在，expose 继续有效。
-        </p>
+        <ul class="checks">
+          <li>attached：子窗先出现；这次 invoke 一直转，关窗才返回。等超过 30 秒也不该 IPC 失败。</li>
+          <li>standalone：invoke 马上返回，子窗还在，里面的按钮继续能用。</li>
+          <li>子窗顶上很快变成 attached / standalone，tick 数字往上加。</li>
+          <li>子窗里点「跑自检」，7 项都应变绿。</li>
+        </ul>
       </section>
 
       <section class="card">

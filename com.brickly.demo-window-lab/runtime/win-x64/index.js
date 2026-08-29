@@ -6,7 +6,7 @@
  *
  * 设计：
  *   - 创建一个普通带边框的窗口，UI 即是测试控制面板（lab.html）。
- *   - 子窗口通过 brickly.parent.op / query 请求执行某个 API。
+ *   - 子窗口通过 brickly.request('op' / 'query') 请求执行某个 API。
  *   - runtime 用 win.expose 登记 op / query，把结果作为 request 返回值交回页面。
  *
  *   注意：lab 操作的"目标窗口"就是 lab 自己。这样测试的方法和效果都在同一处可见。

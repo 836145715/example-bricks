@@ -1,14 +1,13 @@
 // Brickly Go Brick 示例：com.brickly.go-window-lab
 //
-// 设计与 com.brickly.demo-window-lab (Node 版) 完全对应——同一份 UI、同一份
-// IPC 协议（lab:op / lab:result / lab:query / lab:state），仅 runtime 改为 Go。
+// 设计与 com.brickly.demo-window-lab (Node 版) 完全对应——同一份 UI，
+// 子窗 request('op'/'query')，runtime Expose 后把结果作为返回值交回。
 // 这样可以直观验证 brickly-sdk-go 与 brickly-sdk-node 行为一致。
 //
 //   - 创建一个带边框的窗口，UI 即测试控制面板（ui/lab.html）。
-//   - 子窗口通过 brickly.parent.op / query 请求执行某个白名单方法。
-//   - runtime 用 win.Call(method, args, &raw) 转发给宿主，把结果通过
-//     win.WebContents().Send('lab:result', payload) 推回前端展示。
-//   - 'lab:query' 一键拉取全部 is*/get* 状态字典。
+//   - 子窗口通过 brickly.request('op' / 'query') 请求执行某个白名单方法。
+//   - runtime 用 win.Expose 登记 op/query；内部 win.Call 转发给宿主，结果作为 request 返回值交回。
+//   - query 一键拉取全部 is*/get* 状态字典。
 //
 // 注意：lab 操作的"目标窗口"就是 lab 自己——测试方法的副作用立刻可见。
 package main

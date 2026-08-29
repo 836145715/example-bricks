@@ -23,13 +23,15 @@
 
 | 按钮 | 预期 |
 | --- | --- |
-| `parent.echo` | 立刻拿到 `{ echo, kind }` |
+| `request('echo')` | 立刻拿到 `{ echo, kind }` |
 | `notify('ping')` | 页面没有返回值；runtime 日志有 `notify ping` |
 | `request('import')` | 先看到 5 次 `onEvent` 进度，再拿到结果 |
 | `request('hang')` | 不填 timeout，不会自己断；点「取消」才停 |
 | 2 秒超时的 hang | 约 2 秒后 `[REQUEST_TIMEOUT]` |
-| `parent.noSuch()` | `[NOT_EXPOSED]` |
+| `request('noSuch')` | `[NOT_EXPOSED]` |
 | tick | 每秒一条，来自 runtime `win.send` |
+| 跑自检 | 7 项全绿：hello、tick、echo、5 条进度、CANCELLED、REQUEST_TIMEOUT、NOT_EXPOSED |
 | `window.close()` | 关窗；attached 那次 invoke 这时才返回 |
 
-子窗顶上应显示 `brick-child · 无 invoke/start`。
+子窗顶上应显示 `attached` / `standalone`，不要一直停在 `kind ?`。
+体验窗 attached 开着超过 30 秒，不应再出现 `bridge.invoke` IPC 失败。

@@ -24,10 +24,10 @@
       </header>
 
       <section class="card">
-        <h2>1. parent.echo 拿返回值</h2>
+        <h2>1. request('echo') 拿返回值</h2>
         <input id="echoText" type="text" value="hello from child" />
         <div class="row">
-          <button id="echo" type="button">parent.echo</button>
+          <button id="echo" type="button">request('echo')</button>
         </div>
       </section>
 
@@ -40,6 +40,7 @@
 
       <section class="card">
         <h2>3. request + onEvent 进度</h2>
+        <p id="importStatus" class="status">还没跑。应先看到 5 条 onEvent，再出结果。</p>
         <div class="row">
           <button id="importBtn" type="button">request('import')</button>
         </div>
@@ -63,7 +64,7 @@
       <section class="card">
         <h2>6. 未 expose 的名字</h2>
         <div class="row">
-          <button id="missing" class="ghost" type="button">parent.noSuch()</button>
+          <button id="missing" class="ghost" type="button">request('noSuch')</button>
         </div>
       </section>
 
@@ -72,6 +73,23 @@
         <p id="tick" class="status">还没收到 tick</p>
         <div class="row">
           <button id="close" class="ghost" type="button">window.close()</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>7. 自检</h2>
+        <p class="lede">按顺序跑 hello / tick / echo / import / hang 取消 / 2 秒超时 / noSuch。</p>
+        <ul id="checks" class="checks">
+          <li data-check="hello">hello 推送</li>
+          <li data-check="tick">tick 至少 1 次</li>
+          <li data-check="echo">echo 有返回值</li>
+          <li data-check="import">import 恰好 5 条 onEvent</li>
+          <li data-check="hang">hang 点取消得到 CANCELLED</li>
+          <li data-check="timeout">2 秒 hang 得到 REQUEST_TIMEOUT</li>
+          <li data-check="missing">noSuch 得到 NOT_EXPOSED</li>
+        </ul>
+        <div class="row">
+          <button id="selfCheck" type="button">跑自检</button>
         </div>
       </section>
 

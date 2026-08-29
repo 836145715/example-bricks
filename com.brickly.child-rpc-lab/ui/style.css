@@ -193,6 +193,36 @@ button:disabled {
   color: var(--bad);
 }
 
+.checks {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.checks li {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--chip);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.checks li.ok {
+  background: #e4f3ea;
+  color: var(--ok);
+}
+
+.checks li.bad {
+  background: #f8e6e3;
+  color: var(--bad);
+}
+
+.checks li.busy {
+  background: #f6ead8;
+  color: var(--accent);
+}
+
 input[type='text'] {
   width: 100%;
   border: 1px solid var(--line);

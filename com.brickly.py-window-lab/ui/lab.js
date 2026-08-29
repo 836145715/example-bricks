@@ -3,11 +3,11 @@
  * Lab 控制面板前端。
  *
  * 与 runtime 的通信：
- *  - 点按钮 → brickly.parent.op({ name, args })
- *  - 点 ⟳ 刷新 → brickly.parent.query()
+ *  - 点按钮 → brickly.request('op', { name, args })
+ *  - 点 ⟳ 刷新 → brickly.request('query')
  *  - 返回值直接打日志 / 铺状态表
  *
- * preload 提供的 API：window.brickly.parent / on / ref / windowId
+ * preload 提供的 API：window.brickly.request / on / ref / windowId
  */
 ;(function () {
   const $ = (sel) => document.querySelector(sel)
@@ -16,9 +16,9 @@
   const stateAt = $('#stateAt')
   const winInfo = $('#winInfo')
 
-  if (!window.brickly || typeof window.brickly.parent?.op !== 'function') {
+  if (!window.brickly || typeof window.brickly.request !== 'function') {
     logEl.innerHTML =
-      '<li class="err">window.brickly.parent 不可用，无法与 runtime 通信</li>'
+      '<li class="err">window.brickly.request 不可用，无法与 runtime 通信</li>'
     return
   }
   const brickId = window.brickly.ref?.brickId || '?'
@@ -65,7 +65,7 @@
   async function sendOp(name, args) {
     appendLog(`→ <span class="name">${name}</span>(${JSON.stringify(args || [])})`)
     try {
-      const payload = await window.brickly.parent.op({ name, args: args || [] })
+      const payload = await window.brickly.request('op', { name, args: args || [] })
       if (payload?.ok) {
         const r =
           payload.result === null || payload.result === undefined
@@ -94,7 +94,7 @@
   async function sendQuery() {
     appendLog('→ <span class="name">query state</span>')
     try {
-      renderState(await window.brickly.parent.query())
+      renderState(await window.brickly.request('query'))
     } catch (error) {
       appendLog(`← <span class="err">query failed</span> · ${error.message || error}`)
     }
