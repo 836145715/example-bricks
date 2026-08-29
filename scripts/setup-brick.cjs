@@ -143,17 +143,25 @@ function npmInstall(dir, local = false) {
 
 /** --local 不从 npm 拉未发布的 @syllm/brickly-sdk@0.7.0，只装其余依赖，SDK 随后 symlink。 */
 function installPublishedNpmDeps(dir) {
-  const pkg = readJson(path.join(dir, 'package.json'))
+  const pkgFile = path.join(dir, 'package.json')
+  const original = fs.readFileSync(pkgFile, 'utf8')
+  const pkg = JSON.parse(original)
+  if (pkg.dependencies) delete pkg.dependencies['@syllm/brickly-sdk']
+  if (pkg.devDependencies) delete pkg.devDependencies['@syllm/brickly-sdk']
   const names = []
   for (const [name, spec] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })) {
-    if (name === '@syllm/brickly-sdk') continue
     names.push(`${name}@${spec}`)
   }
-  if (names.length === 0) {
-    fs.mkdirSync(path.join(dir, 'node_modules'), { recursive: true })
-    return
+  try {
+    fs.writeFileSync(pkgFile, `${JSON.stringify(pkg, null, 2)}\n`)
+    if (names.length === 0) {
+      fs.mkdirSync(path.join(dir, 'node_modules'), { recursive: true })
+      return
+    }
+    run('npm', ['install', '--no-save', '--no-package-lock', ...names], { cwd: dir })
+  } finally {
+    fs.writeFileSync(pkgFile, original)
   }
-  run('npm', ['install', '--no-save', '--no-package-lock', ...names], { cwd: dir })
 }
 
 function walkFiles(root, depth, visit) {
@@ -352,9 +360,8 @@ function brickIdOf(brickRoot) {
 }
 
 function setupBrick(brickRoot, options = {}) {
-  const pkgFile = path.join(brickRoot, 'package.json')
-  if (!fs.existsSync(pkgFile)) {
-    throw new Error(`Missing package.json in ${brickRoot}`)
+  if (!fs.existsSync(path.join(brickRoot, 'manifest.json'))) {
+    throw new Error(`Missing manifest.json in ${brickRoot}`)
   }
   const locals = options.local ? resolveLocalPackages() : null
   if (locals) {
@@ -363,11 +370,21 @@ function setupBrick(brickRoot, options = {}) {
   }
   const brickId = brickIdOf(brickRoot)
   console.log(`\n== setup ${brickId} ==\n`)
-  const pkg = installRoot(brickRoot, locals)
+  const pkgFile = path.join(brickRoot, 'package.json')
+  const pkg = fs.existsSync(pkgFile) ? installRoot(brickRoot, locals) : {}
   installRuntime(brickRoot, locals)
   syncPython(brickRoot, locals)
   buildGo(brickRoot, brickId, locals)
-  buildUi(brickRoot, pkg)
+  const uiSrc = path.join(brickRoot, 'ui-src')
+  if (fs.existsSync(path.join(uiSrc, 'package.json'))) {
+    npmInstall(uiSrc, Boolean(locals))
+    if (locals) applyLocalNpm(uiSrc, locals)
+    if (readJson(path.join(uiSrc, 'package.json')).scripts?.build) {
+      run('npm', ['run', 'build'], { cwd: uiSrc })
+    }
+  } else {
+    buildUi(brickRoot, pkg)
+  }
   console.log(`\n== setup ${brickId} done ==\n`)
 }
 
