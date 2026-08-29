@@ -1,7 +1,7 @@
 'use strict'
 
 /**
- * 向控制台 / 子窗推送消息（win.send → brickly:push）。
+ * 向控制台 / 子窗推送消息（win.send → 页面 on）。
  */
 
 const { isAlive, getWinSession, getControlWinSession } = require('./win-session-store')

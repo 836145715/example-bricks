@@ -10,8 +10,8 @@
     "en": "Child RPC Lab"
   },
   "description": {
-    "zh-CN": "用手点一遍 runtime 子窗：parent.xxx 拿返回值、notify、进度、取消、不填 timeout、attached / standalone。",
-    "en": "Click-through lab for child-window RPC: parent.xxx returns, notify, progress, cancel, no default timeout, attached vs standalone."
+    "zh-CN": "用手点一遍 runtime 子窗：request 拿返回值、notify、进度、取消、不填 timeout、attached / standalone。",
+    "en": "Click-through lab for child-window RPC: request returns, notify, progress, cancel, no default timeout, attached vs standalone."
   },
   "icon": "assets/icon.svg",
   "keywords": ["window", "rpc", "child", "lab", "demo"],
