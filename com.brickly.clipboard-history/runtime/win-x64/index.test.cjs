@@ -79,6 +79,65 @@ test('系统剪贴板事件读取普通 payload 并发布刷新事件', async (t
   assert.equal(runtime.published.length, 1)
   assert.equal(runtime.published[0].event, 'clipboard-history:changed')
   assert.equal(runtime.published[0].payload.historyItemId, 'clip_1')
+  assert.equal(runtime.published[0].payload.reason, 'insert')
+})
+
+test('宿主回报重复入库时发布 reuse 而不是 insert', async (t) => {
+  const runtime = loadRuntime(t)
+
+  runtime.events.get('clipboard:new-content')(
+    { historyItemId: 'clip_1', kind: 'text', count: 3, reason: 'duplicate' },
+    {
+      event: 'clipboard:new-content',
+      sourceBrickId: 'system',
+      publishedAt: 10
+    }
+  )
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(runtime.published[0].payload.reason, 'reuse')
+  assert.equal(runtime.published[0].payload.historyItemId, 'clip_1')
+})
+
+test('从历史写回剪贴板后回读入库并发布 reuse', async (t) => {
+  const runtime = loadRuntime(t)
+  const calls = []
+  const item = {
+    id: 'clip_1',
+    kind: 'text',
+    storageKind: 'blob',
+    title: 'hello',
+    preview: 'hello',
+    favorite: false,
+    entries: [],
+    createdAt: 3,
+    sizeBytes: 5,
+    contentHash: 'hash'
+  }
+  const ctx = {
+    platform: {
+      clipboard: {
+        history: {
+          captureCurrent: async () => (calls.push(['captureCurrent']), item),
+          storageInfo: async () => (calls.push(['storageInfo']), { count: 2 })
+        },
+        setContent: async (content) => (calls.push(['setContent', content.kind]), { kind: content.kind, formats: [], updatedAt: 2 })
+      }
+    }
+  }
+
+  const result = await runtime.commands.get('set-content')(ctx, { content: { kind: 'text', text: 'hello' } })
+
+  assert.equal(result.kind, 'text')
+  assert.deepEqual(calls, [
+    ['setContent', 'text'],
+    ['captureCurrent'],
+    ['storageInfo']
+  ])
+  assert.equal(runtime.published.length, 1)
+  assert.equal(runtime.published[0].event, 'clipboard-history:changed')
+  assert.equal(runtime.published[0].payload.reason, 'reuse')
+  assert.equal(runtime.published[0].payload.historyItemId, 'clip_1')
 })
 
 test('任一命令发布成功后清除之前失败留下的 lastError', async (t) => {

@@ -177,7 +177,23 @@ brick.onCommand('set-content', async (ctx, input) => {
   if (!content || typeof content !== 'object' || Array.isArray(content)) {
     throw new BppError('INVALID_INPUT', 'content must be a clipboard content object')
   }
-  return ctx.platform.clipboard.setContent(content)
+  const result = await ctx.platform.clipboard.setContent(content)
+  try {
+    const item = await historyApi(ctx).captureCurrent()
+    if (item) {
+      const info = await historyApi(ctx).storageInfo()
+      await publishChanged('reuse', {
+        historyItemId: item.id,
+        kind: item.kind,
+        count: info.count
+      })
+    }
+  } catch (error) {
+    logWarn('set-content history refresh failed', {
+      error: error instanceof Error ? error.message : String(error)
+    })
+  }
+  return result
 })
 
 brick.onCommand('runtime-status', async (ctx) => {
@@ -206,7 +222,7 @@ brick.events.on(SOURCE_EVENT, (payload) => {
     processedEvents++
     lastEventAt = Date.now()
     lastEventKind = notice.kind
-    await publishChanged('insert', {
+    await publishChanged(notice.reason === 'duplicate' ? 'reuse' : 'insert', {
       historyItemId: notice.historyItemId,
       kind: notice.kind,
       count: notice.count

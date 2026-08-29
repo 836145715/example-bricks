@@ -37,7 +37,7 @@ export type ClipboardSetResult = {
   height?: number
 }
 
-export type HistoryChangeReason = 'insert' | 'remove' | 'clear' | 'favorite' | 'sync'
+export type HistoryChangeReason = 'insert' | 'remove' | 'clear' | 'favorite' | 'sync' | 'reuse'
 
 export type ClipboardHistoryChangedPayload = {
   revision: number

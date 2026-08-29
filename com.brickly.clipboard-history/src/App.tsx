@@ -216,6 +216,7 @@ export function App() {
   async function handleCopyItem(item: ClipItem): Promise<void> {
     try {
       await setClipboardContent(await clipboardContentForItem(item))
+      await refresh()
       notify(copySuccessText(item))
     } catch (error) {
       notify(`写入剪贴板失败 · ${errorMessage(error)}`)
