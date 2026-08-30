@@ -527,6 +527,102 @@ html, body, #root {
   cursor: not-allowed;
 }
 
+.file-date-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.file-date-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.file-date-mode {
+  display: inline-flex;
+  height: 22px;
+  padding: 1px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+}
+
+.file-date-mode button {
+  height: 18px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.file-date-mode button.active {
+  background: var(--bg-item-active);
+  color: var(--text-main);
+}
+
+.file-date-input {
+  height: 22px;
+  width: 132px;
+  padding: 0 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 11px;
+  outline: 0;
+  color-scheme: dark;
+}
+
+.file-date-input:focus {
+  border-color: var(--border-focus);
+}
+
+.file-date-sep {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.file-date-chip,
+.file-date-clear {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.file-date-chip:hover,
+.file-date-clear:hover {
+  background: var(--bg-item-hover);
+  color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+.file-date-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.file-date-filter-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 /* 工作区（分栏或单栏展示） */
 .workspace {
   display: grid;
@@ -658,8 +754,8 @@ html, body, #root {
   min-width: 18px;
   padding: 1px 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-muted);
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
   font-size: 10px;
   text-align: center;
 }
@@ -1609,6 +1705,10 @@ html, body, #root {
 
 .file-select-dropdown .dropdown-item:hover {
   background: var(--bg-item-hover);
+}
+
+.file-select-dropdown .dropdown-item.is-date-match {
+  box-shadow: inset 2px 0 0 var(--accent-color);
 }
 
 .file-select-dropdown .dropdown-item input[type="checkbox"] {

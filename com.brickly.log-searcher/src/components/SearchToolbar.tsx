@@ -5,7 +5,12 @@ import {
   type StatusHighlightKind
 } from '../domain/highlight'
 import type { RemoteLogFile } from '../domain/logFiles'
-import type { FileListStatus, FilterConfig, GrepArgs } from '../types'
+import {
+  type FileDateFilter,
+  type FileDatePreset
+} from '../domain/paths'
+import { DEFAULT_TAIL_BYTES, TAIL_BYTE_OPTIONS, type FileListStatus, type FilterConfig, type GrepArgs } from '../types'
+import { FileDateFilterControls } from './FileDateFilterControls'
 import { FileSelectDropdown } from './FileSelectDropdown'
 
 interface SearchToolbarProps {
@@ -20,6 +25,8 @@ interface SearchToolbarProps {
   availableFiles: RemoteLogFile[]
   selectedFiles: string[]
   fileListStatus: FileListStatus
+  dateFilter: FileDateFilter
+  dateMatchedPaths: string[]
   canEditConnection: boolean
   onSearchPatternChange: (value: string) => void
   onSearch: () => void
@@ -34,6 +41,9 @@ interface SearchToolbarProps {
   onUpdateHighlight: (kind: StatusHighlightKind, value: string) => void
   onRefreshFiles: () => void
   onChangeSelectedFiles: (paths: string[]) => void
+  onDateFilterChange: (filter: FileDateFilter) => void
+  onDateFilterPreset: (kind: FileDatePreset) => void
+  onClearDateFilter: () => void
 }
 
 export function SearchToolbar({
@@ -48,6 +58,8 @@ export function SearchToolbar({
   availableFiles,
   selectedFiles,
   fileListStatus,
+  dateFilter,
+  dateMatchedPaths,
   canEditConnection,
   onSearchPatternChange,
   onSearch,
@@ -61,7 +73,10 @@ export function SearchToolbar({
   onResetHighlight,
   onUpdateHighlight,
   onRefreshFiles,
-  onChangeSelectedFiles
+  onChangeSelectedFiles,
+  onDateFilterChange,
+  onDateFilterPreset,
+  onClearDateFilter
 }: SearchToolbarProps) {
   return (
     <header className="toolbar">
@@ -72,6 +87,8 @@ export function SearchToolbar({
             availableFiles={availableFiles}
             selectedFiles={selectedFiles}
             listStatus={fileListStatus}
+            dateFilter={dateFilter}
+            dateMatchedPaths={dateMatchedPaths}
             onRefresh={onRefreshFiles}
             onChangeSelected={onChangeSelectedFiles}
           />
@@ -123,6 +140,17 @@ export function SearchToolbar({
           编辑连接
         </button>
       </div>
+
+      {serverId && (
+        <FileDateFilterControls
+          filter={dateFilter}
+          matchCount={dateMatchedPaths.length}
+          availableCount={availableFiles.length}
+          onChange={onDateFilterChange}
+          onPreset={onDateFilterPreset}
+          onClear={onClearDateFilter}
+        />
+      )}
 
       <div className="params-row">
         <label className="param-checkbox">
@@ -183,12 +211,16 @@ export function SearchToolbar({
         </div>
 
         <div className="context-input">
-          <span title="保留每个文件最新的 N 条命中，最终仍按日志原始顺序从旧到新展示。">
-            每文件最新:
+          <span title="每个文件只检索末尾这一段。默认 20MB，耗时可预期；整个文件会扫描全量，大日志可能较慢。">
+            搜索范围:
           </span>
           <select
-            value={grepArgs.maxCount}
-            onChange={(event) => onUpdateGrepArgs({ maxCount: parseInt(event.target.value) || 0 })}
+            value={grepArgs.tailBytes ?? DEFAULT_TAIL_BYTES}
+            onChange={(event) => onUpdateGrepArgs({
+              tailBytes: parseInt(event.target.value, 10) || 0,
+              maxCount: 0,
+              fromTail: false
+            })}
             style={{
               background: 'var(--bg-input)',
               border: '1px solid var(--border-color)',
@@ -199,35 +231,10 @@ export function SearchToolbar({
               outline: 0
             }}
           >
-            <option value="500">500 行</option>
-            <option value="1000">1000 行</option>
-            <option value="2000">2000 行</option>
-            <option value="5000">5000 行</option>
-            <option value="10000">10000 行</option>
-            <option value="0">无限制</option>
+            {TAIL_BYTE_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
-        </div>
-
-        <label className="param-checkbox">
-          <input
-            type="checkbox"
-            checked={grepArgs.fromTail}
-            onChange={(event) => onUpdateGrepArgs({ fromTail: event.target.checked })}
-          />
-          <span>只搜尾部</span>
-        </label>
-
-        <div className="context-input">
-          <span>尾部行数:</span>
-          <input
-            className="tail-lines-input"
-            type="number"
-            min="10"
-            max="200000"
-            value={grepArgs.tailLines}
-            disabled={!grepArgs.fromTail}
-            onChange={(event) => onUpdateGrepArgs({ tailLines: Math.max(10, parseInt(event.target.value) || 1000) })}
-          />
         </div>
 
         <button

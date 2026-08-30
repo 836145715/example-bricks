@@ -120,6 +120,103 @@ export const recentRemoteLogFiles = (files: RemoteLogFile[], limit = 5): RemoteL
   return sortRemoteLogFilesBy(files, 'mtime').slice(0, limit)
 }
 
+export type FileDateFilterMode = 'day' | 'range'
+export type FileDatePreset = 'today' | 'yesterday' | 'last7'
+
+export interface FileDateFilter {
+  mode: FileDateFilterMode
+  startDate: string
+  endDate: string
+}
+
+export const DEFAULT_FILE_DATE_FILTER: FileDateFilter = {
+  mode: 'day',
+  startDate: '',
+  endDate: ''
+}
+
+export const formatLocalDateKey = (date: Date): string => {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+export const isValidDateKey = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+}
+
+export const normalizeDateFilter = (filter: FileDateFilter): FileDateFilter => {
+  if (filter.mode === 'day') {
+    return { mode: 'day', startDate: filter.startDate, endDate: filter.startDate }
+  }
+  if (isValidDateKey(filter.startDate) && isValidDateKey(filter.endDate) && filter.endDate < filter.startDate) {
+    return { mode: 'range', startDate: filter.endDate, endDate: filter.startDate }
+  }
+  return filter
+}
+
+export const isDateFilterActive = (filter?: FileDateFilter | null): filter is FileDateFilter => {
+  if (!filter) return false
+  const normalized = normalizeDateFilter(filter)
+  if (!isValidDateKey(normalized.startDate)) return false
+  return normalized.mode === 'day' || isValidDateKey(normalized.endDate)
+}
+
+export const localDateRangeUnixSeconds = (
+  startDate: string,
+  endDate: string
+): { start: number; endExclusive: number } | null => {
+  if (!isValidDateKey(startDate) || !isValidDateKey(endDate)) return null
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
+  const start = new Date(startYear, startMonth - 1, startDay)
+  const endExclusive = new Date(endYear, endMonth - 1, endDay + 1)
+  if (endExclusive.getTime() <= start.getTime()) return null
+  return {
+    start: Math.floor(start.getTime() / 1000),
+    endExclusive: Math.floor(endExclusive.getTime() / 1000)
+  }
+}
+
+export const filterFilesByModifiedDate = (
+  files: RemoteLogFile[],
+  filter: FileDateFilter
+): RemoteLogFile[] => {
+  const normalized = normalizeDateFilter(filter)
+  const endDate = normalized.mode === 'day' ? normalized.startDate : normalized.endDate
+  const bounds = localDateRangeUnixSeconds(normalized.startDate, endDate)
+  if (!bounds) return []
+  return files.filter(file => {
+    const modifiedAt = file.modifiedAt
+    return typeof modifiedAt === 'number' && modifiedAt >= bounds.start && modifiedAt < bounds.endExclusive
+  })
+}
+
+export const dateFilterPreset = (kind: FileDatePreset, now = new Date()): FileDateFilter => {
+  const today = formatLocalDateKey(now)
+  if (kind === 'today') {
+    return { mode: 'day', startDate: today, endDate: today }
+  }
+  if (kind === 'yesterday') {
+    const yesterday = formatLocalDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
+    return { mode: 'day', startDate: yesterday, endDate: yesterday }
+  }
+  const start = formatLocalDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6))
+  return { mode: 'range', startDate: start, endDate: today }
+}
+
+export const describeDateFilter = (filter?: FileDateFilter | null): string => {
+  if (!filter || !isDateFilterActive(filter)) return ''
+  const normalized = normalizeDateFilter(filter)
+  if (normalized.mode === 'day' || normalized.startDate === normalized.endDate) {
+    return normalized.startDate
+  }
+  return `${normalized.startDate} ~ ${normalized.endDate}`
+}
+
 export const formatRelativeModifiedAt = (unixSeconds?: number, nowMs = Date.now()): string => {
   if (!unixSeconds || unixSeconds <= 0) return ''
   const elapsedMs = Math.max(0, nowMs - unixSeconds * 1000)
@@ -150,12 +247,16 @@ export const formatBrowseEntryMeta = (entry: Pick<RemoteBrowseEntry, 'kind' | 's
 export const getFilePickerTriggerLabel = (
   status: FileListStatus,
   files: RemoteLogFile[],
-  selected: string[]
+  selected: string[],
+  dateLabel = ''
 ): string => {
   if (files.length === 0 && status === 'loading') return '正在列出日志文件…'
   if (files.length === 0 && status === 'error') return '文件列表加载失败'
   if (files.length === 0) return '未发现可检索日志'
-  if (selected.length === 0) return '选择日志文件'
+  if (selected.length === 0) {
+    return dateLabel ? `${dateLabel} · 无匹配文件` : '选择日志文件'
+  }
+  if (dateLabel) return `${dateLabel} · ${selected.length} 个`
   if (selected.length === files.length) return `已选全部 ${files.length} 个`
   const names = selected.slice(0, 2).map(getLogFileName)
   if (selected.length <= 2) return names.join('、')

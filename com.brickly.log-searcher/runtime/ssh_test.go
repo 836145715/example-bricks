@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -118,7 +119,7 @@ func TestBuildRemoteGrepCommandQuotesPatternAndFiles(t *testing.T) {
 		[]string{"/var/log/app current.log", "/tmp/quote's.log"},
 		GrepArgs{},
 	)
-	want := `grep -H -n -E -- 'error|can'\''t' '/var/log/app current.log' '/tmp/quote'\''s.log'`
+	want := `grep -H -n -E -- 'error|can'\''t' '/var/log/app current.log' '/tmp/quote'\''s.log' | head -n 50000`
 	if got != want {
 		t.Fatalf("buildRemoteGrepCommand() = %q, want %q", got, want)
 	}
@@ -135,9 +136,27 @@ func TestBuildRemoteGrepCommandAppendsFilterPipeline(t *testing.T) {
 		[]string{"/var/log/app.log"},
 		GrepArgs{},
 	)
-	want := `grep -H -n -- 'error' '/var/log/app.log' | grep -i -- 'user 42' | grep -v -E -- 'debug|trace'`
+	want := `grep -H -n -- 'error' '/var/log/app.log' | grep -i -- 'user 42' | grep -v -E -- 'debug|trace' | head -n 50000`
 	if got != want {
 		t.Fatalf("buildRemoteGrepCommand() = %q, want %q", got, want)
+	}
+}
+
+func TestBuildRemoteGrepCommandUsesTailBytesPerFile(t *testing.T) {
+	got := buildRemoteGrepCommand(
+		[]string{"-h", "-n"},
+		[]FilterConfig{{Pattern: "error"}},
+		[]string{"/var/log/app.log", "/tmp/quote's.log"},
+		GrepArgs{TailBytes: 20 * 1024 * 1024},
+	)
+	mustContainAll(t, got, []string{
+		`tail -c 20971520 -- '/var/log/app.log'`,
+		`grep '--label=/var/log/app.log' -h -n -- 'error'`,
+		`tail -c 20971520 -- '/tmp/quote'\''s.log'`,
+		`head -n 50000`,
+	})
+	if strings.Contains(got, "tail -n ") || strings.Contains(got, "command -v tac") {
+		t.Fatalf("byte window should not use tail -n or tac, got %q", got)
 	}
 }
 
@@ -202,6 +221,9 @@ func TestCanEarlyStopLatest(t *testing.T) {
 	}
 	if canEarlyStopLatest(GrepArgs{}) {
 		t.Fatal("unlimited search should not early-stop")
+	}
+	if canEarlyStopLatest(GrepArgs{MaxCount: 500, TailBytes: 20 * 1024 * 1024}) {
+		t.Fatal("byte window should not switch to tac")
 	}
 }
 
@@ -277,8 +299,9 @@ func TestRemoteLatestMatchCollectorKeepsLatestMatchesInOriginalOrder(t *testing.
 		[]string{"/var/log/app.log"},
 		filters,
 		newSearchHighlighter(filters),
-		func(line GrepLine) {
+		func(line GrepLine) bool {
 			got = append(got, line)
+			return false
 		},
 	)
 
@@ -312,8 +335,9 @@ func TestRemoteLatestMatchCollectorReversesTacOrder(t *testing.T) {
 		[]string{"/var/log/app.log"},
 		filters,
 		newSearchHighlighter(filters),
-		func(line GrepLine) {
+		func(line GrepLine) bool {
 			got = append(got, line)
+			return false
 		},
 	)
 	collector.reversed = true
@@ -342,8 +366,9 @@ func TestReadRemoteGrepOutputUsesCurrentTargetFileWhenOutputHasNoFilename(t *tes
 		newRemoteGrepOutputParser(GrepArgs{}, []string{"/var/log/app.log"}),
 		filters,
 		newSearchHighlighter(filters),
-		func(line GrepLine) {
+		func(line GrepLine) bool {
 			got = append(got, line)
+			return false
 		},
 	)
 	if err != nil {
@@ -354,6 +379,40 @@ func TestReadRemoteGrepOutputUsesCurrentTargetFileWhenOutputHasNoFilename(t *tes
 	}
 	if got[0].File != "/var/log/app.log" {
 		t.Fatalf("got file %q, want current target file", got[0].File)
+	}
+}
+
+func TestReadRemoteGrepOutputHidesLineNumbersWhenDisabled(t *testing.T) {
+	filters, err := compileFilters("error", GrepArgs{})
+	if err != nil {
+		t.Fatalf("compileFilters() error = %v", err)
+	}
+
+	var got []GrepLine
+	err = readRemoteGrepOutput(
+		context.Background(),
+		strings.NewReader("/var/log/app.log:12:error latest\n"),
+		"/var/log/app.log",
+		GrepArgs{ShowLineNum: false, ShowFilename: false},
+		newRemoteGrepOutputParser(
+			GrepArgs{ShowFilename: true, ShowLineNum: true},
+			[]string{"/var/log/app.log"},
+		),
+		filters,
+		newSearchHighlighter(filters),
+		func(line GrepLine) bool {
+			got = append(got, line)
+			return false
+		},
+	)
+	if err != nil {
+		t.Fatalf("readRemoteGrepOutput() error = %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d lines, want 1: %v", len(got), got)
+	}
+	if got[0].Text != "error latest" {
+		t.Fatalf("got text %q, want content without line number", got[0].Text)
 	}
 }
 
@@ -385,8 +444,9 @@ func TestRemoteLatestMatchCollectorPreservesContextAroundLatestMatch(t *testing.
 		[]string{"/var/log/app.log"},
 		filters,
 		newSearchHighlighter(filters),
-		func(line GrepLine) {
+		func(line GrepLine) bool {
 			got = append(got, line)
+			return false
 		},
 	)
 
@@ -423,8 +483,9 @@ func TestRemoteLatestMatchCollectorDetectsMatchFromContentWhenPrefixParsingIsDis
 		[]string{"/var/log/app.log"},
 		filters,
 		newSearchHighlighter(filters),
-		func(line GrepLine) {
+		func(line GrepLine) bool {
 			got = append(got, line)
+			return false
 		},
 	)
 
@@ -440,6 +501,21 @@ func TestRemoteLatestMatchCollectorDetectsMatchFromContentWhenPrefixParsingIsDis
 	}
 	if got[1].Text != "error latest" || got[1].IsContext {
 		t.Fatalf("got %+v, want middle line detected as match", got)
+	}
+}
+
+func TestRemoteGrepOutputParserStripsLabelPrefixEvenWhenFilenameHidden(t *testing.T) {
+	parser := newRemoteGrepOutputParser(
+		GrepArgs{ShowFilename: false, ShowLineNum: true},
+		[]string{"/var/log/app.log"},
+	)
+
+	got := parser.parse("/var/log/app.log:12:error latest")
+	if got.Content != "error latest" {
+		t.Fatalf("content = %q, want log body without file/line prefix", got.Content)
+	}
+	if got.FilePath != "/var/log/app.log" || got.LineNum != 12 {
+		t.Fatalf("unexpected parsed meta: %+v", got)
 	}
 }
 
@@ -573,5 +649,49 @@ func TestExpandRemotePathsWithExpandsPathsConcurrentlyAndPreservesOrder(t *testi
 		if result.files[index] != want[index] {
 			t.Fatalf("expanded files = %v, want %v", result.files, want)
 		}
+	}
+}
+
+func TestCapRemoteGrepOutputAddsHeadWhenUnlimited(t *testing.T) {
+	got := capRemoteGrepOutput("grep -- 'error' '/var/log/app.log'", GrepArgs{})
+	want := "grep -- 'error' '/var/log/app.log' | head -n 50000"
+	if got != want {
+		t.Fatalf("capRemoteGrepOutput() = %q, want %q", got, want)
+	}
+	if capped := capRemoteGrepOutput("grep -- 'error' '/var/log/app.log'", GrepArgs{MaxCount: 2}); strings.Contains(capped, "head -n 50000") {
+		t.Fatalf("latest maxCount path should not add the 50000-line cap, got %q", capped)
+	}
+}
+
+func TestReadRemoteGrepOutputStopsAtLineLimit(t *testing.T) {
+	filters, err := compileFilters("error", GrepArgs{})
+	if err != nil {
+		t.Fatalf("compileFilters() error = %v", err)
+	}
+
+	var builder strings.Builder
+	for i := 0; i < maxStoredLinesPerFile+8; i++ {
+		builder.WriteString("error line\n")
+	}
+
+	count := 0
+	err = readRemoteGrepOutput(
+		context.Background(),
+		strings.NewReader(builder.String()),
+		"/var/log/app.log",
+		GrepArgs{},
+		newRemoteGrepOutputParser(GrepArgs{}, []string{"/var/log/app.log"}),
+		filters,
+		newSearchHighlighter(filters),
+		func(GrepLine) bool {
+			count++
+			return count >= maxStoredLinesPerFile
+		},
+	)
+	if !errors.Is(err, errSearchLineLimit) {
+		t.Fatalf("readRemoteGrepOutput() error = %v, want %v", err, errSearchLineLimit)
+	}
+	if count != maxStoredLinesPerFile {
+		t.Fatalf("emitted %d lines, want %d", count, maxStoredLinesPerFile)
 	}
 }

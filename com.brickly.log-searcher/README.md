@@ -21,7 +21,7 @@ last_verified: 2026-08-30
 - `pattern`：必填，主检索关键词或正则。
 - `files`：可选，具体日志文件路径数组；不传时使用服务器配置中已启用的日志路径。
 - `filters`：可选，链式过滤条件数组，按顺序继续缩小结果。每项支持 `pattern`、`regexp`、`ignoreCase`、`invert`、`wordRegexp`。
-- `args`：可选，grep 行为选项，包括 `ignoreCase`、`invert`、`wordRegexp`、`regexp`、`contextA`、`contextB`、`contextC`、`onlyMatch`、`maxCount`、`showLineNum`、`showFilename`、`fromTail`、`tailLines`。为兼容旧调用，`args.filters` 仍可传链式过滤，但顶层 `filters` 更直观。
+- `args`：可选，grep 行为选项，包括 `ignoreCase`、`invert`、`wordRegexp`、`regexp`、`contextA`、`contextB`、`contextC`、`onlyMatch`、`showLineNum`、`showFilename`、`tailBytes`。`tailBytes>0` 时只检索每个文件末尾这么多字节（UI 默认 20MB，0 表示整个文件）。`maxCount`、`fromTail`、`tailLines` 仍接受，仅兼容旧调用。为兼容旧调用，`args.filters` 仍可传链式过滤，但顶层 `filters` 更直观。
 - `resultMode`：可选。默认不传时保持兼容流式输出；传 `"store"` 时结果存储在 Go runtime 内存中，前端通过 `peek_search_results` 按窗口读取。
 
 输出（interact 事件，不是旧 BPP chunk）：
@@ -34,21 +34,19 @@ last_verified: 2026-08-30
 - `matches` 是主检索词及正向链式过滤词在 `text` 中的高亮区间 `[start, end)`；排除型过滤不会高亮。区间单位固定为 UTF-16 code unit，可直接用于浏览器 `String.prototype.slice`。
 - `file` 是命中来源文件路径，用于 UI 多文件 Tab 分组；`isContext` 表示该行是否来自上下文输出；`error` 是可选的文件级错误信息。
 
-### 最新命中限制
+### 搜索范围
 
-`args.maxCount>0` 时，限制语义是“每个文件保留最新 `maxCount` 条命中行”，不是 `grep -m` 的“从文件头返回前 N 条”。运行时会先按文件原始顺序完成过滤，只保留尾部最新命中，最终仍按日志原始顺序从旧到新输出。上下文行不计入 `maxCount`，但会随保留下来的命中一起输出，因此展示行数可能略多于 `maxCount`。
+UI 默认每个文件只搜末尾 20MB（`args.tailBytes=20971520`），远程执行 `tail -c` 再 `grep`，扫描量有上界。范围内命中全部返回；每个文件最多保留 50000 行，达到上限后停止该文件检索并设置 `truncated=true`。选「整个文件」时 `tailBytes=0`，会扫描完整文件。
 
-UI 默认每个文件保留最新 500 条命中。
+旧调用仍可传 `maxCount`（每文件最新 N 条命中）或 `fromTail`+`tailLines`（按行截尾）。只要传了 `tailBytes>0`，字节窗口优先。
 
-### 尾部搜索
-
-设置 `args.fromTail=true` 且 `args.tailLines>0` 时，只在每个目标文件最后 `tailLines` 行内搜索。UI 默认关闭此模式；开启后默认搜索最后 1000 行，以便快速排查正在增长的大日志。若同时设置 `maxCount`，会先限定尾部扫描窗口，再在窗口内保留最新命中。未开启 `fromTail` 且没有上下文行时，远程用 `tac | grep | head`（或 awk 环形缓冲兜底）只回传最新 `maxCount` 条，不再把全部命中拉回本地再丢。有上下文行时仍全文件扫描，本地 ring 只留最新命中。
+工具栏可用「修改日期」按最后修改时间勾选文件：单日或日期范围（本地日历日，含起止当天）。选完日期后会自动选中 `modifiedAt` 落在范围内的文件；刷新文件列表时若日期筛选仍在，会按同样规则重选。未选日期时行为不变。
 
 UI 中选择多个日志文件时，工具会为每个文件创建独立结果 Tab；不再渲染“全部”聚合视图，避免重复上下文。文件列表通过远程 `file --mime-type` 识别文件头，仅保留可直接由 `grep` 检索的文本 MIME 类型，并按最后修改时间倒序排列；JAR、图片和其他二进制文件会被排除。若远程机未安装 `file`，会保留全部路径但仍按修改时间排序。每个文件 Tab 会显示列出时读取的远程文件大小，结果列表、滚动位置、计数和错误状态互相隔离；Tab 圆点提示等待、检索中、完成、出错或取消，出错文件会在对应结果视图中展示具体错误信息。浏览、列文件、测连和检索复用同一条 SSH 连接（按主机指纹缓存，空闲超时后释放）。一次检索内的多文件再复用该连接，并以最多 6 个远程 grep 会话并发查询。具体文件路径不再走远程 expand。
 
 ### Go 侧存储模式
 
-UI 默认使用 `resultMode="store"`：搜索结果按 `serverId/runId/tabId` 保存在 Go runtime 内存中，renderer 只保存当前虚拟列表窗口。每次同一服务器开始新搜索时，会清理该服务器旧结果并取消旧搜索，避免旧数据泄露到新结果。`maxCount=0` 时 store 模式每个文件最多保留最新 50000 行输出，超过后设置 `truncated=true`。
+UI 默认使用 `resultMode="store"`：搜索结果按 `serverId/runId/tabId` 保存在 Go runtime 内存中，renderer 只保存当前虚拟列表窗口。每次同一服务器开始新搜索时，会清理该服务器旧结果并取消旧搜索，避免旧数据泄露到新结果。`maxCount=0` 时每个文件最多保留 50000 行输出；达到上限后停止该文件的远程检索，保留已收到的行，并设置 `truncated=true`。其他文件继续检索。
 
 `peek_search_results` 用于读取窗口数据，输入 `{ serverId, runId, tabId, offset, limit }`，返回 `{ runId, tabId, total, offset, lines, status, message, durationMs, truncated }`。`limit` 最大 1000。`find_search_results` 用于在当前文件 Tab 的 Go 侧已存结果内定位上一个或下一个文本命中，返回 `{ total, ordinal, lineIndex, start, end }` 等字段。`clear_search_results` 用于清理某个服务器的 Go 侧结果，输入 `{ serverId }`。
 
@@ -68,9 +66,7 @@ UI 结果区默认使用自动换行虚拟列表，通过动态行高测量展�
   ],
   "args": {
     "ignoreCase": true,
-    "maxCount": 500,
-    "fromTail": true,
-    "tailLines": 2000
+    "tailBytes": 20971520
   }
 }
 ```

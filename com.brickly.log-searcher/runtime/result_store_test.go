@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestResultStorePeekRangeAndServerIsolation(t *testing.T) {
 	store := newResultStore()
@@ -68,23 +71,41 @@ func TestResultStoreIgnoresOldRunWrites(t *testing.T) {
 	}
 }
 
-func TestResultStoreAppliesHardLimitAndKeepsLatestLines(t *testing.T) {
+func TestResultStoreStopsAtHardLimitAndKeepsFirstLines(t *testing.T) {
 	store := newResultStore()
 	runID := store.StartRun("srv", []string{"app.log"})
 
+	var lastAccepted bool
 	for i := 0; i < maxStoredLinesPerFile+3; i++ {
-		store.AppendLine("srv", runID, "app.log", GrepLine{Text: string(rune('a' + i%26))})
+		_, lastAccepted = store.AppendLine("srv", runID, "app.log", GrepLine{Text: string(rune('a' + i%26))})
+		if i >= maxStoredLinesPerFile && lastAccepted {
+			t.Fatalf("line %d should be rejected after the hard limit", i)
+		}
+	}
+	if lastAccepted {
+		t.Fatal("overflow lines should be rejected")
 	}
 
 	got := store.Peek("srv", runID, "app.log", 0, 10)
 	if !got.Truncated {
 		t.Fatalf("expected truncated result")
 	}
+	if got.Message != searchLineLimitMessage {
+		t.Fatalf("message = %q, want %q", got.Message, searchLineLimitMessage)
+	}
 	if got.Total != maxStoredLinesPerFile {
 		t.Fatalf("total should expose retained rows, got %d", got.Total)
 	}
-	if len(got.Lines) == 0 || got.Lines[0].Index != 0 {
-		t.Fatalf("expected first visible index 0, got %+v", got.Lines)
+	if len(got.Lines) == 0 || got.Lines[0].Index != 0 || got.Lines[0].Text != "a" {
+		t.Fatalf("expected first retained line, got %+v", got.Lines)
+	}
+
+	if !store.FinishFile("srv", runID, "app.log", searchStatusSuccess, "") {
+		t.Fatal("FinishFile should succeed")
+	}
+	finished := store.Peek("srv", runID, "app.log", 0, 1)
+	if finished.Message != searchLineLimitMessage {
+		t.Fatalf("FinishFile should keep limit message, got %q", finished.Message)
 	}
 }
 
@@ -132,5 +153,24 @@ func TestResultStoreFindUsesUTF16Offsets(t *testing.T) {
 	got := store.Find("srv", runID, "app.log", "error", "next", -1, -1, true)
 	if got.Total != 1 || got.Start != 4 || got.End != 9 {
 		t.Fatalf("expected UTF-16 offsets after Chinese and emoji, got %+v", got)
+	}
+}
+
+func TestResultStorePeekReportsLiveDurationWhileSearching(t *testing.T) {
+	store := newResultStore()
+	runID := store.StartRun("srv", []string{"app.log"})
+	if !store.StartFile("srv", runID, "app.log") {
+		t.Fatal("StartFile should succeed")
+	}
+	store.AppendLine("srv", runID, "app.log", GrepLine{Text: "error"})
+	time.Sleep(20 * time.Millisecond)
+
+	peek := store.Peek("srv", runID, "app.log", 0, 10)
+	if peek.DurationMs <= 0 {
+		t.Fatalf("active peek should report live duration, got %d", peek.DurationMs)
+	}
+	state, ok := store.State("srv", runID)
+	if !ok || len(state.Files) != 1 || state.Files[0].DurationMs <= 0 {
+		t.Fatalf("active state should report live duration, got %+v", state)
 	}
 }

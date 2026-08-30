@@ -41,6 +41,7 @@ export interface GrepArgs {
   showFilename: boolean
   fromTail: boolean
   tailLines: number
+  tailBytes: number
   filters?: FilterConfig[]
 }
 
@@ -155,6 +156,16 @@ export interface ConnectionTestState {
 
 export type { HighlightKeywordTextMap, RemoteLogFile }
 
+export const DEFAULT_TAIL_BYTES = 20 * 1024 * 1024
+
+export const TAIL_BYTE_OPTIONS: Array<{ value: number; label: string }> = [
+  { value: 10 * 1024 * 1024, label: '最近 10 MB' },
+  { value: 20 * 1024 * 1024, label: '最近 20 MB' },
+  { value: 50 * 1024 * 1024, label: '最近 50 MB' },
+  { value: 100 * 1024 * 1024, label: '最近 100 MB' },
+  { value: 0, label: '整个文件' }
+]
+
 export const DEFAULT_GREP_ARGS: GrepArgs = {
   ignoreCase: true,
   invert: false,
@@ -164,9 +175,10 @@ export const DEFAULT_GREP_ARGS: GrepArgs = {
   contextB: 0,
   contextC: 0,
   onlyMatch: false,
-  maxCount: 500,
+  maxCount: 0,
   showLineNum: false,
   showFilename: false,
   fromTail: false,
-  tailLines: 1000
+  tailLines: 1000,
+  tailBytes: DEFAULT_TAIL_BYTES
 }

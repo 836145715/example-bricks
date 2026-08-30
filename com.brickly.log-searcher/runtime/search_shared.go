@@ -3,12 +3,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+var errSearchLineLimit = errors.New("search line limit reached")
+
+type grepLineHandler func(line GrepLine) (stop bool)
 
 // GrepLine 单行检索结果，包含预计算的高亮位置。
 type GrepLine struct {
@@ -177,7 +182,7 @@ func pruneOpenMatchGroups(groups []*matchOutputGroup, currentLineNum int, contex
 	return kept
 }
 
-func flushMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onLine func(line GrepLine)) error {
+func flushMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onLine grepLineHandler) error {
 	if len(groups) == 0 {
 		return nil
 	}
@@ -216,7 +221,7 @@ func flushMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onL
 	return emitMatchOutputItems(ctx, items, onLine)
 }
 
-func emitMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onLine func(line GrepLine)) error {
+func emitMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onLine grepLineHandler) error {
 	for _, group := range groups {
 		if err := emitMatchOutputItems(ctx, group.items, onLine); err != nil {
 			return err
@@ -225,12 +230,14 @@ func emitMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onLi
 	return nil
 }
 
-func emitMatchOutputItems(ctx context.Context, items []grepOutputItem, onLine func(line GrepLine)) error {
+func emitMatchOutputItems(ctx context.Context, items []grepOutputItem, onLine grepLineHandler) error {
 	for _, item := range items {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		onLine(item.line)
+		if onLine(item.line) {
+			return errSearchLineLimit
+		}
 	}
 	return nil
 }

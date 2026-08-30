@@ -25,6 +25,7 @@ import {
   getJumpPeekWindow,
   type JumpAlign
 } from './virtualJump'
+import { isEmptyCompletedResultTab, shouldShowResultTab } from './resultDisplay'
 import {
   BricklySearchEvent,
   DEFAULT_GREP_ARGS,
@@ -42,7 +43,16 @@ import {
   SearchStatePayload,
   ServerConfig
 } from './types'
-import type { RemoteBrowseResult } from './domain/paths'
+import {
+  DEFAULT_FILE_DATE_FILTER,
+  dateFilterPreset,
+  filterFilesByModifiedDate,
+  isDateFilterActive,
+  normalizeDateFilter,
+  type FileDateFilter,
+  type FileDatePreset,
+  type RemoteBrowseResult
+} from './domain/paths'
 import type { BricklyStartedHandle } from '@syllm/brickly-ui'
 
 const LOG_ROW_HEIGHT = 22
@@ -207,9 +217,16 @@ export function App() {
   // 日志多选控件状态与 Refs
   const [availableFilesMap, setAvailableFilesMap] = useState<Record<string, RemoteLogFile[]>>({})
   const [selectedFilesMap, setSelectedFilesMap] = useState<Record<string, string[]>>({})
+  const [dateFilterMap, setDateFilterMap] = useState<Record<string, FileDateFilter>>({})
   const [fileListStatusMap, setFileListStatusMap] = useState<Record<string, FileListStatus>>({})
   const fileListRequestIDsRef = useRef<Record<string, number>>({})
   const fileListRetryTimersRef = useRef<Record<string, ReturnType<typeof window.setTimeout>>>({})
+  const dateFilterMapRef = useRef<Record<string, FileDateFilter>>({})
+  const selectedFilesBeforeDateRef = useRef<Record<string, string[]>>({})
+
+  useEffect(() => {
+    dateFilterMapRef.current = dateFilterMap
+  }, [dateFilterMap])
 
   useEffect(() => () => {
     for (const timer of Object.values(fileListRetryTimersRef.current)) {
@@ -255,21 +272,29 @@ export function App() {
       setAvailableFilesMap(prev => ({ ...prev, [serverId]: sortedFiles }))
       setFileListStatusMap(prev => ({ ...prev, [serverId]: 'ready' }))
 
-      // 保留用户已有选择；首次成功加载时才应用配置中的默认直接文件。
+      // 有日期筛选时按最后修改时间重选；否则保留已有选择，首次加载用配置默认文件。
       const server = servers.find(s => s.id === serverId)
       if (server) {
-        setSelectedFilesMap(prev => {
-          if (Object.prototype.hasOwnProperty.call(prev, serverId)) {
+        const dateFilter = dateFilterMapRef.current[serverId]
+        if (isDateFilterActive(dateFilter)) {
+          const matchedPaths = filterFilesByModifiedDate(sortedFiles, dateFilter).map(file => file.path)
+          if (matchedPaths.length > 0) {
+            setSelectedFilesMap(prev => ({ ...prev, [serverId]: matchedPaths }))
+          }
+        } else {
+          setSelectedFilesMap(prev => {
+            if (Object.prototype.hasOwnProperty.call(prev, serverId)) {
+              return {
+                ...prev,
+                [serverId]: (prev[serverId] ?? []).filter(file => sortedFilePaths.includes(file))
+              }
+            }
             return {
               ...prev,
-              [serverId]: (prev[serverId] ?? []).filter(file => sortedFilePaths.includes(file))
+              [serverId]: getDefaultSelectedFiles(sortedFilePaths, server.logs)
             }
-          }
-          return {
-            ...prev,
-            [serverId]: getDefaultSelectedFiles(sortedFilePaths, server.logs)
-          }
-        })
+          })
+        }
       }
     } catch (err: any) {
       if (fileListRequestIDsRef.current[serverId] !== activeRequestID) return
@@ -318,6 +343,48 @@ export function App() {
     return grepArgsMap[id] ?? DEFAULT_GREP_ARGS
   }
 
+  const getDateFilter = (id: string): FileDateFilter => {
+    return dateFilterMap[id] ?? DEFAULT_FILE_DATE_FILTER
+  }
+
+  const applyDateFilterSelection = (serverId: string, filter: FileDateFilter, files: RemoteLogFile[]) => {
+    if (!isDateFilterActive(filter)) return
+    const matched = filterFilesByModifiedDate(files, filter)
+    if (matched.length === 0) {
+      if (files.length > 0) {
+        showToast('该日期范围内没有最后修改过的日志文件，已保留当前文件选择')
+      }
+      return
+    }
+    setSelectedFilesMap(prev => {
+      if (!Object.prototype.hasOwnProperty.call(selectedFilesBeforeDateRef.current, serverId)) {
+        selectedFilesBeforeDateRef.current[serverId] = prev[serverId] ?? []
+      }
+      return { ...prev, [serverId]: matched.map(file => file.path) }
+    })
+  }
+
+  const handleDateFilterChange = (filter: FileDateFilter) => {
+    if (!activeServerId) return
+    const next = normalizeDateFilter(filter)
+    setDateFilterMap(prev => ({ ...prev, [activeServerId]: next }))
+    applyDateFilterSelection(activeServerId, next, availableFilesMap[activeServerId] || [])
+  }
+
+  const handleDateFilterPreset = (kind: FileDatePreset) => {
+    handleDateFilterChange(dateFilterPreset(kind))
+  }
+
+  const handleClearDateFilter = () => {
+    if (!activeServerId) return
+    const restored = selectedFilesBeforeDateRef.current[activeServerId]
+    delete selectedFilesBeforeDateRef.current[activeServerId]
+    setDateFilterMap(prev => ({ ...prev, [activeServerId]: DEFAULT_FILE_DATE_FILTER }))
+    if (restored) {
+      setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: restored }))
+    }
+  }
+
   const makeScopeKey = (serverId: string, tabId: string): string => {
     return `${serverId}::${tabId}`
   }
@@ -330,9 +397,17 @@ export function App() {
     return scopeKey.startsWith(`${serverId}::`)
   }
 
+  const getVisibleResultTabs = (serverId: string): string[] => {
+    const states = fileSearchStateMap[serverId] ?? {}
+    return (resultTabsMap[serverId] ?? []).filter(tabId => shouldShowResultTab(states[tabId]))
+  }
+
   const getActiveResultTab = (serverId: string): string => {
+    const visibleTabs = getVisibleResultTabs(serverId)
     const tabs = resultTabsMap[serverId] ?? []
     const activeTab = activeResultTabsMap[serverId]
+    if (activeTab && visibleTabs.includes(activeTab)) return activeTab
+    if (visibleTabs[0]) return visibleTabs[0]
     if (activeTab && tabs.includes(activeTab)) return activeTab
     return tabs[0] ?? FALLBACK_RESULTS_SCOPE
   }
@@ -543,6 +618,14 @@ export function App() {
         status: 'idle' as FileSearchStatus
       }
       const nextFileState = { ...current, ...fields }
+      if (
+        typeof fields.durationMs === 'number'
+        && fields.durationMs <= 0
+        && current.durationMs > 0
+        && (fields.count ?? current.count) > 0
+      ) {
+        nextFileState.durationMs = current.durationMs
+      }
       if (areFileSearchStatesEqual(current, nextFileState)) {
         return prev
       }
@@ -1358,6 +1441,9 @@ export function App() {
     const effectiveExtraFilters = getExtraFilters(targetServerId).filter(filter => filter.pattern.trim() !== '')
     const searchArgs: GrepArgs = {
       ...currentGrepArgs,
+      maxCount: 0,
+      fromTail: false,
+      tailBytes: currentGrepArgs.tailBytes ?? DEFAULT_GREP_ARGS.tailBytes,
       showLineNum: false,
       showFilename: false,
       filters: effectiveExtraFilters
@@ -1539,7 +1625,11 @@ export function App() {
 
   const activeServer = servers.find(s => s.id === activeServerId)
   const resultTabs = getResultTabs(activeServerId)
-  const visibleResultTabs = activeServerId ? resultTabs : []
+  const fileStates = getFileSearchStates(activeServerId)
+  const visibleResultTabs = activeServerId ? getVisibleResultTabs(activeServerId) : []
+  const emptyCompletedTabCount = activeServerId
+    ? resultTabs.filter(tabId => isEmptyCompletedResultTab(fileStates[tabId])).length
+    : 0
   const currentLogs = getCurrentLogs()
   const currentStats = getCurrentStats()
   const activeFileState = getFileSearchState(activeServerId, activeTabId)
@@ -1625,6 +1715,15 @@ export function App() {
             availableFiles={availableFilesMap[activeServerId] || []}
             selectedFiles={selectedFilesMap[activeServerId] || []}
             fileListStatus={fileListStatusMap[activeServerId] ?? 'idle'}
+            dateFilter={getDateFilter(activeServerId)}
+            dateMatchedPaths={
+              isDateFilterActive(getDateFilter(activeServerId))
+                ? filterFilesByModifiedDate(
+                  availableFilesMap[activeServerId] || [],
+                  getDateFilter(activeServerId)
+                ).map(file => file.path)
+                : []
+            }
             canEditConnection={!!activeServerId}
             onSearchPatternChange={(value) => setSearchPatterns({ ...searchPatterns, [activeServerId]: value })}
             onSearch={handleSearch}
@@ -1649,6 +1748,9 @@ export function App() {
             onUpdateHighlight={updateHighlightKeywords}
             onRefreshFiles={() => fetchAvailableFiles(activeServerId)}
             onChangeSelectedFiles={(paths) => setSelectedFilesMap(prev => ({ ...prev, [activeServerId]: paths }))}
+            onDateFilterChange={handleDateFilterChange}
+            onDateFilterPreset={handleDateFilterPreset}
+            onClearDateFilter={handleClearDateFilter}
           />
 
           <section className="workspace">
@@ -1657,6 +1759,7 @@ export function App() {
               activeServerId={activeServerId}
               activeTabId={activeTabId}
               visibleResultTabs={visibleResultTabs}
+              emptyCompletedTabCount={emptyCompletedTabCount}
               availableFiles={availableFilesMap[activeServerId] || []}
               fileStates={getFileSearchStates(activeServerId)}
               currentLogs={currentLogs}

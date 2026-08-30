@@ -24,7 +24,9 @@ last_verified: 2026-08-30
 - Runtime 使用 `owned` Lifetime。结果存在该进程内存里，不能改成 `per-call`。
 - UI 默认 `resultMode=store`。`search` 只推 `searchState`，行数据用 `peek_search_results` 按窗口读。
 - 多文件检索复用同一条 SSH 连接，最多 6 路并发 grep。
-- `maxCount` 表示「每个文件保留最新 N 条命中」，不是 `grep -m`。
+- 默认按文件末尾字节窗口检索（`tailBytes`，默认 20MB），范围内命中全部返回；`maxCount` / 按行 `fromTail` 只留给旧调用。
+- 每个文件最多 50000 行；达到上限后停止该文件检索，不丢已有结果。
+- 检索期可用单日/范围按文件最后修改时间自动勾选文件；这只改 `selectedFiles`，不改搜索协议。
 
 不要改回全量 `logLine` 推到 webview，也不要在每次滚动时重新 SSH 取窗口。
 

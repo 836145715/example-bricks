@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,11 +19,11 @@ import (
 )
 
 // 执行远程 SSH grep
-func RunRemoteGrep(ctx context.Context, server ServerConfig, pattern string, files []string, args GrepArgs, onLine func(line GrepLine)) error {
+func RunRemoteGrep(ctx context.Context, server ServerConfig, pattern string, files []string, args GrepArgs, onLine grepLineHandler) error {
 	return RunRemoteGrepWithFiles(ctx, server, pattern, files, args, nil, onLine)
 }
 
-func RunRemoteGrepWithFiles(ctx context.Context, server ServerConfig, pattern string, files []string, args GrepArgs, onFiles func(files []string), onLine func(line GrepLine)) error {
+func RunRemoteGrepWithFiles(ctx context.Context, server ServerConfig, pattern string, files []string, args GrepArgs, onFiles func(files []string), onLine grepLineHandler) error {
 	return runRemoteGrepWithFileLifecycle(ctx, server, pattern, files, args, onFiles, nil, nil, onLine)
 }
 
@@ -35,7 +36,7 @@ func runRemoteGrepWithFileLifecycle(
 	onFiles func(files []string),
 	onFileStart func(filePath string),
 	onFileDone func(filePath string),
-	onLine func(line GrepLine),
+	onLine grepLineHandler,
 ) error {
 	client, release, err := acquireSSHClient(ctx, server)
 	if err != nil {
@@ -95,10 +96,10 @@ func runRemoteGrepWithFileLifecycle(
 		defer callbacks.Unlock()
 		onFileDone(filePath)
 	}
-	reportLine := func(line GrepLine) {
+	reportLine := func(line GrepLine) bool {
 		callbacks.Lock()
 		defer callbacks.Unlock()
-		onLine(line)
+		return onLine(line)
 	}
 
 	return runFileJobs(ctx, targetFiles, func(targetFile string) error {
@@ -133,7 +134,7 @@ func runRemoteGrepFile(
 	outputParser remoteGrepOutputParser,
 	highlightFilters []compiledFilter,
 	highlighter searchHighlighter,
-	onLine func(line GrepLine),
+	onLine grepLineHandler,
 ) error {
 	session, err := openSSHSession(client)
 	if err != nil {
@@ -179,6 +180,12 @@ func runRemoteGrepFile(
 	doneChan := make(chan remoteSearchDone, 1)
 	go func() {
 		readErr := readRemoteGrepOutput(ctx, stdoutPipe, targetFile, args, outputParser, highlightFilters, highlighter, onLine)
+		if errors.Is(readErr, errSearchLineLimit) {
+			_ = session.Close()
+			_ = session.Wait()
+			doneChan <- remoteSearchDone{err: nil}
+			return
+		}
 		waitErr := session.Wait()
 		if readErr != nil {
 			waitErr = readErr
@@ -221,7 +228,7 @@ func readRemoteGrepOutput(
 	outputParser remoteGrepOutputParser,
 	highlightFilters []compiledFilter,
 	highlighter searchHighlighter,
-	onLine func(line GrepLine),
+	onLine grepLineHandler,
 ) error {
 	scanner := bufio.NewScanner(stdoutPipe)
 	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
@@ -258,16 +265,22 @@ func readRemoteGrepOutput(
 			continue
 		}
 
-		matches := highlighter.displayMatches(line, parsed.Content)
+		displayText := parsed.Content
+		if args.ShowFilename || args.ShowLineNum {
+			displayText = formatLine(parsed.FilePath, parsed.LineNum, parsed.Content, parsed.IsContext, args)
+		}
+		matches := highlighter.displayMatches(displayText, parsed.Content)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		onLine(GrepLine{
-			Text:      line,
+		if onLine(GrepLine{
+			Text:      displayText,
 			Matches:   matches,
 			File:      parsed.FilePath,
 			IsContext: parsed.IsContext,
-		})
+		}) {
+			return errSearchLineLimit
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return err
@@ -647,10 +660,17 @@ func canEarlyStopLatest(args GrepArgs) bool {
 	if args.MaxCount <= 0 {
 		return false
 	}
+	if args.TailBytes > 0 {
+		return false
+	}
 	if args.FromTail && args.TailLines > 0 {
 		return false
 	}
 	return args.ContextA <= 0 && args.ContextB <= 0 && args.ContextC <= 0
+}
+
+func usesRemoteTailWindow(args GrepArgs) bool {
+	return args.TailBytes > 0 || (args.FromTail && args.TailLines > 0)
 }
 
 func buildRemoteGrepCommand(primaryOpts []string, filters []FilterConfig, targetFiles []string, args GrepArgs) string {
@@ -663,7 +683,14 @@ func buildRemoteGrepCommand(primaryOpts []string, filters []FilterConfig, target
 		commands = append(commands, buildRemotePipeGrepCommand(filter))
 	}
 
-	return strings.Join(commands, " | ")
+	return capRemoteGrepOutput(strings.Join(commands, " | "), args)
+}
+
+func capRemoteGrepOutput(command string, args GrepArgs) string {
+	if args.MaxCount > 0 || command == "" || command == "true" {
+		return command
+	}
+	return command + " | head -n " + strconv.Itoa(maxStoredLinesPerFile)
 }
 
 func buildRemoteLatestGrepCommand(primaryOpts []string, filters []FilterConfig, targetFiles []string, args GrepArgs) string {
@@ -768,7 +795,7 @@ func buildRemotePrimaryOptions(args GrepArgs) []string {
 }
 
 func buildRemotePrimaryGrepCommand(primaryOpts []string, filter FilterConfig, targetFiles []string, args GrepArgs) string {
-	if args.FromTail && args.TailLines > 0 {
+	if usesRemoteTailWindow(args) {
 		var perFileCommands []string
 		for _, file := range targetFiles {
 			trimmedFile := strings.TrimSpace(file)
@@ -803,9 +830,13 @@ func buildRemoteTailGrepCommand(primaryOpts []string, filter FilterConfig, file 
 	grepParts = append(grepParts, primaryOpts...)
 	grepParts = append(grepParts, "--", shellQuote(filter.Pattern))
 
+	tailSpec := fmt.Sprintf("-n %d", args.TailLines)
+	if args.TailBytes > 0 {
+		tailSpec = fmt.Sprintf("-c %d", args.TailBytes)
+	}
 	cmd := fmt.Sprintf(
-		"tail -n %d -- %s | %s",
-		args.TailLines,
+		"tail %s -- %s | %s",
+		tailSpec,
 		shellQuote(file),
 		strings.Join(grepParts, " "),
 	)
@@ -835,7 +866,7 @@ type remoteLatestMatchCollector struct {
 	targetFiles       []string
 	filters           []compiledFilter
 	highlighter       searchHighlighter
-	onLine            func(line GrepLine)
+	onLine            grepLineHandler
 	files             map[string]*remoteLatestFileState
 	sequence          int
 	defaultSource     string
@@ -853,7 +884,7 @@ type remoteLatestFileState struct {
 	lastSource   string
 }
 
-func newRemoteLatestMatchCollector(args GrepArgs, targetFiles []string, filters []compiledFilter, highlighter searchHighlighter, onLine func(line GrepLine)) *remoteLatestMatchCollector {
+func newRemoteLatestMatchCollector(args GrepArgs, targetFiles []string, filters []compiledFilter, highlighter searchHighlighter, onLine grepLineHandler) *remoteLatestMatchCollector {
 	defaultSource := ""
 	if len(targetFiles) == 1 {
 		defaultSource = targetFiles[0]
@@ -1106,21 +1137,20 @@ func (parser remoteGrepOutputParser) parse(line string) remoteGrepLine {
 		return remoteGrepLine{Raw: line, Content: line, IsSeparator: true}
 	}
 
-	if parser.args.ShowFilename {
-		var ok bool
-		filePath, content, isContext, ok = parser.stripFilenamePrefix(content)
-		if !ok {
-			filePath = ""
-		}
+	if strippedFile, rest, fileIsContext, ok := parser.stripFilenamePrefix(content); ok {
+		filePath = strippedFile
+		content = rest
+		isContext = fileIsContext
 	} else if len(parser.targetFiles) == 1 {
 		filePath = parser.targetFiles[0]
 	}
 
 	if parser.args.ShowLineNum {
-		var parsedLineNum int
-		content, parsedLineNum, isContext = stripLineNumberPrefix(content)
+		stripped, parsedLineNum, lineIsContext := stripLineNumberPrefix(content)
 		if parsedLineNum > 0 {
+			content = stripped
 			lineNum = parsedLineNum
+			isContext = lineIsContext
 		}
 	}
 	return remoteGrepLine{

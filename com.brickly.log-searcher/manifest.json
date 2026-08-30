@@ -86,7 +86,7 @@
             "label": "Grep 选项",
             "type": "json",
             "required": false,
-            "description": "可选。grep 行为选项：ignoreCase、invert、wordRegexp、regexp、contextA/contextB/contextC、onlyMatch、maxCount、showLineNum、showFilename、fromTail、tailLines。maxCount 表示每文件保留最新 N 条命中并按日志原始顺序输出，不等价于 grep -m。兼容旧调用，也可在 args.filters 传链式过滤。"
+            "description": "可选。grep 行为选项：ignoreCase、invert、wordRegexp、regexp、contextA/contextB/contextC、onlyMatch、showLineNum、showFilename、tailBytes。tailBytes 表示每个文件从末尾读取的字节数，0 为整文件；UI 默认 20MB。maxCount、fromTail、tailLines 仅兼容旧调用。"
           },
           {
             "name": "resultMode",

@@ -28,6 +28,20 @@ export const getFileSearchStatusText = (state: FileSearchState): string => {
   return '未检索'
 }
 
+export const shouldShowResultTab = (state?: FileSearchState): boolean => {
+  if (!state) return true
+  if (state.active) return true
+  if (state.status === 'queued' || state.status === 'searching' || state.status === 'error' || state.status === 'cancelled') {
+    return true
+  }
+  return state.count > 0
+}
+
+export const isEmptyCompletedResultTab = (state?: FileSearchState): boolean => {
+  if (!state || state.active) return false
+  return (state.status === 'success' || state.status === 'done') && state.count <= 0
+}
+
 export const getTabStatusClass = (status: FileSearchStatus): string => {
   if (status === 'queued') return 'queued'
   if (status === 'searching') return 'searching'

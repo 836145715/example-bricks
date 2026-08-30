@@ -12,7 +12,8 @@ const (
 	storeResultMode       = "store"
 	defaultPeekLimit      = 100
 	maxPeekLimit          = 1000
-	maxStoredLinesPerFile = 50000
+	maxStoredLinesPerFile     = 50000
+	searchLineLimitMessage    = "已达到每文件 50000 行上限，已停止检索"
 	searchStatusQueued    = "queued"
 	searchStatusSearching = "searching"
 	searchStatusSuccess   = "success"
@@ -197,6 +198,10 @@ func (store *resultStore) AppendLine(serverID, runID, tabID string, line GrepLin
 		fileStore.Status = searchStatusSearching
 	}
 	fileStore.Active = fileStore.Status == searchStatusSearching
+	if fileStore.Truncated || len(fileStore.Lines) >= maxStoredLinesPerFile {
+		fileStore.markLineLimitLocked()
+		return fileStore.snapshot(), false
+	}
 	index := fileStore.BaseIndex + len(fileStore.Lines)
 	fileStore.Lines = append(fileStore.Lines, StoredGrepLine{
 		Index:     index,
@@ -206,11 +211,8 @@ func (store *resultStore) AppendLine(serverID, runID, tabID string, line GrepLin
 		IsContext: line.IsContext,
 		Error:     line.Error,
 	})
-	if len(fileStore.Lines) > maxStoredLinesPerFile {
-		overflow := len(fileStore.Lines) - maxStoredLinesPerFile
-		fileStore.Lines = append([]StoredGrepLine(nil), fileStore.Lines[overflow:]...)
-		fileStore.BaseIndex += overflow
-		fileStore.Truncated = true
+	if len(fileStore.Lines) >= maxStoredLinesPerFile {
+		fileStore.markLineLimitLocked()
 	}
 	if line.Error != "" {
 		fileStore.Status = searchStatusError
@@ -218,6 +220,13 @@ func (store *resultStore) AppendLine(serverID, runID, tabID string, line GrepLin
 		fileStore.Active = false
 	}
 	return fileStore.snapshot(), true
+}
+
+func (fileStore *fileResultStore) markLineLimitLocked() {
+	fileStore.Truncated = true
+	if fileStore.Message == "" {
+		fileStore.Message = searchLineLimitMessage
+	}
 }
 
 func (store *resultStore) FinishFile(serverID, runID, tabID, status, message string) bool {
@@ -231,6 +240,9 @@ func (store *resultStore) FinishFile(serverID, runID, tabID, status, message str
 		fileStore.Active = false
 		fileStore.DurationMs = time.Since(fileStore.StartTime).Milliseconds()
 		return true
+	}
+	if fileStore.Truncated && strings.TrimSpace(message) == "" {
+		message = fileStore.Message
 	}
 	fileStore.Status = status
 	fileStore.Message = message
@@ -305,7 +317,7 @@ func (store *resultStore) Peek(serverID, runID, tabID string, offset, limit int)
 			Lines:      []StoredGrepLine{},
 			Status:     fileStore.Status,
 			Message:    fileStore.Message,
-			DurationMs: fileStore.DurationMs,
+			DurationMs: fileStore.elapsedMsLocked(),
 			Truncated:  fileStore.Truncated,
 		}
 	}
@@ -325,7 +337,7 @@ func (store *resultStore) Peek(serverID, runID, tabID string, offset, limit int)
 		Lines:      lines,
 		Status:     fileStore.Status,
 		Message:    fileStore.Message,
-		DurationMs: fileStore.DurationMs,
+		DurationMs: fileStore.elapsedMsLocked(),
 		Truncated:  fileStore.Truncated,
 	}
 }
@@ -371,7 +383,7 @@ func (store *resultStore) Find(serverID, runID, tabID, keyword, direction string
 	lines := append([]StoredGrepLine(nil), fileStore.Lines...)
 	status := fileStore.Status
 	message := fileStore.Message
-	durationMs := fileStore.DurationMs
+	durationMs := fileStore.elapsedMsLocked()
 	truncated := fileStore.Truncated
 	store.mu.Unlock()
 
@@ -484,19 +496,22 @@ func (serverStore *serverSearchStore) snapshot(serverID string) SearchStatePaylo
 }
 
 func (fileStore *fileResultStore) snapshot() SearchFileState {
-	duration := fileStore.DurationMs
-	if fileStore.Active {
-		duration = time.Since(fileStore.StartTime).Milliseconds()
-	}
 	return SearchFileState{
 		TabID:      fileStore.TabID,
 		Total:      len(fileStore.Lines),
 		Status:     fileStore.Status,
 		Message:    fileStore.Message,
-		DurationMs: duration,
+		DurationMs: fileStore.elapsedMsLocked(),
 		Truncated:  fileStore.Truncated,
 		Active:     fileStore.Active,
 	}
+}
+
+func (fileStore *fileResultStore) elapsedMsLocked() int64 {
+	if fileStore.Active && !fileStore.StartTime.IsZero() {
+		return time.Since(fileStore.StartTime).Milliseconds()
+	}
+	return fileStore.DurationMs
 }
 
 func (fileStore *fileResultStore) findMatches(keyword string, ignoreCase bool) []storedFindMatch {

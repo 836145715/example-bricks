@@ -2,11 +2,14 @@ import { ChevronDown, Folder } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatLogFileSize, getLogFileName, type RemoteLogFile } from '../domain/logFiles'
 import {
+  describeDateFilter,
   formatRelativeModifiedAt,
   getFilePickerTriggerLabel,
   getGroupSelectionState,
   groupRemoteLogFiles,
+  isDateFilterActive,
   recentRemoteLogFiles,
+  type FileDateFilter,
   type FilePickerSort
 } from '../domain/paths'
 import type { FileListStatus } from '../types'
@@ -16,6 +19,8 @@ interface FileSelectDropdownProps {
   availableFiles: RemoteLogFile[]
   selectedFiles: string[]
   listStatus: FileListStatus
+  dateFilter: FileDateFilter
+  dateMatchedPaths: string[]
   onRefresh: () => void
   onChangeSelected: (paths: string[]) => void
 }
@@ -48,6 +53,8 @@ export function FileSelectDropdown({
   availableFiles,
   selectedFiles,
   listStatus,
+  dateFilter,
+  dateMatchedPaths,
   onRefresh,
   onChangeSelected
 }: FileSelectDropdownProps) {
@@ -57,6 +64,9 @@ export function FileSelectDropdown({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const selectedSet = new Set(selectedFiles)
+  const dateMatchedSet = new Set(dateMatchedPaths)
+  const dateLabel = describeDateFilter(dateFilter)
+  const dateActive = isDateFilterActive(dateFilter)
 
   useEffect(() => {
     setOpen(false)
@@ -98,7 +108,7 @@ export function FileSelectDropdown({
       >
         <Folder size={14} />
         <span className="trigger-text">
-          {getFilePickerTriggerLabel(listStatus, availableFiles, selectedFiles)}
+          {getFilePickerTriggerLabel(listStatus, availableFiles, selectedFiles, dateLabel)}
         </span>
         <ChevronDown size={12} />
       </button>
@@ -143,7 +153,13 @@ export function FileSelectDropdown({
             </select>
           </div>
 
-          {selectedFiles.length === 0 && availableFiles.length > 0 && (
+          {dateActive && (
+            <div className="file-picker-hint">
+              已按最后修改日期 {dateLabel} 选中 {dateMatchedPaths.length} 个文件
+              {dateMatchedPaths.length === 0 ? '，该范围内没有匹配文件。' : '。'}
+            </div>
+          )}
+          {!dateActive && selectedFiles.length === 0 && availableFiles.length > 0 && (
             <div className="file-picker-hint">未选择时，检索会使用最近修改的 5 个文件。</div>
           )}
           {listStatus === 'loading' && (
@@ -185,7 +201,10 @@ export function FileSelectDropdown({
                     {!isCollapsed && group.files.map(file => {
                       const checked = selectedSet.has(file.path)
                       return (
-                        <label key={file.path} className="dropdown-item">
+                        <label
+                          key={file.path}
+                          className={`dropdown-item${dateActive && dateMatchedSet.has(file.path) ? ' is-date-match' : ''}`}
+                        >
                           <input
                             type="checkbox"
                             checked={checked}

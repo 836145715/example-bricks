@@ -50,6 +50,7 @@ type GrepArgs struct {
 	ShowFilename bool           `json:"showFilename"`
 	FromTail     bool           `json:"fromTail"`
 	TailLines    int            `json:"tailLines"`
+	TailBytes    int            `json:"tailBytes"`
 	Filters      []FilterConfig `json:"filters"`
 }
 
@@ -513,11 +514,18 @@ func handleSearch(cmd *brickly.CommandContext, input map[string]any) (any, error
 		return nil, err
 	}
 
-	searchErr := RunRemoteGrep(searchCtx, *targetServer, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) {
+	fileLineCounts := map[string]int{}
+	searchErr := RunRemoteGrep(searchCtx, *targetServer, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) bool {
 		if searchCancelled(searchCtx) {
-			return
+			return true
 		}
 		_ = sendLogLine(cmd, line)
+		fileID := line.File
+		if fileID == "" {
+			fileID = fallbackResultsScope
+		}
+		fileLineCounts[fileID]++
+		return fileLineCounts[fileID] >= maxStoredLinesPerFile
 	})
 
 	if searchErr != nil {
@@ -561,17 +569,19 @@ func handleStoredSearch(cmd *brickly.CommandContext, targetServer ServerConfig, 
 		}
 	}
 
-	appendLine := func(line GrepLine) {
+	appendLine := func(line GrepLine) bool {
 		if searchCancelled(searchCtx) {
-			return
+			return true
 		}
 		tabID := line.File
 		if tabID == "" {
 			tabID = fallbackResultsScope
 		}
-		if _, ok := searchResults.AppendLine(search.ServerID, runID, tabID, line); ok {
-			emitState(line.Error != "")
+		state, accepted := searchResults.AppendLine(search.ServerID, runID, tabID, line)
+		if accepted {
+			emitState(line.Error != "" || state.Truncated)
 		}
+		return state.Truncated && state.Total >= maxStoredLinesPerFile
 	}
 	finishFile := func(tabID string) {
 		if searchResults.FinishFile(search.ServerID, runID, tabID, searchStatusSuccess, "") {
@@ -629,18 +639,12 @@ func runStoredRemoteGrep(
 	search searchInput,
 	runID string,
 	onFileStart func(tabID string),
-	onLine func(line GrepLine),
+	onLine grepLineHandler,
 	onFileDone func(tabID string),
 ) error {
 	return runRemoteGrepWithFileLifecycle(ctx, targetServer, search.Pattern, search.LogPaths, search.Args, func(files []string) {
 		searchResults.SetTabs(search.ServerID, runID, files)
-	}, onFileStart, onFileDone, func(line GrepLine) {
-		tabID := line.File
-		if tabID == "" {
-			tabID = fallbackResultsScope
-		}
-		onLine(line)
-	})
+	}, onFileStart, onFileDone, onLine)
 }
 
 func handlePeekSearchResults(_ *brickly.CommandContext, input map[string]any) (any, error) {

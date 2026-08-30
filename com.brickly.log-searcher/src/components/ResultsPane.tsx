@@ -25,6 +25,7 @@ interface ResultsPaneProps {
   activeServerId: string
   activeTabId: string
   visibleResultTabs: string[]
+  emptyCompletedTabCount: number
   availableFiles: RemoteLogFile[]
   fileStates: Record<string, FileSearchState>
   currentLogs: ParsedLogLine[]
@@ -116,6 +117,7 @@ export function ResultsPane({
   activeServerId,
   activeTabId,
   visibleResultTabs,
+  emptyCompletedTabCount,
   availableFiles,
   fileStates,
   currentLogs,
@@ -160,8 +162,12 @@ export function ResultsPane({
             <span>
               匹配: <strong>{currentStats.count}</strong> 行
               {currentStats.durationMs > 0 && ` (耗时 ${currentStats.durationMs}ms)`}
-              {currentStats.truncated && '，已截断旧结果'}
+              {currentStats.truncated && '，已达 5 万行上限，已停止该文件检索'}
+              {emptyCompletedTabCount > 0 && `，${emptyCompletedTabCount} 个文件无匹配`}
             </span>
+          )}
+          {currentStats.count <= 0 && emptyCompletedTabCount > 0 && (
+            <span>{emptyCompletedTabCount} 个文件无匹配</span>
           )}
           <button
             className={`sidebar-action-btn results-mode-btn ${wrapLines ? 'active' : ''}`}
