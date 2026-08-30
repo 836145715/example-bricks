@@ -2,8 +2,8 @@
 
 status: active
 type: brick
-related_code: runtime/main.go, runtime/browse.go, runtime/search_shared.go, runtime/ssh.go, src/App.tsx, src/components/FileSelectDropdown.tsx, src/components/RemotePathBrowser.tsx, src/components/LogVirtualList.tsx
-last_verified: 2026-08-24
+related_code: runtime/main.go, runtime/browse.go, runtime/search_shared.go, runtime/ssh.go, runtime/ssh_pool.go, src/App.tsx, src/components/FileSelectDropdown.tsx, src/components/RemotePathBrowser.tsx, src/components/LogVirtualList.tsx
+last_verified: 2026-08-30
 
 `com.brickly.log-searcher` 提供 SSH 远程日志的流式检索能力。Host↔Runtime 走现行 gRPC（`invoke` / `interact`），Go 侧用 `brickly.OnCommand` + `ctx.Send`。UI 适合人工排查日志，`search` 声明 `mode: "call"`，调用方用 `call(..., { onEvent })` 收 `logLine` / `searchState`。`runtime.instance` 必须显式为 `owned`：搜索结果存在该 Lifetime 独占的 Go 进程内存里，不能 `per-call`，也不能省略（省略只补 `shared`）。
 
@@ -42,9 +42,9 @@ UI 默认每个文件保留最新 500 条命中。
 
 ### 尾部搜索
 
-设置 `args.fromTail=true` 且 `args.tailLines>0` 时，只在每个目标文件最后 `tailLines` 行内搜索。UI 默认关闭此模式；开启后默认搜索最后 1000 行，以便快速排查正在增长的大日志。若同时设置 `maxCount`，会先限定尾部扫描窗口，再在窗口内保留最新命中。未开启 `fromTail` 时，远程 `grep` 会扫描完整文件；当 `maxCount>0` 时，为保证最新语义，单个文件会在扫描完成后再输出保留下来的结果。
+设置 `args.fromTail=true` 且 `args.tailLines>0` 时，只在每个目标文件最后 `tailLines` 行内搜索。UI 默认关闭此模式；开启后默认搜索最后 1000 行，以便快速排查正在增长的大日志。若同时设置 `maxCount`，会先限定尾部扫描窗口，再在窗口内保留最新命中。未开启 `fromTail` 且没有上下文行时，远程用 `tac | grep | head`（或 awk 环形缓冲兜底）只回传最新 `maxCount` 条，不再把全部命中拉回本地再丢。有上下文行时仍全文件扫描，本地 ring 只留最新命中。
 
-UI 中选择多个日志文件时，工具会为每个文件创建独立结果 Tab；不再渲染“全部”聚合视图，避免重复上下文。文件列表通过远程 `file --mime-type` 识别文件头，仅保留可直接由 `grep` 检索的文本 MIME 类型，并按最后修改时间倒序排列；JAR、图片和其他二进制文件会被排除。若远程机未安装 `file`，会保留全部路径但仍按修改时间排序。每个文件 Tab 会显示列出时读取的远程文件大小，结果列表、滚动位置、计数和错误状态互相隔离；Tab 圆点提示等待、检索中、完成、出错或取消，出错文件会在对应结果视图中展示具体错误信息。多文件搜索会复用同一个 SSH 连接，并以最多 6 个远程 grep 会话并发查询，避免每个 Tab 反复握手。
+UI 中选择多个日志文件时，工具会为每个文件创建独立结果 Tab；不再渲染“全部”聚合视图，避免重复上下文。文件列表通过远程 `file --mime-type` 识别文件头，仅保留可直接由 `grep` 检索的文本 MIME 类型，并按最后修改时间倒序排列；JAR、图片和其他二进制文件会被排除。若远程机未安装 `file`，会保留全部路径但仍按修改时间排序。每个文件 Tab 会显示列出时读取的远程文件大小，结果列表、滚动位置、计数和错误状态互相隔离；Tab 圆点提示等待、检索中、完成、出错或取消，出错文件会在对应结果视图中展示具体错误信息。浏览、列文件、测连和检索复用同一条 SSH 连接（按主机指纹缓存，空闲超时后释放）。一次检索内的多文件再复用该连接，并以最多 6 个远程 grep 会话并发查询。具体文件路径不再走远程 expand。
 
 ### Go 侧存储模式
 

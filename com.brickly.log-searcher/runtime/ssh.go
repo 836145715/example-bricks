@@ -37,14 +37,12 @@ func runRemoteGrepWithFileLifecycle(
 	onFileDone func(filePath string),
 	onLine func(line GrepLine),
 ) error {
-	// 1. 建立 SSH 物理连接
-	client, err := dialSSHClient(server)
+	client, release, err := acquireSSHClient(ctx, server)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer release()
 
-	// 2. 展开远程通配符与目录
 	targetFiles, err := expandRemotePaths(ctx, client, files)
 	if err != nil {
 		return err
@@ -74,9 +72,10 @@ func runRemoteGrepWithFileLifecycle(
 		}
 	}
 	highlighter := newSearchHighlighter(highlightFilters)
-	outputParser := newRemoteGrepOutputParser(args, targetFiles)
-
-	primaryOpts := buildRemotePrimaryOptions(args)
+	parseArgs := args
+	parseArgs.ShowLineNum = true
+	outputParser := newRemoteGrepOutputParser(parseArgs, targetFiles)
+	primaryOpts := buildRemotePrimaryOptions(parseArgs)
 
 	// 3. 复用同一个 SSH client，逐文件创建 session。避免多文件搜索反复 SSH 握手。
 	var callbacks sync.Mutex
@@ -136,7 +135,7 @@ func runRemoteGrepFile(
 	highlighter searchHighlighter,
 	onLine func(line GrepLine),
 ) error {
-	session, err := client.NewSession()
+	session, err := openSSHSession(client)
 	if err != nil {
 		return fmt.Errorf("failed to create ssh session for %s: %w", targetFile, err)
 	}
@@ -200,8 +199,7 @@ func runRemoteGrepFile(
 			// 这不应该是错误，只代表“没有匹配的行”。
 			// Exit Code 2 或其他代表真正的执行错误（如文件找不到）
 			exitErr, ok := err.(*ssh.ExitError)
-			if ok && exitErr.ExitStatus() == 1 {
-				// 没有搜到结果，当作正常结束
+			if ok && isBenignRemoteGrepExit(exitErr.ExitStatus()) {
 				return nil
 			}
 			// 真正的错误，返回包含 stderr 的详情
@@ -231,13 +229,25 @@ func readRemoteGrepOutput(
 	var latestCollector *remoteLatestMatchCollector
 	if args.MaxCount > 0 {
 		latestCollector = newRemoteLatestMatchCollector(args, []string{targetFile}, highlightFilters, highlighter, onLine)
+		latestCollector.trustContextFlags = true
 	}
 
+	firstLine := true
 	for scanner.Scan() {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		line := scanner.Text()
+		if firstLine {
+			firstLine = false
+			if latestCollector != nil && line == remoteOrderMarkerRev {
+				latestCollector.reversed = true
+				continue
+			}
+			if latestCollector != nil && line == remoteOrderMarkerFwd {
+				continue
+			}
+		}
 
 		parsed := outputParser.parse(line)
 		if parsed.FilePath == "" {
@@ -305,17 +315,36 @@ func dialSSHClient(server ServerConfig) (*ssh.Client, error) {
 		User:            server.User,
 		Auth:            auths,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         10 * time.Second,
+		Timeout:         sshTCPTimeout,
 	}
 
 	addr := net.JoinHostPort(server.Host, strconv.Itoa(port))
 	logInfo("连接远程服务器", map[string]any{"addr": addr, "user": server.User})
 
-	client, err := ssh.Dial("tcp", addr, config)
+	conn, err := net.DialTimeout("tcp", addr, sshTCPTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("ssh connection failed: %w", err)
 	}
-	return client, nil
+	if err := conn.SetDeadline(time.Now().Add(sshHandshakeTimeout)); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("ssh connection failed: %w", err)
+	}
+
+	clientConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("ssh connection failed: %w", err)
+	}
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		_ = clientConn.Close()
+		return nil, fmt.Errorf("ssh connection failed: %w", err)
+	}
+	applyTCPKeepAlive(conn)
+	return ssh.NewClient(clientConn, chans, reqs), nil
+}
+
+func isBenignRemoteGrepExit(status int) bool {
+	return status == 1 || status == 141
 }
 
 // ExpandRemotePaths expands paths for callers that do not own a cancellable search context.
@@ -347,7 +376,7 @@ func ReadRemoteLogFileInfo(client *ssh.Client, targetFiles []string) ([]RemoteLo
 		return []RemoteLogFile{}, nil
 	}
 
-	session, err := client.NewSession()
+	session, err := openSSHSession(client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session for file metadata: %w", err)
 	}
@@ -470,8 +499,19 @@ func guessRemoteLogMimeType(path string) string {
 	return ""
 }
 
+func isConcreteRemoteFilePath(path string) bool {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" || strings.ContainsAny(trimmed, "*?[]") {
+		return false
+	}
+	return !strings.HasSuffix(trimmed, "/")
+}
+
 func expandRemotePaths(ctx context.Context, client *ssh.Client, paths []string) ([]string, error) {
 	return expandRemotePathsWith(ctx, paths, func(ctx context.Context, path string) ([]string, error) {
+		if isConcreteRemoteFilePath(path) {
+			return []string{path}, nil
+		}
 		return expandRemotePath(ctx, client, path)
 	})
 }
@@ -515,7 +555,7 @@ func expandRemotePathsWith(
 }
 
 func expandRemotePath(ctx context.Context, client *ssh.Client, path string) ([]string, error) {
-	session, err := client.NewSession()
+	session, err := openSSHSession(client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session for path expansion: %w", err)
 	}
@@ -598,13 +638,92 @@ func shellQuoteGlob(value string) string {
 	return strings.Join(parts, "")
 }
 
+const (
+	remoteOrderMarkerRev = "\x1elog-searcher\x1erev"
+	remoteOrderMarkerFwd = "\x1elog-searcher\x1efwd"
+)
+
+func canEarlyStopLatest(args GrepArgs) bool {
+	if args.MaxCount <= 0 {
+		return false
+	}
+	if args.FromTail && args.TailLines > 0 {
+		return false
+	}
+	return args.ContextA <= 0 && args.ContextB <= 0 && args.ContextC <= 0
+}
+
 func buildRemoteGrepCommand(primaryOpts []string, filters []FilterConfig, targetFiles []string, args GrepArgs) string {
+	if canEarlyStopLatest(args) {
+		return buildRemoteLatestGrepCommand(primaryOpts, filters, targetFiles, args)
+	}
+
 	commands := []string{buildRemotePrimaryGrepCommand(primaryOpts, filters[0], targetFiles, args)}
 	for _, filter := range filters[1:] {
 		commands = append(commands, buildRemotePipeGrepCommand(filter))
 	}
 
 	return strings.Join(commands, " | ")
+}
+
+func buildRemoteLatestGrepCommand(primaryOpts []string, filters []FilterConfig, targetFiles []string, args GrepArgs) string {
+	var commands []string
+	for _, file := range targetFiles {
+		trimmedFile := strings.TrimSpace(file)
+		if trimmedFile == "" {
+			continue
+		}
+		commands = append(commands, buildRemoteLatestFileCommand(primaryOpts, filters, trimmedFile, args.MaxCount))
+	}
+	if len(commands) == 0 {
+		return "true"
+	}
+	if len(commands) == 1 {
+		return commands[0]
+	}
+	return "( " + strings.Join(commands, "; ") + " )"
+}
+
+func buildRemoteLatestFileCommand(primaryOpts []string, filters []FilterConfig, file string, maxCount int) string {
+	stdinPipeline := buildRemoteStdinGrepPipeline(primaryOpts, filters)
+	filePipeline := buildRemoteFileGrepPipeline(primaryOpts, filters, file)
+	return fmt.Sprintf(
+		`if command -v tac >/dev/null 2>&1; then printf '%%s\n' %s; set -o pipefail; tac -- %s | %s | head -n %d; else printf '%%s\n' %s; %s | %s; fi`,
+		shellQuote(remoteOrderMarkerRev),
+		shellQuote(file),
+		stdinPipeline,
+		maxCount,
+		shellQuote(remoteOrderMarkerFwd),
+		filePipeline,
+		buildRemoteLatestRingCommand(maxCount),
+	)
+}
+
+func buildRemoteStdinGrepPipeline(primaryOpts []string, filters []FilterConfig) string {
+	parts := []string{"grep"}
+	parts = append(parts, primaryOpts...)
+	parts = append(parts, "--", shellQuote(filters[0].Pattern))
+	commands := []string{strings.Join(parts, " ")}
+	for _, filter := range filters[1:] {
+		commands = append(commands, buildRemotePipeGrepCommand(filter))
+	}
+	return strings.Join(commands, " | ")
+}
+
+func buildRemoteFileGrepPipeline(primaryOpts []string, filters []FilterConfig, file string) string {
+	parts := []string{"grep"}
+	parts = append(parts, primaryOpts...)
+	parts = append(parts, "--", shellQuote(filters[0].Pattern), shellQuote(file))
+	commands := []string{strings.Join(parts, " ")}
+	for _, filter := range filters[1:] {
+		commands = append(commands, buildRemotePipeGrepCommand(filter))
+	}
+	return strings.Join(commands, " | ")
+}
+
+func buildRemoteLatestRingCommand(maxCount int) string {
+	script := `BEGIN{if(n<1)n=1}{buf[NR%n]=$0;c=NR}END{if(c<=n){for(i=1;i<=c;i++)print buf[i%n]}else{s=c%n;for(i=1;i<=n;i++)print buf[(s+i)%n]}}`
+	return "awk -v n=" + strconv.Itoa(maxCount) + " " + shellQuote(script)
 }
 
 func buildRemotePrimaryOptions(args GrepArgs) []string {
@@ -712,14 +831,16 @@ func buildRemotePipeGrepCommand(filter FilterConfig) string {
 }
 
 type remoteLatestMatchCollector struct {
-	args          GrepArgs
-	targetFiles   []string
-	filters       []compiledFilter
-	highlighter   searchHighlighter
-	onLine        func(line GrepLine)
-	files         map[string]*remoteLatestFileState
-	sequence      int
-	defaultSource string
+	args              GrepArgs
+	targetFiles       []string
+	filters           []compiledFilter
+	highlighter       searchHighlighter
+	onLine            func(line GrepLine)
+	files             map[string]*remoteLatestFileState
+	sequence          int
+	defaultSource     string
+	reversed          bool
+	trustContextFlags bool
 }
 
 type remoteLatestFileState struct {
@@ -770,10 +891,7 @@ func (collector *remoteLatestMatchCollector) add(parsed remoteGrepLine) {
 		lineNum = state.fallbackLine
 	}
 
-	isMatch := !parsed.IsContext
-	if len(collector.filters) > 0 {
-		isMatch = matchesAllFilters(parsed.Content, collector.filters)
-	}
+	isMatch := collector.lineIsMatch(parsed)
 
 	if isMatch {
 		group := state.lastMatch
@@ -791,13 +909,7 @@ func (collector *remoteLatestMatchCollector) add(parsed remoteGrepLine) {
 			state.lastLineNum = lineNum
 			state.lastSource = sourceKey
 		}
-		group.add(grepOutputItem{
-			lineNum:   lineNum,
-			sequence:  collector.nextSequence(),
-			sourceKey: sourceKey,
-			isMatch:   true,
-			line:      collector.makeLine(parsed, lineNum, false),
-		})
+		group.add(collector.makeItem(parsed, lineNum, sourceKey, true, false))
 		return
 	}
 
@@ -808,13 +920,7 @@ func (collector *remoteLatestMatchCollector) add(parsed remoteGrepLine) {
 
 	for _, group := range state.openGroups {
 		if lineNum > group.matchLineNum && lineNum-group.matchLineNum <= collector.contextA() {
-			group.add(grepOutputItem{
-				lineNum:   lineNum,
-				sequence:  collector.nextSequence(),
-				sourceKey: sourceKey,
-				isMatch:   false,
-				line:      collector.makeLine(parsed, lineNum, true),
-			})
+			group.add(collector.makeItem(parsed, lineNum, sourceKey, false, true))
 		}
 	}
 	state.openGroups = pruneOpenMatchGroups(state.openGroups, lineNum, collector.contextA())
@@ -862,15 +968,33 @@ func (collector *remoteLatestMatchCollector) rememberContextLine(state *remoteLa
 	if collector.contextB() <= 0 {
 		return
 	}
-	state.history = append(state.history, grepOutputItem{
+	state.history = append(state.history, collector.makeItem(parsed, lineNum, sourceKey, false, true))
+	if len(state.history) > collector.contextB() {
+		state.history = state.history[1:]
+	}
+}
+
+func (collector *remoteLatestMatchCollector) lineIsMatch(parsed remoteGrepLine) bool {
+	if collector.contextA() <= 0 && collector.contextB() <= 0 {
+		return !parsed.IsSeparator
+	}
+	if collector.trustContextFlags {
+		return !parsed.IsContext
+	}
+	if len(collector.filters) == 0 {
+		return !parsed.IsContext
+	}
+	return matchesAllFilters(parsed.Content, collector.filters)
+}
+
+func (collector *remoteLatestMatchCollector) makeItem(parsed remoteGrepLine, lineNum int, sourceKey string, isMatch bool, isContext bool) grepOutputItem {
+	return grepOutputItem{
 		lineNum:   lineNum,
 		sequence:  collector.nextSequence(),
 		sourceKey: sourceKey,
-		isMatch:   false,
-		line:      collector.makeLine(parsed, lineNum, true),
-	})
-	if len(state.history) > collector.contextB() {
-		state.history = state.history[1:]
+		isMatch:   isMatch,
+		content:   parsed.Content,
+		line:      collector.makeLine(parsed, lineNum, isContext),
 	}
 }
 
@@ -882,10 +1006,29 @@ func (collector *remoteLatestMatchCollector) makeLine(parsed remoteGrepLine, lin
 	displayText := formatLine(filename, lineNum, parsed.Content, isContext, collector.args)
 	return GrepLine{
 		Text:      displayText,
-		Matches:   collector.highlighter.displayMatches(displayText, parsed.Content),
 		File:      parsed.FilePath,
 		IsContext: isContext,
 	}
+}
+
+func (collector *remoteLatestMatchCollector) highlightKeptGroups(groups []*matchOutputGroup) {
+	for _, group := range groups {
+		for index := range group.items {
+			item := &group.items[index]
+			item.line.Matches = collector.highlighter.displayMatches(item.line.Text, item.content)
+		}
+	}
+}
+
+func (collector *remoteLatestMatchCollector) flushFile(ctx context.Context, state *remoteLatestFileState) error {
+	groups := state.groups.groupsOldestFirst()
+	if collector.reversed {
+		reverseMatchOutputGroups(groups)
+		collector.highlightKeptGroups(groups)
+		return emitMatchOutputGroups(ctx, groups, collector.onLine)
+	}
+	collector.highlightKeptGroups(groups)
+	return flushMatchOutputGroups(ctx, groups, collector.onLine)
 }
 
 func (collector *remoteLatestMatchCollector) flush(ctx context.Context) error {
@@ -894,18 +1037,24 @@ func (collector *remoteLatestMatchCollector) flush(ctx context.Context) error {
 		if state == nil {
 			continue
 		}
-		if err := flushMatchOutputGroups(ctx, state.groups.groupsOldestFirst(), collector.onLine); err != nil {
+		if err := collector.flushFile(ctx, state); err != nil {
 			return err
 		}
 		delete(collector.files, file)
 	}
 	for key, state := range collector.files {
-		if err := flushMatchOutputGroups(ctx, state.groups.groupsOldestFirst(), collector.onLine); err != nil {
+		if err := collector.flushFile(ctx, state); err != nil {
 			return err
 		}
 		delete(collector.files, key)
 	}
 	return nil
+}
+
+func reverseMatchOutputGroups(groups []*matchOutputGroup) {
+	for i, j := 0, len(groups)-1; i < j; i, j = i+1, j-1 {
+		groups[i], groups[j] = groups[j], groups[i]
+	}
 }
 
 func remoteDisplayFilename(filePath string, targetFiles []string) string {

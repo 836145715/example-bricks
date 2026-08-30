@@ -354,9 +354,9 @@ func (store *resultStore) Find(serverID, runID, tabID, keyword, direction string
 	}
 
 	store.mu.Lock()
-	defer store.mu.Unlock()
 	fileStore := store.fileLocked(serverID, runID, tabID)
 	if fileStore == nil {
+		store.mu.Unlock()
 		return SearchFindResult{
 			RunID:     runID,
 			TabID:     tabID,
@@ -368,7 +368,14 @@ func (store *resultStore) Find(serverID, runID, tabID, keyword, direction string
 		}
 	}
 
-	matches := fileStore.findMatches(keyword, ignoreCase)
+	lines := append([]StoredGrepLine(nil), fileStore.Lines...)
+	status := fileStore.Status
+	message := fileStore.Message
+	durationMs := fileStore.DurationMs
+	truncated := fileStore.Truncated
+	store.mu.Unlock()
+
+	matches := findMatchesInLines(lines, keyword, ignoreCase)
 	if len(matches) == 0 {
 		return SearchFindResult{
 			RunID:      runID,
@@ -377,10 +384,10 @@ func (store *resultStore) Find(serverID, runID, tabID, keyword, direction string
 			Total:      0,
 			Ordinal:    0,
 			LineIndex:  -1,
-			Status:     fileStore.Status,
-			Message:    fileStore.Message,
-			DurationMs: fileStore.DurationMs,
-			Truncated:  fileStore.Truncated,
+			Status:     status,
+			Message:    message,
+			DurationMs: durationMs,
+			Truncated:  truncated,
 		}
 	}
 
@@ -412,10 +419,10 @@ func (store *resultStore) Find(serverID, runID, tabID, keyword, direction string
 		LineIndex:  match.LineIndex,
 		Start:      match.Start,
 		End:        match.End,
-		Status:     fileStore.Status,
-		Message:    fileStore.Message,
-		DurationMs: fileStore.DurationMs,
-		Truncated:  fileStore.Truncated,
+		Status:     status,
+		Message:    message,
+		DurationMs: durationMs,
+		Truncated:  truncated,
 	}
 }
 
@@ -493,6 +500,10 @@ func (fileStore *fileResultStore) snapshot() SearchFileState {
 }
 
 func (fileStore *fileResultStore) findMatches(keyword string, ignoreCase bool) []storedFindMatch {
+	return findMatchesInLines(fileStore.Lines, keyword, ignoreCase)
+}
+
+func findMatchesInLines(lines []StoredGrepLine, keyword string, ignoreCase bool) []storedFindMatch {
 	if keyword == "" {
 		return nil
 	}
@@ -501,7 +512,7 @@ func (fileStore *fileResultStore) findMatches(keyword string, ignoreCase bool) [
 		needle = []rune(strings.ToLower(keyword))
 	}
 	matches := make([]storedFindMatch, 0)
-	for lineOffset, line := range fileStore.Lines {
+	for lineOffset, line := range lines {
 		haystack := []rune(line.Text)
 		if ignoreCase {
 			haystack = []rune(strings.ToLower(line.Text))

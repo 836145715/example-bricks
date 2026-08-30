@@ -8,7 +8,9 @@ related_code:
   - example-bricks/com.brickly.log-searcher/src/domain/paths.ts
   - example-bricks/com.brickly.log-searcher/runtime/browse.go
   - example-bricks/com.brickly.log-searcher/runtime/result_store.go
-last_verified: 2026-08-24
+  - example-bricks/com.brickly.log-searcher/runtime/ssh.go
+  - example-bricks/com.brickly.log-searcher/runtime/ssh_pool.go
+last_verified: 2026-08-30
 ---
 
 # 日志查询工具设计
@@ -115,7 +117,7 @@ load/save/test
 
 UI 已只用 store，兼容流式 `logLine` 可以删。对外输入用 `query` / `scope`，不要继续把 grep 开关袋当成协议。
 
-SSH 连接也应按 `serverId` 缓存在 owned 进程里，让浏览、列文件、检索、测连复用同一条连接。这和路径选择是同一类体验问题：现在每次命令都重新握手。
+SSH 连接按主机指纹缓存在 owned 进程里（空闲 5 分钟、TCP/SSH keepalive、握手 8 秒超时）。浏览、列文件、检索、测连复用同一条连接；凭证变化会换新连接。
 
 ## 5. 明确不做
 
@@ -128,9 +130,10 @@ SSH 连接也应按 `serverId` 缓存在 owned 进程里，让浏览、列文件
 
 已经做完：远程浏览命令、配置期点选路径、检索期分组选择、本文档。
 
+已做完：远程浏览、配置期点选路径、检索期分组选择、Go 侧 SSH 连接复用、具体文件跳过 expand、远程最新 N 条提前终止。
+
 下一步按这个顺序，不要和路径交互绑在一起改：
 
 1. 前端收成 Workspace + reducer + `SearchController`
 2. 去掉 `search` 的 stream 双模式
-3. Go 侧按 `serverId` 复用 SSH
-4. 再加 follow / 检索历史 / 共用主机库
+3. 再加 follow / 检索历史 / 共用主机库

@@ -254,7 +254,7 @@ func browseRemoteGlob(ctx context.Context, client *ssh.Client, pattern string) (
 }
 
 func browseRemoteDirectory(ctx context.Context, client *ssh.Client, path string) (RemoteBrowseResult, error) {
-	session, err := client.NewSession()
+	session, err := openSSHSession(client)
 	if err != nil {
 		return RemoteBrowseResult{}, fmt.Errorf("failed to create session for directory browse: %w", err)
 	}

@@ -41,6 +41,16 @@ func TestSearchHighlighterUsesUTF16OffsetsForAllPositiveFilters(t *testing.T) {
 	assertMatches(t, got, [][]int{{7, 12}, {13, 18}})
 }
 
+func TestContentOffsetUsesDisplayPrefix(t *testing.T) {
+	highlighter := newSearchHighlighter(nil)
+	if got := highlighter.contentOffset("error line", "error line"); got != 0 {
+		t.Fatalf("identical display/content offset = %d, want 0", got)
+	}
+	if got := highlighter.contentOffset("12:error line", "error line"); got != 3 {
+		t.Fatalf("numeric prefix offset = %d, want 3", got)
+	}
+}
+
 func TestSearchHighlighterLiteralMatchUsesUTF16Length(t *testing.T) {
 	highlighter := newSearchHighlighter(nil)
 	got := highlighter.literalMatch("🙂错误", 3)

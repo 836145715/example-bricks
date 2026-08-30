@@ -254,17 +254,17 @@ func enabledLogPaths(server ServerConfig) []string {
 	return paths
 }
 
-func handleTestConnection(_ *brickly.CommandContext, input map[string]any) (any, error) {
+func handleTestConnection(ctx *brickly.CommandContext, input map[string]any) (any, error) {
 	server, err := parseServerConfigInput(input)
 	if err != nil {
 		return nil, commandError("INVALID_INPUT", err.Error())
 	}
 	logPaths := enabledLogPaths(server)
-	client, err := dialSSHClient(server)
+	client, release, err := acquireSSHClient(ctx.Context(), server)
 	if err != nil {
 		return nil, commandError("SSH_CONNECT_ERROR", err.Error())
 	}
-	defer client.Close()
+	defer release()
 
 	filesCount := 0
 	if len(logPaths) > 0 {
@@ -310,11 +310,11 @@ func handleBrowseRemotePath(ctx *brickly.CommandContext, input map[string]any) (
 	if err != nil {
 		return nil, err
 	}
-	client, err := dialSSHClient(server)
+	client, release, err := acquireSSHClient(ctx.Context(), server)
 	if err != nil {
 		return nil, commandError("SSH_CONNECT_ERROR", err.Error())
 	}
-	defer client.Close()
+	defer release()
 
 	path := stringFromInput(input["path"])
 	result, err := BrowseRemotePath(ctx.Context(), client, path)
@@ -324,7 +324,7 @@ func handleBrowseRemotePath(ctx *brickly.CommandContext, input map[string]any) (
 	return asJSONValue(result)
 }
 
-func handleListLogFiles(_ *brickly.CommandContext, input map[string]any) (any, error) {
+func handleListLogFiles(ctx *brickly.CommandContext, input map[string]any) (any, error) {
 	serverId, _ := input["serverId"].(string)
 	if serverId == "" {
 		return nil, commandError("INVALID_INPUT", "serverId is required")
@@ -362,12 +362,7 @@ func handleListLogFiles(_ *brickly.CommandContext, input map[string]any) (any, e
 		return nil, commandError("INVALID_SERVER_CONFIG", err.Error())
 	}
 
-	var configPaths []string
-	for _, logConf := range targetServer.Logs {
-		if logConf.Path != "" {
-			configPaths = append(configPaths, logConf.Path)
-		}
-	}
+	configPaths := enabledLogPaths(*targetServer)
 
 	if len(configPaths) == 0 {
 		return asJSONValue(map[string]any{
@@ -376,13 +371,13 @@ func handleListLogFiles(_ *brickly.CommandContext, input map[string]any) (any, e
 		})
 	}
 
-	client, err := dialSSHClient(*targetServer)
+	client, release, err := acquireSSHClient(ctx.Context(), *targetServer)
 	if err != nil {
 		return nil, commandError("SSH_CONNECT_ERROR", err.Error())
 	}
-	defer client.Close()
+	defer release()
 
-	expandedFiles, err := ExpandRemotePaths(client, configPaths)
+	expandedFiles, err := expandRemotePaths(ctx.Context(), client, configPaths)
 	if err != nil {
 		return nil, commandError("SSH_EXPAND_ERROR", err.Error())
 	}

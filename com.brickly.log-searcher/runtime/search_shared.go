@@ -89,6 +89,7 @@ type grepOutputItem struct {
 	sequence  int
 	sourceKey string
 	isMatch   bool
+	content   string
 	line      GrepLine
 }
 
@@ -212,6 +213,19 @@ func flushMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onL
 		return items[i].sequence < items[j].sequence
 	})
 
+	return emitMatchOutputItems(ctx, items, onLine)
+}
+
+func emitMatchOutputGroups(ctx context.Context, groups []*matchOutputGroup, onLine func(line GrepLine)) error {
+	for _, group := range groups {
+		if err := emitMatchOutputItems(ctx, group.items, onLine); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func emitMatchOutputItems(ctx context.Context, items []grepOutputItem, onLine func(line GrepLine)) error {
 	for _, item := range items {
 		if ctx.Err() != nil {
 			return ctx.Err()
