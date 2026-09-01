@@ -2,7 +2,7 @@ module brickly/go-window-lab
 
 go 1.23
 
-require github.com/836145715/brickly-sdk-go v0.7.0
+require github.com/836145715/brickly-sdk-go v0.8.0
 
 require (
 	golang.org/x/net v0.35.0 // indirect

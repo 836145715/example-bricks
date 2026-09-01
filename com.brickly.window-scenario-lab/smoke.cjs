@@ -12,7 +12,7 @@ assert.ok(manifest.commands.some((c) => c.id === 'open-control'))
 assert.ok(manifest.commands.some((c) => c.id === 'list-win-sessions'))
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'runtime/win-x64/package.json'), 'utf8'))
-assert.equal(pkg.dependencies['@syllm/brickly-sdk'], '^0.7.0')
+assert.equal(pkg.dependencies['@syllm/brickly-sdk'], '^0.8.0')
 
 const runtimeDir = path.join(root, 'runtime/win-x64')
 const files = [

@@ -14,11 +14,11 @@ assert.ok(manifest.commands.some((c) => c.id === 'preview'))
 assert.equal(manifest.runtime.entry['win-x64'], 'runtime/win-x64/brick.exe')
 
 const goMod = fs.readFileSync(path.join(root, 'runtime/go/go.mod'), 'utf8')
-assert.ok(goMod.includes('github.com/836145715/brickly-sdk-go v0.7.0'))
+assert.ok(goMod.includes('github.com/836145715/brickly-sdk-go v0.8.0'))
 assert.ok(!/^replace\s+github.com\/836145715\/brickly-sdk-go/m.test(goMod))
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
-assert.equal(pkg.devDependencies['@syllm/brickly-ui'], '^0.6.0')
+assert.equal(pkg.devDependencies['@syllm/brickly-ui'], '^0.8.0')
 
 const main = fs.readFileSync(path.join(root, 'runtime/go/main.go'), 'utf8')
 assert.ok(main.includes('plugin.OnCommand("search"'))

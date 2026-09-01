@@ -7,6 +7,6 @@
     "test": "node --test scenarios.test.cjs"
   },
   "dependencies": {
-    "@syllm/brickly-sdk": "^0.7.0"
+    "@syllm/brickly-sdk": "^0.8.0"
   }
 }

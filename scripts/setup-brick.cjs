@@ -2,7 +2,7 @@
 'use strict'
 
 /**
- * 默认按 lock 从 npm / Go module / PyPI 装已发布的 0.7.0。
+ * 默认按 lock 从 npm / Go module / PyPI 装已发布的 0.8.0。
  * 联调旁边的 ai-bricks 源码：`npm run setup -- --local` 或 `BRICKLY_LOCAL=1`。
  * --local 不改 package.json / go.mod；只在安装后把依赖指到本地包。
  */
@@ -141,7 +141,7 @@ function npmInstall(dir, local = false) {
   run('npm', args, { cwd: dir })
 }
 
-/** --local 不从 npm 拉未发布的 @syllm/brickly-sdk@0.7.0，只装其余依赖，SDK 随后 symlink。 */
+/** --local 不从 npm 拉未发布的 @syllm/brickly-sdk@0.8.0，只装其余依赖，SDK 随后 symlink。 */
 function installPublishedNpmDeps(dir) {
   const pkgFile = path.join(dir, 'package.json')
   const original = fs.readFileSync(pkgFile, 'utf8')
@@ -276,7 +276,7 @@ function syncPython(brickRoot, locals) {
         run('uv', ['pip', 'install', '-e', locals.sdkPy, ...extras], { cwd: dir })
         continue
       }
-      // Refresh brickly-sdk URLs/hashes. Old locks were hand-bumped to 0.7.0
+      // Refresh brickly-sdk URLs/hashes. Old locks were hand-bumped to 0.8.0
       // but still point at the 0.5.0 wheel path, which 404s on PyPI.
       run('uv', ['lock', '--upgrade-package', 'brickly-sdk'], { cwd: dir })
       run('uv', ['sync'], { cwd: dir })

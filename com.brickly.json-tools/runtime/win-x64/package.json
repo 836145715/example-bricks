@@ -3,6 +3,6 @@
   "private": true,
   "main": "index.js",
   "dependencies": {
-    "@syllm/brickly-sdk": "^0.7.0"
+    "@syllm/brickly-sdk": "^0.8.0"
   }
 }

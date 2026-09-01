@@ -1,5 +1,5 @@
-github.com/836145715/brickly-sdk-go v0.7.0 h1:xCciSjpAnXTvMYKJGwKQs4NwuWA9/Ft4HdDU3vzQpss=
-github.com/836145715/brickly-sdk-go v0.7.0/go.mod h1:Sd3SwU/PEmXjN7V0jp9xCmqcw+PIjEa6CizSnQR3qZM=
+github.com/836145715/brickly-sdk-go v0.8.0 h1:FsZZxsPmwG9/jQ88p2zoMuMRLaRrfu0FDeHeoxQSrPY=
+github.com/836145715/brickly-sdk-go v0.8.0/go.mod h1:Sd3SwU/PEmXjN7V0jp9xCmqcw+PIjEa6CizSnQR3qZM=
 github.com/Trisia/gosysproxy v1.1.0 h1:rBU1mazMXLsZiiaAHXtRoDPt2gzWdA6uxjaLskzaoAA=
 github.com/Trisia/gosysproxy v1.1.0/go.mod h1:PTPPgpRpyTJEL/FMxEE2OcQcGNbUm961xZcgihwraZM=
 github.com/andybalholm/brotli v1.1.1 h1:PR2pgnyFznKEugtsUo0xLdDop5SKXd5Qf5ysW+7XdTA=

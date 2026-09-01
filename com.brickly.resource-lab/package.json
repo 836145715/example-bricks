@@ -20,7 +20,7 @@
     "vite": "^7.2.6"
   },
   "devDependencies": {
-    "@syllm/brickly-ui": "file:../../ai-bricks/Brickly/packages/brickly-ui",
+    "@syllm/brickly-ui": "^0.8.0",
     "@types/node": "^22.19.0",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",

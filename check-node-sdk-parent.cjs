@@ -53,8 +53,8 @@ function inspectRuntime(runtimeDir) {
   }
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
   const version = packageJson.dependencies && packageJson.dependencies['@syllm/brickly-sdk']
-  if (version !== '^0.7.0') {
-    failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.7.0`)
+  if (version !== '^0.8.0') {
+    failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.8.0`)
   }
 
   const installedPkg = path.join(runtimeDir, 'node_modules/@syllm/brickly-sdk/package.json')
@@ -63,8 +63,8 @@ function inspectRuntime(runtimeDir) {
     return
   }
   const installed = JSON.parse(fs.readFileSync(installedPkg, 'utf8')).version
-  if (installed !== '0.7.0') {
-    failures.push(`${relative(installedPkg)} must install 0.7.0, found ${installed}`)
+  if (installed !== '0.8.0') {
+    failures.push(`${relative(installedPkg)} must install 0.8.0, found ${installed}`)
   }
 }
 

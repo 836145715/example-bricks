@@ -13,7 +13,7 @@ assert.ok(manifest.commands.some((c) => c.id === 'close-lab'))
 assert.ok(!String(manifest.runtime.entry['win-x64'] || '').includes('runtime/node'))
 
 const goMod = fs.readFileSync(path.join(root, 'runtime/go/go.mod'), 'utf8')
-assert.ok(goMod.includes('github.com/836145715/brickly-sdk-go v0.7.0'))
+assert.ok(goMod.includes('github.com/836145715/brickly-sdk-go v0.8.0'))
 assert.ok(!/^replace\s+github.com\/836145715\/brickly-sdk-go/m.test(goMod))
 
 const main = fs.readFileSync(path.join(root, 'runtime/go/main.go'), 'utf8')
