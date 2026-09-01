@@ -5,7 +5,7 @@ type: brick
 related_code: manifest.json, src/App.tsx, runtime/go/main.go
 last_verified: 2026-05-27
 
-`com.brickly.net-capture` 是一个基于 SunnyNet 的本地抓包应用。UI 使用 React + Vite，native runtime 使用 Go 和 `brickly-sdk-go` 负责命令注册、事件发布、代理服务、限流发布和会话缓存。
+`com.brickly.net-capture` 是一个基于 SunnyNet 的本地抓包应用。UI 使用 React + Vite，native runtime 使用 Go 和 `brickly-sdk-go` 负责命令注册、事件发布、代理服务、限流发布和会话缓存。`runtime.instance` 为 `owned`：打开窗口占用进程，关闭窗口停止抓包；不会出现在后台服务列表。
 
 ## 平台支持
 

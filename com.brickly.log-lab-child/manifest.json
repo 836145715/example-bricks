@@ -15,12 +15,7 @@
   },
   "icon": "assets/icon.svg",
   "keywords": ["log", "lab", "demo", "child"],
-  "categories": ["developer-tools"],
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "runtime": {
     "type": "node",
     "instance": "per-call",
@@ -34,11 +29,6 @@
       "linux-arm64": "runtime/linux-arm64/index.cjs"
     }
   },
-  "lifecycle": {
-    "state": "stateless",
-    "idleTimeoutMs": 0
-  },
-  "trustLevel": "community",
   "ui": {
     "type": "none"
   },

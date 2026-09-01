@@ -329,6 +329,22 @@
         }
       }
     },
+    "storage": {
+      "description": "Brick 本机持久存储声明。quotaMB 是工具声称的需求上限，生效配额由宿主计算。公开 API 是 ctx.storage / window.brickly.storage，不是文件路径。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quotaMB": {
+          "type": "number",
+          "minimum": 1,
+          "description": "声明的本机存储需求上限（MB）。缺省按 50MB 生效，宿主再与 1024MB 封顶取小。"
+        },
+        "schema": {
+          "type": "string",
+          "description": "可选。文档集合的描述性 schema 提示，一期不作为运行期校验。"
+        }
+      }
+    },
     "config": {
       "description": "Brick 多环境 Profile 配置声明。只写 fields。平台把选中 Profile 注入 ctx.config；字段声明了 env 时同时写入进程环境变量。runtime.env 是作者静态启动环境，不是 Profile。",
       "type": "object",
@@ -859,6 +875,12 @@
           "type": "string",
           "enum": ["invoke", "call", "interact"],
           "default": "invoke"
+        },
+        "window": {
+          "description": "命令开窗声明。none（默认）禁止 createWindow；attach 只允许结果窗；standalone 才可开独立窗。per-call 不能声明 attach / standalone。",
+          "type": "string",
+          "enum": ["none", "attach", "standalone"],
+          "default": "none"
         },
         "name": {
           "description": "命令展示名称，支持本地化对象。",

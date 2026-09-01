@@ -120,6 +120,7 @@ def _open_lab_once() -> dict[str, Any]:
             "title": "Brickly · Python Window API Lab",
             "backgroundColor": "#0f172a",
             "show": True,
+            "lifetime": "standalone",
             "resizable": True,
             "minimizable": True,
             "maximizable": True,

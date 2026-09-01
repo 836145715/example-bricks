@@ -8,16 +8,9 @@ const { listScenarioMeta } = require('./scenarios')
 const { isAlive, getWinSession, listWinSessions } = require('./win-session-store')
 const { notifyControl, notifyWinSession } = require('./notify')
 const { pushEvent, getPendingPings } = require('./bind-win-session')
-const {
-  openScenario,
-  openSuite,
-  focusWinSession,
-  closeWinSession,
-  closeAll,
-  pingWinSession
-} = require('./open-windows')
+const { focusWinSession, closeWinSession, closeAll, pingWinSession } = require('./open-windows')
 
-/** @type {{ log: { warn: Function } } | null} */
+/** @type {{ log: { warn: Function }, invoke: Function } | null} */
 let pluginRef = null
 
 function setControlMessagesPlugin(plugin) {
@@ -45,7 +38,9 @@ async function handleControlChannel(channel, body) {
   }
   if (channel === 'control:open-scenario') {
     try {
-      const result = await openScenario({
+      // 控制台 expose 不在命令里；直接 createWindow 会被拒，走自己的 standalone 命令。
+      if (!pluginRef?.invoke) throw new Error('runtime 未绑定，不能 invoke')
+      const result = await pluginRef.invoke('open-scenario', {
         scenario: body.scenario || 'standard',
         mode: body.mode || 'ensure',
         title: body.title
@@ -62,7 +57,8 @@ async function handleControlChannel(channel, body) {
   }
   if (channel === 'control:open-suite') {
     try {
-      const result = await openSuite({
+      if (!pluginRef?.invoke) throw new Error('runtime 未绑定，不能 invoke')
+      const result = await pluginRef.invoke('open-suite', {
         mode: body.mode || 'new',
         scenarios: body.scenarios
       })

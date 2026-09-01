@@ -35,6 +35,7 @@
   "commands": [
     {
       "id": "open-lab",
+      "window": "standalone",
       "name": {
         "zh-CN": "打开窗口实验室",
         "en": "Open Window Lab"

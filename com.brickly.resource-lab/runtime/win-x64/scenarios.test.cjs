@@ -36,7 +36,7 @@ test('invoke-python 将 ResourceHandle 传给目标并校验报告', async () =>
   const handle = fakeHandle(Buffer.from('hello resource'))
   const execute = createScenarioExecutor(fakePorts({
     resources: { create: async () => handle },
-    invokeRoot: async (alias, commandId, input) => {
+    invoke: async (alias, commandId, input) => {
       assert.equal(alias, 'python_echo')
       assert.equal(commandId, 'inspect')
       assert.equal(input.resource, handle)
@@ -147,7 +147,7 @@ test('场景取消时等待下游调用完成后再收敛', async () => {
   let settled = false
   const execute = createScenarioExecutor(fakePorts({
     resources: { create: async () => fakeHandle(Buffer.from('hello resource')) },
-    invokeRoot: async () => new Promise((resolve) => { finish = resolve })
+    invoke: async () => new Promise((resolve) => { finish = resolve })
   }))
   const running = execute(catalog.find((item) => item.id === 'invoke-node'), {
     signal: abort.signal,
@@ -185,7 +185,7 @@ test('事件场景必须匹配本次 probeId 而不是接受历史残留', async
   let calls = 0
   const execute = createScenarioExecutor(fakePorts({
     publish: async (_event, payload) => { probeId = payload.probeId; return { delivered: 3 } },
-    invokeRoot: async (_brickId, _commandId) => {
+    invoke: async (_brickId, _commandId) => {
       calls++
       return { runtime: 'node', received: true, probeId: calls <= 3 ? 'stale-probe' : probeId }
     },
@@ -213,7 +213,7 @@ test('transform-cross-language 用 invoke 拿 ResourceRef 再 resources.open', a
         return current
       }
     },
-    invokeRoot: async (alias, commandId, input) => {
+    invoke: async (alias, commandId, input) => {
       invoked.push([alias, commandId])
       assert.equal(commandId, 'transform')
       assert.equal(input.mask, 0x20)
@@ -244,7 +244,7 @@ test('默认 64 MiB 场景经过 Node Python Go 三语言读取', async () => {
   const handle = fakeHandle(Buffer.alloc(sizeBytes, 0x61))
   const execute = createScenarioExecutor(fakePorts({
     resources: { createFrom: async () => handle },
-    invokeRoot: async (alias) => {
+    invoke: async (alias) => {
       targets.push(alias)
       return { runtime: alias.replace('_echo', ''), sizeBytes, sha256: digest, chunkCount: 1024 }
     }
@@ -264,8 +264,8 @@ test('慢速 child 收到 run 取消后通过独立命令实际中止', async ()
   const handle = fakeHandle(Buffer.alloc(8 * 1024 * 1024, 0x61))
   const execute = createScenarioExecutor(fakePorts({
     resources: { createFrom: async () => handle },
-    invokeRoot: async () => new Promise((_resolve, reject) => { rejectHold = reject }),
-    invokeDetached: async (_alias, commandId, input) => {
+    invoke: async () => new Promise((_resolve, reject) => { rejectHold = reject }),
+    invokeOutsideCommand: async (_alias, commandId, input) => {
       assert.equal(commandId, 'cancel-hold')
       cancelledOperationId = input.operationId
       rejectHold(codedError('CANCELLED'))
@@ -290,7 +290,7 @@ function fakePorts(overrides = {}) {
       create: async () => fakeHandle(Buffer.alloc(0)),
       open: (ref) => fakeHandle(Buffer.from('{}'), ref?.mimeType ?? 'application/json')
     },
-    invokeRoot: async () => ({}),
+    invoke: async () => ({}),
     publish: async () => ({ delivered: 1 }),
     tempDir: process.cwd(),
     now: () => Date.now(),

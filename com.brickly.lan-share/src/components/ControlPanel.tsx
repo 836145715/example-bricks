@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import { FolderSearch, Loader2, Play, Save, Square } from 'lucide-react'
 import { pickDirectory } from '../brickly'
 import { selectShareDirectory } from '../share-directory'
-import { canStartShare, isServiceActive, isServiceTransitioning } from '../share-lifecycle'
-import type { BrickServiceStatus, ShareConfigInput, ShareStatus } from '../types'
+import { canStartShare } from '../share-lifecycle'
+import type { ShareConfigInput, ShareStatus } from '../types'
 
 interface ControlPanelProps {
   status: ShareStatus
-  serviceStatus: BrickServiceStatus
   busy: boolean
   onStart: (config: ShareConfigInput) => void
   onStop: () => void
@@ -15,12 +14,11 @@ interface ControlPanelProps {
 }
 
 /**
- * 共享控制面板：编辑共享目录、端口、上传开关与访问码，并启动/停止服务。
- * 服务运行时锁定配置项，避免与正在运行的实例不一致。
+ * 共享控制面板：编辑共享目录、端口、上传开关与访问码，并启动/停止 HTTP 文件服务。
+ * 共享运行时锁定配置项，避免与正在运行的实例不一致。
  */
 export function ControlPanel({
   status,
-  serviceStatus,
   busy,
   onStart,
   onStop,
@@ -32,7 +30,7 @@ export function ControlPanel({
   const [accessCode, setAccessCode] = useState('')
   const [dirty, setDirty] = useState(false)
 
-  // 服务状态变化时（如刚停止）同步回显最新配置，但保留用户正在编辑的访问码。
+  // 共享状态变化时（如刚停止）同步回显最新配置，但保留用户正在编辑的访问码。
   useEffect(() => {
     if (dirty) return
     setRoot(status.root)
@@ -40,10 +38,9 @@ export function ControlPanel({
     setAllowUpload(status.allowUpload)
   }, [status.root, status.port, status.allowUpload, dirty])
 
-  const serviceActive = isServiceActive(serviceStatus)
-  const transitioning = isServiceTransitioning(serviceStatus)
-  const showStart = canStartShare(serviceStatus, status.running)
-  const locked = status.running || transitioning || busy
+  const sharing = status.running
+  const showStart = canStartShare(sharing)
+  const locked = sharing || busy
 
   const collectConfig = (): ShareConfigInput => {
     const config: ShareConfigInput = {
@@ -80,7 +77,7 @@ export function ControlPanel({
     <section className="panel control-panel">
       <header className="panel-head">
         <h2>共享设置</h2>
-        {serviceActive && <span className="lock-hint">服务运行中，停止后可修改</span>}
+        {sharing && <span className="lock-hint">共享运行中，停止后可修改</span>}
       </header>
 
       <label className="field">
@@ -162,10 +159,9 @@ export function ControlPanel({
             {busy ? <Loader2 size={16} className="spin" /> : <Play size={16} />} 启动共享
           </button>
         )}
-        {serviceActive && (
+        {sharing && (
           <button className="btn danger" onClick={onStop} disabled={busy}>
-            {busy ? <Loader2 size={16} className="spin" /> : <Square size={16} />}{' '}
-            {status.running ? '停止共享' : '停止服务'}
+            {busy ? <Loader2 size={16} className="spin" /> : <Square size={16} />} 停止共享
           </button>
         )}
         <button className="btn ghost" onClick={handleSave} disabled={locked}>

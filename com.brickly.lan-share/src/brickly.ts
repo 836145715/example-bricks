@@ -1,10 +1,5 @@
 import type { BricklyStartedHandle } from '@syllm/brickly-ui'
-import type {
-  BrickServiceRecord,
-  ListEntriesResult,
-  ShareConfigInput,
-  ShareStatus
-} from './types'
+import type { ListEntriesResult, ShareConfigInput, ShareStatus } from './types'
 
 let runtime: BricklyStartedHandle | null = null
 
@@ -29,26 +24,6 @@ async function invoke<T>(commandId: string, input: Record<string, unknown>): Pro
     throw new Error('window.brickly.invoke 不可用，请在 Brickly Webview 中打开本工具。')
   }
   return api.invoke<T>(commandId, input)
-}
-
-function requireService() {
-  const service = requireBrickly().service
-  if (!service || typeof service.getStatus !== 'function') {
-    throw new Error('window.brickly.service 不可用，请确认本工具已声明 service 生命周期。')
-  }
-  return service
-}
-
-export async function getBrickServiceStatus(): Promise<BrickServiceRecord> {
-  return (await requireService().getStatus()) as BrickServiceRecord
-}
-
-export async function startBrickService(): Promise<void> {
-  await requireService().start()
-}
-
-export async function stopBrickService(): Promise<void> {
-  await requireService().stop()
 }
 
 export function fetchStatus(): Promise<ShareStatus> {

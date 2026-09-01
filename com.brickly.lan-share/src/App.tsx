@@ -9,7 +9,6 @@ import { formatDuration } from './utils/format'
 export function App() {
   const {
     status,
-    serviceStatus,
     loading,
     busy,
     operation,
@@ -24,15 +23,15 @@ export function App() {
     return (
       <div className="app-loading">
         <div className="spinner" />
-        <p className="muted">正在连接共享服务…</p>
+        <p className="muted">正在连接运行时…</p>
       </div>
     )
   }
 
-  if (!status || !serviceStatus) {
+  if (!status) {
     return (
       <div className="app-loading">
-        <p className="error-text">{error || '无法获取共享服务状态'}</p>
+        <p className="error-text">{error || '无法获取共享状态'}</p>
       </div>
     )
   }
@@ -50,7 +49,6 @@ export function App() {
           </div>
         </div>
         <StatusBadge
-          serviceStatus={serviceStatus}
           running={status.running}
           startedAt={status.startedAt}
           port={status.port}
@@ -64,7 +62,6 @@ export function App() {
         <div className="columns">
           <ControlPanel
             status={status}
-            serviceStatus={serviceStatus}
             busy={busy}
             onStart={start}
             onStop={stop}
@@ -79,13 +76,11 @@ export function App() {
 }
 
 function StatusBadge({
-  serviceStatus,
   running,
   startedAt,
   port,
   operation
 }: {
-  serviceStatus: import('./types').BrickServiceStatus
   running: boolean
   startedAt: number
   port: number
@@ -99,7 +94,7 @@ function StatusBadge({
     return () => clearInterval(timer)
   }, [running])
 
-  const label = statusLabel(serviceStatus, running, operation)
+  const label = statusLabel(running, operation)
 
   return (
     <div className={`status-badge ${running ? 'on' : 'off'}`}>
@@ -115,15 +110,11 @@ function StatusBadge({
 }
 
 function statusLabel(
-  serviceStatus: import('./types').BrickServiceStatus,
   running: boolean,
   operation: 'starting' | 'stopping' | 'working' | null
 ): string {
-  if (operation === 'starting' || serviceStatus === 'starting' || serviceStatus === 'restarting') {
-    return '正在启动'
-  }
-  if (operation === 'stopping' || serviceStatus === 'stopping') return '正在停止'
-  if (serviceStatus === 'error' || serviceStatus === 'crashed') return '启动异常'
-  if (serviceStatus === 'running') return running ? '共享中' : '进程运行'
+  if (operation === 'starting') return '正在启动'
+  if (operation === 'stopping') return '正在停止'
+  if (running) return '共享中'
   return '已停止'
 }

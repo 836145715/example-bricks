@@ -119,6 +119,7 @@
         "en": "Detect selected text by simulating copy, analyze it with OpenAI, and show a protocol Markdown panel."
       },
       "mode": "invoke",
+      "window": "standalone",
       "io": {
         "inputs": [],
         "outputs": [
@@ -150,6 +151,7 @@
         ]
       },
       "mode": "invoke",
+      "window": "standalone",
       "execution": "queue"
     }
   ]

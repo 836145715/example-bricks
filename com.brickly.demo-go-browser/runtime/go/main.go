@@ -26,7 +26,9 @@ func main() {
 			url = "https://www.example.com"
 		}
 
-		options := brickly.WindowOptions{}
+		options := brickly.WindowOptions{
+			"lifetime": "standalone",
+		}
 		if w, ok := toFloat(payload["width"]); ok {
 			options["width"] = int(w)
 		}

@@ -112,6 +112,7 @@
     },
     {
       "id": "preview",
+      "window": "standalone",
       "name": {
         "zh-CN": "预览提醒",
         "en": "Preview Reminder"

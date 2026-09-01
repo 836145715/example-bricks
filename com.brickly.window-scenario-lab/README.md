@@ -21,7 +21,7 @@ related_code: `runtime/win-x64/index.js`, `ui/control.*`, `ui/child.*`
 5. **生命周期事件流**：focus/blur/show/hide/move/resize → 控制台日志。  
 6. **跨窗消息**：控制台 Ping → 子窗 pong；子窗 log → 控制台。  
 7. **关闭策略**：关单个 / 关全部子窗（保留控制台）/ 进程 shutdown 全关。  
-8. **命令短命**：create/focus 后命令立即返回；实例靠 child-window lease 保活。
+8. **命令短命**：`open-*` 标 `window: standalone`，命令立刻 return；窗靠 standalone 保活。控制台里再开场景必须 `brick.invoke('open-scenario')`，不能在 expose 回调里直接 `createWindow`。
 
 ## 预设场景
 
@@ -76,4 +76,4 @@ npm install
 - 复用逻辑在 **runtime**（Map + scenarioIndex），宿主 create 仍是新建。  
 - 有窗则 window lease 保活，变量仍在，可 focus。  
 - 事件用 **handle 绑定**，多窗不靠全局 if。  
-- 命令结束即释放 invoke；不随窗口寿命挂起。
+- 命令结束即释放这次 invoke；独立窗靠 `command.window: standalone` 留下。控制台开新窗走 `brick.invoke`，不直接 `createWindow`。

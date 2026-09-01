@@ -1,4 +1,13 @@
+---
+status: historical
+type: implementation-plan
+superseded_by: com.brickly.lan-share/README.md
+last_verified: 2026-09-01
+---
+
 # 内网文件共享服务生命周期联动实现计划
+
+> 已过时。现行实现不再编排宿主 Brick service；HTTP 共享只活在体验窗占用的 owned runtime 内。
 
 > **面向 AI 代理的工作者：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐任务实现此计划。步骤使用复选框（`- [ ]`）语法来跟踪进度。
 

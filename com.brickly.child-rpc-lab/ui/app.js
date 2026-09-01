@@ -35,10 +35,10 @@ async function ensureHandle() {
   if (handle) return handle
   if (!starting) {
     starting = window.brickly
-      .start({ allowStandaloneWindows: true })
+      .start()
       .then((started) => {
         handle = started
-        log('runtime started（allowStandaloneWindows: true）', 'ok')
+        log('runtime started', 'ok')
         return started
       })
       .catch((error) => {

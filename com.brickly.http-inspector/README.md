@@ -1,6 +1,6 @@
 # HTTP Inspector Brick
 
-基于 mitmproxy 的独立 HTTP/HTTPS/WebSocket 调试工具。它与 SunnyNet 综合抓包 Brick 分开，不包含 TCP、UDP、TUN 或进程驱动。
+基于 mitmproxy 的独立 HTTP/HTTPS/WebSocket 调试工具。它与 SunnyNet 综合抓包 Brick 分开，不包含 TCP、UDP、TUN 或进程驱动。`runtime.instance` 为 `owned`：打开窗口占用进程，关闭窗口停止代理；不会出现在后台服务列表。
 
 ## 使用
 

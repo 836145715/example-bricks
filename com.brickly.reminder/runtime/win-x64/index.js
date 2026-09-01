@@ -75,7 +75,17 @@ function scheduleNext() {
 async function fireReminder(source) {
   const config = reminderConfig()
   if (!config.enabled) return
-  await showPopup(config, source)
+  try {
+    if (source === 'schedule') {
+      await plugin.invoke('preview', { source: 'schedule' })
+    } else {
+      await showPopup(config, source)
+    }
+    lastError = null
+  } catch (error) {
+    lastError = error && error.message ? error.message : String(error)
+    plugin.log.error(`fire reminder failed: ${lastError}`)
+  }
   const delayMs = config.intervalMinutes * 60 * 1000
   nextFireAt = new Date(Date.now() + delayMs)
   nextTimer = setTimeout(() => {
@@ -104,7 +114,8 @@ async function showPopup(config, source) {
     skipTaskbar: true,
     hasShadow: false,
     backgroundColor: '#00000000',
-    show: false,
+    show: true,
+    lifetime: 'standalone',
     title: config.title,
     focusable: true
   })
@@ -185,9 +196,11 @@ plugin.onCommand('status', async (ctx) => {
   return statusPayload()
 })
 
-plugin.onCommand('preview', async (ctx) => {
+plugin.onCommand('preview', async (ctx, input) => {
   applyConfig(ctx.config)
-  return showPopup(reminderConfig(), 'preview')
+  const source =
+    input && typeof input === 'object' && input.source ? String(input.source) : 'preview'
+  return showPopup(reminderConfig(), source)
 })
 
 plugin.onCommand('reschedule', async (ctx) => {

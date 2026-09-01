@@ -58,7 +58,7 @@ test('UI CRUD、同步和写回全部调用当前 Brick runtime', async (t) => {
   )
 })
 
-test('UI 启动服务使用宿主 Brick service 控制面', async (t) => {
+test('UI 启动服务使用 window.brickly.service.start', async (t) => {
   let started = 0
   const api = loadAdapter(t, {
     brickly: {

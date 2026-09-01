@@ -62,16 +62,15 @@ test('manifest 按现行契约声明 owned 实例、invoke 套件和三种 Echo 
     'python_echo'
   ])
   assert.equal(manifest.ui.type, 'webview')
-  assert.equal(manifest.lifecycle?.state, 'stateful')
   assert.equal(manifest.runtime?.instance, 'owned')
-  assert.deepEqual(manifest.lifecycle?.service, { autoStart: false, restart: 'none' })
+  assert.equal(manifest.lifecycle, undefined)
   const suiteRun = manifest.commands.find((command) => command.id === 'suite-run')
   assert.equal(suiteRun?.mode, 'invoke')
   for (const dependency of Object.values(manifest.dependencies)) {
     const brickId = dependency.target.brickId
     const echoManifest = require(path.join(__dirname, '..', '..', '..', brickId, 'manifest.json'))
     assert.ok(echoManifest.subscriptions.some((item) => item.event === 'resource-lab:probe'))
-    assert.ok(echoManifest.triggers.some((item) => item.type === 'event' && item.event === 'resource-lab:probe'))
+    assert.equal(echoManifest.triggers, undefined)
   }
 })
 
@@ -108,7 +107,6 @@ function loadRuntime(t) {
       }
       this.dependencies = {
         require: () => ({
-          invokeRoot: async () => ({}),
           invoke: async () => ({})
         })
       }

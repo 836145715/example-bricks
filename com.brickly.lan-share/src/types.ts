@@ -48,19 +48,3 @@ export interface ListEntriesResult {
   entries: DirEntry[]
   error?: string
 }
-
-export type BrickServiceStatus =
-  | 'stopped'
-  | 'starting'
-  | 'running'
-  | 'restarting'
-  | 'stopping'
-  | 'crashed'
-  | 'error'
-
-export interface BrickServiceRecord {
-  brickId: string
-  status: BrickServiceStatus
-  instanceId?: string
-  lastError?: string
-}

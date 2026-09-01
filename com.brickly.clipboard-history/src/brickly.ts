@@ -47,7 +47,7 @@ async function invoke<T>(commandId: string, input: Record<string, unknown>): Pro
 
 export function startRuntimeService(): Promise<unknown> {
   const start = window.brickly?.service?.start
-  if (!start) throw new Error('当前页面没有可用的 Clipboard History service 控制面。')
+  if (!start) throw new Error('window.brickly.service.start 不可用，请确认本工具 runtime.instance 为 service。')
   return Promise.resolve(start()).catch((error: unknown) => {
     logWarn('service.start failed', {
       error: error instanceof Error ? error.message : String(error)

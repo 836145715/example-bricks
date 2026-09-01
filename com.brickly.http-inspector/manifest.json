@@ -23,7 +23,7 @@
   "author": "Brickly",
   "runtime": {
     "type": "python",
-    "instance": "service",
+    "instance": "owned",
     "entry": {
       "win-x64": "runtime/win-x64/main.py",
       "win-arm64": "runtime/win-arm64/main.py",

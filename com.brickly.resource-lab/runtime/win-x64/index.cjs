@@ -14,8 +14,8 @@ const brick = new BricklyRuntime()
 
 const basePorts = {
   resources: brick.resources,
-  invokeDetached: (alias, commandId, value) =>
-    brick.dependencies.require(alias).invokeRoot(commandId, value),
+  invokeOutsideCommand: (alias, commandId, value) =>
+    brick.dependencies.require(alias).invoke(commandId, value),
   publish: (event, payload) => brick.events.publish(event, payload),
   openForged: async (ref) => {
     // open 校验格式；读流才校验 grant。伪造 resourceId 应在 text() 阶段被拒。
@@ -55,7 +55,7 @@ brick.onCommand('suite-run', async (ctx, input) => {
   const scenarios = selectScenarios(Array.isArray(input?.ids) ? { ids: input.ids } : { mode })
   const ports = {
     ...basePorts,
-    invokeRoot: (alias, commandId, value) =>
+    invoke: (alias, commandId, value) =>
       ctx.dependencies.require(alias).invoke(commandId, value)
   }
   runSenders.set(runId, async (snapshot) => {

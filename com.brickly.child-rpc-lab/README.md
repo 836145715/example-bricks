@@ -12,7 +12,7 @@
 
 ## 怎么测
 
-体验窗先 `start({ allowStandaloneWindows: true })`，再开子窗：
+体验窗先 `start()`，再开子窗。开窗只看命令上的 `window: attach` / `standalone`，`start()` 不再接收 `allowStandaloneWindows`：
 
 | 按钮 | 预期 |
 | --- | --- |

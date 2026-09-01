@@ -36,6 +36,7 @@
   "commands": [
     {
       "id": "open-control",
+      "window": "standalone",
       "name": {
         "zh-CN": "打开控制台（单例）",
         "en": "Open Control (ensure)"
@@ -57,6 +58,7 @@
     },
     {
       "id": "open-scenario",
+      "window": "standalone",
       "name": {
         "zh-CN": "打开场景窗口",
         "en": "Open Scenario Window"
@@ -99,6 +101,7 @@
     },
     {
       "id": "open-suite",
+      "window": "standalone",
       "name": {
         "zh-CN": "一键套件（多窗）",
         "en": "Open Scenario Suite"

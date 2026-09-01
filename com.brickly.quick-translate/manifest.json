@@ -114,6 +114,7 @@
         "en": "Detect selected text by simulating copy, translate it with OpenAI, and show a result window."
       },
       "mode": "invoke",
+      "window": "standalone",
       "io": {
         "inputs": [],
         "outputs": [
@@ -145,6 +146,7 @@
         ]
       },
       "mode": "invoke",
+      "window": "standalone",
       "timeoutMs": 180000,
       "execution": "queue"
     }

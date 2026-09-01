@@ -277,7 +277,7 @@ async function invokeTarget(ports, scenario) {
   const content = Buffer.from('hello resource')
   const handle = await ports.resources.create(content)
   try {
-    const report = await ports.invokeRoot(alias, 'inspect', { resource: handle })
+    const report = await ports.invoke(alias, 'inspect', { resource: handle })
     assertReport(report, content, target)
     return {
       target,
@@ -297,7 +297,7 @@ async function relayAcrossLanguages(ports) {
   const content = Buffer.alloc(8 * MiB, 0x61)
   const handle = await ports.resources.create(content)
   try {
-    const report = await ports.invokeRoot(TARGET_ALIASES.node, 'relay', {
+    const report = await ports.invoke(TARGET_ALIASES.node, 'relay', {
       resource: handle,
       targetAlias: TARGET_ALIASES.python,
       targetCommandId: 'relay',
@@ -325,7 +325,7 @@ async function transformAcrossLanguages(ports) {
   let handle = await ports.resources.create(content)
   try {
     for (const target of ['node', 'python', 'go']) {
-      const ref = await ports.invokeRoot(TARGET_ALIASES[target], 'transform', { resource: handle, mask: 0x20 })
+      const ref = await ports.invoke(TARGET_ALIASES[target], 'transform', { resource: handle, mask: 0x20 })
       await cleanupHandle(handle)
       handle = ports.resources.open(ref)
     }
@@ -343,7 +343,7 @@ async function eventResourceHandle(ports) {
   for (const target of ['node', 'python', 'go']) {
     let report
     for (let attempt = 0; attempt < 20; attempt++) {
-      report = await ports.invokeRoot(TARGET_ALIASES[target], 'event-last', {})
+      report = await ports.invoke(TARGET_ALIASES[target], 'event-last', {})
       if (report?.received && report?.probeId === probeId) break
       await ports.sleep(50)
     }
@@ -363,7 +363,7 @@ async function fullChain64m(ports, scenario, context) {
     const local = await inspect(handle, context.signal)
     if (local.sizeBytes !== scenario.sizeBytes || local.sha256 !== hashPattern(scenario.sizeBytes)) throw mismatch()
     for (const target of ['node', 'python', 'go']) {
-      const report = await ports.invokeRoot(TARGET_ALIASES[target], 'inspect', { resource: handle })
+      const report = await ports.invoke(TARGET_ALIASES[target], 'inspect', { resource: handle })
       if (report.runtime !== target || report.sizeBytes !== local.sizeBytes || report.sha256 !== local.sha256) throw mismatch()
     }
     return {
@@ -483,7 +483,7 @@ async function invokeCancelableHold(ports, handle, delayMs, context) {
   context.signal.addEventListener('abort', cancel, { once: true })
   if (context.signal.aborted) cancel()
   try {
-    return await ports.invokeRoot(TARGET_ALIASES.node, 'hold', { resource: handle, delayMs, operationId })
+    return await ports.invoke(TARGET_ALIASES.node, 'hold', { resource: handle, delayMs, operationId })
   } catch (error) {
     if (context.signal.aborted) {
       const result = await cancelPromise
@@ -497,7 +497,7 @@ async function invokeCancelableHold(ports, handle, delayMs, context) {
 
 async function requestHoldCancellation(ports, operationId) {
   for (let attempt = 0; attempt < 20; attempt++) {
-    const invoke = ports.invokeDetached ?? ports.invokeRoot
+    const invoke = ports.invokeOutsideCommand ?? ports.invoke
     const result = await invoke(TARGET_ALIASES.node, 'cancel-hold', { operationId })
     if (result?.cancelled) return result
     await ports.sleep(25)

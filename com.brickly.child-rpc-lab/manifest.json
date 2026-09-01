@@ -15,12 +15,7 @@
   },
   "icon": "assets/icon.svg",
   "keywords": ["window", "rpc", "child", "lab", "demo"],
-  "categories": ["developer-tools"],
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "runtime": {
     "type": "node",
     "instance": "owned",
@@ -34,10 +29,6 @@
       "linux-arm64": "runtime/linux-arm64/index.cjs"
     }
   },
-  "lifecycle": {
-    "state": "stateful"
-  },
-  "trustLevel": "community",
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",
@@ -54,6 +45,7 @@
   "commands": [
     {
       "id": "open-attached",
+      "window": "attach",
       "name": { "zh-CN": "打开 attached 窗", "en": "Open attached window" },
       "description": {
         "zh-CN": "开一扇随这次 command 走的子窗。关窗后 command 才 return。",
@@ -67,6 +59,7 @@
     },
     {
       "id": "open-standalone",
+      "window": "standalone",
       "name": { "zh-CN": "打开 standalone 窗", "en": "Open standalone window" },
       "description": {
         "zh-CN": "开一扇常驻子窗。command 立刻 return，expose 仍有效。",

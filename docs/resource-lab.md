@@ -11,7 +11,7 @@ Resource Lab 是资源 API 的交互式验收工具，由一个工作台 Brick �
 | `com.brickly.resource-echo-python` | Python 读取、创建、变换和转交 |
 | `com.brickly.resource-echo-go` | Go 读取、创建、变换和转交 |
 
-在开发工作区中先发布三个 Echo Brick，再发布 Resource Lab。打开工作台时 UI 会显式调用 `service.start()`；仅打开 Brick 列表不会启动服务。关闭窗口不会停止正在运行的 stateful Runtime，停止指定测试批次请使用工具栏的停止按钮。
+在开发工作区中先发布三个 Echo Brick，再发布 Resource Lab。打开工作台时 UI 会显式调用 `window.brickly.start()` 占用 `owned` runtime；仅打开 Brick 列表不会拉起进程。关闭窗口会释放 runtime 并中断未完成批次；停止指定测试批次请使用工具栏的停止按钮。
 
 ## 套件边界
 

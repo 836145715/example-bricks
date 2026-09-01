@@ -15,12 +15,7 @@
   },
   "icon": "assets/icon.svg",
   "keywords": ["log", "trace", "lab", "diagnostics", "demo"],
-  "categories": ["developer-tools"],
-  "author": {
-    "name": "Brickly Demo",
-    "publicKey": "ed25519:QUJDRA=="
-  },
-  "license": "MIT",
+  "author": "Brickly Demo",
   "runtime": {
     "type": "node",
     "instance": "owned",
@@ -34,13 +29,6 @@
       "linux-arm64": "runtime/linux-arm64/index.cjs"
     }
   },
-  "lifecycle": {
-    "state": "stateful",
-    "service": {
-      "autoStart": false,
-      "restart": "none"
-    }
-  },
   "dependencies": {
     "child": {
       "target": {
@@ -51,7 +39,6 @@
       "commands": ["echo-log"]
     }
   },
-  "trustLevel": "community",
   "ui": {
     "type": "webview",
     "entry": "ui/index.html",

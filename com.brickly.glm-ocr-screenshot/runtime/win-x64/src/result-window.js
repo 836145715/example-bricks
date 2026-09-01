@@ -14,6 +14,7 @@ async function openResultWindow(ctx, payload) {
     title: 'GLM OCR 标注',
     backgroundColor: '#f6f7f9',
     show: true,
+    lifetime: 'standalone',
     resizable: true,
     minimizable: true,
     maximizable: true

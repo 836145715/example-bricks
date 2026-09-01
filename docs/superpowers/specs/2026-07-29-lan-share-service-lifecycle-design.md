@@ -1,4 +1,13 @@
+---
+status: historical
+type: design-spec
+superseded_by: com.brickly.lan-share/README.md
+last_verified: 2026-09-01
+---
+
 # 内网文件共享服务生命周期联动设计
+
+> 已过时。现行契约：`runtime.instance` 为 `owned`，体验窗 `start()` 占用进程，关窗即停 HTTP 共享。不再使用 `window.brickly.service`。
 
 ## 目标
 

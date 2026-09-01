@@ -24,7 +24,7 @@
   "preload": "preload.cjs",
   "runtime": {
     "type": "native",
-    "instance": "service",
+    "instance": "owned",
     "entry": {
       "win-x64": "runtime/win-x64/brick.exe",
       "mac-x64": "runtime/mac-x64/brick",

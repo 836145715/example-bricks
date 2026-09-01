@@ -35,6 +35,7 @@
   "commands": [
     {
       "id": "open-url",
+      "window": "standalone",
       "name": {
         "zh-CN": "打开网页",
         "en": "Open URL"

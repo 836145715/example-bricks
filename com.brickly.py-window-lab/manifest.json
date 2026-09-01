@@ -38,6 +38,7 @@
   "commands": [
     {
       "id": "open-lab",
+      "window": "standalone",
       "name": {
         "zh-CN": "打开 Python 窗口实验室",
         "en": "Open Python Window Lab"

@@ -104,6 +104,7 @@ async function openLabOnce() {
     title: 'Brickly · Window API Lab',
     backgroundColor: '#0f172a',
     show: true,
+    lifetime: 'standalone',
     resizable: true,
     minimizable: true,
     maximizable: true

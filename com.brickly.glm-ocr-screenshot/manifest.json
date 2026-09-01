@@ -133,6 +133,7 @@
     {
       "id": "capture-annotate",
       "mode": "invoke",
+      "window": "standalone",
       "name": {
         "zh-CN": "框选截图并 OCR 标注",
         "en": "Capture Region and Annotate OCR"

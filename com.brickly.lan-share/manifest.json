@@ -26,7 +26,7 @@
   "author": "Brickly Examples",
   "runtime": {
     "type": "node",
-    "instance": "service",
+    "instance": "owned",
     "entry": {
       "win-x64": "runtime/win-x64/index.cjs",
       "win-arm64": "runtime/win-arm64/index.cjs",
@@ -34,8 +34,7 @@
       "mac-arm64": "runtime/mac-arm64/index.cjs",
       "linux-x64": "runtime/linux-x64/index.cjs",
       "linux-arm64": "runtime/linux-arm64/index.cjs"
-    },
-    "restart": "none"
+    }
   },
   "ui": {
     "type": "webview",

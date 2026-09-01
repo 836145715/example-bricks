@@ -4,15 +4,10 @@ import {
   bindRuntime,
   clearLog as clearLogApi,
   fetchStatus,
-  getBrickServiceStatus,
-  startBrickService,
   startShare,
-  stopBrickService,
   stopShare
 } from '../brickly'
 import {
-  isServiceActive,
-  isServiceTransitioning,
   LifecycleRequestGate,
   loadShareSnapshot,
   ShareLifecycleStateError,
@@ -27,7 +22,7 @@ import {
   saveShareSettings,
   type ShareSettings
 } from '../share-settings'
-import type { BrickServiceStatus, ShareConfigInput } from '../types'
+import type { ShareConfigInput } from '../types'
 
 const POLL_INTERVAL_MS = 1500
 
@@ -41,15 +36,12 @@ interface ControllerState {
 }
 
 const lifecycleApi: ShareLifecycleApi = {
-  getServiceStatus: getBrickServiceStatus,
-  startService: startBrickService,
-  stopService: stopBrickService,
   fetchStatus,
   startShare,
   stopShare
 }
 
-/** 绑定宿主 service 与 HTTP 共享服务，并只在宿主运行时访问 runtime。 */
+/** 绑定体验窗占用的 owned runtime，只通过 HTTP 共享命令启停文件服务。 */
 export function useShareController() {
   const [state, setState] = useState<ControllerState>({
     snapshot: null,
@@ -66,19 +58,17 @@ export function useShareController() {
 
   const applySnapshot = useCallback((snapshot: ShareSnapshot, error = '') => {
     snapshotRef.current = snapshot
-    if (snapshot.service.status === 'running') {
-      settingsRef.current = saveShareSettings(
-        window.localStorage,
-        snapshot.status,
-        snapshot.status.hasAccessCode
-      )
-    }
+    settingsRef.current = saveShareSettings(
+      window.localStorage,
+      snapshot.status,
+      snapshot.status.hasAccessCode
+    )
     if (!mountedRef.current) return
     setState((previous) => ({
       ...previous,
       snapshot,
       loading: false,
-      error: error || errorForSnapshot(snapshot)
+      error
     }))
   }, [])
 
@@ -88,7 +78,7 @@ export function useShareController() {
         const previous = snapshotRef.current
         const snapshot =
           !error.runtimeStatusKnown && previous
-            ? { service: error.snapshot.service, status: previous.status }
+            ? { status: previous.status }
             : error.snapshot
         applySnapshot(snapshot, error.message)
         return
@@ -143,11 +133,7 @@ export function useShareController() {
     }
   }, [applyError, applySnapshot])
 
-  const serviceStatus = state.snapshot?.service.status
-  const shouldPoll =
-    state.operation === null &&
-    (serviceStatus === 'running' ||
-      (serviceStatus !== undefined && isServiceTransitioning(serviceStatus)))
+  const shouldPoll = state.operation === null && Boolean(state.snapshot?.status.running)
 
   useEffect(() => {
     if (shouldPoll && !pollTimer.current) {
@@ -232,20 +218,13 @@ export function useShareController() {
   const saveConfig = useCallback(
     (config: ShareConfigInput) => {
       const current = snapshotRef.current
-      if (
-        !current ||
-        current.status.running ||
-        isServiceTransitioning(current.service.status)
-      ) {
-        return
-      }
+      if (!current || current.status.running) return
       settingsRef.current = saveShareSettings(
         window.localStorage,
         config,
         current.status.hasAccessCode
       )
       applySnapshot({
-        service: current.service,
         status: createStoppedStatus(settingsRef.current)
       })
     },
@@ -254,11 +233,6 @@ export function useShareController() {
 
   const clearLog = useCallback(() => {
     void runAction('working', async () => {
-      const service = await getBrickServiceStatus()
-      if (service.status !== 'running') {
-        applySnapshot({ service, status: createStoppedStatus(settingsRef.current) })
-        return
-      }
       await clearLogApi()
       const snapshot = await loadShareSnapshot(lifecycleApi, settingsRef.current)
       applySnapshot(snapshot)
@@ -267,7 +241,6 @@ export function useShareController() {
 
   return {
     status: state.snapshot?.status ?? null,
-    serviceStatus: state.snapshot?.service.status ?? null,
     loading: state.loading,
     busy: state.operation !== null,
     operation: state.operation,
@@ -278,16 +251,6 @@ export function useShareController() {
     saveConfig,
     clearLog
   }
-}
-
-function errorForSnapshot(snapshot: ShareSnapshot): string {
-  if (snapshot.service.status === 'error' || snapshot.service.status === 'crashed') {
-    return snapshot.service.lastError || '宿主服务启动异常。'
-  }
-  if (snapshot.service.status === 'running' && !snapshot.status.running) {
-    return '宿主进程正在运行，但 HTTP 共享尚未启动。'
-  }
-  return ''
 }
 
 function messageOf(error: unknown): string {

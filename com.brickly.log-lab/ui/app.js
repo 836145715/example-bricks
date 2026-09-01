@@ -33,7 +33,7 @@ const SCENES = [
     id: 'debug',
     lane: '节点日志',
     title: 'Debug 默认隐藏',
-    expect: '节点日志里有 debug；左侧默认不把 Debug 当碎渣以外的主行。打开「显示 Debug」才看见噪声。',
+    expect: '节点日志里有 debug。左侧默认 Info+，把最低级别调到 Debug 才看见。',
     run: () => api().invoke('log-levels', { text: 'debug-check' })
   },
   {
