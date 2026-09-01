@@ -53,7 +53,7 @@
     "glm": {
       "target": {
         "brickId": "com.brickly.glm-tools",
-        "origin": "installed",
+        "origin": "development",
         "version": "0.2.0"
       },
       "commands": [

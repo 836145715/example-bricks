@@ -29,8 +29,8 @@
     "openai": {
       "target": {
         "brickId": "com.brickly.openai",
-        "origin": "installed",
-        "version": "0.1.0"
+        "origin": "development",
+        "version": "0.2.0"
       },
       "commands": [
         "chat-completions"
@@ -40,8 +40,8 @@
     "ocr": {
       "target": {
         "brickId": "com.brickly.glm-ocr-screenshot",
-        "origin": "installed",
-        "version": "0.1.0"
+        "origin": "development",
+        "version": "0.2.0"
       },
       "commands": [
         "capture-text"

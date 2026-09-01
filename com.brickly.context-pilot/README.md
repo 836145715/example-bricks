@@ -136,6 +136,7 @@ OK: context-pilot local checks passed (no Host gRPC / no host.hello)
 - 当前选区检测依赖模拟系统复制快捷键，在禁止复制或焦点异常的应用中可能无法工作。
 - 剪贴板恢复是 best-effort，只覆盖文本、文件路径和部分图片路径形式；复杂富文本、多格式剪贴板不保证完整恢复。
 - 截图 OCR 入口依赖 `com.brickly.glm-ocr-screenshot` 和其下游 `com.brickly.glm-tools` 配置；GLM OCR 未配置、截图取消或识别为空时不会进入 OpenAI 解构。
+- 本仓库按 development 工作区加载时，`dependencies.target` 必须写成当前工作区身份（`origin: development` + 目标砖现版本）。写成 `installed@0.1.0` 时宿主会解析到 `development@0.2.0`，权限校验按完整 BrickRef 拒绝。
 - `MAX_SOURCE_CHARS` 会截断超长选区，避免一次性把大段文档送入模型。
 - 输出质量依赖 `com.brickly.openai` 配置和模型能力；OpenAI 未配置或调用失败时 UI 只显示错误态。
 - section 解析是宽松策略，不保证每个 section 都存在。UI 必须能接受缺失内容。
