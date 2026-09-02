@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	belByte byte = 0x07
-	stESC   byte = 0x1b
+	belByte    byte = 0x07
+	stESC      byte = 0x1b
+	maxOscHold      = 8192
 )
 
 // ptyScanner 从 PTY 字节里抽出启动 PID（OSC 7331）和 cwd（OSC 7），
@@ -58,6 +59,11 @@ func (s *ptyScanner) push(chunk []byte) ptyScanResult {
 		body := rest[2:]
 		end, termLen := oscTerminator(body)
 		if end < 0 {
+			if len(rest) > maxOscHold {
+				out = append(out, rest...)
+				s.buf = nil
+				return ptyScanResult{visible: out, pid: pid, cwd: cwd}
+			}
 			s.buf = append([]byte(nil), rest...)
 			return ptyScanResult{visible: out, pid: pid, cwd: cwd}
 		}

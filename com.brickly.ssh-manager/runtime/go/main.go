@@ -251,7 +251,16 @@ func handleOpenSession(ctx *brickly.CommandContext, input json.RawMessage) (any,
 		if len(result.visible) == 0 {
 			return
 		}
-		emit(func() error { return sendSessionData(ctx, sessionID, result.visible) })
+		emit(func() error {
+			err := sendSessionData(ctx, sessionID, result.visible)
+			if err != nil {
+				ctx.Error("发送终端数据失败", err, map[string]any{
+					"sessionId": sessionID,
+					"bytes":     len(result.visible),
+				})
+			}
+			return err
+		})
 	})
 
 	exitCode := 0

@@ -240,65 +240,61 @@ func clampTermSize(cols, rows int) (int, int) {
 }
 
 func openPTY(client *ssh.Client, cols, rows int) (*ssh.Session, io.WriteCloser, io.Reader, error) {
+	// 登录壳必须走 SSH "shell" 请求。先 Start(boot cmd) 在不少服务端上拿得到
+	// PTY 却不是交互式 TTY，远端 bash 不画 PS1，页面就一直黑屏。
+	session, stdin, stdout, err := startRemoteShell(client, cols, rows, func(s *ssh.Session) error {
+		return s.Shell()
+	})
+	if err == nil {
+		return session, stdin, stdout, nil
+	}
+	return startRemoteShell(client, cols, rows, func(s *ssh.Session) error {
+		return s.Start(shellBootCommand)
+	})
+}
+
+func startRemoteShell(
+	client *ssh.Client,
+	cols, rows int,
+	start func(*ssh.Session) error,
+) (*ssh.Session, io.WriteCloser, io.Reader, error) {
 	session, err := client.NewSession()
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	modes := ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 14400,
-		ssh.TTY_OP_OSPEED: 14400,
-	}
-	if err := session.RequestPty("xterm-256color", rows, cols, modes); err != nil {
-		_ = session.Close()
-		return nil, nil, nil, err
-	}
-	stdin, err := session.StdinPipe()
+	stdin, stdout, err := attachPTY(session, cols, rows)
 	if err != nil {
 		_ = session.Close()
 		return nil, nil, nil, err
 	}
-	stdout, err := session.StdoutPipe()
-	if err != nil {
+	if err := start(session); err != nil {
 		_ = session.Close()
 		return nil, nil, nil, err
-	}
-	if err := session.Start(shellBootCommand); err != nil {
-		_ = session.Close()
-		return openLoginShell(client, cols, rows)
 	}
 	return session, stdin, stdout, nil
 }
 
-func openLoginShell(client *ssh.Client, cols, rows int) (*ssh.Session, io.WriteCloser, io.Reader, error) {
-	session, err := client.NewSession()
-	if err != nil {
-		return nil, nil, nil, err
-	}
+func attachPTY(session *ssh.Session, cols, rows int) (io.WriteCloser, io.Reader, error) {
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}
 	if err := session.RequestPty("xterm-256color", rows, cols, modes); err != nil {
-		_ = session.Close()
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		_ = session.Close()
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		_ = session.Close()
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	if err := session.Shell(); err != nil {
-		_ = session.Close()
-		return nil, nil, nil, err
+	if stderr, stderrErr := session.StderrPipe(); stderrErr == nil {
+		go io.Copy(io.Discard, stderr)
 	}
-	return session, stdin, stdout, nil
+	return stdin, stdout, nil
 }
 
 func copyPTY(ctx context.Context, reader io.Reader, emit func([]byte)) {

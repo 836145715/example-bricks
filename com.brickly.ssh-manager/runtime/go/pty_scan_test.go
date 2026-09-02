@@ -91,6 +91,18 @@ func TestPtyScannerOSC7AcrossChunks(t *testing.T) {
 	}
 }
 
+func TestPtyScannerFlushesOversizedIncompleteOSC(t *testing.T) {
+	s := &ptyScanner{}
+	raw := append([]byte("pre\x1b]"), bytes.Repeat([]byte("x"), maxOscHold)...)
+	result := s.push(raw)
+	if !bytes.HasPrefix(result.visible, []byte("pre")) {
+		t.Fatalf("visible=%q", result.visible)
+	}
+	if len(result.visible) < len(raw) {
+		t.Fatalf("expected hung OSC flushed, got %d of %d", len(result.visible), len(raw))
+	}
+}
+
 func TestPtyScannerPassesUnknownOSCAndCSI(t *testing.T) {
 	s := &ptyScanner{}
 	raw := []byte("\x1b]0;title\x07\x1b[31mred")
