@@ -4,7 +4,7 @@ go 1.23.0
 
 require github.com/qtgolang/SunnyNet v1.4.5
 
-require github.com/836145715/brickly-sdk-go v0.8.0
+require github.com/836145715/brickly-sdk-go v0.9.0
 
 require (
 	github.com/Trisia/gosysproxy v1.1.0 // indirect

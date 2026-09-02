@@ -2,10 +2,12 @@ const { readdirSync, readFileSync, statSync } = require('node:fs')
 const { join, relative } = require('node:path')
 
 const root = __dirname
+const pin = JSON.parse(readFileSync(join(root, 'sdk-pin.json'), 'utf8'))
 const goModule = 'github.com/836145715/brickly-sdk-go'
-const goVersion = 'v0.8.0'
-const pythonRequirement = 'brickly-sdk==0.8.0'
-const protocolVersion = 'brickly.runtime.v1'
+const goVersion = `v${pin.version}`
+const pythonRequirement = `brickly-sdk==${pin.version}`
+const nodeSpec = `^${pin.version}`
+const protocolVersion = pin.protocol
 const protocolVersionPattern = /protocolVersion\s*[=:]\s*['"]([^'"]+)['"]/g
 const failures = []
 
@@ -20,7 +22,9 @@ function walk(dir) {
     }
 
     const inspectProtocol = /\.(go|cjs|js|ts|py)$/.test(name) && !/smoke/i.test(name)
-    const inspectSdkPin = ['go.mod', 'pyproject.toml', 'requirements.txt', 'manifest.json'].includes(name)
+    const inspectSdkPin = ['go.mod', 'pyproject.toml', 'requirements.txt', 'manifest.json', 'package.json'].includes(
+      name
+    )
     if (!inspectProtocol && !inspectSdkPin) continue
 
     const content = readFileSync(path, 'utf8')
@@ -35,6 +39,22 @@ function walk(dir) {
     }
 
     if (!inspectSdkPin) continue
+
+    if (name === 'package.json') {
+      let pkg
+      try {
+        pkg = JSON.parse(content)
+      } catch {
+        failures.push(`${displayPath} is not valid JSON`)
+        continue
+      }
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+      for (const key of ['@syllm/brickly-sdk', '@syllm/brickly-ui']) {
+        if (deps[key] && deps[key] !== nodeSpec) {
+          failures.push(`${displayPath} ${key} must be ${nodeSpec}, found ${deps[key]}`)
+        }
+      }
+    }
 
     if (name === 'go.mod' && content.includes(goModule)) {
       if (!content.includes(`${goModule} ${goVersion}`)) {
@@ -78,4 +98,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`OK: example Go SDK is ${goVersion}, Python SDK is 0.8.0, protocol is ${protocolVersion}`)
+console.log(`OK: example SDK is ${pin.version}, protocol is ${protocolVersion}`)

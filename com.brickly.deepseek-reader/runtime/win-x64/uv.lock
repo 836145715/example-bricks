@@ -13,21 +13,21 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "brickly-sdk", specifier = "==0.8.0" },
+    { name = "brickly-sdk", specifier = "==0.9.0" },
     { name = "requests", specifier = ">=2.31.0" },
 ]
 
 [[package]]
 name = "brickly-sdk"
-version = "0.8.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6a/07/661b3afbb969bfee6ba2acbb8327826f967cf57be9d4e102fd892f54cd7f/brickly_sdk-0.8.0.tar.gz", hash = "sha256:4d7bd7812ffa4527c486048677d632e0710d416ceba02d87ce6e5327b5d239c5", size = 89056, upload-time = "2026-09-01T09:16:00.42Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/d7/1d1b1ed8275b08660a3d43bf3a24a18bf3d95c2f60fb813ff54cbb550b2b/brickly_sdk-0.9.0.tar.gz", hash = "sha256:d7741a3359fc390b7f2b8fdf57ee55325817ee16d40ddbbb3e2fbddc1a05e312", size = 89828, upload-time = "2026-09-02T03:15:58.559Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/35/d1e7d409699ae28b9cdb70c7195645025c577ca84cc8d94dec86c796deee/brickly_sdk-0.8.0-py3-none-any.whl", hash = "sha256:18613ce07eaccbce35a2adadab4f89f3bfc8ac4a5b9d5774410ab641a2fc24a1", size = 103669, upload-time = "2026-09-01T09:15:59.115Z" },
+    { url = "https://files.pythonhosted.org/packages/72/4e/b6c7d11fd1bd3420f0b61c83b2a279e80ed2af047d6707fee22b26273f87/brickly_sdk-0.9.0-py3-none-any.whl", hash = "sha256:831d26a1c8464512a255a0bf603301b63e96b4baa86334fec25cf20b522b5e66", size = 104026, upload-time = "2026-09-02T03:15:56.62Z" },
 ]
 
 [[package]]

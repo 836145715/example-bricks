@@ -2,9 +2,10 @@
 'use strict'
 
 /**
- * 默认按 lock 从 npm / Go module / PyPI 装已发布的 0.8.0。
+ * 默认按 lock 从 npm / Go module / PyPI 装已发布 SDK（版本见仓库根 sdk-pin.json）。
  * 联调旁边的 ai-bricks 源码：`npm run setup -- --local` 或 `BRICKLY_LOCAL=1`。
  * --local 不改 package.json / go.mod；只在安装后把依赖指到本地包。
+ * 发布完新 SDK 后先 `npm run sync-sdk` 升 pin，再 `npm run setup:all`。
  */
 
 const fs = require('node:fs')
@@ -141,7 +142,7 @@ function npmInstall(dir, local = false) {
   run('npm', args, { cwd: dir })
 }
 
-/** --local 不从 npm 拉未发布的 @syllm/brickly-sdk@0.8.0，只装其余依赖，SDK 随后 symlink。 */
+/** --local 不从 npm 拉 brickly-sdk / brickly-ui，只装其余依赖，SDK 随后 symlink。 */
 function installPublishedNpmDeps(dir) {
   const pkgFile = path.join(dir, 'package.json')
   const original = fs.readFileSync(pkgFile, 'utf8')
@@ -276,8 +277,7 @@ function syncPython(brickRoot, locals) {
         run('uv', ['pip', 'install', '-e', locals.sdkPy, ...extras], { cwd: dir })
         continue
       }
-      // Refresh brickly-sdk URLs/hashes. Old locks were hand-bumped to 0.8.0
-      // but still point at the 0.5.0 wheel path, which 404s on PyPI.
+      // Refresh brickly-sdk URLs/hashes after sync-sdk bumps the pin.
       run('uv', ['lock', '--upgrade-package', 'brickly-sdk'], { cwd: dir })
       run('uv', ['sync'], { cwd: dir })
     } catch (error) {

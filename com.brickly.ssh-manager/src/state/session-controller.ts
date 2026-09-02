@@ -106,17 +106,18 @@ export class SessionController {
       )
       this.lives.set(sessionId, session)
       this.flushOutbound(sessionId)
-      await session.result
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (/CANCELLED/i.test(message)) return
+      if (/CANCELLED/i.test(message)) {
+        this.forget(sessionId)
+        return
+      }
       this.dispatch({
         type: 'session-updated',
         sessionId,
         patch: { status: 'error', message }
       })
       this.dispatch({ type: 'status', statusText: message })
-    } finally {
       this.forget(sessionId)
     }
   }
@@ -144,6 +145,7 @@ export class SessionController {
         sessionId,
         patch: { status: 'closed', message: '会话已结束' }
       })
+      this.forget(sessionId)
     }
   }
 

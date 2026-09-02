@@ -3,5 +3,5 @@ name = "brickly-resource-echo-python-runtime"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
-  "brickly-sdk==0.8.0",
+  "brickly-sdk==0.9.0",
 ]

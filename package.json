@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "setup:all": "node scripts/setup-all.cjs",
-    "setup:all:local": "node scripts/setup-all.cjs --local"
+    "setup:all:local": "node scripts/setup-all.cjs --local",
+    "sync-sdk": "node scripts/sync-sdk-version.cjs",
+    "check-sdk": "node check-follower-sdk-versions.cjs"
   }
 }
