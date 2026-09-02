@@ -426,7 +426,16 @@ button:disabled {
 }
 
 .terminal-host {
+  position: relative;
   padding: 4px 6px 0;
+}
+
+.terminal-host .xterm-viewport {
+  z-index: 0;
+}
+
+.terminal-host .xterm-screen {
+  z-index: 1;
 }
 
 .session-message {

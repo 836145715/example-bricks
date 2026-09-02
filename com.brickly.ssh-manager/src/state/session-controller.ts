@@ -123,6 +123,7 @@ export class SessionController {
   }
 
   private onEvent(sessionId: string, host: Host, event: SessionEvent): void {
+    if (!event || typeof event !== 'object') return
     if (event.type === 'session') {
       this.dispatch({ type: 'session-updated', sessionId, patch: { status: 'open', message: '' } })
       this.dispatch({ type: 'status', statusText: `${host.name || host.host} 已连接` })

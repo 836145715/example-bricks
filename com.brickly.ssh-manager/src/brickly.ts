@@ -146,13 +146,37 @@ export function fromBase64(raw: string): Uint8Array {
 
 export type StreamWriter = (bytes: Uint8Array | string) => void
 
-export function decodeChunkBytes(chunk: unknown): Uint8Array | string | null {
-  if (!chunk || typeof chunk !== 'object') return null
-  const record = chunk as { encoding?: string; bytes?: string }
-  if (record.encoding === 'base64' && typeof record.bytes === 'string') {
-    return fromBase64(record.bytes)
+function asUint8Array(value: unknown): Uint8Array | null {
+  if (value instanceof Uint8Array) return value
+  if (typeof Buffer !== 'undefined' && typeof Buffer.isBuffer === 'function' && Buffer.isBuffer(value)) {
+    return Uint8Array.from(value)
+  }
+  if (Array.isArray(value) && value.every((item) => typeof item === 'number')) {
+    return Uint8Array.from(value)
+  }
+  if (value && typeof value === 'object' && (value as { type?: string }).type === 'Buffer') {
+    const data = (value as { data?: unknown }).data
+    if (Array.isArray(data)) return Uint8Array.from(data as number[])
   }
   return null
+}
+
+export function decodeChunkBytes(chunk: unknown): Uint8Array | string | null {
+  if (typeof chunk === 'string') return chunk
+  const direct = asUint8Array(chunk)
+  if (direct) return direct
+  if (!chunk || typeof chunk !== 'object') return null
+  const record = chunk as { encoding?: string; bytes?: unknown; data?: unknown; text?: unknown }
+  const binary = asUint8Array(record.bytes) ?? asUint8Array(record.data)
+  if (binary) return binary
+  const raw = record.bytes ?? record.data ?? record.text
+  if (typeof raw !== 'string') return null
+  if (record.encoding === 'utf8' || record.encoding === 'text') return raw
+  try {
+    return fromBase64(raw)
+  } catch {
+    return raw
+  }
 }
 
 export function newTabId(prefix = 'tab'): string {
