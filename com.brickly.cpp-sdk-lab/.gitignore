@@ -1,0 +1,5 @@
+.venv/
+runtime/*/brick*
+runtime/*/libbrickly.*
+runtime/*/brickly.dll
+runtime/*/brickly.dll.a

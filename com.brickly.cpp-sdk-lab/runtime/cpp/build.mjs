@@ -109,6 +109,7 @@ const args = ['-std=c++17', join(sourceDir, 'main.cpp'), `-I${sourceDir}`, `-I${
 if (process.platform === 'win32' || process.platform === 'linux') {
   args.splice(1, 0, '-static-libgcc', '-static-libstdc++')
 }
+if (process.platform !== 'win32') args.push('-pthread')
 if (process.platform === 'linux') args.push('-Wl,-rpath,$ORIGIN')
 if (process.platform === 'darwin') args.push('-Wl,-rpath,@loader_path')
 

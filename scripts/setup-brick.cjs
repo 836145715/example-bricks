@@ -75,9 +75,24 @@ function resolveLocalPackages() {
   }
 }
 
+function newestMtime(dir) {
+  let newest = 0
+  for (const name of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, name.name)
+    if (name.isDirectory()) newest = Math.max(newest, newestMtime(full))
+    else newest = Math.max(newest, fs.statSync(full).mtimeMs)
+  }
+  return newest
+}
+
 function ensureNodeSdkBuilt(sdkNode) {
   if (!sdkNode) return
-  if (fs.existsSync(path.join(sdkNode, 'dist', 'index.js'))) return
+  const distIndex = path.join(sdkNode, 'dist', 'index.js')
+  const srcDir = path.join(sdkNode, 'src')
+  const distFresh =
+    fs.existsSync(distIndex) &&
+    (!fs.existsSync(srcDir) || fs.statSync(distIndex).mtimeMs >= newestMtime(srcDir))
+  if (distFresh) return
   console.log('building local @syllm/brickly-sdk')
   run('npm', ['run', 'build'], { cwd: sdkNode })
 }

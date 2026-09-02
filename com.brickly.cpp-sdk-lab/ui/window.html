@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>C++ SDK Lab</title>
+    <link rel="stylesheet" href="./window.css" />
+  </head>
+  <body>
+    <main class="page">
+      <h1>倒计时</h1>
+      <p class="count" id="remaining">60</p>
+      <div class="actions">
+        <button id="pause" type="button">暂停</button>
+        <button id="resume" class="secondary" type="button">继续</button>
+        <button id="reset" class="secondary" type="button">重置</button>
+      </div>
+    </main>
+    <script>
+      const remaining = document.getElementById('remaining')
+      window.brickly?.log?.info?.('ready')
+      window.brickly?.on?.('tick', (payload) => {
+        if (payload && typeof payload.remaining === 'number') {
+          remaining.textContent = String(payload.remaining)
+        }
+      })
+      document.getElementById('pause').onclick = () => void window.brickly?.request?.('pause')
+      document.getElementById('resume').onclick = () => void window.brickly?.request?.('resume')
+      document.getElementById('reset').onclick = () => void window.brickly?.request?.('reset')
+    </script>
+  </body>
+</html>

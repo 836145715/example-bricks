@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>C++ SDK Lab</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <h1>倒计时</h1>
+      <p class="count" id="remaining">60</p>
+      <input id="seconds" type="number" min="1" value="60" />
+      <div class="actions">
+        <button id="open" type="button">打开</button>
+        <button id="pin" type="button">打开常驻</button>
+        <button id="pause" class="secondary" type="button">暂停</button>
+        <button id="resume" class="secondary" type="button">继续</button>
+        <button id="reset" class="secondary" type="button">重置</button>
+      </div>
+      <p class="hint">「打开」随 runtime 消失。「打开常驻」窗在则 runtime 在。</p>
+      <p class="error" id="error"></p>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

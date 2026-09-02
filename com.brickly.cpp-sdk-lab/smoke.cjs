@@ -1,4 +1,4 @@
-/* 轻量检查：不启动宿主。若本地已编过 native 入口，顺带确认进程能加载。 */
+/* 对照 create-brickly --runtime go --ui h5 --preset window。不启动宿主。 */
 'use strict'
 const path = require('path')
 const fs = require('fs')
@@ -8,24 +8,73 @@ const { spawnSync } = require('child_process')
 const root = __dirname
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))
 assert.equal(manifest.manifestVersion, 1)
+assert.equal(manifest.kind, 'brick')
 assert.equal(manifest.id, 'com.brickly.cpp-sdk-lab')
 assert.equal(manifest.runtime.type, 'native')
-assert.ok(manifest.commands.some((c) => c.id === 'hello'))
-assert.ok(manifest.commands.some((c) => c.id === 'runtime-info'))
-assert.ok(manifest.commands.some((c) => c.id === 'make-note'))
-assert.ok(manifest.commands.some((c) => c.id === 'chat' && c.mode === 'interact'))
+assert.equal(manifest.runtime.instance, 'owned')
+assert.equal(manifest.ui && manifest.ui.type, 'webview')
+assert.equal(manifest.ui.entry, 'ui/index.html')
+assert.equal(manifest.icon, 'assets/icon.svg')
+
+const commandIds = (manifest.commands || []).map((c) => c.id)
+assert.deepEqual(commandIds, ['timer', 'pin'])
+const timer = manifest.commands.find((c) => c.id === 'timer')
+const pin = manifest.commands.find((c) => c.id === 'pin')
+assert.equal(timer.window, 'attach')
+assert.equal(timer.mode, 'interact')
+assert.equal(pin.window, 'standalone')
+assert.equal(pin.mode, 'interact')
 assert.ok(!String(manifest.runtime.entry['win-x64'] || '').includes('runtime/node'))
 
 const main = fs.readFileSync(path.join(root, 'runtime/cpp/main.cpp'), 'utf8')
-assert.ok(main.includes('on_command("hello"'))
-assert.ok(main.includes('on_command("runtime-info"'))
-assert.ok(main.includes('on_command("make-note"'))
-assert.ok(main.includes('on_command("chat"'))
+assert.ok(main.includes('#include <nlohmann/json.hpp>'))
+assert.ok(main.includes('on_command("timer"'))
+assert.ok(main.includes('on_command("pin"'))
+assert.ok(main.includes('create_browser_window'))
+assert.ok(main.includes('ui/window.html'))
+assert.ok(main.includes('lifetime'))
+assert.ok(main.includes('expose("pause"'))
+assert.ok(main.includes('expose("resume"'))
+assert.ok(main.includes('expose("reset"'))
+assert.ok(main.includes('on_event'))
+assert.ok(main.includes('send("tick"'))
 assert.ok(main.includes('runtime.start()'))
 assert.ok(!/\bhost\.hello\b/.test(main))
+assert.ok(!main.includes('json_lite.hpp'))
+assert.ok(!main.includes('on_command("hello"'))
+assert.ok(!main.includes('on_command("open-lab"'))
+assert.ok(!main.includes('sendToParent'))
 
-for (const rel of ['runtime/cpp/main.cpp', 'runtime/cpp/json_lite.hpp', 'runtime/cpp/build.mjs', 'manifest.json']) {
+const app = fs.readFileSync(path.join(root, 'ui/app.js'), 'utf8')
+assert.ok(app.includes('window.brickly.start()'))
+assert.ok(app.includes("interact(commandId"))
+assert.ok(app.includes('onEvent'))
+assert.ok(app.includes('session.send'))
+assert.ok(app.includes("open('timer')") || app.includes('open("timer")') || app.includes("() => open('timer')"))
+assert.ok(!app.includes('result.finally'))
+
+const childPage = fs.readFileSync(path.join(root, 'ui/window.html'), 'utf8')
+assert.ok(childPage.includes("request?.('pause')"))
+assert.ok(childPage.includes("on?.('tick'"))
+assert.ok(!childPage.includes('sendToParent'))
+
+for (const rel of [
+  'runtime/cpp/main.cpp',
+  'runtime/cpp/nlohmann/json.hpp',
+  'runtime/cpp/build.mjs',
+  'ui/index.html',
+  'ui/app.js',
+  'ui/style.css',
+  'ui/window.html',
+  'ui/window.css',
+  'assets/icon.svg',
+  'manifest.json'
+]) {
   assert.ok(fs.existsSync(path.join(root, rel)), `missing ${rel}`)
+}
+
+for (const rel of ['ui/lab.html', 'ui/lab.css', 'ui/lab.js']) {
+  assert.ok(!fs.existsSync(path.join(root, rel)), `stale ${rel}`)
 }
 
 function currentPlatform() {
@@ -51,7 +100,6 @@ if (platform) {
         `macOS 入口必须按 @rpath 引用 sidecar，否则宿主 cwd（Brick 根目录）下 dyld 找不到。otool=${otool.stdout}`
       )
     }
-    // 宿主 BrickProcess 的 cwd 是 Brick 根目录，不是 runtime/<platform>/。
     const result = spawnSync(exe, [], {
       encoding: 'utf8',
       timeout: 20000,

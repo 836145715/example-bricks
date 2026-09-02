@@ -13,8 +13,9 @@ set(SDK_BIN "${SDK_CPP}/dist/bin")
 add_executable(brick main.cpp)
 target_include_directories(brick PRIVATE "${SDK_CPP}/include" "${CMAKE_CURRENT_SOURCE_DIR}")
 
+find_package(Threads REQUIRED)
 target_link_directories(brick PRIVATE "${SDK_BIN}")
-target_link_libraries(brick PRIVATE brickly)
+target_link_libraries(brick PRIVATE brickly Threads::Threads)
 # Windows：brickly.dll 需由 scripts/build.ps1 以 -ldflags="-s -w" 生成，并与 exe 同目录。
 # 宿主 cwd 是 Brick 根目录；macOS/Linux sidecar 必须靠 @loader_path / $ORIGIN，不能靠 cwd。
 if(APPLE)
