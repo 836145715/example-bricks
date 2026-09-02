@@ -9,8 +9,8 @@
     "en": "Reminder"
   },
   "description": {
-    "zh-CN": "随 Brickly 启动的后台提醒服务，按配置间隔在屏幕右上角弹出提醒窗口。",
-    "en": "A background reminder service that starts with Brickly and shows a top-right popup at the configured interval."
+    "zh-CN": "按配置间隔在右上角弹出提醒。改完配置后点一次「立即提醒」即可生效。",
+    "en": "Shows a quiet top-right reminder on an interval. Click Remind now after changing settings."
   },
   "keywords": [
     "reminder",
@@ -60,7 +60,7 @@
         "min": 0,
         "max": 86400,
         "control": "input",
-        "description": "启动或重新调度后多久弹出第一次提醒；0 表示一个完整间隔后首次提醒。"
+        "description": "服务启动后多久弹出第一次；0 表示等一个完整间隔。"
       },
       {
         "name": "title",
@@ -90,36 +90,15 @@
   },
   "commands": [
     {
-      "id": "status",
-      "name": {
-        "zh-CN": "提醒状态",
-        "en": "Reminder Status"
-      },
-      "description": {
-        "zh-CN": "查看当前提醒间隔配置和下一次触发时间。",
-        "en": "Show current reminder interval config and next trigger time."
-      },
-      "io": {
-        "inputs": [],
-        "outputs": [
-          {
-            "name": "status",
-            "type": "json"
-          }
-        ]
-      },
-      "execution": "queue"
-    },
-    {
       "id": "preview",
       "window": "standalone",
       "name": {
-        "zh-CN": "预览提醒",
-        "en": "Preview Reminder"
+        "zh-CN": "立即提醒",
+        "en": "Remind now"
       },
       "description": {
-        "zh-CN": "立即弹出一次提醒窗口，用来检查展示效果。",
-        "en": "Show the reminder popup immediately to preview the appearance."
+        "zh-CN": "马上弹出一次提醒，并按当前配置重新开始计时。日常提醒由后台服务自动弹出，不用反复点这条。",
+        "en": "Show the reminder now and restart the interval from the current Profile."
       },
       "io": {
         "inputs": [],
@@ -131,28 +110,7 @@
         ]
       },
       "ui": {
-        "submitLabel": "预览"
-      },
-      "execution": "queue"
-    },
-    {
-      "id": "reschedule",
-      "name": {
-        "zh-CN": "重新调度",
-        "en": "Reschedule"
-      },
-      "description": {
-        "zh-CN": "按当前 Profile 配置重新启动间隔提醒。",
-        "en": "Restart interval reminders using the current Profile config."
-      },
-      "io": {
-        "inputs": [],
-        "outputs": [
-          {
-            "name": "status",
-            "type": "json"
-          }
-        ]
+        "submitLabel": "提醒一次"
       },
       "execution": "queue"
     }

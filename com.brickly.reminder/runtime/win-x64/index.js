@@ -1,18 +1,16 @@
-/* eslint-disable */
 'use strict'
 
 const { BricklyRuntime } = require('@syllm/brickly-sdk')
 
-const BRICK_ID = 'com.brickly.reminder'
 const POPUP_URL = 'ui/reminder.html'
+const POPUP_WIDTH = 340
+const POPUP_HEIGHT = 152
 
-const plugin = new BricklyRuntime()
+const brick = new BricklyRuntime()
 
-let profileConfig = {}
-let nextTimer = null
-let nextFireAt = null
+let timer = null
 let popup = null
-let lastError = null
+let cfg = readCfg({})
 
 function boolValue(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback
@@ -21,92 +19,83 @@ function boolValue(value, fallback) {
   return Boolean(value)
 }
 
-function intValue(value, fallback) {
-  const n = Number(value)
-  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : fallback
+function intValue(value, fallback, min = 0) {
+  const n = Math.floor(Number(value))
+  return Number.isFinite(n) ? Math.max(min, n) : fallback
 }
 
-function reminderConfig() {
+function readCfg(config) {
+  const src = config && typeof config === 'object' ? config : {}
   return {
-    enabled: boolValue(profileConfig.enabled, true),
-    intervalMinutes: Math.max(1, intValue(profileConfig.intervalMinutes, 30)),
-    firstDelaySeconds: intValue(profileConfig.firstDelaySeconds, 0),
-    title: String(profileConfig.title || '提醒'),
-    message: String(profileConfig.message || '该处理这件事了。'),
-    autoCloseSeconds: intValue(profileConfig.autoCloseSeconds, 12)
+    enabled: boolValue(src.enabled, true),
+    intervalMinutes: intValue(src.intervalMinutes, 30, 1),
+    firstDelaySeconds: intValue(src.firstDelaySeconds, 0),
+    title: String(src.title || '提醒'),
+    message: String(src.message || '该处理这件事了。'),
+    autoCloseSeconds: intValue(src.autoCloseSeconds, 12)
   }
 }
 
-function clearSchedule() {
-  if (nextTimer) clearTimeout(nextTimer)
-  nextTimer = null
-  nextFireAt = null
+function clearTimer() {
+  if (timer) clearTimeout(timer)
+  timer = null
 }
 
-function msUntil(date) {
-  return Math.max(0, date.getTime() - Date.now())
-}
-
-function scheduleNext() {
-  clearSchedule()
-  lastError = null
-  const config = reminderConfig()
-  if (!config.enabled) return statusPayload()
-
-  try {
-    const delayMs =
-      config.firstDelaySeconds > 0
-        ? config.firstDelaySeconds * 1000
-        : config.intervalMinutes * 60 * 1000
-    const fireAt = new Date(Date.now() + delayMs)
-    nextFireAt = fireAt
-    nextTimer = setTimeout(() => {
-      void fireReminder('schedule')
-    }, delayMs)
-    nextTimer.unref?.()
-  } catch (error) {
-    lastError = error && error.message ? error.message : String(error)
-    plugin.log.error(`schedule failed: ${lastError}`)
-  }
-
-  return statusPayload()
-}
-
-async function fireReminder(source) {
-  const config = reminderConfig()
-  if (!config.enabled) return
-  try {
-    if (source === 'schedule') {
-      await plugin.invoke('preview', { source: 'schedule' })
-    } else {
-      await showPopup(config, source)
-    }
-    lastError = null
-  } catch (error) {
-    lastError = error && error.message ? error.message : String(error)
-    plugin.log.error(`fire reminder failed: ${lastError}`)
-  }
-  const delayMs = config.intervalMinutes * 60 * 1000
-  nextFireAt = new Date(Date.now() + delayMs)
-  nextTimer = setTimeout(() => {
-    void fireReminder('schedule')
+/** 到期后必须 invoke 自己的 standalone 命令再开窗，不能在定时器里 createWindow。 */
+function arm(delayMs) {
+  clearTimer()
+  if (!cfg.enabled) return
+  timer = setTimeout(() => {
+    brick
+      .invoke('preview', { source: 'schedule' })
+      .catch((error) => {
+        brick.log.error('fire reminder failed', error)
+      })
+      .finally(() => {
+        if (cfg.enabled) arm(cfg.intervalMinutes * 60 * 1000)
+      })
   }, delayMs)
-  nextTimer.unref?.()
+  timer.unref?.()
 }
 
-async function showPopup(config, source) {
+function armFirst() {
+  const delayMs =
+    cfg.firstDelaySeconds > 0 ? cfg.firstDelaySeconds * 1000 : cfg.intervalMinutes * 60 * 1000
+  return arm(delayMs)
+}
+
+function injectedConfig() {
+  try {
+    const parsed = JSON.parse(process.env.BRICKLY_PROFILE_CONFIG || '{}')
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+async function placeTopRight(ctx, win) {
+  try {
+    const display = await ctx.platform.screen.getPrimaryDisplay()
+    const area = display.workArea || display.bounds
+    const x = Math.round((area.x || 0) + (area.width || POPUP_WIDTH) - POPUP_WIDTH - 20)
+    const y = Math.round((area.y || 0) + 20)
+    await win.setPosition(x, y)
+  } catch (error) {
+    brick.log.warn('placeTopRight failed', {
+      error: error instanceof Error ? error.message : String(error)
+    })
+  }
+}
+
+async function showToast(ctx) {
   if (popup) {
-    try {
-      await popup.close()
-    } catch {}
+    await popup.close().catch(() => {})
     popup = null
   }
 
-  const width = 390
-  const height = 178
-  const handle = await plugin.ui.createBrowserWindow(POPUP_URL, {
-    width,
-    height,
+  const win = await ctx.ui.createBrowserWindow(POPUP_URL, {
+    width: POPUP_WIDTH,
+    height: POPUP_HEIGHT,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -116,101 +105,56 @@ async function showPopup(config, source) {
     backgroundColor: '#00000000',
     show: true,
     lifetime: 'standalone',
-    title: config.title,
+    title: cfg.title,
     focusable: true
   })
-  popup = handle
-  handle.expose({
-    'reminder:close'() {
-      void handle.close().catch(() => {})
-      if (popup && popup.id === handle.id) popup = null
+  popup = win
+  win.expose({
+    close() {
+      void win.close().catch(() => {})
     }
   })
-
-  handle.on('closed', () => {
-    if (popup && popup.id === handle.id) popup = null
+  win.on('closed', () => {
+    if (popup === win) popup = null
   })
 
-  await placeTopRight(handle, width, height)
-  await handle.showInactive().catch(() => handle.show())
-  await handle.send('reminder:show', {
-    title: config.title,
-    message: config.message,
-    source,
-    firedAt: new Date().toISOString(),
-    autoCloseSeconds: config.autoCloseSeconds
-  })
-
-  if (config.autoCloseSeconds > 0) {
+  await placeTopRight(ctx, win)
+  await win.showInactive().catch(() => win.show())
+  const payload = {
+    title: cfg.title,
+    message: cfg.message,
+    intervalMinutes: cfg.intervalMinutes,
+    autoCloseSeconds: cfg.autoCloseSeconds
+  }
+  await win.send('show', payload)
+  setTimeout(() => {
+    if (popup === win) void win.send('show', payload).catch(() => {})
+  }, 250).unref?.()
+  if (cfg.autoCloseSeconds > 0) {
     setTimeout(() => {
-      if (popup && popup.id === handle.id) {
-        handle.close().catch(() => {})
-      }
-    }, config.autoCloseSeconds * 1000).unref?.()
+      if (popup === win) void win.close().catch(() => {})
+    }, cfg.autoCloseSeconds * 1000).unref?.()
   }
 
-  return { windowId: handle.id }
+  return { windowId: win.id }
 }
 
-async function placeTopRight(handle, width, height) {
-  try {
-    await handle.center()
-    const bounds = await handle.getBounds()
-    const screen = await handle.webContents.executeJavaScript(
-      '({ width: screen.availWidth, height: screen.availHeight, left: screen.availLeft || 0, top: screen.availTop || 0 })'
-    )
-    const x = Math.round((screen.left || 0) + (screen.width || bounds.width) - width - 20)
-    const y = Math.round((screen.top || 0) + 20)
-    await handle.setBounds({ x, y, width, height })
-  } catch (error) {
-    plugin.log.warn(`placeTopRight failed: ${error && error.message ? error.message : error}`)
-  }
-}
-
-function statusPayload() {
-  const config = reminderConfig()
-  return {
-    pid: process.pid,
-    enabled: config.enabled,
-    intervalMinutes: config.intervalMinutes,
-    firstDelaySeconds: config.firstDelaySeconds,
-    title: config.title,
-    autoCloseSeconds: config.autoCloseSeconds,
-    nextFireAt: nextFireAt ? nextFireAt.toISOString() : null,
-    millisecondsUntilNext: nextFireAt ? msUntil(nextFireAt) : null,
-    popupWindowId: popup ? popup.id : null,
-    lastError
-  }
-}
-
-function applyConfig(config) {
-  if (config && typeof config === 'object') profileConfig = config
-}
-
-plugin.onReady(() => {
-  scheduleNext()
+brick.onReady(() => {
+  cfg = readCfg(injectedConfig())
+  armFirst()
 })
 
-plugin.onCommand('status', async (ctx) => {
-  applyConfig(ctx.config)
-  return statusPayload()
+brick.onCommand('preview', async (ctx, input) => {
+  cfg = readCfg(ctx.config)
+  const result = await showToast(ctx)
+  const scheduled = Boolean(input && input.source === 'schedule')
+  if (!scheduled) arm(cfg.intervalMinutes * 60 * 1000)
+  return result
 })
 
-plugin.onCommand('preview', async (ctx, input) => {
-  applyConfig(ctx.config)
-  const source =
-    input && typeof input === 'object' && input.source ? String(input.source) : 'preview'
-  return showPopup(reminderConfig(), source)
-})
-
-plugin.onCommand('reschedule', async (ctx) => {
-  applyConfig(ctx.config)
-  return scheduleNext()
-})
-
-plugin.onShutdown(async () => {
-  clearSchedule()
+brick.onShutdown(async () => {
+  clearTimer()
   if (popup) await popup.close().catch(() => {})
 })
 
-plugin.start()
+brick.start()
