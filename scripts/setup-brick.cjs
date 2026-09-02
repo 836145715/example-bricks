@@ -70,7 +70,8 @@ function resolveLocalPackages() {
     sdkNode: pick('brickly-sdk-node'),
     sdkUi: pick('brickly-ui'),
     sdkGo: pick('brickly-sdk-go'),
-    sdkPy: pick('brickly-sdk-python')
+    sdkPy: pick('brickly-sdk-python'),
+    sdkCpp: pick('brickly-sdk-cpp')
   }
 }
 
@@ -344,6 +345,35 @@ function buildGo(brickRoot, brickId, locals) {
   }
 }
 
+function findCppMain(brickRoot) {
+  const main = path.join(brickRoot, 'runtime', 'cpp', 'main.cpp')
+  return fs.existsSync(main) ? path.dirname(main) : null
+}
+
+function buildCpp(brickRoot, brickId, locals) {
+  const dir = findCppMain(brickRoot)
+  if (!dir) {
+    console.log('skip cpp build (no runtime/cpp/main.cpp)')
+    return
+  }
+  const home = locals?.home || resolveBricklyHome()
+  if (!home) {
+    throw new Error(
+      `C++ Brick ${brickId} 需要本地 ai-bricks（brickly-sdk-cpp 尚未发布）。使用 npm run setup -- --local 或设置 BRICKLY_HOME。`
+    )
+  }
+  const builder = path.join(dir, 'build.mjs')
+  if (!fs.existsSync(builder)) {
+    throw new Error(`Missing ${builder}`)
+  }
+  const platform = currentPlatform()
+  console.log(`Building ${brickId} C++ ${platform}`)
+  run(process.execPath, [builder, platform], {
+    cwd: dir,
+    env: { ...process.env, BRICKLY_HOME: home, CGO_ENABLED: '1' }
+  })
+}
+
 function buildUi(brickRoot, pkg) {
   const build = pkg.scripts && pkg.scripts.build
   if (!build || build.includes('setup-brick')) {
@@ -375,6 +405,7 @@ function setupBrick(brickRoot, options = {}) {
   installRuntime(brickRoot, locals)
   syncPython(brickRoot, locals)
   buildGo(brickRoot, brickId, locals)
+  buildCpp(brickRoot, brickId, locals)
   const uiSrc = path.join(brickRoot, 'ui-src')
   if (fs.existsSync(path.join(uiSrc, 'package.json'))) {
     npmInstall(uiSrc, Boolean(locals))

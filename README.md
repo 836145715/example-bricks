@@ -65,3 +65,9 @@ npm run sync-sdk -- --dry-run         # 只打印将要改的文件
 `check-sdk` 对照 `sdk-pin.json` 检查各语言 pin 和 `protocolVersion`，并禁止 Go `replace`。
 
 当前 pin 是 **0.9.0**，协议是 `brickly.runtime.v1`。
+
+C++ 示例 `com.brickly.cpp-sdk-lab` 走 native + `brickly-sdk-cpp`（Go `c-shared` 绑定）。C++ SDK 尚未发版，构建必须能找到旁边的 `ai-bricks`：
+
+```bash
+node scripts/setup-brick.cjs --local com.brickly.cpp-sdk-lab
+```

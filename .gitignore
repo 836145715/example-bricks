@@ -6,6 +6,10 @@ bin/
 **/runtime/*/brick
 **/runtime/*/brick.exe
 **/runtime/*/brick.exe~
+**/runtime/*/brickly.dll
+**/runtime/*/brickly.dll.a
+**/runtime/*/libbrickly.so
+**/runtime/*/libbrickly.dylib
 !com.brickly.resource-echo-go/runtime/*/brick
 !com.brickly.resource-echo-go/runtime/*/brick.exe
 .worktrees/
