@@ -75,10 +75,17 @@ if (!existsSync(join(sdkGo, 'capi'))) {
 }
 
 const sharedLib = join(distBin, target.lib)
+const cgoEnv = { ...process.env, CGO_ENABLED: '1' }
+if (process.platform === 'darwin') {
+  // Go c-shared 默认 install name 是裸文件名。宿主 cwd 是 Brick 根目录，
+  // dyld 不会去 runtime/<platform>/ 找；必须打成 @rpath，并在链接时加 @loader_path。
+  const flag = '-Wl,-install_name,@rpath/libbrickly.dylib'
+  cgoEnv.CGO_LDFLAGS = cgoEnv.CGO_LDFLAGS ? `${cgoEnv.CGO_LDFLAGS} ${flag}` : flag
+}
 // Windows + Go 1.25 的 c-shared 必须去掉 DWARF，否则 LoadLibrary 返回 193。
 run('go', ['build', '-trimpath', '-ldflags', '-s -w', '-buildmode=c-shared', '-o', sharedLib, './capi'], {
   cwd: sdkGo,
-  env: { ...process.env, CGO_ENABLED: '1' }
+  env: cgoEnv
 })
 const generatedHeader = join(distBin, 'brickly.h')
 if (existsSync(generatedHeader)) unlinkSync(generatedHeader)

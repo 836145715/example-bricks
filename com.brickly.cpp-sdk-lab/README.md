@@ -28,7 +28,7 @@ npm run setup -- --local
 node scripts/setup-brick.cjs --local com.brickly.cpp-sdk-lab
 ```
 
-当前平台会得到 `runtime/<platform>/brick.exe`（或 `brick`）以及同目录的 `brickly.dll` / `libbrickly.so`。不要交叉编译：c-shared 绑定了本机 C 工具链。Windows 构建会加上 `-ldflags="-s -w"`，否则 Go 1.25 打出的 DLL 无法加载。
+当前平台会得到 `runtime/<platform>/brick.exe`（或 `brick`）以及同目录的 `brickly.dll` / `libbrickly.dylib` / `libbrickly.so`。不要交叉编译：c-shared 绑定了本机 C 工具链。Windows 构建会加上 `-ldflags="-s -w"`，否则 Go 1.25 打出的 DLL 无法加载。macOS 会把 dylib 的 install name 写成 `@rpath/libbrickly.dylib`，并给入口加上 `@loader_path` rpath；宿主 cwd 是 Brick 根目录，裸文件名解析不到 sidecar。
 
 ## 命令
 

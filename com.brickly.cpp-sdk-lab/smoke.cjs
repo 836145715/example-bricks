@@ -43,11 +43,26 @@ if (platform) {
   const exe = path.join(root, 'runtime', platform, exeName)
   if (fs.existsSync(exe)) {
     assert.ok(fs.existsSync(path.join(root, 'runtime', platform, libName)), `missing sidecar ${libName}`)
+    if (process.platform === 'darwin') {
+      const otool = spawnSync('otool', ['-L', exe], { encoding: 'utf8' })
+      assert.equal(otool.status, 0, otool.stderr)
+      assert.ok(
+        /@rpath\/libbrickly\.dylib/.test(otool.stdout),
+        `macOS 入口必须按 @rpath 引用 sidecar，否则宿主 cwd（Brick 根目录）下 dyld 找不到。otool=${otool.stdout}`
+      )
+    }
+    // 宿主 BrickProcess 的 cwd 是 Brick 根目录，不是 runtime/<platform>/。
     const result = spawnSync(exe, [], {
       encoding: 'utf8',
       timeout: 20000,
+      cwd: root,
       env: { ...process.env, BRICKLY_HOST_ENDPOINT: '', BRICKLY_BOOTSTRAP: '' }
     })
+    const combined = `${result.stderr || ''}\n${result.stdout || ''}`
+    assert.ok(
+      !/Library not loaded|image not found|cannot open shared object file/i.test(combined),
+      `sidecar 动态库未能随入口加载（宿主 cwd 是 Brick 根目录）。stderr=${combined}`
+    )
     assert.notEqual(
       result.status,
       -1073741701,

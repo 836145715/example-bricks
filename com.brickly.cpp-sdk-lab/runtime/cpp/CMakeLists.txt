@@ -13,12 +13,12 @@ set(SDK_BIN "${SDK_CPP}/dist/bin")
 add_executable(brick main.cpp)
 target_include_directories(brick PRIVATE "${SDK_CPP}/include" "${CMAKE_CURRENT_SOURCE_DIR}")
 
-if(WIN32)
-  target_link_directories(brick PRIVATE "${SDK_BIN}")
-  target_link_libraries(brick PRIVATE brickly)
-  # brickly.dll 需由 scripts/build.ps1 以 -ldflags="-s -w" 生成
-else()
-  target_link_directories(brick PRIVATE "${SDK_BIN}")
-  target_link_libraries(brick PRIVATE brickly)
-  set_target_properties(brick PROPERTIES BUILD_RPATH "$ORIGIN")
+target_link_directories(brick PRIVATE "${SDK_BIN}")
+target_link_libraries(brick PRIVATE brickly)
+# Windows：brickly.dll 需由 scripts/build.ps1 以 -ldflags="-s -w" 生成，并与 exe 同目录。
+# 宿主 cwd 是 Brick 根目录；macOS/Linux sidecar 必须靠 @loader_path / $ORIGIN，不能靠 cwd。
+if(APPLE)
+  set_target_properties(brick PROPERTIES BUILD_RPATH "@loader_path" INSTALL_RPATH "@loader_path")
+elseif(UNIX)
+  set_target_properties(brick PROPERTIES BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
 endif()
