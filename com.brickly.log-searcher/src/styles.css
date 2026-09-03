@@ -357,12 +357,13 @@ html, body, #root {
 
 /* 顶部查询/控制工具栏 */
 .toolbar {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--bg-toolbar);
   border-bottom: 1px solid var(--border-color);
-  padding: 12px 16px;
-  gap: 10px;
+  padding: 10px 16px;
+  gap: 0;
 }
 
 .search-row {
@@ -447,6 +448,72 @@ html, body, #root {
 
 .btn-secondary:hover {
   background: var(--border-color);
+}
+
+.search-options-btn.is-open {
+  border-color: var(--border-focus);
+  color: var(--text-main);
+}
+
+.search-options-badge {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.search-options-popover {
+  position: absolute;
+  top: calc(100% - 2px);
+  right: 16px;
+  left: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: min(72vh, 560px);
+  overflow: auto;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #1a1a1c;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.search-options-section + .search-options-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.search-options-title {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.search-options-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.search-options-popover .params-row,
+.search-options-popover .filter-chain,
+.search-options-popover .file-date-filter,
+.search-options-popover .highlight-config-panel {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.search-options-popover .highlight-config-panel {
+  margin-top: 8px;
 }
 
 /* grep 参数选择行 */
