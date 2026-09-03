@@ -33,10 +33,14 @@
     },
     "autoStart": true
   },
+  "storage": {
+    "quotaMB": 256
+  },
   "subscriptions": [
     {
       "event": "clipboard:new-content",
-      "from": "system"
+      "from": "system",
+      "wake": true
     }
   ],
   "ui": {
