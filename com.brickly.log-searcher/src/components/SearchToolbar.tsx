@@ -1,5 +1,6 @@
+import * as Popover from '@radix-ui/react-popover'
 import { AlertTriangle, Palette, Play, Plus, Search, SlidersHorizontal, X, XCircle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   HIGHLIGHT_WORD_SEPARATOR,
   type HighlightKeywordTextMap,
@@ -20,6 +21,19 @@ import {
 } from '../types'
 import { FileDateFilterControls } from './FileDateFilterControls'
 import { FileSelectDropdown } from './FileSelectDropdown'
+import { AppTooltip } from './ui/AppTooltip'
+
+function preventDatePickerDismiss(event: { preventDefault: () => void; target: EventTarget | null }) {
+  const target = event.target
+  if (target instanceof Element && target.closest('input[type="date"]')) {
+    event.preventDefault()
+    return
+  }
+  const active = document.activeElement
+  if (active instanceof HTMLInputElement && active.type === 'date') {
+    event.preventDefault()
+  }
+}
 
 interface SearchToolbarProps {
   serverId: string
@@ -104,32 +118,8 @@ export function SearchToolbar({
   onClearDateFilter
 }: SearchToolbarProps) {
   const [optionsOpen, setOptionsOpen] = useState(false)
-  const optionsRef = useRef<HTMLDivElement | null>(null)
-  const toggleRef = useRef<HTMLButtonElement | null>(null)
   const tailMegabytes = megabytesFromTailBytes(grepArgs.tailBytes)
   const activeOptionCount = countActiveSearchOptions(grepArgs, extraFilters, dateFilter)
-
-  useEffect(() => {
-    if (!optionsOpen) return
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (optionsRef.current?.contains(target) || toggleRef.current?.contains(target)) return
-      const active = document.activeElement
-      if (active instanceof HTMLInputElement && active.type === 'date') return
-      setOptionsOpen(false)
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOptionsOpen(false)
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [optionsOpen])
 
   const startSearch = () => {
     setOptionsOpen(false)
@@ -138,6 +128,7 @@ export function SearchToolbar({
 
   return (
     <header className="toolbar">
+      <Popover.Root open={optionsOpen} onOpenChange={setOptionsOpen}>
       <div className="search-row">
         {serverId && (
           <FileSelectDropdown
@@ -190,34 +181,49 @@ export function SearchToolbar({
         )}
 
         {serverId && (
-          <button
-            ref={toggleRef}
-            className={`btn btn-secondary search-options-btn ${optionsOpen ? 'is-open' : ''}`}
-            onClick={() => setOptionsOpen(open => !open)}
-            type="button"
-            aria-expanded={optionsOpen}
-            title="检索条件：过滤、日期、高亮"
-          >
-            <SlidersHorizontal size={14} />
-            条件
-            {activeOptionCount > 0 && (
-              <span className="search-options-badge">{activeOptionCount}</span>
-            )}
-          </button>
+          <AppTooltip label="日期、匹配选项、链式过滤和高亮">
+            <Popover.Trigger asChild>
+              <button
+                className={`btn btn-secondary search-options-btn ${optionsOpen ? 'is-open' : ''}`}
+                type="button"
+                aria-expanded={optionsOpen}
+              >
+                <SlidersHorizontal size={14} />
+                条件
+                {activeOptionCount > 0 && (
+                  <span className="search-options-badge">{activeOptionCount}</span>
+                )}
+              </button>
+            </Popover.Trigger>
+          </AppTooltip>
         )}
 
-        <button
-          className="btn btn-secondary"
-          onClick={onToggleConfig}
-          disabled={!canEditConnection}
-          type="button"
-        >
-          编辑连接
-        </button>
+        <AppTooltip label="SSH 主机、认证和日志路径">
+          <span className="tooltip-anchor">
+            <button
+              className="btn btn-secondary"
+              onClick={onToggleConfig}
+              disabled={!canEditConnection}
+              type="button"
+            >
+              编辑连接
+            </button>
+          </span>
+        </AppTooltip>
       </div>
 
-      {optionsOpen && serverId && (
-        <div className="search-options-popover" ref={optionsRef}>
+      {serverId && (
+        <Popover.Portal>
+        <Popover.Content
+          className="search-options-popover"
+          align="end"
+          side="bottom"
+          sideOffset={8}
+          collisionPadding={12}
+          onInteractOutside={preventDatePickerDismiss}
+          onPointerDownOutside={preventDatePickerDismiss}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
           <section className="search-options-section">
             <div className="search-options-title">检索方式</div>
             <div className="params-row">
@@ -453,8 +459,10 @@ export function SearchToolbar({
               </div>
             )}
           </section>
-        </div>
+        </Popover.Content>
+        </Popover.Portal>
       )}
+      </Popover.Root>
     </header>
   )
 }

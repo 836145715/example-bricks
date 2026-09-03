@@ -1,3 +1,4 @@
+import * as Popover from '@radix-ui/react-popover'
 import { ChevronDown, Folder } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatLogFileSize, getLogFileName, type RemoteLogFile } from '../domain/logFiles'
@@ -13,6 +14,7 @@ import {
   type FilePickerSort
 } from '../domain/paths'
 import type { FileListStatus } from '../types'
+import { AppTooltip } from './ui/AppTooltip'
 
 interface FileSelectDropdownProps {
   serverId: string
@@ -62,7 +64,6 @@ export function FileSelectDropdown({
   const [filterText, setFilterText] = useState('')
   const [sort, setSort] = useState<FilePickerSort>('mtime')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const dropdownRef = useRef<HTMLDivElement | null>(null)
   const selectedSet = new Set(selectedFiles)
   const dateMatchedSet = new Set(dateMatchedPaths)
   const dateLabel = describeDateFilter(dateFilter)
@@ -73,16 +74,6 @@ export function FileSelectDropdown({
     setFilterText('')
     setCollapsed({})
   }, [serverId])
-
-  useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [])
 
   const filteredFiles = availableFiles.filter(file =>
     file.path.toLowerCase().includes(filterText.toLowerCase())
@@ -99,22 +90,32 @@ export function FileSelectDropdown({
   }
 
   return (
-    <div className="file-select-dropdown" ref={dropdownRef}>
-      <button
-        className="btn btn-secondary dropdown-trigger"
-        onClick={() => setOpen(prev => !prev)}
-        type="button"
-        title="选择需要检索的具体日志文件"
-      >
-        <Folder size={14} />
-        <span className="trigger-text">
-          {getFilePickerTriggerLabel(listStatus, availableFiles, selectedFiles, dateLabel)}
-        </span>
-        <ChevronDown size={12} />
-      </button>
+    <div className="file-select-dropdown">
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <AppTooltip label="选择这一次要检索的日志文件">
+          <Popover.Trigger asChild>
+            <button
+              className="btn btn-secondary dropdown-trigger"
+              type="button"
+              aria-expanded={open}
+            >
+              <Folder size={14} />
+              <span className="trigger-text">
+                {getFilePickerTriggerLabel(listStatus, availableFiles, selectedFiles, dateLabel)}
+              </span>
+              <ChevronDown size={12} className={open ? 'is-open' : ''} />
+            </button>
+          </Popover.Trigger>
+        </AppTooltip>
 
-      {open && (
-        <div className="dropdown-menu file-picker-menu">
+        <Popover.Portal>
+          <Popover.Content
+            className="dropdown-menu file-picker-menu"
+            align="start"
+            side="bottom"
+            sideOffset={6}
+            collisionPadding={8}
+          >
           <div className="dropdown-search">
             <input
               type="text"
@@ -233,8 +234,9 @@ export function FileSelectDropdown({
               })
             )}
           </div>
-        </div>
-      )}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { AlertTriangle, ChevronDown, ChevronUp, Copy, Search, TextWrap, XCircle } from 'lucide-react'
-import type { Ref, RefObject } from 'react'
+import { useRef, type Ref, type RefObject } from 'react'
 import type { VirtuosoHandle } from 'react-virtuoso'
 import type { HighlightRule } from '../domain/highlight'
 import type { RemoteLogFile } from '../domain/logFiles'
@@ -16,6 +16,7 @@ import type {
   ParsedLogLine,
   ServerConfig
 } from '../types'
+import { useContainedTextSelection } from '../hooks/useContainedTextSelection'
 import { FindBar } from './FindBar'
 import { LogVirtualList } from './LogVirtualList'
 
@@ -150,6 +151,8 @@ export function ResultsPane({
   const showFileTabs = visibleResultTabs.length > 1
   const currentFileLabel = activeTabId ? getTabLabel(activeTabId) : ''
   const currentFileSize = activeTabId ? getTabFileSize(availableFiles, activeTabId) : ''
+  const logSelectionRootRef = useRef<HTMLDivElement>(null)
+  useContainedTextSelection(logSelectionRootRef)
 
   return (
     <div className="results-pane">
@@ -254,7 +257,7 @@ export function ResultsPane({
                 <span>当前文件检索失败: {activeFileState.message || '未知错误'}</span>
               </div>
             )}
-            <div className="results-console-list">
+            <div className="results-console-list" ref={logSelectionRootRef}>
               <LogVirtualList
                 listKey={listKey}
                 totalCount={totalResultCount}
