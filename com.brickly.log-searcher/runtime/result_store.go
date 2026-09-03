@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	storeResultMode       = "store"
-	defaultPeekLimit      = 100
-	maxPeekLimit          = 1000
+	defaultPeekLimit          = 100
+	maxPeekLimit              = 1000
 	maxStoredLinesPerFile     = 50000
 	searchLineLimitMessage    = "已达到每文件 50000 行上限，已停止检索"
 	searchStatusQueued    = "queued"

@@ -155,75 +155,8 @@ func TestBuildRemoteGrepCommandUsesTailBytesPerFile(t *testing.T) {
 		`tail -c 20971520 -- '/tmp/quote'\''s.log'`,
 		`head -n 50000`,
 	})
-	if strings.Contains(got, "tail -n ") || strings.Contains(got, "command -v tac") {
-		t.Fatalf("byte window should not use tail -n or tac, got %q", got)
-	}
-}
-
-func TestBuildRemoteGrepCommandUsesTailWindowPerFile(t *testing.T) {
-	got := buildRemoteGrepCommand(
-		[]string{"-H"},
-		[]FilterConfig{{Pattern: "error"}},
-		[]string{"/var/log/app.log", "/tmp/quote's.log"},
-		GrepArgs{FromTail: true, TailLines: 500, ShowFilename: true},
-	)
-	mustContainAll(t, got, []string{
-		`tail -n 500 -- '/var/log/app.log'`,
-		`grep '--label=/var/log/app.log' -H -- 'error'`,
-		`tail -n 500 -- '/tmp/quote'\''s.log'`,
-		`grep '--label=/tmp/quote'\''s.log' -H -- 'error'`,
-	})
-}
-
-func TestBuildRemoteGrepCommandTailWindowDoesNotRewriteLineNumbers(t *testing.T) {
-	got := buildRemoteGrepCommand(
-		[]string{"-H"},
-		[]FilterConfig{{Pattern: "error"}},
-		[]string{"/var/log/app.log"},
-		GrepArgs{FromTail: true, TailLines: 50},
-	)
-	mustContainAll(t, got, []string{
-		`tail -n 50 -- '/var/log/app.log'`,
-		`grep '--label=/var/log/app.log' -H -- 'error'`,
-	})
-	if strings.Contains(got, `awk -v start="$start"`) {
-		t.Fatalf("tail command should not rewrite line numbers, got %q", got)
-	}
-}
-
-func TestBuildRemoteGrepCommandDoesNotUseGrepMaxCount(t *testing.T) {
-	got := buildRemoteGrepCommand(
-		[]string{"-H", "-n"},
-		[]FilterConfig{{Pattern: "error"}},
-		[]string{"/var/log/app.log"},
-		GrepArgs{MaxCount: 2},
-	)
-	if strings.Contains(got, " -m ") {
-		t.Fatalf("remote grep command should not use grep -m for latest maxCount, got %q", got)
-	}
-	mustContainAll(t, got, []string{
-		"command -v tac",
-		"head -n 2",
-		"tac -- '/var/log/app.log'",
-		"awk -v n=2",
-	})
-}
-
-func TestCanEarlyStopLatest(t *testing.T) {
-	if !canEarlyStopLatest(GrepArgs{MaxCount: 500}) {
-		t.Fatal("latest maxCount without context should early-stop")
-	}
-	if canEarlyStopLatest(GrepArgs{MaxCount: 500, ContextC: 1}) {
-		t.Fatal("context mode should keep full-file scan")
-	}
-	if canEarlyStopLatest(GrepArgs{MaxCount: 500, FromTail: true, TailLines: 1000}) {
-		t.Fatal("tail window should not switch to tac")
-	}
-	if canEarlyStopLatest(GrepArgs{}) {
-		t.Fatal("unlimited search should not early-stop")
-	}
-	if canEarlyStopLatest(GrepArgs{MaxCount: 500, TailBytes: 20 * 1024 * 1024}) {
-		t.Fatal("byte window should not switch to tac")
+	if strings.Contains(got, "tail -n ") {
+		t.Fatalf("byte window should not use tail -n, got %q", got)
 	}
 }
 
@@ -239,29 +172,6 @@ func TestIsConcreteRemoteFilePath(t *testing.T) {
 	}
 	if isConcreteRemoteFilePath("") {
 		t.Fatal("empty path should not be concrete")
-	}
-}
-
-func TestBuildRemotePrimaryOptionsDoesNotMapMaxCountToGrepOption(t *testing.T) {
-	got := strings.Join(buildRemotePrimaryOptions(GrepArgs{
-		ShowFilename: true,
-		ShowLineNum:  true,
-		MaxCount:     2,
-	}), " ")
-	if strings.Contains(got, "-m") {
-		t.Fatalf("primary opts should not include grep -m for latest maxCount, got %q", got)
-	}
-}
-
-func TestBuildRemoteGrepCommandTailWindowDoesNotUseGrepMaxCount(t *testing.T) {
-	got := buildRemoteGrepCommand(
-		[]string{"-H", "-n"},
-		[]FilterConfig{{Pattern: "error"}},
-		[]string{"/var/log/app.log"},
-		GrepArgs{FromTail: true, TailLines: 50, MaxCount: 2},
-	)
-	if strings.Contains(got, " -m ") {
-		t.Fatalf("remote tail grep command should not use grep -m for latest maxCount, got %q", got)
 	}
 }
 
@@ -287,70 +197,6 @@ func TestRemoteGrepOutputParserStripsKnownFilenameAndLineNumberPrefix(t *testing
 	}
 }
 
-func TestRemoteLatestMatchCollectorKeepsLatestMatchesInOriginalOrder(t *testing.T) {
-	filters, err := compileFilters("error", GrepArgs{})
-	if err != nil {
-		t.Fatalf("compileFilters() error = %v", err)
-	}
-
-	var got []GrepLine
-	collector := newRemoteLatestMatchCollector(
-		GrepArgs{MaxCount: 2},
-		[]string{"/var/log/app.log"},
-		filters,
-		newSearchHighlighter(filters),
-		func(line GrepLine) bool {
-			got = append(got, line)
-			return false
-		},
-	)
-
-	collector.add(remoteGrepLine{Raw: "/var/log/app.log:1:error old", FilePath: "/var/log/app.log", LineNum: 1, Content: "error old"})
-	collector.add(remoteGrepLine{Raw: "/var/log/app.log:2:error newer", FilePath: "/var/log/app.log", LineNum: 2, Content: "error newer"})
-	collector.add(remoteGrepLine{Raw: "/var/log/app.log:3:error latest", FilePath: "/var/log/app.log", LineNum: 3, Content: "error latest"})
-	if err := collector.flush(t.Context()); err != nil {
-		t.Fatalf("flush() error = %v", err)
-	}
-
-	if len(got) != 2 {
-		t.Fatalf("got %d lines, want 2: %v", len(got), got)
-	}
-	if got[0].Text != "error newer" || got[1].Text != "error latest" {
-		t.Fatalf("got %v, want latest remote matches in original order", got)
-	}
-	if len(got[0].Matches) == 0 || len(got[1].Matches) == 0 {
-		t.Fatalf("flush should compute highlights only for kept lines, got %+v", got)
-	}
-}
-
-func TestRemoteLatestMatchCollectorReversesTacOrder(t *testing.T) {
-	filters, err := compileFilters("error", GrepArgs{})
-	if err != nil {
-		t.Fatalf("compileFilters() error = %v", err)
-	}
-
-	var got []GrepLine
-	collector := newRemoteLatestMatchCollector(
-		GrepArgs{MaxCount: 2},
-		[]string{"/var/log/app.log"},
-		filters,
-		newSearchHighlighter(filters),
-		func(line GrepLine) bool {
-			got = append(got, line)
-			return false
-		},
-	)
-	collector.reversed = true
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 1, Content: "error latest"})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 2, Content: "error older"})
-	if err := collector.flush(t.Context()); err != nil {
-		t.Fatalf("flush() error = %v", err)
-	}
-	if len(got) != 2 || got[0].Text != "error older" || got[1].Text != "error latest" {
-		t.Fatalf("reversed collector should emit oldest-first, got %+v", got)
-	}
-}
-
 func TestReadRemoteGrepOutputUsesCurrentTargetFileWhenOutputHasNoFilename(t *testing.T) {
 	filters, err := compileFilters("error", GrepArgs{})
 	if err != nil {
@@ -364,7 +210,6 @@ func TestReadRemoteGrepOutputUsesCurrentTargetFileWhenOutputHasNoFilename(t *tes
 		"/var/log/app.log",
 		GrepArgs{},
 		newRemoteGrepOutputParser(GrepArgs{}, []string{"/var/log/app.log"}),
-		filters,
 		newSearchHighlighter(filters),
 		func(line GrepLine) bool {
 			got = append(got, line)
@@ -398,7 +243,6 @@ func TestReadRemoteGrepOutputHidesLineNumbersWhenDisabled(t *testing.T) {
 			GrepArgs{ShowFilename: true, ShowLineNum: true},
 			[]string{"/var/log/app.log"},
 		),
-		filters,
 		newSearchHighlighter(filters),
 		func(line GrepLine) bool {
 			got = append(got, line)
@@ -429,78 +273,6 @@ func TestRemoteFileErrorChunkCarriesTargetFile(t *testing.T) {
 	}
 	if line.Error == "" {
 		t.Fatalf("expected file-level error message")
-	}
-}
-
-func TestRemoteLatestMatchCollectorPreservesContextAroundLatestMatch(t *testing.T) {
-	filters, err := compileFilters("error", GrepArgs{})
-	if err != nil {
-		t.Fatalf("compileFilters() error = %v", err)
-	}
-
-	var got []GrepLine
-	collector := newRemoteLatestMatchCollector(
-		GrepArgs{MaxCount: 1, ContextC: 1},
-		[]string{"/var/log/app.log"},
-		filters,
-		newSearchHighlighter(filters),
-		func(line GrepLine) bool {
-			got = append(got, line)
-			return false
-		},
-	)
-
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 1, Content: "before old", IsContext: true})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 2, Content: "error old"})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 3, Content: "after old", IsContext: true})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 4, Content: "before latest", IsContext: true})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 5, Content: "error latest"})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 6, Content: "after latest", IsContext: true})
-	if err := collector.flush(t.Context()); err != nil {
-		t.Fatalf("flush() error = %v", err)
-	}
-
-	if len(got) != 3 {
-		t.Fatalf("got %d lines, want latest match with context: %v", len(got), got)
-	}
-	if got[0].Text != "before latest" || got[1].Text != "error latest" || got[2].Text != "after latest" {
-		t.Fatalf("got %v, want latest remote match context", got)
-	}
-	if !got[0].IsContext || got[1].IsContext || !got[2].IsContext {
-		t.Fatalf("unexpected context flags: %+v", got)
-	}
-}
-
-func TestRemoteLatestMatchCollectorDetectsMatchFromContentWhenPrefixParsingIsDisabled(t *testing.T) {
-	filters, err := compileFilters("error", GrepArgs{})
-	if err != nil {
-		t.Fatalf("compileFilters() error = %v", err)
-	}
-
-	var got []GrepLine
-	collector := newRemoteLatestMatchCollector(
-		GrepArgs{MaxCount: 1, ContextC: 1},
-		[]string{"/var/log/app.log"},
-		filters,
-		newSearchHighlighter(filters),
-		func(line GrepLine) bool {
-			got = append(got, line)
-			return false
-		},
-	)
-
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 1, Content: "before latest", IsContext: true})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 2, Content: "error latest", IsContext: true})
-	collector.add(remoteGrepLine{FilePath: "/var/log/app.log", LineNum: 3, Content: "after latest", IsContext: true})
-	if err := collector.flush(t.Context()); err != nil {
-		t.Fatalf("flush() error = %v", err)
-	}
-
-	if len(got) != 3 {
-		t.Fatalf("got %d lines, want latest match with context: %v", len(got), got)
-	}
-	if got[1].Text != "error latest" || got[1].IsContext {
-		t.Fatalf("got %+v, want middle line detected as match", got)
 	}
 }
 
@@ -653,13 +425,10 @@ func TestExpandRemotePathsWithExpandsPathsConcurrentlyAndPreservesOrder(t *testi
 }
 
 func TestCapRemoteGrepOutputAddsHeadWhenUnlimited(t *testing.T) {
-	got := capRemoteGrepOutput("grep -- 'error' '/var/log/app.log'", GrepArgs{})
+	got := capRemoteGrepOutput("grep -- 'error' '/var/log/app.log'")
 	want := "grep -- 'error' '/var/log/app.log' | head -n 50000"
 	if got != want {
 		t.Fatalf("capRemoteGrepOutput() = %q, want %q", got, want)
-	}
-	if capped := capRemoteGrepOutput("grep -- 'error' '/var/log/app.log'", GrepArgs{MaxCount: 2}); strings.Contains(capped, "head -n 50000") {
-		t.Fatalf("latest maxCount path should not add the 50000-line cap, got %q", capped)
 	}
 }
 
@@ -681,7 +450,6 @@ func TestReadRemoteGrepOutputStopsAtLineLimit(t *testing.T) {
 		"/var/log/app.log",
 		GrepArgs{},
 		newRemoteGrepOutputParser(GrepArgs{}, []string{"/var/log/app.log"}),
-		filters,
 		newSearchHighlighter(filters),
 		func(GrepLine) bool {
 			count++

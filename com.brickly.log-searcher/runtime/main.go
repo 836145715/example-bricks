@@ -1,5 +1,5 @@
-// 日志查询工具 runtime：gRPC Runtime + invoke/interact。
-// search 走 call（ctx.Send 推 progress / searchState / logLine），其余命令走 invoke。
+// 日志查询工具 runtime：gRPC Runtime + invoke/call。
+// search 走 call（ctx.Send 推 progress / searchState），其余命令走 invoke。
 package main
 
 import (
@@ -45,11 +45,8 @@ type GrepArgs struct {
 	ContextB     int            `json:"contextB"`
 	ContextC     int            `json:"contextC"`
 	OnlyMatch    bool           `json:"onlyMatch"`
-	MaxCount     int            `json:"maxCount"`
 	ShowLineNum  bool           `json:"showLineNum"`
 	ShowFilename bool           `json:"showFilename"`
-	FromTail     bool           `json:"fromTail"`
-	TailLines    int            `json:"tailLines"`
 	TailBytes    int            `json:"tailBytes"`
 	Filters      []FilterConfig `json:"filters"`
 }
@@ -65,7 +62,6 @@ type FilterConfig struct {
 type searchInput struct {
 	ServerID         string
 	Pattern          string
-	ResultMode       string
 	Args             GrepArgs
 	LogPaths         []string
 	HasExplicitFiles bool
@@ -104,17 +100,6 @@ func sendProgress(ctx *brickly.CommandContext, progress float64, message string)
 		"type":     "progress",
 		"progress": progress,
 		"message":  message,
-	})
-}
-
-func sendLogLine(ctx *brickly.CommandContext, line GrepLine) error {
-	payload, err := asJSONValue(line)
-	if err != nil {
-		return err
-	}
-	return ctx.Send(map[string]any{
-		"type":    "logLine",
-		"logLine": payload,
 	})
 }
 
@@ -430,7 +415,6 @@ func parseSearchInput(input map[string]any, targetServer ServerConfig) searchInp
 	parsed := searchInput{}
 	parsed.ServerID, _ = input["serverId"].(string)
 	parsed.Pattern, _ = input["pattern"].(string)
-	parsed.ResultMode, _ = input["resultMode"].(string)
 	parsed.Args = parseGrepArgs(input)
 
 	if filesVal, exists := input["files"]; exists {
@@ -505,40 +489,7 @@ func handleSearch(cmd *brickly.CommandContext, input map[string]any) (any, error
 		return nil, commandError("NO_LOG_PATHS", "No log files or paths specified for this search.")
 	}
 
-	if search.ResultMode == storeResultMode {
-		return handleStoredSearch(cmd, *targetServer, search)
-	}
-
-	searchCtx := cmd.Context()
-	if err := sendProgress(cmd, 0.1, "Connecting & searching logs..."); err != nil {
-		return nil, err
-	}
-
-	fileLineCounts := map[string]int{}
-	searchErr := RunRemoteGrep(searchCtx, *targetServer, search.Pattern, search.LogPaths, search.Args, func(line GrepLine) bool {
-		if searchCancelled(searchCtx) {
-			return true
-		}
-		_ = sendLogLine(cmd, line)
-		fileID := line.File
-		if fileID == "" {
-			fileID = fallbackResultsScope
-		}
-		fileLineCounts[fileID]++
-		return fileLineCounts[fileID] >= maxStoredLinesPerFile
-	})
-
-	if searchErr != nil {
-		if searchCancelled(searchCtx) {
-			return nil, commandError("CANCELLED", "Search cancelled by user.")
-		}
-		return nil, commandError("SEARCH_FAILED", searchErr.Error())
-	}
-
-	if err := sendProgress(cmd, 1.0, "Search completed successfully."); err != nil {
-		return nil, err
-	}
-	return map[string]any{"completed": true}, nil
+	return handleStoredSearch(cmd, *targetServer, search)
 }
 
 func handleStoredSearch(cmd *brickly.CommandContext, targetServer ServerConfig, search searchInput) (any, error) {
