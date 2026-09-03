@@ -22,18 +22,7 @@ import {
 import { FileDateFilterControls } from './FileDateFilterControls'
 import { FileSelectDropdown } from './FileSelectDropdown'
 import { AppTooltip } from './ui/AppTooltip'
-
-function preventDatePickerDismiss(event: { preventDefault: () => void; target: EventTarget | null }) {
-  const target = event.target
-  if (target instanceof Element && target.closest('input[type="date"]')) {
-    event.preventDefault()
-    return
-  }
-  const active = document.activeElement
-  if (active instanceof HTMLInputElement && active.type === 'date') {
-    event.preventDefault()
-  }
-}
+import { preventNestedOverlayDismiss } from './ui/overlay'
 
 interface SearchToolbarProps {
   serverId: string
@@ -220,8 +209,8 @@ export function SearchToolbar({
           side="bottom"
           sideOffset={8}
           collisionPadding={12}
-          onInteractOutside={preventDatePickerDismiss}
-          onPointerDownOutside={preventDatePickerDismiss}
+          onInteractOutside={preventNestedOverlayDismiss}
+          onPointerDownOutside={preventNestedOverlayDismiss}
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <section className="search-options-section">

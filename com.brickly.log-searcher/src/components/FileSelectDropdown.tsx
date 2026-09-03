@@ -15,6 +15,14 @@ import {
 } from '../domain/paths'
 import type { FileListStatus } from '../types'
 import { AppTooltip } from './ui/AppTooltip'
+import { preventNestedOverlayDismiss } from './ui/overlay'
+import { Select } from './ui/select'
+
+const FILE_SORT_OPTIONS = [
+  { value: 'mtime', label: '最近修改' },
+  { value: 'name', label: '文件名' },
+  { value: 'size', label: '大小' }
+] as const
 
 interface FileSelectDropdownProps {
   serverId: string
@@ -115,6 +123,8 @@ export function FileSelectDropdown({
             side="bottom"
             sideOffset={6}
             collisionPadding={8}
+            onInteractOutside={preventNestedOverlayDismiss}
+            onPointerDownOutside={preventNestedOverlayDismiss}
           >
           <div className="dropdown-search">
             <input
@@ -142,16 +152,13 @@ export function FileSelectDropdown({
             <button type="button" onClick={onRefresh}>
               刷新
             </button>
-            <select
-              className="file-picker-sort"
+            <Select
+              size="sm"
+              ariaLabel="排序"
               value={sort}
-              onChange={event => setSort(event.target.value as FilePickerSort)}
-              title="排序"
-            >
-              <option value="mtime">最近修改</option>
-              <option value="name">文件名</option>
-              <option value="size">大小</option>
-            </select>
+              options={FILE_SORT_OPTIONS}
+              onChange={setSort}
+            />
           </div>
 
           {dateActive && (

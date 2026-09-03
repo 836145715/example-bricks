@@ -7,12 +7,17 @@ import {
   isDateFilterActive,
   isValidDateKey,
   localDateRangeUnixSeconds,
-  normalizeDateFilter
+  normalizeDateFilter,
+  parseLocalDateKey
 } from './paths.ts'
 
 assert.equal(isValidDateKey('2026-08-30'), true)
 assert.equal(isValidDateKey('2026-02-31'), false)
 assert.equal(isValidDateKey('08-30'), false)
+const parsed = parseLocalDateKey('2026-08-30')
+assert.ok(parsed instanceof Date)
+assert.equal(formatLocalDateKey(parsed), '2026-08-30')
+assert.equal(parseLocalDateKey('not-a-date'), undefined)
 
 const noon = new Date(2026, 7, 30, 12, 0, 0, 0)
 assert.equal(formatLocalDateKey(noon), '2026-08-30')

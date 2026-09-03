@@ -3,6 +3,12 @@ import { useEffect, useState } from 'react'
 import { LOG_PATH_PRESETS, type RemoteBrowseResult } from '../domain/paths'
 import type { ConnectionTestState, LogFileConfig, ServerConfig } from '../types'
 import { RemotePathBrowser } from './RemotePathBrowser'
+import { Select } from './ui/select'
+
+const AUTH_OPTIONS = [
+  { value: 'password', label: 'SSH 密码' },
+  { value: 'key', label: 'SSH 私钥' }
+] as const
 
 interface ConfigModalProps {
   server: ServerConfig
@@ -174,16 +180,12 @@ export function ConfigModal({
 
           <div className="form-group">
             <label>鉴权方式</label>
-            <select
+            <Select
+              ariaLabel="鉴权方式"
               value={server.authType}
-              onChange={(event) => onChange({
-                ...server,
-                authType: event.target.value as 'password' | 'key'
-              })}
-            >
-              <option value="password">SSH 密码</option>
-              <option value="key">SSH 私钥 (Key)</option>
-            </select>
+              options={AUTH_OPTIONS}
+              onChange={(authType) => onChange({ ...server, authType })}
+            />
           </div>
 
           {server.authType === 'password' ? (

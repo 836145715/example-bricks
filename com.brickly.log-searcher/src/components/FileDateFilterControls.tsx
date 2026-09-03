@@ -1,11 +1,11 @@
 import { CalendarDays, X } from 'lucide-react'
-import { useRef } from 'react'
 import {
   describeDateFilter,
   isDateFilterActive,
   type FileDateFilter,
   type FileDatePreset
 } from '../domain/paths'
+import { DatePicker, DateRangePicker } from './ui/date-picker'
 
 interface FileDateFilterControlsProps {
   filter: FileDateFilter
@@ -25,12 +25,6 @@ export function FileDateFilterControls({
   onClear
 }: FileDateFilterControlsProps) {
   const active = isDateFilterActive(filter)
-  const mountedAtRef = useRef(Date.now())
-
-  const emitChange = (next: FileDateFilter) => {
-    if (Date.now() - mountedAtRef.current < 400) return
-    onChange(next)
-  }
 
   return (
     <div className="file-date-filter">
@@ -43,7 +37,7 @@ export function FileDateFilterControls({
         <button
           type="button"
           className={filter.mode === 'day' ? 'active' : ''}
-          onClick={() => emitChange({
+          onClick={() => onChange({
             mode: 'day',
             startDate: filter.startDate,
             endDate: filter.startDate
@@ -54,7 +48,7 @@ export function FileDateFilterControls({
         <button
           type="button"
           className={filter.mode === 'range' ? 'active' : ''}
-          onClick={() => emitChange({
+          onClick={() => onChange({
             mode: 'range',
             startDate: filter.startDate,
             endDate: filter.endDate || filter.startDate
@@ -64,36 +58,17 @@ export function FileDateFilterControls({
         </button>
       </div>
 
-      <input
-        type="date"
-        className="file-date-input"
-        name="log-searcher-mtime-start"
-        autoComplete="off"
-        value={filter.startDate}
-        onChange={event => emitChange({
-          ...filter,
-          startDate: event.target.value,
-          endDate: filter.mode === 'day' ? event.target.value : filter.endDate
-        })}
-        aria-label={filter.mode === 'day' ? '选择日期' : '开始日期'}
-      />
-      {filter.mode === 'range' && (
-        <>
-          <span className="file-date-sep">至</span>
-          <input
-            type="date"
-            className="file-date-input"
-            name="log-searcher-mtime-end"
-            autoComplete="off"
-            value={filter.endDate}
-            min={filter.startDate || undefined}
-            onChange={event => emitChange({
-              ...filter,
-              endDate: event.target.value
-            })}
-            aria-label="结束日期"
-          />
-        </>
+      {filter.mode === 'day' ? (
+        <DatePicker
+          value={filter.startDate}
+          onChange={(startDate) => onChange({ mode: 'day', startDate, endDate: startDate })}
+        />
+      ) : (
+        <DateRangePicker
+          startDate={filter.startDate}
+          endDate={filter.endDate}
+          onChange={({ startDate, endDate }) => onChange({ mode: 'range', startDate, endDate })}
+        />
       )}
 
       <button type="button" className="file-date-chip" onClick={() => onPreset('today')}>

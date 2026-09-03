@@ -141,6 +141,12 @@ export const formatLocalDateKey = (date: Date): string => {
   return `${date.getFullYear()}-${month}-${day}`
 }
 
+export const parseLocalDateKey = (value: string): Date | undefined => {
+  if (!isValidDateKey(value)) return undefined
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 export const isValidDateKey = (value: string): boolean => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const [year, month, day] = value.split('-').map(Number)

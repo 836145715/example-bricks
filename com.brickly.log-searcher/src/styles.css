@@ -24,6 +24,7 @@
   --z-find: 20;
   --z-overlay: 40;
   --z-modal: 50;
+  --z-menu: 55;
   --z-tooltip: 60;
   --shadow-overlay: 0 16px 40px rgba(12, 12, 14, 0.52);
 
@@ -679,26 +680,96 @@ html, body, #root {
   color: var(--text-main);
 }
 
-.file-date-input {
+.date-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 132px;
   height: 22px;
-  width: 132px;
-  padding: 0 6px;
+  padding: 0 8px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
   background: var(--bg-input);
   color: var(--text-main);
   font-size: 11px;
-  outline: 0;
-  color-scheme: dark;
+  cursor: pointer;
 }
 
-.file-date-input:focus {
+.date-picker-trigger[data-empty] {
+  color: var(--text-muted);
+}
+
+.date-picker-trigger:hover,
+.date-picker-trigger[data-state="open"] {
   border-color: var(--accent-color);
 }
 
-.file-date-sep {
+.date-picker-trigger svg {
+  flex-shrink: 0;
+  transition: transform 120ms ease;
+}
+
+.date-picker-trigger svg.is-open {
+  transform: rotate(180deg);
+}
+
+.date-picker-popover {
+  z-index: var(--z-menu);
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-overlay);
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-overlay);
+  outline: none;
+}
+
+.log-calendar.rdp-root {
+  --rdp-accent-color: var(--accent-color);
+  --rdp-accent-background-color: var(--accent-muted);
+  --rdp-day-height: 32px;
+  --rdp-day-width: 32px;
+  --rdp-day_button-height: 30px;
+  --rdp-day_button-width: 30px;
+  --rdp-day_button-border-radius: 6px;
+  --rdp-nav_button-height: 28px;
+  --rdp-nav_button-width: 28px;
+  --rdp-nav-height: 32px;
+  --rdp-selected-border: 0;
+  --rdp-today-color: var(--accent-color);
+  --rdp-range_start-color: #f8fafc;
+  --rdp-range_end-color: #f8fafc;
+  --rdp-outside-opacity: 0.38;
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+.log-calendar .rdp-month_caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.log-calendar .rdp-weekday {
   color: var(--text-muted);
   font-size: 11px;
+}
+
+.log-calendar .rdp-day_button {
+  color: inherit;
+}
+
+.log-calendar .rdp-today:not(.rdp-selected) .rdp-day_button {
+  font-weight: 600;
+}
+
+.log-calendar .rdp-button_previous,
+.log-calendar .rdp-button_next {
+  color: var(--text-secondary);
+}
+
+.log-calendar .rdp-button_previous:hover,
+.log-calendar .rdp-button_next:hover {
+  color: var(--text-main);
 }
 
 .file-date-chip,
@@ -1479,7 +1550,6 @@ html, body, #root {
 }
 
 .form-group input,
-.form-group select,
 .form-group textarea {
   height: 30px;
   background: var(--bg-input);
@@ -1492,7 +1562,6 @@ html, body, #root {
 }
 
 .form-group input:focus,
-.form-group select:focus,
 .form-group textarea:focus {
   border-color: var(--border-focus);
 }
@@ -1889,15 +1958,125 @@ html, body, #root {
   font-size: 12px;
 }
 
-.file-picker-sort {
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+}
+
+.select-trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-trigger svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 120ms ease;
+}
+
+.select-trigger svg.is-open {
+  transform: rotate(180deg);
+}
+
+.select-trigger:hover,
+.select-trigger[data-state="open"] {
+  border-color: var(--accent-color);
+}
+
+.select-trigger:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.select-trigger-md {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+}
+
+.select-trigger-sm {
   height: 22px;
   min-width: 88px;
-  padding: 0 4px;
-  border: 1px solid var(--border-color);
+  padding: 0 6px 0 8px;
   border-radius: 4px;
-  background: var(--bg-input);
   color: var(--text-secondary);
   font-size: 11px;
+}
+
+.file-picker-menu .dropdown-actions .select-trigger {
+  flex: 0 0 auto;
+}
+
+.select-menu {
+  z-index: var(--z-menu);
+  min-width: var(--radix-popover-trigger-width);
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-overlay);
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-overlay);
+  outline: none;
+}
+
+.select-menu-sm {
+  min-width: 108px;
+}
+
+.select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.select-option span {
+  min-width: 0;
+}
+
+.select-menu-md .select-option {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.select-menu-sm .select-option {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.select-option:hover {
+  background: var(--bg-item-hover);
+  color: var(--text-main);
+}
+
+.select-option.is-selected {
+  color: var(--text-main);
+}
+
+.select-option svg {
+  flex-shrink: 0;
+  color: var(--accent-color);
 }
 
 .file-picker-hint {
@@ -2220,6 +2399,8 @@ html, body, #root {
 @media (prefers-reduced-motion: no-preference) {
   .search-options-popover[data-state="open"],
   .file-picker-menu[data-state="open"],
+  .date-picker-popover[data-state="open"],
+  .select-menu[data-state="open"],
   .app-tooltip[data-state="delayed-open"],
   .app-tooltip[data-state="instant-open"] {
     animation: overlay-in 120ms ease-out;
@@ -2235,8 +2416,14 @@ html, body, #root {
   .btn,
   .titlebar-btn,
   .file-select-dropdown .dropdown-trigger svg,
-  .file-picker-group-toggle svg {
+  .file-picker-group-toggle svg,
+  .date-picker-trigger svg,
+  .select-trigger svg {
     transition: none;
+  }
+
+  .log-calendar.rdp-root {
+    --rdp-animation_duration: 0s;
   }
 
   .btn:active:not(:disabled) {
