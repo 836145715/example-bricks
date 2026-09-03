@@ -13,7 +13,6 @@ import {
 import type {
   FileSearchState,
   FindResult,
-  GrepArgs,
   ParsedLogLine,
   ServerConfig
 } from '../types'
@@ -43,8 +42,6 @@ interface ResultsPaneProps {
   logsByIndex: Map<number, ParsedLogLine>
   defaultRowHeight: number
   virtuosoRef: Ref<VirtuosoHandle>
-  committedPattern?: string
-  committedArgs?: GrepArgs
   findRe: RegExp | null
   statusHighlightRules: HighlightRule[]
   onSelectTab: (tabId: string) => void
@@ -57,6 +54,7 @@ interface ResultsPaneProps {
   onScrollerRef: (element: HTMLElement | Window | null) => void
   onJumpTop: () => void
   onJumpBottom: () => void
+  initialTopMostItemIndex?: number | { index: number; align?: 'start' | 'center' | 'end'; offset?: number }
 }
 
 function EmptyResults({
@@ -135,8 +133,6 @@ export function ResultsPane({
   logsByIndex,
   defaultRowHeight,
   virtuosoRef,
-  committedPattern,
-  committedArgs,
   findRe,
   statusHighlightRules,
   onSelectTab,
@@ -148,14 +144,30 @@ export function ResultsPane({
   onRangeChanged,
   onScrollerRef,
   onJumpTop,
-  onJumpBottom
+  onJumpBottom,
+  initialTopMostItemIndex
 }: ResultsPaneProps) {
+  const showFileTabs = visibleResultTabs.length > 1
+  const currentFileLabel = activeTabId ? getTabLabel(activeTabId) : ''
+  const currentFileSize = activeTabId ? getTabFileSize(availableFiles, activeTabId) : ''
+
   return (
     <div className="results-pane">
       <div className="results-header">
-        <div>
-          当前连接: <strong>{activeServer ? activeServer.name : '未选择'}</strong>
-          {activeServer && ` (${activeServer.host})`}
+        <div className="results-header-meta">
+          <div>
+            当前连接: <strong>{activeServer ? activeServer.name : '未选择'}</strong>
+            {activeServer && ` (${activeServer.host})`}
+          </div>
+          {!showFileTabs && currentFileLabel && (
+            <>
+              <span className="results-header-sep">·</span>
+              <div className="results-current-file" title={getTabTitle(activeTabId)}>
+                {currentFileLabel}
+                {currentFileSize ? ` · ${currentFileSize}` : ''}
+              </div>
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {currentStats.count > 0 && (
@@ -187,7 +199,7 @@ export function ResultsPane({
         </div>
       </div>
 
-      {visibleResultTabs.length > 1 && (
+      {showFileTabs && (
         <div className="result-tabs" role="tablist" aria-label="日志文件结果视图">
           {visibleResultTabs.map(tabId => {
             const tabStats = fileStates[tabId] ?? {
@@ -250,14 +262,13 @@ export function ResultsPane({
                 defaultRowHeight={defaultRowHeight}
                 logsByIndex={logsByIndex}
                 virtuosoRef={virtuosoRef}
-                committedPattern={committedPattern}
-                committedArgs={committedArgs}
                 findKeyword={findKeyword}
                 findResult={findResult}
                 findRe={findRe}
                 statusHighlightRules={statusHighlightRules}
                 onRangeChanged={onRangeChanged}
                 onScrollerRef={onScrollerRef}
+                initialTopMostItemIndex={initialTopMostItemIndex}
               />
             </div>
           </>

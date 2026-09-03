@@ -522,6 +522,10 @@ html, body, #root {
   width: 76px;
 }
 
+.context-input input::placeholder {
+  color: var(--text-muted);
+}
+
 .context-input input:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -653,6 +657,25 @@ html, body, #root {
   border-bottom: 1px solid var(--border-color);
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.results-header-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.results-current-file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.results-header-sep {
+  flex-shrink: 0;
+  opacity: 0.35;
 }
 
 .result-tabs {

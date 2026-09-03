@@ -195,6 +195,10 @@ export const filterFilesByModifiedDate = (
   })
 }
 
+export const pathsMatchingDateFilter = (files: RemoteLogFile[], filter: FileDateFilter): string[] => {
+  return filterFilesByModifiedDate(files, filter).map(file => file.path)
+}
+
 export const dateFilterPreset = (kind: FileDatePreset, now = new Date()): FileDateFilter => {
   const today = formatLocalDateKey(now)
   if (kind === 'today') {

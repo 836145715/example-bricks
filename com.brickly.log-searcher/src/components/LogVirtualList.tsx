@@ -1,7 +1,7 @@
 import type { Ref } from 'react'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import type { HighlightRule } from '../domain/highlight'
-import type { FindResult, GrepArgs, ParsedLogLine } from '../types'
+import type { FindResult, ParsedLogLine } from '../types'
 import { LogLineHighlight } from './LogLineHighlight'
 
 interface LogVirtualListProps {
@@ -11,14 +11,13 @@ interface LogVirtualListProps {
   defaultRowHeight: number
   logsByIndex: Map<number, ParsedLogLine>
   virtuosoRef: Ref<VirtuosoHandle>
-  committedPattern?: string
-  committedArgs?: GrepArgs
   findKeyword: string
   findResult: FindResult | null
   findRe: RegExp | null
   statusHighlightRules: HighlightRule[]
   onRangeChanged: (startIndex: number, endIndex: number) => void
   onScrollerRef: (element: HTMLElement | Window | null) => void
+  initialTopMostItemIndex?: number | { index: number; align?: 'start' | 'center' | 'end'; offset?: number }
 }
 
 export function LogVirtualList({
@@ -28,14 +27,13 @@ export function LogVirtualList({
   defaultRowHeight,
   logsByIndex,
   virtuosoRef,
-  committedPattern,
-  committedArgs,
   findKeyword,
   findResult,
   findRe,
   statusHighlightRules,
   onRangeChanged,
-  onScrollerRef
+  onScrollerRef,
+  initialTopMostItemIndex
 }: LogVirtualListProps) {
   return (
     <Virtuoso
@@ -46,6 +44,7 @@ export function LogVirtualList({
       totalCount={totalCount}
       defaultItemHeight={defaultRowHeight}
       fixedItemHeight={wrapLines ? undefined : defaultRowHeight}
+      initialTopMostItemIndex={initialTopMostItemIndex}
       increaseViewportBy={240}
       computeItemKey={(index) => `${listKey}:${index}`}
       rangeChanged={({ startIndex, endIndex }) => onRangeChanged(startIndex, endIndex)}
@@ -70,8 +69,6 @@ export function LogVirtualList({
             <div className="log-content">
               <LogLineHighlight
                 log={log}
-                committedPattern={committedPattern}
-                committedArgs={committedArgs}
                 findKeyword={findKeyword}
                 findResult={findResult}
                 findRe={findRe}

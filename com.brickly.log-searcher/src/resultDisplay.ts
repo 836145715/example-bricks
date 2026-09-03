@@ -42,6 +42,27 @@ export const isEmptyCompletedResultTab = (state?: FileSearchState): boolean => {
   return (state.status === 'success' || state.status === 'done') && state.count <= 0
 }
 
+export const getVisibleResultTabs = (
+  tabs: string[],
+  fileStates: Record<string, FileSearchState>
+): string[] => {
+  return tabs.filter(tabId => shouldShowResultTab(fileStates[tabId]))
+}
+
+/** 当前应展示的结果 Tab：隐藏无匹配的已完成文件，并在当前 Tab 被隐藏时回落到第一个可见 Tab。 */
+export const resolveActiveResultTab = (
+  tabs: string[],
+  fileStates: Record<string, FileSearchState>,
+  activeTabId: string
+): string => {
+  if (tabs.length === 0) return activeTabId
+  const visibleTabs = getVisibleResultTabs(tabs, fileStates)
+  if (activeTabId && visibleTabs.includes(activeTabId)) return activeTabId
+  if (visibleTabs[0]) return visibleTabs[0]
+  if (activeTabId && tabs.includes(activeTabId)) return activeTabId
+  return tabs[0] ?? ''
+}
+
 export const getTabStatusClass = (status: FileSearchStatus): string => {
   if (status === 'queued') return 'queued'
   if (status === 'searching') return 'searching'

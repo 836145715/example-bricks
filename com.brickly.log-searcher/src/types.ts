@@ -1,5 +1,11 @@
 import type { HighlightKeywordTextMap } from './domain/highlight'
 import type { RemoteLogFile } from './domain/logFiles'
+import type { FileDateFilter } from './domain/paths'
+
+export const LOG_ROW_HEIGHT = 22
+export const WRAPPED_LOG_ROW_ESTIMATE_HEIGHT = 36
+
+export type { FileDateFilter }
 
 export interface LogFileConfig {
   path: string
@@ -36,11 +42,6 @@ export interface GrepArgs {
   contextB: number
   contextC: number
   onlyMatch: boolean
-  maxCount: number
-  showLineNum: boolean
-  showFilename: boolean
-  fromTail: boolean
-  tailLines: number
   tailBytes: number
   filters?: FilterConfig[]
 }
@@ -156,15 +157,17 @@ export interface ConnectionTestState {
 
 export type { HighlightKeywordTextMap, RemoteLogFile }
 
-export const DEFAULT_TAIL_BYTES = 20 * 1024 * 1024
+export const BYTES_PER_MB = 1024 * 1024
 
-export const TAIL_BYTE_OPTIONS: Array<{ value: number; label: string }> = [
-  { value: 10 * 1024 * 1024, label: '最近 10 MB' },
-  { value: 20 * 1024 * 1024, label: '最近 20 MB' },
-  { value: 50 * 1024 * 1024, label: '最近 50 MB' },
-  { value: 100 * 1024 * 1024, label: '最近 100 MB' },
-  { value: 0, label: '整个文件' }
-]
+export function megabytesFromTailBytes(tailBytes: number): number {
+  if (!Number.isFinite(tailBytes) || tailBytes <= 0) return 0
+  return Math.round(tailBytes / BYTES_PER_MB)
+}
+
+export function tailBytesFromMegabytes(megabytes: number): number {
+  if (!Number.isFinite(megabytes) || megabytes <= 0) return 0
+  return Math.floor(megabytes) * BYTES_PER_MB
+}
 
 export const DEFAULT_GREP_ARGS: GrepArgs = {
   ignoreCase: true,
@@ -175,10 +178,54 @@ export const DEFAULT_GREP_ARGS: GrepArgs = {
   contextB: 0,
   contextC: 0,
   onlyMatch: false,
-  maxCount: 0,
-  showLineNum: false,
-  showFilename: false,
-  fromTail: false,
-  tailLines: 1000,
-  tailBytes: DEFAULT_TAIL_BYTES
+  tailBytes: 0
 }
+
+/** 检索表单输入草稿（按服务器隔离） */
+export interface QueryDraft {
+  pattern: string
+  filters: FilterConfig[]
+  grepArgs: GrepArgs
+  selectedFiles: string[]
+  dateFilter: FileDateFilter
+}
+
+/** 远程日志文件列表加载状态 */
+export interface ServerFilesState {
+  availableFiles: RemoteLogFile[]
+  status: FileListStatus
+}
+
+/** 服务器当前检索任务状态 */
+export interface ServerSearchJob {
+  runId: string
+  isSearching: boolean
+  tabs: string[]
+  activeTabId: string
+  fileStates: Record<string, FileSearchState>
+}
+
+/** 结果内查找状态（Ctrl+F） */
+export interface ServerFindState {
+  keyword: string
+  showBar: boolean
+  loading: boolean
+  results: Record<string, FindResult | null>
+}
+
+/** 单个服务器的完整工作区状态 */
+export interface ServerWorkspace {
+  draft: QueryDraft
+  files: ServerFilesState
+  job: ServerSearchJob
+  find: ServerFindState
+}
+
+/** 全局 Workspace 总状态树 */
+export interface WorkspaceState {
+  servers: ServerConfig[]
+  activeServerId: string
+  workspaces: Record<string, ServerWorkspace>
+  resultWindows: Record<string, ResultWindowState>
+}
+

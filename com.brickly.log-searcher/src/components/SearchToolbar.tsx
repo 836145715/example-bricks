@@ -9,7 +9,13 @@ import {
   type FileDateFilter,
   type FileDatePreset
 } from '../domain/paths'
-import { DEFAULT_TAIL_BYTES, TAIL_BYTE_OPTIONS, type FileListStatus, type FilterConfig, type GrepArgs } from '../types'
+import {
+  megabytesFromTailBytes,
+  tailBytesFromMegabytes,
+  type FileListStatus,
+  type FilterConfig,
+  type GrepArgs
+} from '../types'
 import { FileDateFilterControls } from './FileDateFilterControls'
 import { FileSelectDropdown } from './FileSelectDropdown'
 
@@ -78,6 +84,8 @@ export function SearchToolbar({
   onDateFilterPreset,
   onClearDateFilter
 }: SearchToolbarProps) {
+  const tailMegabytes = megabytesFromTailBytes(grepArgs.tailBytes)
+
   return (
     <header className="toolbar">
       <div className="search-row">
@@ -205,36 +213,30 @@ export function SearchToolbar({
             type="number"
             min="0"
             max="50"
-            value={grepArgs.contextC}
-            onChange={(event) => onUpdateGrepArgs({ contextC: Math.max(0, parseInt(event.target.value) || 0) })}
+            placeholder="0"
+            value={grepArgs.contextC > 0 ? grepArgs.contextC : ''}
+            onChange={(event) => onUpdateGrepArgs({
+              contextC: Math.min(50, Math.max(0, parseInt(event.target.value, 10) || 0))
+            })}
           />
         </div>
 
         <div className="context-input">
-          <span title="每个文件只检索末尾这一段。默认 20MB，耗时可预期；整个文件会扫描全量，大日志可能较慢。">
-            搜索范围:
+          <span title="每个文件从末尾检索的大小。留空或 0 表示整个文件。">
+            末尾:
           </span>
-          <select
-            value={grepArgs.tailBytes ?? DEFAULT_TAIL_BYTES}
+          <input
+            className="tail-lines-input"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="全部"
+            value={tailMegabytes > 0 ? tailMegabytes : ''}
             onChange={(event) => onUpdateGrepArgs({
-              tailBytes: parseInt(event.target.value, 10) || 0,
-              maxCount: 0,
-              fromTail: false
+              tailBytes: tailBytesFromMegabytes(parseInt(event.target.value, 10) || 0)
             })}
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              color: 'var(--text-main)',
-              height: '22px',
-              padding: '0 4px',
-              outline: 0
-            }}
-          >
-            {TAIL_BYTE_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+          />
+          <span>MB</span>
         </div>
 
         <button
