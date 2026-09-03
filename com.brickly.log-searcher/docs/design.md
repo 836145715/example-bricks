@@ -3,6 +3,9 @@ status: active
 type: design
 related_code:
   - example-bricks/com.brickly.log-searcher/src/App.tsx
+  - example-bricks/com.brickly.log-searcher/src/controllers/useSearchController.ts
+  - example-bricks/com.brickly.log-searcher/src/state/workspaceReducer.ts
+  - example-bricks/com.brickly.log-searcher/src/resultDisplay.ts
   - example-bricks/com.brickly.log-searcher/src/components/FileSelectDropdown.tsx
   - example-bricks/com.brickly.log-searcher/src/components/RemotePathBrowser.tsx
   - example-bricks/com.brickly.log-searcher/src/domain/paths.ts
@@ -10,21 +13,21 @@ related_code:
   - example-bricks/com.brickly.log-searcher/runtime/result_store.go
   - example-bricks/com.brickly.log-searcher/runtime/ssh.go
   - example-bricks/com.brickly.log-searcher/runtime/ssh_pool.go
-last_verified: 2026-08-30
+last_verified: 2026-09-03
 ---
 
 # 日志查询工具设计
 
-`com.brickly.log-searcher` 是 SSH 远程日志检索示例砖。结果仓库放在 Go `owned` 进程里，UI 只 peek 当前视口。这篇说明当前结构、路径选择交互，以及后续应如何把状态收成 SearchJob。
+`com.brickly.log-searcher` 是 SSH 远程日志检索示例砖。结果仓库放在 Go `owned` 进程里，UI 只 peek 当前视口。这篇说明当前结构、路径选择交互，以及 Workspace + Controller 的状态边界。
 
 ## 1. 不该推翻的部分
 
 这些已经是对的，后续重构要保住：
 
 - Runtime 使用 `owned` Lifetime。结果存在该进程内存里，不能改成 `per-call`。
-- UI 默认 `resultMode=store`。`search` 只推 `searchState`，行数据用 `peek_search_results` 按窗口读。
+- `search` 只推 `progress` / `searchState`，行数据用 `peek_search_results` 按窗口读。
 - 多文件检索复用同一条 SSH 连接，最多 6 路并发 grep。
-- 默认按文件末尾字节窗口检索（`tailBytes`，默认 20MB），范围内命中全部返回；`maxCount` / 按行 `fromTail` 只留给旧调用。
+- 默认同文件全量检索（`tailBytes=0`）。填写末尾 MB 时，远程命令是 `tail -c` → `grep` → `head -n 50000`；不填则直接 `grep` 整文件，再 `head -n 50000`。
 - 每个文件最多 50000 行；达到上限后停止该文件检索，不丢已有结果。
 - 检索期可用单日/范围按文件最后修改时间自动勾选文件；这只改 `selectedFiles`，不改搜索协议。
 
@@ -89,35 +92,35 @@ Go runtime
 - 文件行显示大小和相对时间
 - 触发器显示已选文件名，不再只写「已选 N 个」
 
-## 4. 目标状态模型
+## 4. 当前状态模型
 
-前端现在仍是一组按 `serverId` 切开的 `Record`。后续应收到一棵树上，对标 `ssh-manager` 的 `useReducer` + Controller：
+前端已收成一棵 Workspace 树，由 `workspaceReducer` 更新，`useSearchController` 负责 RPC / peek / 跳转：
 
 ```text
 Workspace
   draft     关键词、过滤、文件选择
   files     远程列表状态
-  job?      当前检索
+  job       当前检索
     runId
     tabs[]  status / total / truncated
-    viewport  当前 Tab 的 offset + lines
+    viewport  当前 Tab 的 offset + lines，存在 resultWindows[serverId::tabId]
 ```
 
-`SearchController` 持有 `interact`、peek debounce、跳转待办，只 `dispatch`。组件不要再直接 `invoke`。
+`useSearchController` 持有 `call('search')`、peek debounce、跳转待办，只 `dispatch`。组件不要再直接 `invoke`。
 
-命令面建议最终收成：
+命令面当前是：
 
 ```text
-search.start     interact
-search.peek      invoke
-search.find      invoke
-search.cancel    invoke
+search                 call（结果进 store，事件只推 searchState）
+peek_search_results    invoke
+find_search_results    invoke
+clear_search_results   invoke
 browse_remote_path
 list_log_files
 load/save/test
 ```
 
-UI 已只用 store，兼容流式 `logLine` 可以删。对外输入用 `query` / `scope`，不要继续把 grep 开关袋当成协议。
+UI 已只用 store。无匹配且已完成的文件 Tab 会从结果栏隐藏，摘要里统计「N 个文件无匹配」。peek 必须匹配当前 `job.runId`，虚拟列表 key 含 `runId`，避免连搜时把上一轮窗口写进来。
 
 SSH 连接按主机指纹缓存在 owned 进程里（空闲 5 分钟、TCP/SSH keepalive、握手 8 秒超时）。浏览、列文件、检索、测连复用同一条连接；凭证变化会换新连接。
 
@@ -132,10 +135,11 @@ SSH 连接按主机指纹缓存在 owned 进程里（空闲 5 分钟、TCP/SSH k
 
 已经做完：远程浏览命令、配置期点选路径、检索期分组选择、本文档。
 
-已做完：远程浏览、配置期点选路径、检索期分组选择、Go 侧 SSH 连接复用、具体文件跳过 expand、远程最新 N 条提前终止。
+已做完：
+- 远程浏览、配置期点选路径、检索期分组选择、Go 侧 SSH 连接复用、具体文件跳过 expand、按文件末尾字节窗口检索（`tail -c`）。
+- 前端收成 Workspace + Reducer + `useSearchController`，拆解上帝组件 `App.tsx`。
+- 去掉 `search` 的 stream 双模式，统一收口为 `store` 内存窗口化模式，并拆解 `grep_builder.go` 与 `grep_executor.go`。
 
-下一步按这个顺序，不要和路径交互绑在一起改：
-
-1. 前端收成 Workspace + reducer + `SearchController`
-2. 去掉 `search` 的 stream 双模式
+下一步：
 3. 再加 follow / 检索历史 / 共用主机库
+

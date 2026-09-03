@@ -51,7 +51,7 @@
       "mode": "call",
       "execution": "parallel",
       "description": {
-        "zh-CN": "通过 SSH 检索指定服务器日志，支持文件列表、链式过滤、grep 选项和流式日志行输出。"
+        "zh-CN": "通过 SSH 检索指定服务器日志，支持文件列表、链式过滤与 grep 选项，流式推送 searchState 进度与统计，结果窗口存储在 Go Runtime 内存中由 peek 按需读取。"
       },
       "io": {
         "inputs": [
@@ -86,14 +86,7 @@
             "label": "Grep 选项",
             "type": "json",
             "required": false,
-            "description": "可选。grep 行为选项：ignoreCase、invert、wordRegexp、regexp、contextA/contextB/contextC、onlyMatch、showLineNum、showFilename、tailBytes。tailBytes 表示每个文件从末尾读取的字节数，0 为整文件；UI 默认 20MB。maxCount、fromTail、tailLines 仅兼容旧调用。"
-          },
-          {
-            "name": "resultMode",
-            "label": "结果模式",
-            "type": "string",
-            "required": false,
-            "description": "可选。传 store 时结果存储在 Go runtime 内存中，流式输出 searchState 状态，前端通过 peek_search_results 按窗口读取；不传时保持兼容的 logLine 流式输出。"
+            "description": "可选。grep 行为选项：ignoreCase、invert、wordRegexp、regexp、contextA/contextB/contextC、onlyMatch、showLineNum、showFilename、tailBytes。tailBytes 表示每个文件从末尾读取的字节数；0 或不传为整文件（UI 默认）。"
           }
         ],
         "outputs": [
@@ -104,16 +97,10 @@
         ],
         "outputEvents": [
           {
-            "name": "logLine",
-            "label": "日志行",
-            "type": "json",
-            "description": "流式输出的日志行对象，包含 text、matches、file、isContext、error；file 用于多文件结果分组，error 为可选文件级错误信息，matches 为主检索词及正向链式过滤词在 text 中的高亮区间 [start, end)，单位为 UTF-16 code unit，可直接用于浏览器字符串 slice。"
-          },
-          {
             "name": "searchState",
-            "label": "存储模式状态",
+            "label": "检索状态",
             "type": "json",
-            "description": "resultMode=store 时输出的轻量状态对象，包含 runId、tabs、files、status、total、durationMs、truncated 等字段。"
+            "description": "轻量状态对象，包含 runId、tabs、files、status、total、durationMs、truncated 等字段。"
           }
         ]
       }
