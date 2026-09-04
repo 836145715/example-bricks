@@ -21,7 +21,8 @@
   "author": "Brickly",
   "runtime": {
     "type": "node",
-    "instance": "service",
+    "instance": "shared",
+    "resident": true,
     "entry": {
       "win-x64": "runtime/win-x64/index.js",
       "win-arm64": "runtime/win-arm64/index.js",

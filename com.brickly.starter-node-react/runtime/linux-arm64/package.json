@@ -1,9 +1,0 @@
-{
-  "private": true,
-  "name": "com.brickly.starter-node-react",
-  "version": "0.1.0",
-  "type": "commonjs",
-  "dependencies": {
-    "@syllm/brickly-sdk": "^0.9.0"
-  }
-}

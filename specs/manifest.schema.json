@@ -121,22 +121,30 @@
               "if": {
                 "properties": {
                   "instance": {
-                    "const": "service"
+                    "enum": ["per-call", "owned"]
                   }
                 },
                 "required": ["instance"]
               },
-              "then": true
+              "then": {
+                "not": {
+                  "anyOf": [
+                    { "required": ["resident"] },
+                    { "required": ["autoStart"] },
+                    { "required": ["restart"] }
+                  ]
+                }
+              }
             },
             {
               "if": {
                 "not": {
                   "properties": {
-                    "instance": {
-                      "const": "service"
+                    "resident": {
+                      "const": true
                     }
                   },
-                  "required": ["instance"]
+                  "required": ["resident"]
                 }
               },
               "then": {
@@ -157,19 +165,24 @@
             },
             "instance": {
               "type": "string",
-              "enum": ["per-call", "owned", "shared", "service"],
-              "description": "作者实例策略。缺省 shared。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 Brick+Profile 共享且可空闲回收；service：公用并由宿主钉住。旧值 scoped 已废弃。"
+              "enum": ["per-call", "owned", "shared"],
+              "description": "作者实例策略。缺省 shared。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 Brick+Profile 共享且可空闲回收。常驻不是第四种 instance，而是 shared 上的 resident。旧值 scoped / service 已废弃。"
+            },
+            "resident": {
+              "type": "boolean",
+              "default": false,
+              "description": "仅 shared：允许进入服务管理，并由宿主按 (砖, Profile) 钉住。"
             },
             "autoStart": {
               "type": "boolean",
               "default": false,
-              "description": "仅 instance=service：宿主启动时是否预热。"
+              "description": "仅 shared + resident：开机恢复用户已钉的 Profile。"
             },
             "restart": {
               "type": "string",
               "enum": ["none", "on-failure"],
               "default": "on-failure",
-              "description": "仅 instance=service：非主动停止时的异常重启策略。"
+              "description": "仅 shared + resident：非主动停止时的异常重启策略。"
             },
             "platforms": {
               "description": "可由 entry 的 key 推导；手写可省略。平台是否已经完成审核和发布由市场 package 独立决定。",
@@ -249,7 +262,7 @@
       ]
     },
     "lifecycle": {
-      "description": "内核展开层。作者不写本字段；instance=service 时由 normalize 写出 service。详见 specs/lifecycle.md。",
+      "description": "内核展开层。作者不写本字段；shared + resident 时由 normalize 写出 service。详见 specs/lifecycle.md。",
       "type": "object",
       "additionalProperties": false,
       "allOf": [
@@ -362,7 +375,7 @@
       }
     },
     "subscriptions": {
-      "description": "Brick 订阅的宿主中转事件。投递不读本字段；wake=true 或 lifecycle.service 才允许宿主为其申请 Lease。payload 应保持轻量，大内容通过 resourceId 按需拉取。",
+      "description": "Brick 订阅的宿主中转事件。投递不读本字段；wake=true 或 runtime.resident 才允许宿主为其申请 Lease。payload 应保持轻量，大内容通过 resourceId 按需拉取。",
       "type": "array",
       "uniqueItems": true,
       "items": {
@@ -377,7 +390,7 @@
           "wake": {
             "type": "boolean",
             "default": false,
-            "description": "true 时允许宿主为该事件申请 Lease / 列为可唤醒订阅者。预热仍只认 lifecycle.service.autoStart。"
+            "description": "true 时允许宿主为该事件申请 Lease / 列为可唤醒订阅者。开机恢复只认占用表里已钉且 autoStart 的 Profile。"
           },
           "from": {
             "oneOf": [
