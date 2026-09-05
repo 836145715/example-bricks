@@ -35,9 +35,9 @@
     "titleBar": "system",
     "size": {
       "width": 560,
-      "height": 640,
+      "height": 720,
       "minWidth": 440,
-      "minHeight": 480,
+      "minHeight": 520,
       "resizable": true
     },
     "devTools": "debug-only"
@@ -50,6 +50,20 @@
       "description": {
         "zh-CN": "开一扇随这次 command 走的子窗。关窗后 command 才 return。",
         "en": "Open a child window attached to this command. The command returns only after the window closes."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "try-attach-return",
+      "window": "attach",
+      "name": { "zh-CN": "我来试一下", "en": "Try attach return" },
+      "description": {
+        "zh-CN": "同样是 attach 窗，但命令立刻 return。修前：体验窗已返回，子窗还在。修后：子窗应瞬间拆掉。",
+        "en": "Same attach window, but the command returns immediately. Before the host fix the child stays; after it should close at once."
       },
       "io": {
         "inputs": [],

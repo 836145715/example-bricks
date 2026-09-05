@@ -26,6 +26,19 @@
           <button id="attached" type="button">打开 attached</button>
           <button id="standalone" type="button">打开 standalone</button>
         </div>
+        <div class="try-box">
+          <div class="row">
+            <button id="tryAttachReturn" class="ghost" type="button">我来试一下</button>
+          </div>
+          <p class="try-copy">
+            同样是 <code>window: attach</code>，但命令立刻 <code>return</code>（体验窗已
+            <code>start</code>，有 Handle）。看体验窗「已返回」之后，子窗还在不在。
+          </p>
+          <ul class="checks">
+            <li>修前：日志已返回，子窗还在，关掉体验窗才拆。</li>
+            <li>修后：日志已返回的同时，子窗应瞬间没。</li>
+          </ul>
+        </div>
         <p id="status" class="status">启动 runtime…</p>
         <ul class="checks">
           <li>attached：子窗先出现；这次 invoke 一直转，关窗才返回。等超过 30 秒也不该 IPC 失败。</li>

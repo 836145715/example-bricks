@@ -2,6 +2,7 @@ const statusEl = document.getElementById('status')
 const logEl = document.getElementById('log')
 const attachedBtn = document.getElementById('attached')
 const standaloneBtn = document.getElementById('standalone')
+const tryAttachReturnBtn = document.getElementById('tryAttachReturn')
 
 let handle = null
 let starting = null
@@ -67,6 +68,7 @@ async function openWindow(commandId) {
 
 attachedBtn.onclick = () => openWindow('open-attached')
 standaloneBtn.onclick = () => openWindow('open-standalone')
+tryAttachReturnBtn.onclick = () => openWindow('try-attach-return')
 
 ensureHandle()
   .then(() => setStatus('runtime 已就绪，可以开窗', 'ok'))

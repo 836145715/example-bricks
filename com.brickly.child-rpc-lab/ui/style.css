@@ -223,6 +223,20 @@ button:disabled {
   color: var(--accent);
 }
 
+.try-box {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed var(--line);
+  background: #faf6ef;
+}
+
+.try-copy {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 input[type='text'] {
   width: 100%;
   border: 1px solid var(--line);
