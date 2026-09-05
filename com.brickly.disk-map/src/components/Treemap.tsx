@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 
-import { CHART_HIGHLIGHT, CHART_HIGHLIGHT_STATE, fillOf, nodeFromChartEvent, type G2Chart } from '../antv'
+import { CHART_HIGHLIGHT, CHART_HIGHLIGHT_STATE, fillOf } from '../antv'
 import { chartLayerKey, toTreemapData, unwrapChartNode, type ChartNode } from '../chart-data'
 import { formatBytes, formatShare } from '../format'
 import { useG2Chart } from '../hooks/useG2Chart'
@@ -90,7 +90,7 @@ export const Treemap: React.FC<TreemapProps> = ({
   const { hostRef } = useG2Chart(
     spec,
     {
-      onClick: (ev, chart: G2Chart) => act(nodeFromChartEvent(chart, ev), onSelect, onDrill)
+      onClick: (node) => act(node, onSelect, onDrill)
     },
     { dataKey: chartLayerKey(node) }
   )
