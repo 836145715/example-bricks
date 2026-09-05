@@ -237,6 +237,7 @@ func (s *Session) Start(parent context.Context, opts StartOptions) (model.ScanRe
 				}
 			}
 			err := emit(Event{Type: "progress", Progress: &model.ProgressEvent{
+				Root:         root,
 				ScannedFiles: p.ScannedFiles,
 				ScannedBytes: p.ScannedBytes,
 				CurrentPath:  p.CurrentPath,

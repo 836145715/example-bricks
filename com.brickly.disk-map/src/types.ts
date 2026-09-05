@@ -29,6 +29,7 @@ export interface TreeNode extends NodeSummary {
 }
 
 export interface ProgressEvent {
+  root: string
   scannedFiles: number
   scannedBytes: number
   currentPath: string

@@ -120,6 +120,8 @@ export function useDiskMap() {
     setScanStatus('scanning')
     setScanMessage('正在扫描…')
     if (rootArg) {
+      rootRef.current = rootArg
+      setRoot(rootArg)
       scanRootRef.current = rootArg
       setCurrentPath(rootArg)
     } else if (scanRootRef.current) {
@@ -130,6 +132,14 @@ export function useDiskMap() {
         if (event.type === 'progress') {
           setScanned({ files: event.progress.scannedFiles, bytes: event.progress.scannedBytes })
           setScanMessage(`正在扫描 ${event.progress.currentPath}`)
+          // 首扫时根只能从事件里得知：收到即定为当前路径，图表立即有根可画。
+          const r = event.progress.root
+          if (r && !rootRef.current) {
+            rootRef.current = r
+            setRoot(r)
+            if (!scanRootRef.current) scanRootRef.current = r
+            setCurrentPath((prev) => prev || r)
+          }
         } else if (event.type === 'node') {
           store.applySummary(event.node)
         } else if (event.type === 'done') {
@@ -160,6 +170,16 @@ export function useDiskMap() {
   const stopScan = useCallback(() => {
     abortRef.current?.abort()
   }, [])
+
+  // 扫描中每秒 peek 一次当前路径：孩子列表随扫描实时补全。
+  // 走服务端快照口径（top64 + 「其他」桶 + 占用降序），store 只做镜像不重组。
+  useEffect(() => {
+    if (scanStatus !== 'scanning') return
+    const id = window.setInterval(() => {
+      void peek(currentPath || undefined)
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [scanStatus, currentPath, peek])
 
   const drillDown = useCallback(async (path: string) => {
     if (!path) return
@@ -197,6 +217,8 @@ export function useDiskMap() {
     setSelectedPath(null)
     setTrashFailures([])
     setExtStats([])
+    rootRef.current = dir
+    setRoot(dir)
     scanRootRef.current = dir
     setCurrentPath(dir)
     try {

@@ -26,7 +26,7 @@ last_verified: 2026-09-05
 
 页面侧：`scan` 用 `handle.call('scan', …, { signal, onEvent })` 收事件，取消走 `AbortController`。事件只有三种：
 
-- `{ type: "progress", progress: { scannedFiles, scannedBytes, currentPath } }` — 最多每 150ms 一条
+- `{ type: "progress", progress: { root, scannedFiles, scannedBytes, currentPath } }` — 最多每 150ms 一条；UI 从首条 progress 取根并设为当前路径，图表立即有根可画
 - `{ type: "node", node }` — 只发扫描根的直接孩子，或深度 ≤2 且 ≥8MiB 的目录
 - `{ type: "done", done: { root, scannedFiles, scannedBytes } }` — 收到后 UI 再 peek 一次根，把根层收齐
 

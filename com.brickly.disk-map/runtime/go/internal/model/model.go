@@ -45,6 +45,7 @@ const OtherName = "其他"
 
 // ProgressEvent 表示扫描进度。go:build 层面无约束，仅文档化字段。
 type ProgressEvent struct {
+	Root         string `json:"root"`
 	ScannedFiles int64  `json:"scannedFiles"`
 	ScannedBytes int64  `json:"scannedBytes"`
 	CurrentPath  string `json:"currentPath"`
