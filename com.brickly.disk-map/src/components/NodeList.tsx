@@ -1,4 +1,4 @@
-import { FolderOpen, Link2, Lock, MountainSnow, Plus, ShieldOff } from 'lucide-react'
+import { Check, FolderOpen, Link2, Lock, MountainSnow, Plus, ShieldOff } from 'lucide-react'
 import React from 'react'
 
 import { formatBytes, formatShare, kindLabel } from '../format'
@@ -12,10 +12,11 @@ interface NodeListProps {
   onSelect: (path: string) => void
   onDrill: (path: string) => void
   onAddToTray: (node: NodeSummary) => void
+  onRemoveFromTray: (path: string) => void
   onReveal: (path: string) => void
 }
 
-/** 当前层列表：按占用排序，支持选中 / 下钻 / 加入暂存箱 / 在访达中显示。 */
+/** 当前层列表：单击目录即下钻、单击文件选中；行尾按钮加入暂存箱。 */
 export const NodeList: React.FC<NodeListProps> = ({
   node,
   total,
@@ -24,9 +25,19 @@ export const NodeList: React.FC<NodeListProps> = ({
   onSelect,
   onDrill,
   onAddToTray,
+  onRemoveFromTray,
   onReveal
 }) => {
   const children = node?.children ?? []
+
+  const rowClick = (child: NodeSummary) => {
+    if (!child.path) return
+    if (child.flags.kind === 'dir') {
+      onDrill(child.path)
+    } else {
+      onSelect(child.path)
+    }
+  }
 
   return (
     <div className="node-list">
@@ -55,10 +66,7 @@ export const NodeList: React.FC<NodeListProps> = ({
               className={`node-row ${selectedPath && selectedPath === child.path ? 'selected' : ''} ${
                 child.flags.kind === 'dir' ? 'drillable' : ''
               }`}
-              onClick={() => child.path && onSelect(child.path)}
-              onDoubleClick={() => {
-                if (child.flags.kind === 'dir' && child.path) onDrill(child.path)
-              }}
+              onClick={() => rowClick(child)}
             >
               <span className="cell cell-name" title={child.path || '聚合的小项目'}>
                 {child.flags.kind === 'dir' ? <FolderOpen size={13} className="icon-dir" /> : null}
@@ -87,15 +95,17 @@ export const NodeList: React.FC<NodeListProps> = ({
                   <>
                     <button
                       type="button"
-                      className="row-btn"
-                      title={inTray ? '已在暂存箱' : locked ? '受保护，不能回收' : '加入暂存箱'}
-                      disabled={locked || inTray}
+                      className={`row-btn ${inTray ? 'in-tray' : ''}`}
+                      title={inTray ? '移出暂存箱' : locked ? '受保护，不能回收' : '加入暂存箱'}
+                      disabled={locked}
                       onClick={(e) => {
                         e.stopPropagation()
-                        onAddToTray(child)
+                        if (inTray && child.path) onRemoveFromTray(child.path)
+                        else onAddToTray(child)
                       }}
                     >
-                      <Plus size={13} />
+                      {inTray ? <Check size={13} /> : <Plus size={13} />}
+                      {inTray ? '已入箱' : '加入'}
                     </button>
                     <button
                       type="button"

@@ -6,6 +6,7 @@ import { ConfirmTrash } from './components/ConfirmTrash'
 import { ExtLegend } from './components/ExtLegend'
 import { NodeList } from './components/NodeList'
 import { Pie } from './components/Pie'
+import { EmptyState, ScanOverlay } from './components/ScanOverlay'
 import { TitleBar } from './components/TitleBar'
 import { Treemap } from './components/Treemap'
 import { VolumeBar } from './components/VolumeBar'
@@ -131,6 +132,17 @@ export const App: React.FC = () => {
                 onDrill={(path) => void drillDown(path)}
               />
             )}
+            <ScanOverlay
+              visible={scanStatus === 'scanning' && !currentNode?.complete}
+              scannedFiles={scanned.files}
+              scannedBytes={scanned.bytes}
+              currentPath={currentPath || root}
+              message={scanMessage}
+            />
+            <EmptyState
+              visible={scanStatus === 'idle' && !currentNode}
+              onPickRoot={() => void state.chooseRoot()}
+            />
           </div>
           <ExtLegend items={extStats} />
         </section>
@@ -170,6 +182,7 @@ export const App: React.FC = () => {
             onSelect={setSelectedPath}
             onDrill={(path) => void drillDown(path)}
             onAddToTray={(node) => state.addToTray(node)}
+            onRemoveFromTray={state.removeFromTray}
             onReveal={state.reveal}
           />
         </section>

@@ -15,16 +15,16 @@ interface TreemapProps {
   onDrill: (path: string) => void
 }
 
-function act(node: ChartNode | undefined, mode: 'select' | 'drill', onSelect: (path: string | null) => void, onDrill: (path: string) => void) {
+function act(node: ChartNode | undefined, onSelect: (path: string | null) => void, onDrill: (path: string) => void) {
   if (!node || node.isFree) {
-    if (mode === 'select') onSelect(null)
+    onSelect(null)
     return
   }
-  if (mode === 'select') {
-    onSelect(node.summary.path || null)
+  if (node.summary.flags.kind === 'dir' && node.summary.path) {
+    onDrill(node.summary.path)
     return
   }
-  if (node.summary.flags.kind === 'dir' && node.summary.path) onDrill(node.summary.path)
+  onSelect(node.summary.path || null)
 }
 
 /** AntV G2 矩阵树图：只画当前层叶子，下钻走 peek。 */
@@ -90,8 +90,7 @@ export const Treemap: React.FC<TreemapProps> = ({
   const { hostRef } = useG2Chart(
     spec,
     {
-      onClick: (ev, chart: G2Chart) => act(nodeFromChartEvent(chart, ev), 'select', onSelect, onDrill),
-      onDblClick: (ev, chart: G2Chart) => act(nodeFromChartEvent(chart, ev), 'drill', onSelect, onDrill)
+      onClick: (ev, chart: G2Chart) => act(nodeFromChartEvent(chart, ev), onSelect, onDrill)
     },
     { dataKey: chartLayerKey(node) }
   )

@@ -17,16 +17,16 @@ interface PieProps {
   onGoUp: () => void
 }
 
-function act(node: ChartNode | undefined, mode: 'select' | 'drill', onSelect: (path: string | null) => void, onDrill: (path: string) => void) {
+function act(node: ChartNode | undefined, onSelect: (path: string | null) => void, onDrill: (path: string) => void) {
   if (!node || node.isFree) {
-    if (mode === 'select') onSelect(null)
+    onSelect(null)
     return
   }
-  if (mode === 'select') {
-    onSelect(node.summary.path || null)
+  if (node.summary.flags.kind === 'dir' && node.summary.path) {
+    onDrill(node.summary.path)
     return
   }
-  if (node.summary.flags.kind === 'dir' && node.summary.path) onDrill(node.summary.path)
+  onSelect(node.summary.path || null)
 }
 
 /** AntV G2 实心饼图：引线标签；当前目录说明放在图下方，避免环心对不齐。 */
@@ -102,8 +102,7 @@ export const Pie: React.FC<PieProps> = ({
   const { hostRef } = useG2Chart(
     spec,
     {
-      onClick: (ev, chart: G2Chart) => act(nodeFromChartEvent(chart, ev), 'select', onSelect, onDrill),
-      onDblClick: (ev, chart: G2Chart) => act(nodeFromChartEvent(chart, ev), 'drill', onSelect, onDrill)
+      onClick: (ev, chart: G2Chart) => act(nodeFromChartEvent(chart, ev), onSelect, onDrill)
     },
     { dataKey: chartLayerKey(node) }
   )
@@ -130,7 +129,7 @@ export const Pie: React.FC<PieProps> = ({
             {ofUsed && <span className="center-vol">占已用 {ofUsed}</span>}
           </span>
           <span className="center-hint">
-            {scanning && !node.complete ? '扫描中…' : canGoUp ? '点击返回上级' : '双击扇区下钻'}
+            {scanning && !node.complete ? '扫描中…' : canGoUp ? '点击返回上级' : '单击目录下钻'}
           </span>
         </button>
       )}

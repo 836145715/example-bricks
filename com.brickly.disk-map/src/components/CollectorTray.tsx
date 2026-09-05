@@ -1,4 +1,4 @@
-import { Archive, Trash2, X } from 'lucide-react'
+import { Archive, File, Folder, Trash2, X } from 'lucide-react'
 import React from 'react'
 
 import { formatBytes, shortenPath } from '../format'
@@ -35,6 +35,7 @@ export const CollectorTray: React.FC<CollectorTrayProps> = ({ items, onRemove, o
       <ul className="tray-list">
         {items.map((item) => (
           <li key={item.path} className="tray-item">
+            {item.kind === 'dir' ? <Folder size={13} className="icon-dir" /> : <File size={13} className="icon-link" />}
             <span className="tray-name" title={item.path}>
               {item.name}
             </span>

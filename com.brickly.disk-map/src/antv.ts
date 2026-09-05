@@ -15,11 +15,11 @@ export const CHART_HIGHLIGHT = {
 
 export const CHART_HIGHLIGHT_STATE = {
   active: {
-    stroke: '#00f5b8',
+    stroke: '#0a84ff',
     lineWidth: 2.5,
     fillOpacity: 1,
     opacity: 1,
-    shadowColor: 'rgba(0, 245, 184, 0.45)',
+    shadowColor: 'rgba(10, 132, 255, 0.45)',
     shadowBlur: 10
   },
   inactive: { fillOpacity: 0.38, opacity: 0.38 }
