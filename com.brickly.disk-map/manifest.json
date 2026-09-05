@@ -1,0 +1,237 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "id": "com.brickly.disk-map",
+  "version": "0.1.0",
+  "apiVersion": ">=0.2.0 <1.0.0",
+  "name": {
+    "zh-CN": "磁盘地图",
+    "en": "Disk Map"
+  },
+  "description": {
+    "zh-CN": "流式扫描本机目录生成磁盘地图，饼图与矩阵树图下钻查看占用，勾选后统一移入废纸篓。仅限 macOS。",
+    "en": "Stream-scan a local directory into a disk map, drill down with a pie or treemap, and move selected items to the Trash. macOS only."
+  },
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "disk",
+    "storage",
+    "du",
+    "pie",
+    "treemap",
+    "cleanup",
+    "macos"
+  ],
+  "author": "Brickly",
+  "runtime": {
+    "type": "native",
+    "instance": "owned",
+    "entry": {
+      "mac-arm64": "runtime/mac-arm64/brick",
+      "mac-x64": "runtime/mac-x64/brick"
+    }
+  },
+  "ui": {
+    "type": "webview",
+    "entry": "ui/index.html",
+    "titleBar": "custom",
+    "windowPolicy": "single",
+    "size": {
+      "width": 1280,
+      "height": 800,
+      "minWidth": 960,
+      "minHeight": 600,
+      "resizable": true
+    },
+    "devTools": "debug-only"
+  },
+  "storage": {
+    "quotaMB": 32
+  },
+  "commands": [
+    {
+      "id": "volume",
+      "name": {
+        "zh-CN": "查询卷用量",
+        "en": "Query Volume"
+      },
+      "description": {
+        "zh-CN": "读取扫描根所在卷的用量（Statfs）与本地快照列表（diskutil / tmutil，只读）。打开窗口先调它，秒级返回。",
+        "en": "Read usage of the volume holding the scan root via Statfs, plus local Time Machine snapshots via diskutil/tmutil (read-only)."
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "root",
+            "label": "扫描根目录",
+            "type": "string",
+            "required": false,
+            "description": "可选。默认家目录；用量条反映该路径所在卷。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "scan",
+      "name": {
+        "zh-CN": "流式扫描磁盘",
+        "en": "Scan Disk"
+      },
+      "description": {
+        "zh-CN": "后台流式扫描指定目录树。树保存在 owned Go 进程内存中，事件只推进度与浅层节点，明细用 peek 下钻读取。取消走 AbortController。",
+        "en": "Stream-scan a directory tree in the owned Go process. Events carry progress and shallow nodes only; use peek for details. Cancel via AbortController."
+      },
+      "mode": "call",
+      "timeoutMs": 600000,
+      "io": {
+        "inputs": [
+          {
+            "name": "root",
+            "label": "扫描根目录",
+            "type": "string",
+            "required": false,
+            "description": "可选。默认家目录。切换根目录会重新建树。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "包含 completed、root、scannedFiles、scannedBytes。"
+          }
+        ],
+        "outputEvents": [
+          {
+            "name": "progress",
+            "label": "扫描进度",
+            "type": "json",
+            "description": "{ type, scannedFiles, scannedBytes, currentPath }，最多每 150ms 一条。"
+          },
+          {
+            "name": "node",
+            "label": "浅层节点",
+            "type": "json",
+            "description": "{ type, node }。只发扫描根的直接孩子，或深度 ≤2 且 ≥8MiB 的目录。"
+          },
+          {
+            "name": "done",
+            "label": "扫描完成",
+            "type": "json",
+            "description": "{ type, root, scannedFiles, scannedBytes }。收到后再 peek 一次根目录收齐根层。"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "peek",
+      "name": {
+        "zh-CN": "下钻读取节点",
+        "en": "Peek Node"
+      },
+      "description": {
+        "zh-CN": "读取某个目录节点和按占用排序的直接孩子（最多 64 个，小头合并进「其他」）。树未扫描时先尝试装载上次扫描缓存。",
+        "en": "Read a directory node and its direct children sorted by allocated bytes (top 64, small ones merged into Other). Loads the last-scan cache when the tree is empty."
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "path",
+            "label": "目录路径",
+            "type": "string",
+            "required": false,
+            "description": "可选。默认扫描根。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "包含 root、node（TreeNode，children 为直接孩子摘要）。"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "extstats",
+      "name": {
+        "zh-CN": "扩展名占用统计",
+        "en": "Extension Stats"
+      },
+      "description": {
+        "zh-CN": "返回最近一次扫描（或上次缓存）按扩展名聚合的占用，按字节降序，最多 48 条。",
+        "en": "Return allocated bytes aggregated by file extension from the last scan (or restored cache), sorted desc, top 48."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "包含 root、items（[{ ext, bytes, files }]）。"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "recipes",
+      "name": {
+        "zh-CN": "探测固定大户",
+        "en": "Probe Recipes"
+      },
+      "description": {
+        "zh-CN": "探测白名单固定路径（Xcode、Docker、微信、Telegram、Caches 等）是否命中；扫盘遇到的 node_modules 也会记进来。只探测不删除。",
+        "en": "Probe a fixed whitelist of known space hogs (Xcode, Docker, WeChat, Telegram, Caches). node_modules found during scan are included. Detection only; nothing is deleted."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json"
+          }
+        ]
+      },
+      "execution": "parallel"
+    },
+    {
+      "id": "trash",
+      "name": {
+        "zh-CN": "移入废纸篓",
+        "en": "Move to Trash"
+      },
+      "description": {
+        "zh-CN": "对每个路径执行保护校验（必须在本根或 recipe 命中之下、锁前缀、protected/mount/inaccessible 拒绝），通过后逐项 ShellTrashItem。页面不得绕过本命令直接回收。",
+        "en": "Validate each path against protection rules (must be under root or a recipe hit; locked prefixes; protected/mount/inaccessible rejected), then shellTrashItem one by one."
+      },
+      "io": {
+        "inputs": [
+          {
+            "name": "paths",
+            "label": "路径列表",
+            "type": "json",
+            "required": true,
+            "description": "要移入废纸篓的绝对路径数组。逐项校验，允许中途失败。"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "json",
+            "description": "包含 results（逐项 { path, ok, error? }）、trashedCount、failedCount。"
+          }
+        ]
+      },
+      "execution": "queue"
+    }
+  ]
+}
