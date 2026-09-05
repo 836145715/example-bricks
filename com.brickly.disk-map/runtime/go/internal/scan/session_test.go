@@ -4,10 +4,46 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"com.brickly.disk-map/internal/model"
 )
+
+func TestSessionEmitsDepth1BeforeSubtreeDone(t *testing.T) {
+	root := t.TempDir()
+	sub := filepath.Join(root, "bigdir")
+	os.MkdirAll(sub, 0o755)
+	os.WriteFile(filepath.Join(sub, "f.bin"), make([]byte, 1024), 0o644)
+
+	s := New(root)
+	var mu sync.Mutex
+	var nodePaths []string
+	_, err := s.Start(context.Background(), StartOptions{
+		Root: root,
+		Emit: func(ev Event) error {
+			if ev.Type == "node" && ev.Node != nil {
+				mu.Lock()
+				nodePaths = append(nodePaths, ev.Node.Path)
+				mu.Unlock()
+			}
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	found := false
+	for _, p := range nodePaths {
+		if p == sub {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("depth-1 dir never got a node event: %v", nodePaths)
+	}
+}
 
 func TestSessionGatesAndDone(t *testing.T) {
 	root := t.TempDir()

@@ -1,4 +1,4 @@
-import { FolderOpen, Search } from 'lucide-react'
+import { FolderOpen, RefreshCw, Search } from 'lucide-react'
 import React from 'react'
 
 import { formatBytes } from '../format'
@@ -40,23 +40,27 @@ export const ScanOverlay: React.FC<ScanOverlayProps> = ({
 
 interface EmptyStateProps {
   visible: boolean
-  onPickRoot: () => void
+  title: string
+  sub: string
+  icon: 'folder' | 'refresh'
+  actionLabel: string
+  onAction: () => void
 }
 
-/** 图表区空状态：未扫描时引导选择目录。 */
-export const EmptyState: React.FC<EmptyStateProps> = ({ visible, onPickRoot }) => {
+/** 图表区空状态：idle 引导选目录，cancelled / error 引导重扫。 */
+export const EmptyState: React.FC<EmptyStateProps> = ({ visible, title, sub, icon, actionLabel, onAction }) => {
   if (!visible) return null
 
   return (
     <div className="empty-state">
       <span className="empty-state-icon">
-        <Search size={22} />
+        {icon === 'refresh' ? <RefreshCw size={22} /> : <Search size={22} />}
       </span>
-      <div className="empty-state-title">还没有扫描数据</div>
-      <div className="empty-state-sub">选择一个目录，地图会实时显示每个文件占用的空间。</div>
-      <button type="button" className="btn" onClick={onPickRoot}>
-        <FolderOpen size={13} />
-        选择文件夹
+      <div className="empty-state-title">{title}</div>
+      <div className="empty-state-sub">{sub}</div>
+      <button type="button" className="btn" onClick={onAction}>
+        {icon === 'refresh' ? <RefreshCw size={13} /> : <FolderOpen size={13} />}
+        {actionLabel}
       </button>
     </div>
   )

@@ -1,7 +1,15 @@
 import React, { useMemo } from 'react'
 
 import { CHART_HIGHLIGHT, CHART_HIGHLIGHT_STATE, fillOf } from '../antv'
-import { PIE_LABEL_CONNECTOR, chartLayerKey, pieSliceTotal, toPieData, unwrapChartNode, type ChartNode } from '../chart-data'
+import {
+  PIE_LABEL_CONNECTOR,
+  actOnChartNode,
+  chartLayerKey,
+  isChartNodeSelected,
+  pieSliceTotal,
+  toPieData,
+  unwrapChartNode
+} from '../chart-data'
 import { formatBytes, formatShare } from '../format'
 import { useG2Chart } from '../hooks/useG2Chart'
 import type { TreeNode, VolumeInfo } from '../types'
@@ -17,23 +25,11 @@ interface PieProps {
   onGoUp: () => void
 }
 
-function act(node: ChartNode | undefined, onSelect: (path: string | null) => void, onDrill: (path: string) => void) {
-  if (!node || node.isFree) {
-    onSelect(null)
-    return
-  }
-  if (node.summary.flags.kind === 'dir' && node.summary.path) {
-    onDrill(node.summary.path)
-    return
-  }
-  onSelect(node.summary.path || null)
-}
-
 /** AntV G2 实心饼图：引线标签；当前目录说明放在图下方，避免环心对不齐。 */
 export const Pie: React.FC<PieProps> = ({
   node,
   volume,
-  selectedPath: _selectedPath,
+  selectedPath,
   scanning,
   canGoUp,
   onSelect,
@@ -44,6 +40,8 @@ export const Pie: React.FC<PieProps> = ({
     if (!node) return null
     const slices = toPieData(node)
     const total = pieSliceTotal(slices)
+    // 选中态只改样式回调：未选中的扇区变暗、选中的描 Apple 蓝边，不重建图层。
+    const isSel = (d: unknown) => selectedPath != null && isChartNodeSelected(unwrapChartNode(d), selectedPath)
     return {
       type: 'interval',
       data: slices,
@@ -63,9 +61,9 @@ export const Pie: React.FC<PieProps> = ({
       style: {
         viewFill: 'transparent',
         fill: (d: unknown) => fillOf(d),
-        fillOpacity: 1,
-        stroke: '#070b11',
-        lineWidth: 1.2,
+        fillOpacity: (d: unknown) => (selectedPath == null || isSel(d) ? 1 : 0.35),
+        stroke: (d: unknown) => (isSel(d) ? '#0a84ff' : '#101216'),
+        lineWidth: (d: unknown) => (isSel(d) ? 2.5 : 1.2),
         cursor: 'pointer'
       },
       labels: [
@@ -74,10 +72,10 @@ export const Pie: React.FC<PieProps> = ({
           position: 'outside',
           connector: (d: unknown) => Boolean(unwrapChartNode(d)?.label),
           ...PIE_LABEL_CONNECTOR,
-          fill: '#b7c9c4',
+          fill: '#9aa0a6',
           fontSize: 11,
           fontWeight: 500,
-          connectorStroke: 'rgba(183, 201, 196, 0.7)',
+          connectorStroke: 'rgba(154, 160, 166, 0.7)',
           connectorLineWidth: 1,
           pointerEvents: 'none',
           connectorPointerEvents: 'none'
@@ -97,14 +95,14 @@ export const Pie: React.FC<PieProps> = ({
         ]
       }
     }
-  }, [node])
+  }, [node, selectedPath])
 
   const { hostRef } = useG2Chart(
     spec,
     {
-      onClick: (node) => act(node, onSelect, onDrill)
+      onClick: (node) => actOnChartNode(node, onSelect, onDrill)
     },
-    { dataKey: chartLayerKey(node) }
+    { dataKey: chartLayerKey(node), selectionKey: selectedPath ?? '' }
   )
 
   const captionName = node?.name ?? '…'

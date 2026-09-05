@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
-import { Chart, nodeFromChartEvent, type G2Chart } from '../antv'
-import type { ChartNode } from '../chart-data'
+import { Chart, type G2Chart } from '../antv'
+import { nodeFromChartEvent, type ChartNode } from '../chart-data'
 
 interface ChartHandlers {
   onClick?: (node: ChartNode | undefined, chart: G2Chart) => void
@@ -11,6 +11,11 @@ interface ChartHostOptions {
   padding?: number
   /** 只有图层数据真变了才 options+render，避免选中/重渲染把点击打丢。 */
   dataKey?: string
+  /**
+   * 选中态变化时也 options+render（只改样式回调，不重建图层）。
+   * 单击模型下安全：点击事件已在 setState 前触发，不存在双击被拆开的问题。
+   */
+  selectionKey?: string
 }
 
 /** 图实例跟容器走；spec 变了只 options+render，不销毁。 */
@@ -27,6 +32,7 @@ export function useG2Chart(
   handlersRef.current = handlers
   const padding = host.padding ?? 8
   const dataKey = host.dataKey ?? ''
+  const selectionKey = host.selectionKey ?? ''
 
   useEffect(() => {
     const el = hostRef.current
@@ -61,7 +67,7 @@ export function useG2Chart(
     if (!chart || !next) return
     chart.options(next as never)
     void chart.render()
-  }, [dataKey])
+  }, [dataKey, selectionKey])
 
   return { hostRef, chartRef }
 }

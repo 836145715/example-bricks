@@ -194,7 +194,7 @@ func handlePeek(ctx *brickly.CommandContext, input map[string]any) (any, error) 
 		path = s.Root()
 	}
 
-	// 树未建（本进程未扫描）：返回 NOT_SCANNED，UI 显示扫描未到。
+	// 树未建（本进程未扫描）：返回 PATH_NOT_IN_TREE，UI 显示扫描未到。
 	tr := s.Tree()
 	if tr == nil {
 		return nil, commandError(model.CodePathNotInTree,

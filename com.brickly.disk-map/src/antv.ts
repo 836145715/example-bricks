@@ -1,6 +1,6 @@
 import { Runtime, corelib, extend, graphlib } from '@antv/g2'
 
-import { unwrapChartNode, type ChartNode } from './chart-data.ts'
+import { unwrapChartNode } from './chart-data.ts'
 
 /** 只用 core + 层级图（矩阵树图），饼图走 interval+theta，不打 G2 plot 扩展。 */
 export const Chart = extend(Runtime, { ...corelib(), ...graphlib() })
@@ -27,11 +27,6 @@ export const CHART_HIGHLIGHT_STATE = {
 
 export function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-/** 从 G2 element:click / tooltip 事件里取出原始数据。getDataByXY 在非柱状图上命中不可靠，不用。 */
-export function nodeFromChartEvent(ev: unknown): ChartNode | undefined {
-  return unwrapChartNode(ev)
 }
 
 export function fillOf(datum: unknown): string {

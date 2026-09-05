@@ -1,7 +1,8 @@
 /**
  * useDiskMap：开窗编排。
- * start() 钉住 owned Go 进程 → volume → peek（装载缓存）→ scan(call)。
- * node 事件进 NodeStore（rAF 合并）；下钻一律 peek；删除必须走 trash 命令。
+ * start() 钉住 owned Go 进程 → volume → scan(call)，流式 node 事件进 NodeStore（rAF 合并）；
+ * 下钻一律 peek（失败也切路径，node 事件到达后自动出图）；删除必须走 trash 命令。
+ * 不做持久缓存：每次开窗直接从头扫描，数据始终最新。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
@@ -161,6 +162,9 @@ export function useDiskMap() {
   }, [])
 
   const drillDown = useCallback(async (path: string) => {
+    if (!path) return
+    const rootPath = rootRef.current
+    if (rootPath && rootPath !== '/' && path !== rootPath && !path.startsWith(rootPath + '/')) return
     setCurrentPath(path)
     setSelectedPath(null)
     // peek 失败（扫描还没到）也照常切过去，node 事件到达后自动出图。

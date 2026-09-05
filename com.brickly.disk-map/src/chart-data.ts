@@ -91,3 +91,35 @@ export function unwrapChartNode(payload: unknown): ChartNode | undefined {
   }
   return undefined
 }
+
+/** 从 G2 element:click / tooltip 事件里取出原始数据。getDataByXY 在非柱状图上命中不可靠，不用。 */
+export function nodeFromChartEvent(ev: unknown): ChartNode | undefined {
+  return unwrapChartNode(ev)
+}
+
+/** 图表选中判定：只有带 path 的节点能被选中（other 聚合行 path 为空，永远不算选中）。 */
+export function isChartNodeSelected(node: ChartNode | undefined, selectedPath: string | null): boolean {
+  const path = node?.summary.path
+  return Boolean(selectedPath && path && path === selectedPath)
+}
+
+/**
+ * 图表点击语义（饼图/树图共用）：目录下钻、文件选中。
+ * other 聚合行与空白处不做任何事（与列表 rowClick 一致）；isFree 楔块清除选中。
+ */
+export function actOnChartNode(
+  node: ChartNode | undefined,
+  onSelect: (path: string | null) => void,
+  onDrill: (path: string) => void
+): void {
+  if (!node || node.isFree) {
+    onSelect(null)
+    return
+  }
+  if (node.summary.flags.kind === 'other') return
+  if (node.summary.flags.kind === 'dir' && node.summary.path) {
+    onDrill(node.summary.path)
+    return
+  }
+  onSelect(node.summary.path || null)
+}

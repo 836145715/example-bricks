@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 
 import { CHART_HIGHLIGHT, CHART_HIGHLIGHT_STATE, fillOf } from '../antv'
-import { chartLayerKey, toTreemapData, unwrapChartNode, type ChartNode } from '../chart-data'
+import { actOnChartNode, chartLayerKey, isChartNodeSelected, toTreemapData, unwrapChartNode, type ChartNode } from '../chart-data'
 import { formatBytes, formatShare } from '../format'
 import { useG2Chart } from '../hooks/useG2Chart'
 import type { TreeNode } from '../types'
@@ -9,27 +9,15 @@ import type { TreeNode } from '../types'
 interface TreemapProps {
   node: TreeNode | undefined
   selectedPath: string | null
-  selectedNode: TreeNode | undefined
   scanning: boolean
   onSelect: (path: string | null) => void
   onDrill: (path: string) => void
 }
 
-function act(node: ChartNode | undefined, onSelect: (path: string | null) => void, onDrill: (path: string) => void) {
-  if (!node || node.isFree) {
-    onSelect(null)
-    return
-  }
-  if (node.summary.flags.kind === 'dir' && node.summary.path) {
-    onDrill(node.summary.path)
-    return
-  }
-  onSelect(node.summary.path || null)
-}
-
 /** AntV G2 矩阵树图：只画当前层叶子，下钻走 peek。 */
 export const Treemap: React.FC<TreemapProps> = ({
   node,
+  selectedPath,
   scanning,
   onSelect,
   onDrill
@@ -38,6 +26,8 @@ export const Treemap: React.FC<TreemapProps> = ({
     if (!node) return null
     const data = toTreemapData(node)
     const denom = Math.max(node.allocatedBytes, 1)
+    // 选中态只改样式回调：未选中的矩形变暗、选中的描 Apple 蓝边，不重建图层。
+    const isSel = (d: unknown) => selectedPath != null && isChartNodeSelected(unwrapChartNode(d), selectedPath)
     return {
       type: 'treemap',
       data: { value: data },
@@ -58,15 +48,15 @@ export const Treemap: React.FC<TreemapProps> = ({
       style: {
         viewFill: 'transparent',
         fill: (d: unknown) => fillOf(d),
-        fillOpacity: 1,
-        stroke: '#070b11',
-        lineWidth: 1.2,
+        fillOpacity: (d: unknown) => (selectedPath == null || isSel(d) ? 1 : 0.35),
+        stroke: (d: unknown) => (isSel(d) ? '#0a84ff' : '#101216'),
+        lineWidth: (d: unknown) => (isSel(d) ? 2.5 : 1.2),
         labelText: (d: unknown) => {
           const n = unwrapChartNode(d)
           if (!n) return ''
           return `${n.name}\n${formatBytes(n.summary.allocatedBytes)} ${formatShare(n.summary.allocatedBytes, denom)}`
         },
-        labelFill: '#b7c9c4',
+        labelFill: '#9aa0a6',
         labelPosition: 'top-left',
         labelDx: 4,
         labelDy: 4,
@@ -85,14 +75,14 @@ export const Treemap: React.FC<TreemapProps> = ({
         ]
       }
     }
-  }, [node])
+  }, [node, selectedPath])
 
   const { hostRef } = useG2Chart(
     spec,
     {
-      onClick: (node) => act(node, onSelect, onDrill)
+      onClick: (node) => actOnChartNode(node, onSelect, onDrill)
     },
-    { dataKey: chartLayerKey(node) }
+    { dataKey: chartLayerKey(node), selectionKey: selectedPath ?? '' }
   )
 
   return (

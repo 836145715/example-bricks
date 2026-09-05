@@ -705,12 +705,6 @@ button:disabled {
   animation: spin 1s linear infinite;
 }
 
-.scan-ring-done {
-  border-color: var(--green);
-  border-top-color: var(--green);
-  animation: none;
-}
-
 .scan-progress-title {
   font-size: 13px;
   font-weight: 600;

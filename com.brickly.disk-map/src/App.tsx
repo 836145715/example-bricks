@@ -10,12 +10,12 @@ import { EmptyState, ScanOverlay } from './components/ScanOverlay'
 import { TitleBar } from './components/TitleBar'
 import { Treemap } from './components/Treemap'
 import { VolumeBar } from './components/VolumeBar'
+import { emptyHintFor } from './emptyHint'
 import { useDiskMap } from './hooks/useDiskMap'
 
 export const App: React.FC = () => {
   const state = useDiskMap()
   const {
-    store,
     bootError,
     volume,
     root,
@@ -41,22 +41,35 @@ export const App: React.FC = () => {
     gotoRoot
   } = state
 
-  const selectedNode = useMemo(
-    () => (selectedPath ? store.get(selectedPath) : undefined),
-    [selectedPath, store, state.version]
-  )
-
   const trayPaths = useMemo(() => new Set(tray.map((item) => item.path)), [tray])
 
-  // 树里还没有当前路径时的列表提示：区分「扫描还没到」与「不在扫描结果里」。
-  const emptyHint =
-    scanStatus === 'booting'
-      ? '正在启动扫描…'
-      : scanStatus === 'scanning'
-        ? '扫描尚未到达此目录，稍后会自动出现'
-        : scanStatus === 'done'
-          ? '此目录不在本次扫描结果里'
-          : '等待扫描…'
+  const emptyHint = emptyHintFor(scanStatus)
+
+  // idle 引导选目录；cancelled / error 引导重扫。
+  const emptyCopy =
+    scanStatus === 'cancelled'
+      ? {
+          title: '扫描已取消',
+          sub: '已有数据保留在列表里。点重新扫描可继续。',
+          icon: 'refresh' as const,
+          actionLabel: '重新扫描',
+          onAction: () => void state.startScan()
+        }
+      : scanStatus === 'error'
+        ? {
+            title: '扫描出错',
+            sub: scanMessage,
+            icon: 'refresh' as const,
+            actionLabel: '重新扫描',
+            onAction: () => void state.startScan()
+          }
+        : {
+            title: '还没有扫描数据',
+            sub: '选择一个目录，地图会实时显示每个文件占用的空间。',
+            icon: 'folder' as const,
+            actionLabel: '选择文件夹',
+            onAction: () => void state.chooseRoot()
+          }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -136,7 +149,6 @@ export const App: React.FC = () => {
               <Treemap
                 node={currentNode}
                 selectedPath={selectedPath}
-                selectedNode={selectedNode}
                 scanning={scanStatus === 'scanning'}
                 onSelect={setSelectedPath}
                 onDrill={(path) => void drillDown(path)}
@@ -150,8 +162,12 @@ export const App: React.FC = () => {
               message={scanMessage}
             />
             <EmptyState
-              visible={scanStatus === 'idle' && !currentNode}
-              onPickRoot={() => void state.chooseRoot()}
+              visible={(scanStatus === 'idle' || scanStatus === 'cancelled' || scanStatus === 'error') && !currentNode}
+              title={emptyCopy.title}
+              sub={emptyCopy.sub}
+              icon={emptyCopy.icon}
+              actionLabel={emptyCopy.actionLabel}
+              onAction={emptyCopy.onAction}
             />
           </div>
           <ExtLegend items={extStats} />
