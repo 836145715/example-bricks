@@ -143,7 +143,20 @@ export function useDiskMap() {
         } else if (event.type === 'node') {
           store.applySummary(event.node)
         } else if (event.type === 'done') {
+          // 兜底：不依赖 call 返回也立即切状态、收根层。
           setScanned({ files: event.done.scannedFiles, bytes: event.done.scannedBytes })
+          setScanStatus('done')
+          setScanMessage(
+            `扫描完成 · ${event.done.scannedFiles.toLocaleString()} 个文件 · 已见 ${formatGB(event.done.scannedBytes)}`
+          )
+          if (!rootRef.current && event.done.root) {
+            rootRef.current = event.done.root
+            setRoot(event.done.root)
+            if (!scanRootRef.current) scanRootRef.current = event.done.root
+            setCurrentPath((prev) => prev || event.done.root)
+          }
+          void peek(scanRootRef.current ?? undefined)
+          void refreshExtStats()
         }
       })
       setScanStatus(result.completed ? 'done' : 'idle')
@@ -313,7 +326,11 @@ export function useDiskMap() {
         if (cancelled) return
         setVolume(volumeInfo)
 
-        // 2) 直接扫描，UI 边扫边画。
+        // 2) peek 根拿 root（新版 runtime 树未建时返回根空快照）：
+        //    失败也没关系，progress 事件里带 root，扫描后 done 也有 root。
+        await peek()
+
+        // 3) 直接扫描，UI 边扫边画。
         setScanStatus('idle')
         setScanMessage('正在准备扫描…')
         void refreshExtStats()

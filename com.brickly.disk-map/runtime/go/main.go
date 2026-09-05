@@ -27,6 +27,7 @@ import (
 	"com.brickly.disk-map/internal/recipe"
 	"com.brickly.disk-map/internal/scan"
 	_ "com.brickly.disk-map/internal/stdoutguard"
+	"com.brickly.disk-map/internal/tree"
 	"com.brickly.disk-map/internal/volume"
 )
 
@@ -194,9 +195,16 @@ func handlePeek(ctx *brickly.CommandContext, input map[string]any) (any, error) 
 		path = s.Root()
 	}
 
-	// 树未建（本进程未扫描）：返回 PATH_NOT_IN_TREE，UI 显示扫描未到。
+	// 树未建（本进程未扫描）：
+	// - 不带 path：返回根的空快照（UI 启动拿 root 用，children 空、complete=false）
+	// - 带 path：返回 PATH_NOT_IN_TREE，UI 显示扫描未到。
 	tr := s.Tree()
 	if tr == nil {
+		if path == "" || path == s.Root() {
+			rootOnly := tree.New(s.Root())
+			node, _ := rootOnly.Node(s.Root())
+			return asJSONValue(model.PeekResult{Root: s.Root(), Node: node})
+		}
 		return nil, commandError(model.CodePathNotInTree,
 			fmt.Sprintf("尚未扫描，无法读取: %s", path))
 	}

@@ -220,20 +220,12 @@ func (s *Session) Start(parent context.Context, opts StartOptions) (model.ScanRe
 			}
 		},
 		OnProgress: func(p walker.Progress) {
-			// 进度节流点顺带重发根层快照：根与直接孩子的部分大小实时增长，
-			// 不等子树扫完。孩子数 ≤64，每 150ms 一次，开销可忽略。
+			// 进度节流点顺带重发根节点：根的部分大小实时增长。
+			// 孩子的快照由 UI 每秒 peek 补齐（服务端 top64 + 「其他」桶口径），
+			// 这里不再逐条重发，避免高频 IPC 拖垮事件通道。
 			if snap, ok := tr.Node(root); ok {
 				if err := emit(Event{Type: "node", Node: &snap.NodeSummary}); err != nil {
 					fail(err)
-				}
-				for i := range snap.Children {
-					c := snap.Children[i]
-					if c.Flags.Kind == model.KindOther {
-						continue
-					}
-					if err := emit(Event{Type: "node", Node: &c}); err != nil {
-						fail(err)
-					}
 				}
 			}
 			err := emit(Event{Type: "progress", Progress: &model.ProgressEvent{
