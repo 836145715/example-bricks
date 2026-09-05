@@ -193,6 +193,14 @@ func (s *Session) Start(parent context.Context, opts StartOptions) (model.ScanRe
 			if e.FileCount > 0 {
 				s.recordExt(e.Name, e.Allocated)
 			}
+			// 根的直接孩子一出现就上报（0 字节起步）：最外层尽早可见。
+			if e.Flags.Kind == model.KindDir && e.Depth == 1 {
+				if summary, ok := tr.Summary(e.Path); ok {
+					if err := emit(Event{Type: "node", Node: &summary}); err != nil {
+						fail(err)
+					}
+				}
+			}
 		},
 		OnDirDone: func(path string, depth int) {
 			// 先把完成状态落进树，再按门槛决定是否发 node 事件。
@@ -212,6 +220,22 @@ func (s *Session) Start(parent context.Context, opts StartOptions) (model.ScanRe
 			}
 		},
 		OnProgress: func(p walker.Progress) {
+			// 进度节流点顺带重发根层快照：根与直接孩子的部分大小实时增长，
+			// 不等子树扫完。孩子数 ≤64，每 150ms 一次，开销可忽略。
+			if snap, ok := tr.Node(root); ok {
+				if err := emit(Event{Type: "node", Node: &snap.NodeSummary}); err != nil {
+					fail(err)
+				}
+				for i := range snap.Children {
+					c := snap.Children[i]
+					if c.Flags.Kind == model.KindOther {
+						continue
+					}
+					if err := emit(Event{Type: "node", Node: &c}); err != nil {
+						fail(err)
+					}
+				}
+			}
 			err := emit(Event{Type: "progress", Progress: &model.ProgressEvent{
 				ScannedFiles: p.ScannedFiles,
 				ScannedBytes: p.ScannedBytes,

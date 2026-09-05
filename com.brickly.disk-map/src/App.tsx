@@ -143,7 +143,7 @@ export const App: React.FC = () => {
               />
             )}
             <ScanOverlay
-              visible={(scanStatus === 'scanning' || scanStatus === 'booting') && !currentNode?.complete}
+              visible={scanStatus === 'booting' || (scanStatus === 'scanning' && !currentNode)}
               scannedFiles={scanned.files}
               scannedBytes={scanned.bytes}
               currentPath={currentPath || root}
