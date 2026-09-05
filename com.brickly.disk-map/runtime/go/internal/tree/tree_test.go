@@ -236,46 +236,6 @@ func TestTreeRemoveDirAndFile(t *testing.T) {
 	}
 }
 
-func TestTreeCompressRestore(t *testing.T) {
-	tr := New("/root")
-	tr.Apply(dirEntry("/root/a", 1, false))
-	tr.Apply(fileEntry("/root/a/f1.bin", 2, 1000, 1000))
-	tr.Apply(dirEntry("/root/a/deep", 2, false))
-	tr.Apply(fileEntry("/root/a/deep/f2.bin", 3, 500, 500))
-	tr.Apply(dirEntry("/root/tiny", 1, false)) // allocated = 0，低于门槛
-	tr.CompleteDir("/root/a")
-	tr.CompleteDir("/root/a/deep")
-	tr.CompleteDir("/root/tiny")
-	tr.CompleteDir("/root")
-
-	// 门槛 1000：/root/a(1000) 保留；/root/a/deep(500) 深度 2、不达标 → 丢弃；
-	// /root/tiny 丢弃。keepPaths 无条件保留。
-	extStats := []model.ExtStat{{Ext: ".bin", Bytes: 1500, Files: 2}}
-	stored := tr.Compress(4, 1000, map[string]bool{"/root/a/deep": true}, extStats)
-	if len(stored.Nodes) != 3 { // /root, /root/a, /root/a/deep
-		t.Fatalf("stored nodes = %d, want 3: %+v", len(stored.Nodes), stored.Nodes)
-	}
-	if len(stored.ExtStats) != 1 || stored.ExtStats[0].Ext != ".bin" || stored.ExtStats[0].Bytes != 1500 {
-		t.Errorf("ExtStats not passed through: %+v", stored.ExtStats)
-	}
-
-	rt := Restore(stored)
-	n, ok := rt.Node("/root/a/deep")
-	if !ok {
-		t.Fatal("kept deep node missing after restore")
-	}
-	if n.AllocatedBytes != 500 || !n.Complete {
-		t.Errorf("restored deep = %+v", n.NodeSummary)
-	}
-	if root, _ := rt.Node("/root"); root.AllocatedBytes != 1500 {
-		t.Errorf("restored root allocated = %d", root.AllocatedBytes)
-	}
-	// /root/tiny 不在恢复结果里。
-	if _, ok := rt.Node("/root/tiny"); ok {
-		t.Errorf("tiny should not be restored")
-	}
-}
-
 func TestTreeInaccessible(t *testing.T) {
 	tr := New("/root")
 	tr.Apply(dirEntry("/root/locked", 1, false))

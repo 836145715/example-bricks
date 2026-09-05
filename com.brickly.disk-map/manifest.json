@@ -137,8 +137,8 @@
         "en": "Peek Node"
       },
       "description": {
-        "zh-CN": "读取某个目录节点和按占用排序的直接孩子（最多 64 个，小头合并进「其他」）。树未扫描时先尝试装载上次扫描缓存。",
-        "en": "Read a directory node and its direct children sorted by allocated bytes (top 64, small ones merged into Other). Loads the last-scan cache when the tree is empty."
+        "zh-CN": "读取某个目录节点和按占用排序的直接孩子（最多 64 个，小头合并进「其他」）。树未扫描时返回 PATH_NOT_IN_TREE。",
+        "en": "Read a directory node and its direct children sorted by allocated bytes (top 64, small ones merged into Other). Returns PATH_NOT_IN_TREE before the tree has been scanned."
       },
       "io": {
         "inputs": [

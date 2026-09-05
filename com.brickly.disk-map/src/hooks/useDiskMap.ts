@@ -161,11 +161,10 @@ export function useDiskMap() {
   }, [])
 
   const drillDown = useCallback(async (path: string) => {
-    const node = await peek(path)
-    if (node) {
-      setCurrentPath(path)
-      setSelectedPath(null)
-    }
+    setCurrentPath(path)
+    setSelectedPath(null)
+    // peek 失败（扫描还没到）也照常切过去，node 事件到达后自动出图。
+    await peek(path)
   }, [peek])
 
   const drillUp = useCallback(async () => {
@@ -264,7 +263,7 @@ export function useDiskMap() {
     revealPath(path)
   }, [])
 
-  // 单次初始化：owned 进程生命周期绑定窗口。
+  // 单次初始化：owned 进程生命周期绑定窗口。不做持久缓存，开窗直接流式扫描。
   useEffect(() => {
     let cancelled = false
     let handle: BricklyStartedHandle | null = null
@@ -288,14 +287,10 @@ export function useDiskMap() {
         if (cancelled) return
         setVolume(volumeInfo)
 
-        // 2) peek 根目录：owned 启动时装回 last-scan 缓存，能画旧图。
-        const rootNode = await peek()
-        if (cancelled) return
+        // 2) 直接扫描，UI 边扫边画。
         setScanStatus('idle')
-        setScanMessage(rootNode?.complete ? '上次扫描缓存已就绪，正在刷新…' : '等待扫描…')
+        setScanMessage('正在准备扫描…')
         void refreshExtStats()
-
-        // 3) 再 scan。
         void startScan()
       } catch (error) {
         if (!cancelled) {

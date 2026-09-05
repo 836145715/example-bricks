@@ -48,6 +48,16 @@ export const App: React.FC = () => {
 
   const trayPaths = useMemo(() => new Set(tray.map((item) => item.path)), [tray])
 
+  // 树里还没有当前路径时的列表提示：区分「扫描还没到」与「不在扫描结果里」。
+  const emptyHint =
+    scanStatus === 'booting'
+      ? '正在启动扫描…'
+      : scanStatus === 'scanning'
+        ? '扫描尚未到达此目录，稍后会自动出现'
+        : scanStatus === 'done'
+          ? '此目录不在本次扫描结果里'
+          : '等待扫描…'
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Backspace') return
@@ -133,7 +143,7 @@ export const App: React.FC = () => {
               />
             )}
             <ScanOverlay
-              visible={scanStatus === 'scanning' && !currentNode?.complete}
+              visible={(scanStatus === 'scanning' || scanStatus === 'booting') && !currentNode?.complete}
               scannedFiles={scanned.files}
               scannedBytes={scanned.bytes}
               currentPath={currentPath || root}
@@ -179,6 +189,7 @@ export const App: React.FC = () => {
             total={currentNode?.allocatedBytes ?? 0}
             selectedPath={selectedPath}
             trayPaths={trayPaths}
+            emptyHint={emptyHint}
             onSelect={setSelectedPath}
             onDrill={(path) => void drillDown(path)}
             onAddToTray={(node) => state.addToTray(node)}

@@ -20,7 +20,7 @@ last_verified: 2026-09-05
 | `volume` | invoke | 卷用量（Statfs）+ Purgeable（diskutil，尽力）+ 本地快照列表（tmutil，只读） |
 | `scan` | call，`timeoutMs: 600000` | 流式扫描；只推进度与浅层节点，树留在 Go 内存 |
 | `peek` | invoke | 下钻主路径：取某路径节点与直接孩子（top-64 + 「其他」桶） |
-| `extstats` | invoke | 最近一次扫描（或缓存恢复）按扩展名聚合的占用，按字节降序，最多 48 条 |
+| `extstats` | invoke | 最近一次扫描按扩展名聚合的占用，按字节降序，最多 48 条 |
 | `recipes` | invoke | 白名单固定大户探测（Xcode / Docker / 微信 / Telegram / Caches / 扫盘发现的 node_modules） |
 | `trash` | invoke | protect 校验通过后逐项 `ShellTrashItem`，允许中途失败 |
 
@@ -38,7 +38,7 @@ last_verified: 2026-09-05
 - 不跟随符号链接（`kind=link`，allocated=0）；跨卷挂载点标 `mount`，不深入；`EACCES/EPERM` 标 `inaccessible`，继续扫。
 - 硬链按 `(fsid, fileid)` 去重：同一 inode 只在首次出现时计入占用。
 - `node_modules` / `.git` 是「巨叶」：目录计入父级，内部继续扫出大小但不展开成独立孩子层；`node_modules` 记入 recipes 结果。
-- 内存树是目录树：目录节点 + 每层 top-64 文件摘要，其余折进「其他」桶；关窗前的树写进 Storage KV `last-scan`（深度 ≤4、≥max(1MiB, 根占用×0.5%) 的目录 + recipe 命中），下次开窗首次 `peek` 即可画旧图。
+- 内存树是目录树：目录节点 + 每层 top-64 文件摘要，其余折进「其他」桶。不做持久缓存：每次开窗直接流式扫描，树只存在本进程内存里，关窗即弃。
 - `trash` 前必须过 protect：绝对路径要在扫描根或 recipe 命中之下；`/System`、`/usr`、`/bin`、`/sbin`、`/Library/Apple`、`/private/var/vm` 与扫描根本身是锁前缀；`protected` / `mount` / `inaccessible` 拒绝；Docker 在跑时拒绝回收 `Docker.raw`。页面不能绕过 runtime 直接 `shellTrashItem`。
 
 ## UI
@@ -61,7 +61,7 @@ npm run test:ui
 ./runtime/go/build.sh
 ```
 
-本机导入手测路径：开窗 <1s 内出现用量条与上次缓存图（含扩展名图例）→ 饼图/矩阵树图切换 → 下钻后 Backspace / 面包屑 / 中心返回上级 → 锁路径不能进暂存箱 → 确认后文件出现在废纸篓 → 关窗重开能画上次缓存树且 extStats 仍在。
+本机导入手测路径：开窗 <1s 内出现用量条、随后边扫边出图（含扩展名图例）→ 饼图/矩阵树图切换 → 下钻后 Backspace / 面包屑 / 中心返回上级 → 扫描未到达的目录提示「扫描尚未到达此目录」→ 锁路径不能进暂存箱 → 确认后文件出现在废纸篓 → 关窗重开重新扫描、数据始终最新。
 
 ## 明确不做
 

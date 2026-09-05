@@ -8,7 +8,7 @@
 //	recipes invoke  固定路径大户（白名单探测，不删除）
 //	trash   invoke  protect 校验通过后逐项 ShellTrashItem
 //
-// 树只存在本进程内存里；扫完写 KV last-scan，首 peek 时装回。
+// 树只存在本进程内存里，不做持久缓存：每次开窗直接流式扫描。
 package main
 
 import (
@@ -22,13 +22,11 @@ import (
 
 	brickly "github.com/836145715/brickly-sdk-go"
 
-	"com.brickly.disk-map/internal/cache"
 	"com.brickly.disk-map/internal/model"
 	"com.brickly.disk-map/internal/protect"
 	"com.brickly.disk-map/internal/recipe"
 	"com.brickly.disk-map/internal/scan"
 	_ "com.brickly.disk-map/internal/stdoutguard"
-	"com.brickly.disk-map/internal/tree"
 	"com.brickly.disk-map/internal/volume"
 )
 
@@ -174,13 +172,6 @@ func handleScan(ctx *brickly.CommandContext, input map[string]any) (any, error) 
 		return nil, commandError("SCAN_FAILED", err.Error())
 	}
 
-	// 扫完写 last-scan 缓存（失败不致命）。
-	if tr := s.Tree(); tr != nil {
-		stored := cache.BuildSnapshot(root, tr, s.RecipeHits(), s.ExtSnapshot(64))
-		if err := cache.Save(ctx.Context(), ctx.Storage().KV, stored); err != nil {
-			logDebug("save last-scan failed: " + err.Error())
-		}
-	}
 	return asJSONValue(result)
 }
 
@@ -203,16 +194,11 @@ func handlePeek(ctx *brickly.CommandContext, input map[string]any) (any, error) 
 		path = s.Root()
 	}
 
-	// 树还没建（本进程没扫过）：先试装 last-scan 缓存。
-	if s.Tree() == nil {
-		if err := loadCacheInto(s, ctx); err != nil {
-			logDebug("load last-scan failed: " + err.Error())
-		}
-	}
+	// 树未建（本进程未扫描）：返回 NOT_SCANNED，UI 显示扫描未到。
 	tr := s.Tree()
 	if tr == nil {
-		tr = tree.New(s.Root())
-		s.SetTree(tr)
+		return nil, commandError(model.CodePathNotInTree,
+			fmt.Sprintf("尚未扫描，无法读取: %s", path))
 	}
 
 	node, ok := tr.Node(path)
@@ -221,19 +207,6 @@ func handlePeek(ctx *brickly.CommandContext, input map[string]any) (any, error) 
 			fmt.Sprintf("路径不在扫描树里（可能还未扫描到或路径无效）: %s", path))
 	}
 	return asJSONValue(model.PeekResult{Root: s.Root(), Node: node})
-}
-
-func loadCacheInto(s *scan.Session, ctx *brickly.CommandContext) error {
-	stored, err := cache.Load(ctx.Context(), ctx.Storage().KV)
-	if err != nil || stored == nil {
-		return err
-	}
-	if s.Root() != "" && stored.Root != s.Root() {
-		return nil // 缓存属于别的根，忽略
-	}
-	s.SetTree(tree.Restore(*stored))
-	s.SetExtStats(stored.ExtStats)
-	return nil
 }
 
 // ---- recipes ----

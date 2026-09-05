@@ -67,18 +67,11 @@ func (s *Session) SetRoot(root string) {
 	s.tr = nil
 }
 
-// Tree 返回内存树（可能为 nil，调用方先装缓存）。
+// Tree 返回内存树（未扫描时为 nil）。
 func (s *Session) Tree() *tree.Tree {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.tr
-}
-
-// SetTree 装载树（缓存恢复用）。
-func (s *Session) SetTree(t *tree.Tree) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.tr = t
 }
 
 // Running 报告是否扫描中。
@@ -134,17 +127,6 @@ func (s *Session) ExtSnapshot(topN int) []model.ExtStat {
 		list = list[:topN]
 	}
 	return list
-}
-
-// SetExtStats 从缓存快照恢复扩展名聚合。
-func (s *Session) SetExtStats(stats []model.ExtStat) {
-	agg := make(map[string]*model.ExtStat, len(stats))
-	for i := range stats {
-		agg[stats[i].Ext] = &stats[i]
-	}
-	s.extMu.Lock()
-	s.ext = agg
-	s.extMu.Unlock()
 }
 
 // StartOptions 控制一次扫描。

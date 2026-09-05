@@ -149,11 +149,4 @@ func TestSessionExtStats(t *testing.T) {
 	if _, ok := byExt[".MP4"]; ok {
 		t.Errorf("extension should be lowercased")
 	}
-
-	// 缓存恢复口径。
-	s.SetExtStats([]model.ExtStat{{Ext: ".zip", Bytes: 999, Files: 3}})
-	items = s.ExtSnapshot(10)
-	if len(items) != 1 || items[0].Ext != ".zip" || items[0].Bytes != 999 {
-		t.Errorf("restored ext stats = %+v", items)
-	}
 }

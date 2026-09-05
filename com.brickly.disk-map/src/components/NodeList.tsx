@@ -9,6 +9,7 @@ interface NodeListProps {
   total: number
   selectedPath: string | null
   trayPaths: Set<string>
+  emptyHint: string
   onSelect: (path: string) => void
   onDrill: (path: string) => void
   onAddToTray: (node: NodeSummary) => void
@@ -22,6 +23,7 @@ export const NodeList: React.FC<NodeListProps> = ({
   total,
   selectedPath,
   trayPaths,
+  emptyHint,
   onSelect,
   onDrill,
   onAddToTray,
@@ -49,7 +51,7 @@ export const NodeList: React.FC<NodeListProps> = ({
         <span className="col-ops">操作</span>
       </div>
       <div className="node-list-body">
-        {!node && <div className="list-empty">等待扫描…</div>}
+        {!node && <div className="list-empty">{emptyHint}</div>}
         {node && children.length === 0 && (
           <div className="list-empty">
             {node.flags.inaccessible ? '没有读取权限' : node.complete ? '空目录' : '扫描中…'}
