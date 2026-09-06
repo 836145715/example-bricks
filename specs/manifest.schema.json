@@ -99,7 +99,7 @@
     "runtime": {
       "oneOf": [
         {
-          "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。",
+          "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。崩溃退避（maxAttempts / backoffMs / healthyAfterMs）不在作者清单；写了会因 additionalProperties: false 失败。",
           "type": "object",
           "required": ["type", "entry"],
           "additionalProperties": false,
@@ -171,7 +171,7 @@
             "resident": {
               "type": "boolean",
               "default": false,
-              "description": "仅 shared：允许进入服务管理，并由宿主按 (砖, Profile) 钉住。"
+              "description": "仅 shared：允许进入常驻占用，并由宿主按 (砖, Profile) 钉住。"
             },
             "autoStart": {
               "type": "boolean",
@@ -202,13 +202,13 @@
               }
             },
             "entry": {
-              "description": "按平台映射的入口点；key 必须与 platforms 完全一致，路径必须位于对应 runtime/<platform>/。",
+              "description": "按平台映射的入口点；key 必须与 platforms 完全一致。可写文件名（如 index.js / brick.exe），加载时解析到 runtime/<platform>/ 下；也可写完整相对路径 runtime/<platform>/xxx。",
               "type": "object",
               "minProperties": 1,
               "patternProperties": {
                 "^(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)$": {
                   "type": "string",
-                  "pattern": "^runtime/(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/[^/].*"
+                  "pattern": "^(?:runtime/(?:win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/)?[^/\\\\]+(?:/[^/\\\\]+)*$"
                 }
               },
               "additionalProperties": false
@@ -227,7 +227,7 @@
                   },
                   "path": {
                     "type": "string",
-                    "pattern": "^runtime/(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/[^/].*"
+                    "pattern": "^(?:runtime/(?:win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/)?[^/\\\\]+(?:/[^/\\\\]+)*$"
                   }
                 }
               }
@@ -260,87 +260,6 @@
           "type": "null"
         }
       ]
-    },
-    "lifecycle": {
-      "description": "内核展开层。作者不写本字段；shared + resident 时由 normalize 写出 service。详见 specs/lifecycle.md。",
-      "type": "object",
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "required": ["service"]
-          },
-          "then": {
-            "required": ["state"],
-            "properties": {
-              "state": {
-                "const": "stateful"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "required": ["state"],
-            "properties": {
-              "state": {
-                "const": "stateful"
-              }
-            }
-          },
-          "then": {
-            "not": {
-              "required": ["idleTimeoutMs"]
-            }
-          }
-        }
-      ],
-      "properties": {
-        "state": {
-          "type": "string",
-          "enum": ["stateless", "stateful"],
-          "default": "stateless",
-          "description": "stateless：无状态，可按 brick/profile 复用进程并空闲回收；stateful：有状态，跟使用会话或服务。"
-        },
-        "idleTimeoutMs": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "仅 stateless：无占用且无 in-flight 后的空闲回收时间；0 表示立即关闭。默认 600000。"
-        },
-        "service": {
-          "description": "仅 stateful：声明为宿主持有的全局后台服务。",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "autoStart": {
-              "type": "boolean",
-              "default": false,
-              "description": "宿主启动时是否预热。旧 triggers 会被丢弃，不改本字段。"
-            },
-            "restart": {
-              "type": "string",
-              "enum": ["none", "on-failure"],
-              "default": "on-failure",
-              "description": "非主动停止时的异常重启策略。"
-            },
-            "maxAttempts": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "最大自动重启次数，默认 5。"
-            },
-            "backoffMs": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "初始重启退避毫秒，默认 2000。"
-            },
-            "healthyAfterMs": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "持续运行多久后将连续崩溃计数归零。"
-            }
-          }
-        }
-      }
     },
     "storage": {
       "description": "Brick 本机持久存储声明。quotaMB 是工具声称的需求上限，生效配额由宿主计算。公开 API 是 ctx.storage / window.brickly.storage，不是文件路径。",
