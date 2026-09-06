@@ -202,13 +202,13 @@
               }
             },
             "entry": {
-              "description": "按平台映射的入口点；key 必须与 platforms 完全一致，路径必须位于对应 runtime/<platform>/。",
+              "description": "按平台映射的入口点；key 必须与 platforms 完全一致。可写文件名（如 index.js / brick.exe），加载时解析到 runtime/<platform>/ 下；也可写完整相对路径 runtime/<platform>/xxx。",
               "type": "object",
               "minProperties": 1,
               "patternProperties": {
                 "^(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)$": {
                   "type": "string",
-                  "pattern": "^runtime/(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/[^/].*"
+                  "pattern": "^(?:runtime/(?:win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/)?[^/\\\\]+(?:/[^/\\\\]+)*$"
                 }
               },
               "additionalProperties": false
@@ -227,7 +227,7 @@
                   },
                   "path": {
                     "type": "string",
-                    "pattern": "^runtime/(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/[^/].*"
+                    "pattern": "^(?:runtime/(?:win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/)?[^/\\\\]+(?:/[^/\\\\]+)*$"
                   }
                 }
               }
