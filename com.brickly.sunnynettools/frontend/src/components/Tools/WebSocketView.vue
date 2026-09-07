@@ -13,14 +13,13 @@ import {
 import {AG_GRID_LOCALE_CN} from "../config/AG_ZH_CN.js";
 import {ElMessage} from "element-plus";
 import {
-  AppInsertDone,
   ClearAllSessionMessageIdArray,
   CopySessionMessageIdArray,
   DelSessionMessageIdArray,
   GOOS,
   StreamSearch
-} from "../../../bindings/changeme/Service/appmain.js";
-import {Events} from "@wailsio/runtime";
+} from "../../brickly/api.js";
+import { onSocketStream } from "../../capture/useCaptureStream";
 import ImageRenderer from './SocketImage.vue';
 import Filter from "./Filter/filter.vue";
 
@@ -213,11 +212,8 @@ export default {
     this.agGridApi = this.$refs.agGrid.api;
     this.isWebsocket = (this.Name === "Websocket")
     {
-      Events.On("updateSocketStreamList", (obj) => {
-        const array = obj?.data?.[0] ?? [];
-        const isDone = obj?.data?.[1] ?? false;
-        this.InsertSocketStream(array, isDone)
-        //AppInsertDone()
+      this._offSocketStream = onSocketStream((array) => {
+        this.InsertSocketStream(array, true)
       })
     }
     GOOS().then(isWindows => {
@@ -295,7 +291,6 @@ export default {
           }
         }
       }
-      AppInsertDone()
     },
     ensureNodeVisible(MessageIId) {
       requestAnimationFrame(() => {

@@ -24,7 +24,7 @@ import { setLocaleData } from 'monaco-editor-nls';
 import zh_CN from 'monaco-editor-nls/locale/zh-hans';
 
 // Brickly：UI 一加载就 start，拿到全局唯一 handle 后再挂载应用
-import { ensureRuntime } from "./wails-shim/index.js";
+import { ensureRuntime } from "./brickly/core.js";
 
 setLocaleData(zh_CN);
 import {LicenseKey} from "./AGLicenseKey";

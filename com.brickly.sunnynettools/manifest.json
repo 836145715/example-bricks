@@ -71,7 +71,12 @@
       "description": "停止代理并还原系统代理。",
       "io": {
         "inputs": [],
-        "outputs": []
+        "outputs": [
+          {
+            "name": "result",
+            "type": "any"
+          }
+        ]
       }
     },
     {
@@ -109,28 +114,6 @@
       }
     },
     {
-      "id": "capture-version",
-      "name": {
-        "zh-CN": "版本",
-        "en": "Version"
-      },
-      "description": "返回 SunnyNetTools 版本。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
       "id": "get-port",
       "name": {
         "zh-CN": "读取代理端口",
@@ -161,23 +144,6 @@
             "type": "number"
           }
         ],
-        "outputs": []
-      }
-    },
-    {
-      "id": "is-port-set",
-      "name": {
-        "zh-CN": "端口是否已设置",
-        "en": "Is Port Set"
-      },
-      "description": "检查代理端口是否已配置。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
         "outputs": [
           {
             "name": "result",
@@ -194,13 +160,13 @@
       },
       "description": "把系统代理指向本工具。",
       "io": {
-        "inputs": [
+        "inputs": [],
+        "outputs": [
           {
-            "name": "enabled",
-            "type": "boolean"
+            "name": "result",
+            "type": "any"
           }
-        ],
-        "outputs": []
+        ]
       }
     },
     {
@@ -212,434 +178,6 @@
       "description": "还原系统代理设置。",
       "io": {
         "inputs": [],
-        "outputs": []
-      }
-    },
-    {
-      "id": "set-working",
-      "name": {
-        "zh-CN": "设置工作状态",
-        "en": "Set Working"
-      },
-      "description": "设置抓包工作状态。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "goos",
-      "name": {
-        "zh-CN": "操作系统",
-        "en": "GOOS"
-      },
-      "description": "返回 runtime.GOOS。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "get-session",
-      "name": {
-        "zh-CN": "读取会话",
-        "en": "Get Session"
-      },
-      "description": "按 Theology 读取会话详情。",
-      "io": {
-        "inputs": [
-          {
-            "name": "theology",
-            "type": "number"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "session",
-            "type": "json"
-          }
-        ]
-      }
-    },
-    {
-      "id": "get-request-body",
-      "name": {
-        "zh-CN": "读取请求体",
-        "en": "Get Request Body"
-      },
-      "description": "读取请求体；超限时返回 ResourceRef。",
-      "io": {
-        "inputs": [
-          {
-            "name": "theology",
-            "type": "number"
-          },
-          {
-            "name": "getAll",
-            "type": "boolean"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "body",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "get-response-body",
-      "name": {
-        "zh-CN": "读取响应体",
-        "en": "Get Response Body"
-      },
-      "description": "读取响应体；超限时返回 ResourceRef。",
-      "io": {
-        "inputs": [
-          {
-            "name": "theology",
-            "type": "number"
-          },
-          {
-            "name": "getAll",
-            "type": "boolean"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "body",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "get-session-message-body",
-      "name": {
-        "zh-CN": "读取会话消息体",
-        "en": "Get Session Message Body"
-      },
-      "description": "读取 TCP/WS 等会话消息体。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "get-all-stream",
-      "name": {
-        "zh-CN": "读取流数据",
-        "en": "Get All Stream"
-      },
-      "description": "读取会话全部流数据。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "delete-sessions",
-      "name": {
-        "zh-CN": "删除会话",
-        "en": "Delete Sessions"
-      },
-      "description": "删除指定会话。",
-      "io": {
-        "inputs": [
-          {
-            "name": "ids",
-            "type": "json"
-          }
-        ],
-        "outputs": []
-      }
-    },
-    {
-      "id": "clear-sessions",
-      "name": {
-        "zh-CN": "清空会话",
-        "en": "Clear Sessions"
-      },
-      "description": "清空全部会话。",
-      "io": {
-        "inputs": [],
-        "outputs": []
-      }
-    },
-    {
-      "id": "find-sessions",
-      "name": {
-        "zh-CN": "查找会话",
-        "en": "Find Sessions"
-      },
-      "description": "按条件查找会话。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "export-sessions",
-      "name": {
-        "zh-CN": "导出会话",
-        "en": "Export Sessions"
-      },
-      "description": "导出会话到文件。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "import-sessions",
-      "name": {
-        "zh-CN": "导入会话",
-        "en": "Import Sessions"
-      },
-      "description": "从文件导入会话。",
-      "io": {
-        "inputs": [
-          {
-            "name": "path",
-            "type": "string"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "resend-request",
-      "name": {
-        "zh-CN": "重放请求",
-        "en": "Resend Request"
-      },
-      "description": "重放指定会话请求。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "update-note",
-      "name": {
-        "zh-CN": "更新备注",
-        "en": "Update Note"
-      },
-      "description": "更新会话备注。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "active-send",
-      "name": {
-        "zh-CN": "主动发送",
-        "en": "Active Send"
-      },
-      "description": "在会话上主动发送数据。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "disconnect-tcp",
-      "name": {
-        "zh-CN": "断开 TCP",
-        "en": "Disconnect TCP"
-      },
-      "description": "断开指定 TCP 会话。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "set-break-mode",
-      "name": {
-        "zh-CN": "设置断点模式",
-        "en": "Set Break Mode"
-      },
-      "description": "设置请求/响应断点。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "set-request-next-break-mode",
-      "name": {
-        "zh-CN": "下一请求断点",
-        "en": "Set Next Request Break"
-      },
-      "description": "设置下一请求断点模式。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "update-http-request",
-      "name": {
-        "zh-CN": "更新 HTTP 请求",
-        "en": "Update HTTP Request"
-      },
-      "description": "断点处改写 HTTP 请求。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "update-http-response",
-      "name": {
-        "zh-CN": "更新 HTTP 响应",
-        "en": "Update HTTP Response"
-      },
-      "description": "断点处改写 HTTP 响应。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
         "outputs": [
           {
             "name": "result",
@@ -658,190 +196,14 @@
       "io": {
         "inputs": [
           {
-            "name": "args",
-            "type": "json"
+            "name": "path",
+            "type": "string"
           }
         ],
         "outputs": [
           {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "list-processes",
-      "name": {
-        "zh-CN": "进程列表",
-        "en": "List Processes"
-      },
-      "description": "列出可用于驱动抓包的进程。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "process-add-name",
-      "name": {
-        "zh-CN": "添加进程名",
-        "en": "Add Process Name"
-      },
-      "description": "按进程名加入驱动抓包。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "process-del-name",
-      "name": {
-        "zh-CN": "删除进程名",
-        "en": "Remove Process Name"
-      },
-      "description": "按进程名移出驱动抓包。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "process-add-pid",
-      "name": {
-        "zh-CN": "添加 PID",
-        "en": "Add Process Pid"
-      },
-      "description": "按 PID 加入驱动抓包。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "process-del-pid",
-      "name": {
-        "zh-CN": "删除 PID",
-        "en": "Remove Process Pid"
-      },
-      "description": "按 PID 移出驱动抓包。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "process-any",
-      "name": {
-        "zh-CN": "任意进程",
-        "en": "Process Any"
-      },
-      "description": "捕获任意进程。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "load-device",
-      "name": {
-        "zh-CN": "加载设备",
-        "en": "Load Device"
-      },
-      "description": "加载网卡/驱动设备。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "set-device-stop-update",
-      "name": {
-        "zh-CN": "停止设备更新",
-        "en": "Set Device Stop Update"
-      },
-      "description": "停止设备列表刷新。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
+            "name": "ok",
+            "type": "boolean"
           }
         ]
       }
@@ -852,40 +214,13 @@
         "zh-CN": "MCP 状态",
         "en": "MCP Status"
       },
-      "description": "返回内置 MCP 服务状态 JSON。",
+      "description": "返回内置 MCP HTTP 服务状态 JSON。",
       "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
+        "inputs": [],
         "outputs": [
           {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "mcp-list-ops",
-      "name": {
-        "zh-CN": "MCP 操作列表",
-        "en": "MCP List Ops"
-      },
-      "description": "返回 MCP 可调用操作 JSON。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
+            "name": "status",
+            "type": "string"
           }
         ]
       }
@@ -896,18 +231,19 @@
         "zh-CN": "启用 MCP",
         "en": "Enable MCP"
       },
-      "description": "启用内置 MCP 服务。",
+      "description": "启用内置 MCP HTTP 服务（默认 :6987）。",
       "io": {
         "inputs": [
           {
-            "name": "args",
-            "type": "json"
+            "name": "port",
+            "type": "number",
+            "required": false
           }
         ],
         "outputs": [
           {
-            "name": "result",
-            "type": "any"
+            "name": "error",
+            "type": "string"
           }
         ]
       }
@@ -918,130 +254,13 @@
         "zh-CN": "停用 MCP",
         "en": "Disable MCP"
       },
-      "description": "停用内置 MCP 服务。",
-      "io": {
-        "inputs": [
-          {
-            "name": "args",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "any"
-          }
-        ]
-      }
-    },
-    {
-      "id": "dialog",
-      "name": {
-        "zh-CN": "文件对话框",
-        "en": "File Dialog"
-      },
-      "description": "打开原生文件选择/保存对话框，入参 {kind: open|save|open-dir, options}。",
-      "io": {
-        "inputs": [
-          {
-            "name": "kind",
-            "type": "string"
-          },
-          {
-            "name": "options",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "path",
-            "type": "string"
-          }
-        ]
-      }
-    },
-    {
-      "id": "capture-count",
-      "name": {
-        "zh-CN": "抓包行数",
-        "en": "Capture Count"
-      },
-      "description": "返回当前（过滤后）会话总数。",
+      "description": "停用内置 MCP HTTP 服务。",
       "io": {
         "inputs": [],
         "outputs": [
           {
-            "name": "total",
-            "type": "number"
-          }
-        ]
-      }
-    },
-    {
-      "id": "capture-peek",
-      "name": {
-        "zh-CN": "抓包行窗口",
-        "en": "Capture Peek"
-      },
-      "description": "按 offset/limit 读取会话行摘要窗口（Go 为唯一数据源）。",
-      "io": {
-        "inputs": [
-          {
-            "name": "offset",
-            "type": "number",
-            "required": false
-          },
-          {
-            "name": "limit",
-            "type": "number",
-            "required": false,
-            "description": "默认 100，最大 1000。"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "result",
-            "type": "json",
-            "description": "{total, offset, rows[]}"
-          }
-        ]
-      }
-    },
-    {
-      "id": "capture-filter",
-      "name": {
-        "zh-CN": "应用抓包过滤",
-        "en": "Apply Capture Filter"
-      },
-      "description": "应用主列表过滤模型（AG 过滤模型 JSON），返回过滤后总数。",
-      "io": {
-        "inputs": [
-          {
-            "name": "model",
-            "type": "json"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "total",
-            "type": "number"
-          }
-        ]
-      }
-    },
-    {
-      "id": "capture-ids",
-      "name": {
-        "zh-CN": "抓包行标识列表",
-        "en": "Capture Ids"
-      },
-      "description": "返回全部行的轻量标识（theology+method）。",
-      "io": {
-        "inputs": [],
-        "outputs": [
-          {
-            "name": "rows",
-            "type": "json"
+            "name": "error",
+            "type": "string"
           }
         ]
       }
@@ -1050,6 +269,7 @@
       "id": "capture-stream",
       "mode": "interact",
       "execution": "parallel",
+      "hidden": true,
       "name": {
         "zh-CN": "抓包数据流",
         "en": "Capture Stream"
@@ -1088,37 +308,30 @@
           {
             "name": "filterApplied",
             "type": "json"
+          },
+          {
+            "name": "socket_stream",
+            "type": "json"
           }
         ]
       }
     },
     {
-      "id": "control-stream",
+      "id": "ui-rpc",
       "mode": "interact",
       "execution": "parallel",
+      "hidden": true,
       "name": {
-        "zh-CN": "控制会话",
-        "en": "Control Stream"
+        "zh-CN": "界面 RPC",
+        "en": "UI RPC"
       },
-      "description": {
-        "zh-CN": "UI 支撑 RPC 双向会话：前端 session.request({op,args}) 调用内部方法（Go HandleRequests）；Go Send {__push,args} 推送主题/配置等 UI 事件。",
-        "en": "Bidirectional control session: session.request({op,args}) for RPC; {__push,args} events for UI pushes."
-      },
+      "description": "主界面边角调用（主题、规则、会话详情等）走 session.request({id,input})，不占用公开命令表。",
       "io": {
         "inputs": [],
-        "outputs": [],
-        "inputEvents": [
+        "outputs": [
           {
-            "name": "request",
-            "type": "json",
-            "description": "{op,args}"
-          }
-        ],
-        "outputEvents": [
-          {
-            "name": "push",
-            "type": "json",
-            "description": "{__push,args}"
+            "name": "result",
+            "type": "any"
           }
         ]
       }
@@ -1126,11 +339,12 @@
     {
       "id": "open-tool-window",
       "window": "standalone",
+      "hidden": true,
       "name": {
         "zh-CN": "打开工具窗口",
         "en": "Open Tool Window"
       },
-      "description": "在当前命令内 CreateBrowserWindow 打开证书/改包/主题/调试等子工具窗。须 window=standalone；失败时前端回退 iframe 浮层。",
+      "description": "CreateBrowserWindow 打开证书/改包/主题等子工具窗。须 window=standalone。",
       "io": {
         "inputs": [
           {

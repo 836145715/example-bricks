@@ -1,5 +1,5 @@
 import {ref} from "vue";
-import {GetTour, GOOS} from "../../../bindings/changeme/Service/appmain";
+import {GetTour, GOOS} from "../../brickly/api.js";
 
 export const IsOpenTour = ref(false);
 export const TourList = ref([]);

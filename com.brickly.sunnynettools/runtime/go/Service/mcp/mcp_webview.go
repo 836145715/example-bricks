@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"hash/fnv"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -64,7 +64,7 @@ func callWebviewMsg(ctx context.Context, obj McpMsg) string {
 	}()
 
 	// 这里依赖你的项目：向前端派发事件
-	Config.AppList["Main"].EmitEvent("mcp", obj)
+	Config.Publish("mcp", obj)
 
 	// ctx 有 deadline 就用 deadline；否则走默认超时
 	timeout := defaultRPCTime

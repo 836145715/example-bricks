@@ -70,9 +70,9 @@ import {
   DisableClick,
   Find_Type_Del_Option
 } from "../../config/Config.js";
-import {FindSession} from "../../../../bindings/changeme/Service/appmain";
+import {FindSession} from "../../../brickly/api.js";
 import {ElMessage} from "element-plus";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 
 export default {
   computed: {

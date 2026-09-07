@@ -101,3 +101,13 @@ func TestBridgeMCPTools(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalogHasNoGenerateBuiltinCode(t *testing.T) {
+	if _, ok := ActionByLegacyOp("generate_builtin_code"); ok {
+		t.Fatal("generate_builtin_code must stay removed")
+	}
+	raw := SupportedOpsJSON()
+	if strings.Contains(raw, "generate_builtin_code") {
+		t.Fatal("catalog still lists generate_builtin_code")
+	}
+}

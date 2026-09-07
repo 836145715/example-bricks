@@ -88,7 +88,7 @@ func (g *Device) update() {
 					n, _ := o.Name()
 					if n != "" {
 						g.list[o.Pid] = n
-						Config.AppList["Main"].EmitEvent("DeviceUpdateProcessesList", o.Pid, n, false)
+						Config.Publish("DeviceUpdateProcessesList", o.Pid, n, false)
 					}
 				}
 				newList[o.Pid] = true
@@ -96,7 +96,7 @@ func (g *Device) update() {
 			for k, Name := range g.list {
 				if !newList[k] {
 					delete(g.list, k)
-					Config.AppList["Main"].EmitEvent("DeviceUpdateProcessesList", k, Name, true)
+					Config.Publish("DeviceUpdateProcessesList", k, Name, true)
 				}
 			}
 			time.Sleep(time.Millisecond * 500)

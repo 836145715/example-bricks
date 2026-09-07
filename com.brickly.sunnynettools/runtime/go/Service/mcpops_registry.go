@@ -8,8 +8,8 @@ import (
 	"changeme/Service/mcpcatalog"
 )
 
-// mcpOpHandler 单个 op 处理器。
-type mcpOpHandler func(app *AppMain, args map[string]any) (any, error)
+// mcpOpHandler 单个 op 处理器。依赖无 UI 的 MCPCore，不依赖窗口。
+type mcpOpHandler func(core MCPCore, args map[string]any) (any, error)
 
 // mcpRegistry op 名 -> 处理器；按能力分域注册（mcpops_<domain>.go 的 init 调用 registerMCPOps）。
 var mcpRegistry = map[string]mcpOpHandler{}
@@ -56,11 +56,11 @@ func mcpDomainOf(op string) string {
 }
 
 // dispatchMCPOp 按 op 分发到领域处理器。
-func dispatchMCPOp(app *AppMain, op string, args map[string]any) (any, error) {
+func dispatchMCPOp(core MCPCore, op string, args map[string]any) (any, error) {
 	ensureMCPRegistryConsistency()
 	h, ok := mcpRegistry[strings.TrimSpace(op)]
 	if !ok {
 		return nil, fmt.Errorf("未实现的 op: %s（参见 list_supported_ops）", op)
 	}
-	return h(app, args)
+	return h(core, args)
 }

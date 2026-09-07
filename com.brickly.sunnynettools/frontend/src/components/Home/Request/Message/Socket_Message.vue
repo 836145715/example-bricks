@@ -65,7 +65,7 @@ import {
   GetAllStream,
   GetSessionMessageBody,
   GetSocketFilter,
-} from "../../../../../bindings/changeme/Service/appmain.js";
+} from "../../../../brickly/api.js";
 import Table from "../../../Tools/table.vue"
 import JavaScriptEdit from "../tool/Raw.vue"
 import {base64ToBytes, StringToBytes,} from "../../../config/encoding.js";

@@ -3,7 +3,7 @@ import {
   GetInterfaceOutRouterAdders,
   GetIPV4InterfaceAdders,
   SetInterfaceOutRouterAdders
-} from "../../../../bindings/changeme/Service/appmain";
+} from "../../../brickly/api.js";
 import {Tour_Add} from "../Tour";
 
 export default {

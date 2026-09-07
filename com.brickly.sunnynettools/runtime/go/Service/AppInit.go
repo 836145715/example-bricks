@@ -3,7 +3,6 @@ package Service
 import (
 	"changeme/Service/Config"
 	"changeme/Service/Tools"
-	"changeme/Service/Tools/DebugTools"
 	"encoding/base64"
 	"runtime"
 
@@ -31,9 +30,7 @@ func newAppMain(sApp *SunnyNet.Sunny) *AppMain {
 		A.ProxyWay = Tools.ProxyWay{App: sApp}
 		A.MustTcp = Tools.MustTcp{App: sApp}
 		A.ScriptLog = Tools.ScriptLog{App: sApp}
-		A.DebugTools = DebugTools.DebugTools{App: sApp}
 	}
-	A.localServerInit()
 	{
 		bs, _ := base64.StdEncoding.DecodeString(Config.Config.ScriptCode)
 		A.app.SetScriptCall(A.PrintScriptLog, A.SaveScriptCode)

@@ -79,7 +79,7 @@
 
 import {ElNotification} from "element-plus";
 import {Config_GOOS_IsWindows} from "../../../../config/Config";
-import {ClipboardWriteAll} from "../../../../../../bindings/changeme/Service/appmain";
+import {ClipboardWriteAll} from "../../../../../brickly/api.js";
 import {h} from "vue";
 
 export default {

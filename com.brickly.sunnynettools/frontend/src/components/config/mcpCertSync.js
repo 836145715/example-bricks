@@ -1,5 +1,5 @@
-import {Events} from "@wailsio/runtime";
-import {McpFuncRes} from "../../../bindings/changeme/Service/appmain.js";
+import {Events} from "../../brickly/runtime.js";
+import {McpFuncRes} from "../../brickly/api.js";
 
 /**
  * 请求证书页（Cert 独立窗口）监听 MCP requestcert 事件。

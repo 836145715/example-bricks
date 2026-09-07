@@ -94,8 +94,8 @@ func ruleMCPEnriched(r replaceRuleMCP) map[string]any {
 	}
 }
 
-func replaceRulesSnapshot(app *AppMain, interceptOnly, replaceOnly bool) map[string]any {
-	list := app.ReplaceBody.ReplaceBodyList()
+func replaceRulesSnapshot(app MCPCore, interceptOnly, replaceOnly bool) map[string]any {
+	list := app.ReplaceBodyList()
 	rules := make([]map[string]any, 0, len(list))
 	for _, item := range list {
 		if interceptOnly && !isInterceptRuleType(item.Type) {
@@ -159,12 +159,12 @@ func validateIncomingReplaceRules(rules []replaceRuleMCP, wantIntercept bool) er
 	return nil
 }
 
-func applyReplaceRulesToConfig(app *AppMain, rules []replaceRuleMCP) {
+func applyReplaceRulesToConfig(app MCPCore, rules []replaceRuleMCP) {
 	Config.Config.ReplaceRoles = make(map[int]*Config.ReplaceBodyInfo)
 	for _, r := range rules {
 		id := r.ID
 		if id <= 0 {
-			id = app.ReplaceBody.CreateReplaceBody()
+			id = app.CreateReplaceBody()
 		} else if Config.Config.ReplaceRoles[id] == nil {
 			Config.Config.ReplaceRoles[id] = &Config.ReplaceBodyInfo{ID: id}
 		}
@@ -178,7 +178,7 @@ func applyReplaceRulesToConfig(app *AppMain, rules []replaceRuleMCP) {
 				r.New = "拦截请求[此项不用填写]"
 			}
 		}
-		app.ReplaceBody.ReplaceBodyUpdate(id, typ, r.Source, r.Lod, r.New, r.Note, state)
+		app.ReplaceBodyUpdate(id, typ, r.Source, r.Lod, r.New, r.Note, state)
 	}
 	Config.Config.Save()
 }
@@ -198,8 +198,8 @@ func replaceRuleMCPFromInfo(item Config.ReplaceBodyInfo) replaceRuleMCP {
 	}
 }
 
-func upsertReplaceRulesSubset(app *AppMain, incoming []replaceRuleMCP, interceptSubset bool, replaceAll bool) {
-	current := app.ReplaceBody.ReplaceBodyList()
+func upsertReplaceRulesSubset(app MCPCore, incoming []replaceRuleMCP, interceptSubset bool, replaceAll bool) {
+	current := app.ReplaceBodyList()
 	others := make([]replaceRuleMCP, 0)
 	subset := make(map[int]replaceRuleMCP)
 	for _, item := range current {
@@ -239,7 +239,7 @@ func upsertReplaceRulesSubset(app *AppMain, incoming []replaceRuleMCP, intercept
 	applyReplaceRulesToConfig(app, merged)
 }
 
-func bridgeConfigRuleSetState(app *AppMain, m map[string]any) (any, error) {
+func bridgeConfigRuleSetState(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填（规则 id，与 config_get 返回的 rules[].id 一致）")
@@ -262,7 +262,7 @@ func bridgeConfigRuleSetState(app *AppMain, m map[string]any) (any, error) {
 		}
 		return nil, fmt.Errorf("规则 id %d 不存在", id)
 	}
-	app.ReplaceBody.ReplaceBodyUpdate(id, obj.Type, obj.Source, obj.Lod, obj.New, obj.Note, state)
+	app.ReplaceBodyUpdate(id, obj.Type, obj.Source, obj.Lod, obj.New, obj.Note, state)
 	emitMCPRulesPageReload()
 	return map[string]any{"ok": true, "id": id, "state": state}, nil
 }

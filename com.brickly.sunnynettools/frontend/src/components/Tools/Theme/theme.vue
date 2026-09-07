@@ -1,7 +1,6 @@
 <template>
-  <div class="demo-collapse"
-       style="margin: 0px;left: 0px;position: absolute;width: 100%;height: 100%;top: 0px;">
-    <TitleBar Title="主题调色"></TitleBar>
+  <div class="demo-collapse" :style="rootStyle">
+    <TitleBar v-if="!embedded" Title="主题调色"></TitleBar>
     <div style="  display: flex;  align-items: center;  justify-content: center;">
       <el-radio-group v-model="from.IsDark">
         <el-radio value="true" size="large">暗黑配色</el-radio>
@@ -64,19 +63,42 @@ import {
   GetAgGridLightTheme,
   McpFuncRes,
   Theme
-} from "../../../../bindings/changeme/Service/appmain.js";
+} from "../../../brickly/api.js";
 import ListColorConfig from "./ListColorConfig/ListColorConfig.vue";
 import {Config_IsDark, Config_Theme_agGrid, setTheme} from "../../config/Config";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 import TitleBar from "../../TitleBar/TitleBar.vue";
 
+function paintStandaloneChrome(isDark, fromDark) {
+  if (document.documentElement.hasAttribute("data-sn-tool-modal")) {
+    return
+  }
+  document.documentElement.className = isDark ? "dark" : "light";
+  if (fromDark) {
+    document.documentElement.style.backgroundColor = 'rgb(57,57,57)';
+    document.documentElement.style.color = 'rgb(255,255,255)';
+  } else {
+    document.documentElement.style.backgroundColor = 'rgb(230,226,226)';
+    document.documentElement.style.color = 'rgb(66,66,66)';
+  }
+}
+
 export default {
+  props: {
+    embedded: {type: Boolean, default: false}
+  },
   computed: {
     Config_IsDark() {
       return Config_IsDark.value
     },
     agTheme() {
       return Config_Theme_agGrid.value
+    },
+    rootStyle() {
+      if (this.embedded) {
+        return {margin: "0", position: "relative", width: "100%", height: "auto", minHeight: "100%"}
+      }
+      return {margin: "0px", left: "0px", position: "absolute", width: "100%", height: "100%", top: "0px"}
     },
   },
   components: {TitleBar, ListColorConfig, VueText},
@@ -88,26 +110,11 @@ export default {
         IsDark: "true",
       },
       get IsDark() {
-        document.documentElement.className = Config_IsDark.value ? "dark" : "light";
-        if (this.from.IsDark) {
-          document.documentElement.style.backgroundColor = 'rgb(57,57,57)';
-          document.documentElement.style.color = 'rgb(255,255,255)';
-        } else {
-          document.documentElement.style.backgroundColor = 'rgb(230,226,226)';
-          document.documentElement.style.color = 'rgb(66,66,66)';
-        }
-
+        paintStandaloneChrome(Config_IsDark.value, this.from.IsDark)
         return Config_IsDark.value
       },
       set IsDark(value) {
-        document.documentElement.className = value ? "dark" : "light";
-        if (this.from.IsDark) {
-          document.documentElement.style.backgroundColor = 'rgb(57,57,57)';
-          document.documentElement.style.color = 'rgb(255,255,255)';
-        } else {
-          document.documentElement.style.backgroundColor = 'rgb(230,226,226)';
-          document.documentElement.style.color = 'rgb(66,66,66)';
-        }
+        paintStandaloneChrome(value, this.from.IsDark)
         Config_IsDark.value = value
       },
     }
@@ -115,14 +122,7 @@ export default {
   watch: {
     IsDark(n, l) {
       this.from.IsDark = n ? "true" : "false";
-      document.documentElement.className = n ? "dark" : "light";
-      if (this.from.IsDark) {
-        document.documentElement.style.backgroundColor = 'rgb(57,57,57)';
-        document.documentElement.style.color = 'rgb(255,255,255)';
-      } else {
-        document.documentElement.style.backgroundColor = 'rgb(230,226,226)';
-        document.documentElement.style.color = 'rgb(66,66,66)';
-      }
+      paintStandaloneChrome(n, this.from.IsDark)
     },
     "from.IsDark"(n, l) {
       Config_IsDark.value = n === 'true'
@@ -163,7 +163,7 @@ export default {
     },
   },
   mounted() {
-    document.documentElement.className = this.IsDark ? "dark" : "light";
+    paintStandaloneChrome(this.IsDark, this.from.IsDark)
     this.$refs.drakModeText.SetReadOnly(false)
     this.$refs.drakModeText.SetLanguage("json")
     this.$refs.lightModeText.SetReadOnly(false)

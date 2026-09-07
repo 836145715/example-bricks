@@ -39,7 +39,7 @@ func (g *AddCustomTools) CustomToolsAdd(filePath string) string {
 	obj.Icon = base64.StdEncoding.EncodeToString(w.Bytes())
 	obj.File = filePath
 	Config.Config.ToolsList = append(Config.Config.ToolsList, obj)
-	Config.AppList["Main"].EmitEvent("addTools", fileName, obj)
+	Config.Publish("addTools", fileName, obj)
 	Config.Config.Save()
 	return ""
 }

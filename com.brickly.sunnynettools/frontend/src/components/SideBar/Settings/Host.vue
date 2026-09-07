@@ -2,7 +2,7 @@
 import Table from "../../Tools/table.vue";
 import {Config_IsRest, ObjString} from "../../config/Config";
 import {ElMessage, ElNotification} from "element-plus";
-import {ReplaceHostList, ReplaceHostRemove, ReplaceHostUpdate} from "../../../../bindings/changeme/Service/appmain";
+import {ReplaceHostList, ReplaceHostRemove, ReplaceHostUpdate} from "../../../brickly/api.js";
 import {attachMcpConfigReload} from "../../config/mcpRulesSync.js";
 
 export default {

@@ -1,5 +1,5 @@
-import {Events} from "@wailsio/runtime";
-import {McpFuncRes} from "../../../bindings/changeme/Service/appmain.js";
+import {Events} from "../../brickly/runtime.js";
+import {McpFuncRes} from "../../brickly/api.js";
 
 /**
  * 设置页（Main 内 Settings）监听 MCP settings 刷新。

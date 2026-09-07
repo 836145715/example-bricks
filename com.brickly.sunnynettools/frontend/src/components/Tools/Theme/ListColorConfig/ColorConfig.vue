@@ -1,6 +1,6 @@
 <script>
 
-import {DefaultColor, SetListColor} from "../../../../../bindings/changeme/Service/appmain";
+import {DefaultColor, SetListColor} from "../../../../brickly/api.js";
 import {Config_IsDark} from "../../../config/Config";
 
 export default {

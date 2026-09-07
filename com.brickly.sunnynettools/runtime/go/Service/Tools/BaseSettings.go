@@ -6,7 +6,6 @@ import (
 	"os"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/qtgolang/SunnyNet/SunnyNet"
 	"github.com/qtgolang/SunnyNet/src/public"
@@ -247,7 +246,7 @@ func (b *BaseSettings) AppSetEditorFontSize(size int) {
 	} else {
 		Config.Config.EditorFontSize = size
 	}
-	Config.AppList["Main"].EmitEvent("updateEditorFontSize", Config.Config.EditorFontSize)
+	Config.Publish("updateEditorFontSize", Config.Config.EditorFontSize)
 	Config.Config.Save()
 }
 func (b *BaseSettings) GetBaseSettingsValue() (bool, bool, bool, bool, int) {
@@ -255,7 +254,7 @@ func (b *BaseSettings) GetBaseSettingsValue() (bool, bool, bool, bool, int) {
 }
 func (b *BaseSettings) ResetALLConfig() {
 	Config.Config.Reset()
-	Config.AppList["Main"].EmitEvent("onRest", true)
+	Config.Publish("onRest", true)
 	Config.Config.Tour[public.SunnyVersion] = true
 	Config.Config.Save()
 }
@@ -279,18 +278,10 @@ func (b *BaseSettings) GetKeys() string {
 }
 func (b *BaseSettings) CallKeys(id string) {
 	if id == "Boss" {
-		if !Config.AppList["Main"].IsMinimised() {
-			Config.AppList["Main"].Minimise()
-			time.Sleep(time.Millisecond * 100)
-			Config.AppList["Main"].Hide()
-		} else {
-			Config.AppList["Main"].Show()
-			time.Sleep(time.Millisecond * 100)
-			Config.AppList["Main"].UnMinimise()
-		}
+		Config.Publish("hostWindow", "toggle-minimise")
 		return
 	}
-	Config.AppList["Main"].EmitEvent("ExternalKeydownEventListener", id)
+	Config.Publish("ExternalKeydownEventListener", id)
 }
 func (b *BaseSettings) SetIsEditKeyDown(i bool) {
 	HookKeys.UpdateEditKeyDown(i)

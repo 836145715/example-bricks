@@ -6,7 +6,7 @@ import {
   LoadDevice,
   ProcessAny,
   SetDeviceStopUpdate
-} from "../../../bindings/changeme/Service/appmain";
+} from "../../brickly/api.js";
 import {ElNotification} from "element-plus";
 import MustTcp from "./Settings/MustTcp.vue";
 import Host from "./Settings/Host.vue";

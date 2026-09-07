@@ -2,7 +2,7 @@ package Service
 
 import (
 	"changeme/Service/Config"
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -19,7 +19,7 @@ import (
 
 var mcpApp *AppMain
 
-// SetMCPServer 绑定主程序实例（CreateMainWindow 时调用）。
+// SetMCPServer 绑定主程序实例（初始化时调用）。
 func SetMCPServer(app *AppMain) {
 	mcpApp = app
 }
@@ -32,11 +32,9 @@ func MCPBridgeInvoke(op string, args map[string]any) (any, error) {
 	return mcpBridgeInvoke(mcpApp, op, args)
 }
 
-func mcpBridgeInvoke(app *AppMain, op string, args map[string]any) (any, error) {
-	// 按能力分级分发：op 处理器在各 mcpops_<domain>.go 中注册，扁平 switch 已移除。
-	return dispatchMCPOp(app, op, args)
+func mcpBridgeInvoke(core MCPCore, op string, args map[string]any) (any, error) {
+	return dispatchMCPOp(core, op, args)
 }
-
 
 func argsMap(args map[string]any) map[string]any {
 	if args == nil {
@@ -215,7 +213,7 @@ func rowIDToTheology(rowID string) int {
 	return n
 }
 
-func bridgeGetStatus(app *AppMain) map[string]any {
+func bridgeGetStatus(app MCPCore) map[string]any {
 	running := app.GetError() == "" && app.GetPort() > 0
 	return map[string]any{
 		"sunnyRunning":       running,
@@ -232,7 +230,7 @@ func bridgeMainCount() int {
 	return len(collectMainTheologies())
 }
 
-func bridgeBreakContinue(app *AppMain, m map[string]any, skipToResponse bool) any {
+func bridgeBreakContinue(app MCPCore, m map[string]any, skipToResponse bool) any {
 	ids, err := argTheologyList(m)
 	if err != nil {
 		return map[string]any{"ok": false, "error": err.Error()}
@@ -335,7 +333,7 @@ func argBreakContinue(m map[string]any) bool {
 	return false
 }
 
-func bridgeBreakSyncRequest(app *AppMain, m map[string]any) (any, error) {
+func bridgeBreakSyncRequest(app MCPCore, m map[string]any) (any, error) {
 	ids, err := argTheologyList(m)
 	if err != nil {
 		return nil, err
@@ -394,7 +392,7 @@ func bridgeBreakSyncRequest(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "count": len(ids), "continued": cont, "listUpdated": listUpdated}, nil
 }
 
-func bridgeBreakSyncResponse(app *AppMain, m map[string]any) (any, error) {
+func bridgeBreakSyncResponse(app MCPCore, m map[string]any) (any, error) {
 	ids, err := argTheologyList(m)
 	if err != nil {
 		return nil, err
@@ -453,7 +451,7 @@ func bridgeBreakSyncResponse(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "count": len(ids), "continued": cont, "listUpdated": listUpdated}, nil
 }
 
-func bridgeHTTPReplay(app *AppMain, m map[string]any) (any, error) {
+func bridgeHTTPReplay(app MCPCore, m map[string]any) (any, error) {
 	ids, err := argTheologyList(m)
 	if err != nil {
 		return nil, err
@@ -563,7 +561,7 @@ func bridgeSessionGetJSON(m map[string]any) (any, error) {
 	return map[string]any{"items": items}, nil
 }
 
-func bridgePbToJSON(app *AppMain, m map[string]any) (any, error) {
+func bridgePbToJSON(app MCPCore, m map[string]any) (any, error) {
 	dataB64 := argString(m, "dataB64")
 	if dataB64 == "" {
 		return nil, errors.New("dataB64 必填")
@@ -651,7 +649,7 @@ func bridgeMainCells(m map[string]any) any {
 	return map[string]any{"items": items}
 }
 
-func bridgeMainDeleteExcept(app *AppMain, m map[string]any) (any, error) {
+func bridgeMainDeleteExcept(app MCPCore, m map[string]any) (any, error) {
 	keep, err := argTheologyList(m)
 	if err != nil {
 		keep = nil
@@ -706,7 +704,7 @@ func bridgeMainApplyRowMark(m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "count": len(ids)}, nil
 }
 
-func bridgeStreamSend(app *AppMain, m map[string]any) (any, error) {
+func bridgeStreamSend(app MCPCore, m map[string]any) (any, error) {
 	th, err := argTheologyOne(m)
 	if err != nil {
 		return nil, err

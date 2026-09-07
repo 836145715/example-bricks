@@ -13,12 +13,12 @@
 <script>
 
 
-import {CancelIEProxy, GOOS, McpFuncRes, SetIEProxy} from "../../../../bindings/changeme/Service/appmain.js";
+import {CancelIEProxy, GOOS, McpFuncRes, SetIEProxy} from "../../../brickly/api.js";
 import {Keys_System_id_Cancel_IE_Agent, registerHotkeyFunction} from "../../config/Keys";
 import {ElMessage, ElNotification} from "element-plus";
 import {Config_GOOS_IsWindows, registerThisObject} from "../../config/Config";
 import {Tour_Add} from "../Tour";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 
 export default {
   data() {

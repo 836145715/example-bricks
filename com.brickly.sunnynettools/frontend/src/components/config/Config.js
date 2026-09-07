@@ -7,7 +7,7 @@ import {
     GOOS,
     IsDark,
     SetIsDark
-} from "../../../bindings/changeme/Service/appmain.js";
+} from "../../brickly/api.js";
 import {themeQuartz} from "ag-grid-community";
 
 export let mousemoveMouseX = 0;

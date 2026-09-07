@@ -14,12 +14,12 @@ import {
   ClearAllSession,
   FreeAllRequest,
   McpFuncRes
-} from "../../../../bindings/changeme/Service/appmain.js";
+} from "../../../brickly/api.js";
 import {Keys_System_id_ALL_Release, Keys_System_id_Keys_Clear_Al, registerHotkeyFunction} from "../../config/Keys";
 import WayContent from "./WayContent.vue";
 import OpenSourceProtocol from "./OpenSourceProtocol.vue";
 import OpenSource from "./OpenSource.vue";
-import {Events, Window} from "@wailsio/runtime";
+import {Events, Window} from "../../../brickly/runtime.js";
 
 export default {
   components: {
@@ -80,6 +80,12 @@ export default {
           reply("处理失败");
         } catch (_) {
         }
+      }
+    });
+    Events.On("hostWindow", (obj) => {
+      const action = Array.isArray(obj.data) ? obj.data[0] : obj.data;
+      if (action === "toggle-minimise") {
+        Window.Minimise();
       }
     });
   }

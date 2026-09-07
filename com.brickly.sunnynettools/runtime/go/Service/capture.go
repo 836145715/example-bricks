@@ -1,140 +1,37 @@
 package Service
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"reflect"
 	"strings"
-	"sync"
 
 	"changeme/Service/Config"
-	"changeme/Service/Session"
+	"changeme/internal/capture"
+	"changeme/internal/session"
+
+	"github.com/qtgolang/SunnyNet/src/public"
 )
 
-// 数据面（Phase 1）：Go 为唯一数据源。
-// captureIndex 维护插入序的 Theology 索引；captureSummary 按需派生行摘要；
-// captureHub 管理前端 capture-stream interact 会话，只广播轻量增量。
-
-// ---- 有序索引 ----
-
-var (
-	captureMu    sync.RWMutex
-	captureOrder []int
-	capturePos   = make(map[int]int)
-	// 过滤视图：ListSearch 结果集（nil = 不过滤）
-	captureFilterSet map[int]bool
-)
-
-func captureAppend(theology int) {
-	captureMu.Lock()
-	defer captureMu.Unlock()
-	if _, ok := capturePos[theology]; ok {
-		return
-	}
-	captureOrder = append(captureOrder, theology)
-	capturePos[theology] = len(captureOrder) - 1
-}
-
-func captureRemove(theology int) {
-	captureMu.Lock()
-	pos, ok := capturePos[theology]
-	if !ok {
-		captureMu.Unlock()
-		return
-	}
-	captureOrder = append(captureOrder[:pos], captureOrder[pos+1:]...)
-	delete(capturePos, theology)
-	for i := pos; i < len(captureOrder); i++ {
-		capturePos[captureOrder[i]] = i
-	}
-	captureMu.Unlock()
-	captureClearFlags(theology)
-}
-
-func captureClearIndex() {
-	captureMu.Lock()
-	captureOrder = captureOrder[:0]
-	capturePos = make(map[int]int)
-	captureMu.Unlock()
-	captureClearAllFlags()
-}
-
-func captureSlice(offset, limit int) []int {
-	captureMu.RLock()
-	defer captureMu.RUnlock()
-	if offset < 0 {
-		offset = 0
-	}
-	if offset >= len(captureOrder) {
-		return nil
-	}
-	end := offset + limit
-	if end > len(captureOrder) {
-		end = len(captureOrder)
-	}
-	out := make([]int, end-offset)
-	copy(out, captureOrder[offset:end])
-	return out
-}
-
-// captureAppendBatch 批量追加（Types.go insert 冲刷时调用）。
-func captureAppendBatch(theologies []int) {
-	if len(theologies) == 0 {
-		return
-	}
-	captureMu.Lock()
-	for _, t := range theologies {
-		if _, ok := capturePos[t]; ok {
-			continue
-		}
-		captureOrder = append(captureOrder, t)
-		capturePos[t] = len(captureOrder) - 1
-	}
-	captureMu.Unlock()
-}
-
-type captureRowFlags struct {
-	BreakMode        uint32
-	GuaranteeDisplay bool
-}
-
-var captureFlags sync.Map // theology int -> captureRowFlags
-
+func captureAppend(theology int)   { capture.Append(theology) }
+func captureRemove(theology int)   { capture.Remove(theology) }
+func captureClearIndex()           { capture.ClearIndex() }
+func captureAppendBatch(ids []int) { capture.AppendBatch(ids) }
 func captureSetFlags(theology int, breakMode uint32, guarantee bool) {
-	captureFlags.Store(theology, captureRowFlags{BreakMode: breakMode, GuaranteeDisplay: guarantee})
+	capture.SetFlags(theology, breakMode, guarantee)
 }
-
 func captureMergeBreakMode(theology int, breakMode uint32) {
-	prev := captureGetFlags(theology)
-	prev.BreakMode = breakMode
-	captureFlags.Store(theology, prev)
+	capture.MergeBreakMode(theology, breakMode)
 }
-
-func captureGetFlags(theology int) captureRowFlags {
-	if v, ok := captureFlags.Load(theology); ok {
-		if flags, ok := v.(captureRowFlags); ok {
-			return flags
-		}
-	}
-	return captureRowFlags{}
+func captureGetFlags(theology int) capture.RowFlags { return capture.GetFlags(theology) }
+func captureClearFlags(theology int)                { capture.ClearFlags(theology) }
+func captureClearAllFlags()                         { capture.ClearAllFlags() }
+func captureBroadcast(event map[string]any)         { capture.Broadcast(event) }
+func captureBroadcastTheologies(eventType string, ids []int) {
+	capture.BroadcastIDs(eventType, ids)
 }
-
-func captureClearFlags(theology int) {
-	captureFlags.Delete(theology)
-}
-
-func captureClearAllFlags() {
-	captureFlags.Range(func(key, _ any) bool {
-		captureFlags.Delete(key)
-		return true
-	})
-}
-
-func captureHasSubscribers() bool {
-	captureHubMu.RLock()
-	defer captureHubMu.RUnlock()
-	return len(captureStreams) > 0
+func captureFilteredTotal() int { return capture.FilteredTotal() }
+func captureFilteredSlice(offset, limit int) []int {
+	return capture.FilteredSlice(offset, limit)
 }
 
 // ---- 行摘要（原前端 insertArray/updateDone 的字段映射下沉） ----
@@ -200,7 +97,9 @@ func CaptureSummary(theology int) (map[string]any, bool) {
 			host, path, params = u.Host, u.Path, u.Query().Encode()
 		}
 		status := s.Response.Code
-		if strings.TrimSpace(status) == "" {
+		if s.State == public.HttpRequestFail {
+			status = "错误"
+		} else if strings.TrimSpace(status) == "" {
 			status = "  -  "
 		}
 		row["方式"] = method
@@ -280,41 +179,8 @@ func CaptureSummaries(theologies []int) []map[string]any {
 	return rows
 }
 
-// ---- capture-stream 会话中心 ----
-
-type captureSession struct {
-	send func(any) error
-}
-
-var (
-	captureHubMu   sync.RWMutex
-	captureStreams = make(map[int]*captureSession)
-	captureSeq     int
-)
-
-func captureBroadcast(event map[string]any) {
-	captureHubMu.RLock()
-	sends := make([]func(any) error, 0, len(captureStreams))
-	for _, s := range captureStreams {
-		sends = append(sends, s.send)
-	}
-	captureHubMu.RUnlock()
-	for _, send := range sends {
-		_ = send(event)
-	}
-}
-
-func captureBroadcastTheologies(eventType string, theologies []int) {
-	if len(theologies) == 0 {
-		return
-	}
-	captureBroadcast(map[string]any{"type": eventType, "ids": theologies})
-}
-
 func captureSendSnapshot(send func(any) error) {
-	captureMu.RLock()
-	ids := append([]int(nil), captureOrder...)
-	captureMu.RUnlock()
+	ids := capture.Order()
 	if len(ids) == 0 {
 		return
 	}
@@ -332,161 +198,24 @@ func captureSendSnapshot(send func(any) error) {
 	}
 }
 
-// captureStreamRegister 注册一个 interact 会话，返回注销函数。
 func captureStreamRegister(send func(any) error) (func(), func(event any)) {
-	captureHubMu.Lock()
-	captureSeq++
-	id := captureSeq
-	s := &captureSession{send: send}
-	captureStreams[id] = s
-	captureHubMu.Unlock()
-	return func() {
-		captureHubMu.Lock()
-		delete(captureStreams, id)
-		captureHubMu.Unlock()
-	}, nil
+	return capture.Register(send), nil
 }
 
-// ---- 过滤视图（复用 ListSearch 的 AG 过滤模型） ----
-
-// CaptureApplyFilter 应用主列表过滤模型，返回过滤后的总数。
 func (g *AppMain) CaptureApplyFilter(filterJSON string) int {
 	ids := g.ListSearch(filterJSON)
-	captureMu.Lock()
-	captureFilterSet = make(map[int]bool, len(ids))
-	for _, id := range ids {
-		captureFilterSet[id] = true
-	}
-	total := len(ids)
-	captureMu.Unlock()
-	return total
+	capture.SetFilter(ids)
+	return len(ids)
 }
 
-// CaptureClearFilter 清除过滤视图。
 func (g *AppMain) CaptureClearFilter() int {
-	captureMu.Lock()
-	captureFilterSet = nil
-	total := len(captureOrder)
-	captureMu.Unlock()
-	return total
+	return capture.ClearFilter()
 }
 
-func captureFilteredTotal() int {
-	captureMu.RLock()
-	defer captureMu.RUnlock()
-	if captureFilterSet == nil {
-		return len(captureOrder)
-	}
-	n := 0
-	for _, t := range captureOrder {
-		if captureFilterSet[t] {
-			n++
-		}
-	}
-	return n
-}
-
-func captureFilteredSlice(offset, limit int) []int {
-	captureMu.RLock()
-	defer captureMu.RUnlock()
-	out := make([]int, 0, limit)
-	n := 0
-	for _, t := range captureOrder {
-		if captureFilterSet != nil && !captureFilterSet[t] {
-			continue
-		}
-		if n >= offset && len(out) < limit {
-			out = append(out, t)
-		}
-		n++
-		if len(out) >= limit {
-			break
-		}
-	}
-	return out
-}
-
-// captureBroadcastRows 广播行摘要级增量（capture-stream 会话）。
 func captureBroadcastRows(eventType string, theologies []int) {
-	if len(theologies) == 0 {
+	if len(theologies) == 0 || !capture.HasSubscribers() {
 		return
 	}
-	captureHubMu.RLock()
-	if len(captureStreams) == 0 {
-		captureHubMu.RUnlock()
-		return
-	}
-	captureHubMu.RUnlock()
 	rows := CaptureSummaries(theologies)
-	captureBroadcast(map[string]any{"type": eventType, "rows": rows})
-}
-
-// InvokeMethod 供控制会话分发：与 Wails 绑定同名的反射调用。
-func (g *AppMain) InvokeMethod(methodName string, args []json.RawMessage) (result any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("method %s panic: %v", methodName, r)
-		}
-	}()
-	return g.invokeMethodInner(methodName, args)
-}
-
-var _errorType = reflect.TypeOf((*error)(nil)).Elem()
-
-func isErrorType(t reflect.Type) bool { return t.Implements(_errorType) }
-
-func asError(v reflect.Value) (error, bool) {
-	if !v.IsValid() || !v.Type().Implements(_errorType) {
-		return nil, false
-	}
-	e, _ := v.Interface().(error)
-	return e, true
-}
-
-// invokeMethodInner 反射实现（从 main.go 迁移）。
-func (g *AppMain) invokeMethodInner(methodName string, reqArgs []json.RawMessage) (any, error) {
-	m := reflect.ValueOf(g).MethodByName(methodName)
-	if !m.IsValid() {
-		return nil, fmt.Errorf("method not found: %s", methodName)
-	}
-	t := m.Type()
-	in := make([]reflect.Value, 0, t.NumIn())
-	for i := 0; i < t.NumIn(); i++ {
-		pt := t.In(i)
-		var raw json.RawMessage = []byte("null")
-		if i < len(reqArgs) {
-			raw = reqArgs[i]
-		}
-		pv := reflect.New(pt)
-		if err := json.Unmarshal(raw, pv.Interface()); err != nil {
-			return nil, fmt.Errorf("arg %d for %s: %v", i, methodName, err)
-		}
-		in = append(in, pv.Elem())
-	}
-	out := m.Call(in)
-	var result any
-	switch len(out) {
-	case 0:
-		result = nil
-	case 1:
-		if e, ok := asError(out[0]); ok && e != nil {
-			return nil, e
-		}
-		result = out[0].Interface()
-	default:
-		last := out[len(out)-1]
-		if e, ok := asError(last); ok && e != nil {
-			return nil, e
-		}
-		values := out
-		if isErrorType(last.Type()) {
-			values = out[:len(out)-1]
-		}
-		arr := make([]any, 0, len(values))
-		for _, v := range values {
-			arr = append(arr, v.Interface())
-		}
-		result = arr
-	}
-	return result, nil
+	capture.Broadcast(map[string]any{"type": eventType, "rows": rows})
 }

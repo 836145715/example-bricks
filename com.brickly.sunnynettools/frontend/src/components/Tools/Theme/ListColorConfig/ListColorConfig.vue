@@ -18,8 +18,8 @@ import {AgGridVue} from "ag-grid-vue3";
 import {ExcelExportModule} from '@ag-grid-enterprise/excel-export';
 import ColorConfigRenderer from './ColorConfig.vue';
 import {Config_IsDark} from "../../../config/Config";
-import {GetListColor} from "../../../../../bindings/changeme/Service/appmain";
-import {Events} from "@wailsio/runtime";
+import {GetListColor} from "../../../../brickly/api.js";
+import {Events} from "../../../../brickly/runtime.js";
 
 export default {
   props: ['readOnly', "theme"],

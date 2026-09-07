@@ -237,11 +237,12 @@ import {
   GetHTTPRequestBody,
   GetHTTPResponseBody,
   GetHTTPSession,
-  GetLocalServerPATH,
   GetSessionMessageBody,
   GetSocketFilter, McpFuncRes, ProtobufToJson,
-  SetRequestNextBreakMode
-} from "../../../../../bindings/changeme/Service/appmain.js";
+  SetRequestNextBreakMode,
+  UpdateHttpRequest,
+  UpdateHttpResponse
+} from "../../../../brickly/api.js";
 import Table from "../../../Tools/table.vue"
 import JavaScriptEdit from "../tool/Raw.vue"
 import {
@@ -373,6 +374,8 @@ export default {
       ResponseCodeStateStyle: "warning",
       ResponseHTMLValue: "",
       noResponse: true,
+      loadSeq: 0,
+      Stream: null,
       Show: {
         bakSize: "",
         RequestMax: false,
@@ -383,6 +386,12 @@ export default {
     };
   },
   methods: {
+    isLoadCurrent(seq, theology) {
+      return seq === this.loadSeq
+        && this.Stream != null
+        && parseInt(this.Stream.Theology) === theology
+        && parseInt(this.SelectedRow?.Theology ?? "0") === theology
+    },
     CalculationResponseRangeStyle() {
       this.$nextTick(() => {
         let too = 0;
@@ -562,6 +571,8 @@ export default {
       });
     },
     async initValueFull() {
+      const seq = this.loadSeq
+      const theology = parseInt(this.SelectedRow?.Theology ?? "0")
       {
         if (this.SelectedRow.Theology === undefined) {
           return
@@ -573,12 +584,15 @@ export default {
         this.Errors.isError = false
       }
       this.Errors.value = "完整数据正在加载中..."
+      let pendingError = ""
       if (this.Stream.State === 3) {
-        this.Errors.isError = true
-        this.Errors.value = ErrorReplace(this.Stream.Error);
+        pendingError = ErrorReplace(this.Stream.Error);
         this.$refs.splitA1.style.height = "50%";
       }
       const RequestBody = await asBodyBytes(await GetHTTPRequestBody(this.Stream.Theology, true))
+      if (!this.isLoadCurrent(seq, theology)) {
+        return
+      }
       this.Stream.Request.Body = bytesToBase64(RequestBody)
       const RequestHeader = toHeaderArray(this.Stream.Request.Header)
       let language = headerArrayToLanguage(RequestHeader)
@@ -606,10 +620,17 @@ export default {
           this.Tabs[0].Show = true;
           this.Tabs[4].Show = true;
         }
+        if (pendingError) {
+          this.Errors.isError = true
+          this.Errors.value = pendingError
+        }
         //协议头视图
         {
           this.$refs.RequestHeader.Empty()
           await this.$refs.RequestHeader.AddLines(RequestHeader)
+          if (!this.isLoadCurrent(seq, theology)) {
+            return
+          }
           this.Tabs[1].Show = true;
         }
         //参数视图
@@ -683,6 +704,9 @@ export default {
         }
 
         const ResponseBody = await asBodyBytes(await GetHTTPResponseBody(this.Stream.Theology, true))
+        if (!this.isLoadCurrent(seq, theology)) {
+          return
+        }
         this.Stream.Response.Body = bytesToBase64(ResponseBody)
         const ResponseHeader = toHeaderArray(this.Stream.Response.Header)
         let ResponseLanguage = headerArrayToLanguage(ResponseHeader)
@@ -779,6 +803,8 @@ export default {
       }
     },
     async initValueFunc() {
+      const seq = this.loadSeq
+      const theology = parseInt(this.SelectedRow?.Theology ?? "0")
       {
         if (this.SelectedRow.Theology === undefined) {
           return
@@ -789,15 +815,25 @@ export default {
         this.noResponse = true;
         this.Errors.isError = false
       }
+      let pendingError = ""
       if (this.Stream.State === 1) {
         this.Errors.value = "请求正在发送中..."
       }
       if (this.Stream.State === 3) {
-        this.Errors.isError = true
-        this.Errors.value = ErrorReplace(this.Stream.Error);
+        pendingError = ErrorReplace(this.Stream.Error);
         this.$refs.splitA1.style.height = "50%";
       }
+      try {
+        this.$refs.RequestHeader?.Empty?.()
+        this.$refs.RequestUrlArgs?.Empty?.()
+        this.$refs.RequestRaw?.SetCode?.(StringToBytes(""))
+        this.$refs.RequestHex?.SetCode?.(StringToBytes(""))
+      } catch (e) {
+      }
       const RequestBody = await asBodyBytes(await GetHTTPRequestBody(this.Stream.Theology, false))
+      if (!this.isLoadCurrent(seq, theology)) {
+        return
+      }
       this.Stream.Request.Body = bytesToBase64(RequestBody)
       const RequestHeader = toHeaderArray(this.Stream.Request.Header)
       let language = headerArrayToLanguage(RequestHeader)
@@ -832,6 +868,10 @@ export default {
           this.$refs.RequestHex.SetCode(bs)
           this.Tabs[0].Show = true;
           this.Tabs[4].Show = true;
+        }
+        if (pendingError) {
+          this.Errors.isError = true
+          this.Errors.value = pendingError
         }
         //协议头视图
         {
@@ -925,10 +965,13 @@ export default {
       }
       //响应
       {
-        if (this.Stream.Ico === "上行" || this.Stream.Ico === "拦截上行") {
+        if (pendingError || this.Stream.Ico === "上行" || this.Stream.Ico === "拦截上行") {
           return
         }
         const ResponseBody = await asBodyBytes(await GetHTTPResponseBody(this.Stream.Theology, false))
+        if (!this.isLoadCurrent(seq, theology)) {
+          return
+        }
         this.Stream.Response.Body = bytesToBase64(ResponseBody)
         const ResponseHeader = toHeaderArray(this.Stream.Response.Header)
         let ResponseLanguage = headerArrayToLanguage(ResponseHeader)
@@ -1240,20 +1283,10 @@ export default {
       }
     },
     async applyRequest(Theology) {
-      const path = await GetLocalServerPATH();
-      const formData = JSON.stringify(this.Stream.Request);
-      return await fetch(path + '/UpdateHttpRequest?Theology=' + Theology, {
-        method: 'POST',
-        body: formData
-      })
+      return UpdateHttpRequest(Theology, this.Stream.Request);
     },
     async applyResponse(Theology) {
-      const path = await GetLocalServerPATH();
-      const formData = JSON.stringify(this.Stream.Response);
-      return await fetch(path + '/UpdateHttpResponse?Theology=' + Theology, {
-        method: 'POST',
-        body: formData
-      })
+      return UpdateHttpResponse(Theology, this.Stream.Response);
     },
     free(lodRow) {
       this.Tabs.forEach((obj) => {
@@ -1271,6 +1304,8 @@ export default {
   watch: {
     "SelectedRow"(newValue, lodRow) {
       this.free(lodRow);
+      this.loadSeq++
+      const seq = this.loadSeq
       const _SelectedTheology = parseInt(newValue?.Theology ?? "0");
       if (_SelectedTheology === 0) {
         this.Stream = null;
@@ -1281,10 +1316,20 @@ export default {
         return
       }
       this.Errors.isError = false
+      this.Errors.value = "正在加载..."
       this.$refs.RequestWebSocket.Empty()
       GetSocketFilter(_SelectedTheology).then((Model) => {
+        if (seq !== this.loadSeq) {
+          return
+        }
         this.$refs.RequestWebSocket.$refs.Filter.setFilter(Model)
         GetHTTPSession(_SelectedTheology).then((res) => {
+          if (seq !== this.loadSeq) {
+            return
+          }
+          if (!res || parseInt(res.Theology) !== _SelectedTheology) {
+            return
+          }
           this.Tabs.forEach((obj) => {
             switch (obj.name) {
               case "WebSocket":
@@ -1315,8 +1360,11 @@ export default {
             this.$refs.RequestWebSocket.Empty()
             this.Tabs[7].Show = this.isWebsocketMessage();
             if (this.Tabs[7].Show) {
-              GetAllStream(parseInt(this.SelectedRow.Theology)).then((res) => {
-                this.$refs.RequestWebSocket.InsertSocketStream(res, true)
+              GetAllStream(parseInt(this.SelectedRow.Theology)).then((wsRes) => {
+                if (seq !== this.loadSeq) {
+                  return
+                }
+                this.$refs.RequestWebSocket.InsertSocketStream(wsRes, true)
               });
             }
           }

@@ -2,7 +2,7 @@ package Service
 
 import (
 	. "changeme/Service/Config"
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	"changeme/Service/clipboard"
 	"changeme/Service/update"
 	"encoding/base64"
@@ -62,9 +62,6 @@ func (g *AppMain) GetHTTPSession(Theology int) *Session.HttpSession {
 
 		req.Response.BodyLength = len(req.Response.Body)
 		req.Response.IsMaxLength = req.Response.BodyLength > MaxBodyLength
-		if g.IsGetSelectRequest() {
-			go g.SetSelectRequest(req)
-		}
 	}
 	SetCurrentTheology(Theology)
 	lock.Unlock()
@@ -278,9 +275,7 @@ func (g *AppMain) queueHttpRequestRowUpdate(obj *Session.HttpSession) {
 // emitHttpRequestRowUpdate 立即通知主窗口刷新请求行（不依赖批处理轮询）。
 func (g *AppMain) emitHttpRequestRowUpdate(row httpUpdateSend) {
 	captureMergeBreakMode(row.Theology, row.BreakMode)
-	if AppList["Main"] != nil {
-		AppList["Main"].EmitEvent("updateSendHTTP", []httpUpdateSend{row})
-	}
+	captureBroadcastRows("update", []int{row.Theology})
 	emitMCPMainJSON("rowupdatesend", map[string]any{
 		"theology":  row.Theology,
 		"url":       row.URL,

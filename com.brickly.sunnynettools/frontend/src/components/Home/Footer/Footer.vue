@@ -41,7 +41,7 @@ import McpStatus from "./McpStatus.vue";
 import HookState from "./HomeState.vue";
 import HookState2 from "./HomeState2.vue";
 import {Config_IsDark, Config_IsShowExportProgress, Config_Status_Info} from "../../config/Config.js";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 
 export default {
   props: ["isHideHook"],

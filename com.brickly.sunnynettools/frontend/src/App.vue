@@ -1,8 +1,9 @@
 <script>
 import Home from "./components/Main.vue";
+import ToolModalHost from "./components/Tools/ToolModalHost.vue";
 
 export default {
-  components: {Home},
+  components: {Home, ToolModalHost},
   data() {
     return {
       IsDark: true,
@@ -17,6 +18,7 @@ export default {
 <template>
   <div class="fullscreen-div" ref="app">
     <Home style="width: 100%;height: 100%"/>
+    <ToolModalHost/>
   </div>
 </template>
 

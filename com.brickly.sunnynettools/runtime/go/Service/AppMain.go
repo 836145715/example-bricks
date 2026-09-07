@@ -2,23 +2,24 @@ package Service
 
 import (
 	"changeme/Service/Config"
-	"changeme/Service/Session"
 	"changeme/Service/Tools"
-	"changeme/Service/Tools/DebugTools"
 	"changeme/Service/clipboard"
 	"changeme/Service/mcp"
 	"changeme/Welcome"
+	"changeme/internal/core"
+	"changeme/internal/engine"
+	"changeme/internal/session"
 	"fmt"
 	"runtime"
 	"time"
 
 	"github.com/qtgolang/SunnyNet/Api"
 	"github.com/qtgolang/SunnyNet/SunnyNet"
-	"github.com/qtgolang/SunnyNet/src/http"
 )
 
 type AppMain struct {
-	app *SunnyNet.Sunny
+	Core *core.Core
+	app  *SunnyNet.Sunny
 	Tools.ReplaceBody
 	Tools.RequestCert
 	Tools.ProxyWay
@@ -28,16 +29,18 @@ type AppMain struct {
 	Tools.Device
 	Tools.ScriptLog
 	Tools.AddCustomTools
-	DebugTools.DebugTools
 }
 
 func NewAppServer() *AppMain {
-	A := newAppMain(SunnyNet.NewSunny())
-	A.app.SetGoCallback(A.httpCallback, A.tcpCallback, A.wsCallback, A.udpCallback)
-	//A.app.SetGoCallback(nil, nil, nil, A.udpCallback)
-	//A.app.SetMustTcpRegexp("124.222.224.186:8800;*.qq.com;*.baidu.com", false)
-	//A.app.MustTcp(true)
-	//fmt.Println(A.app.OpenDrive(true))
+	c := core.New()
+	A := newAppMain(c.Engine.Sunny())
+	A.Core = c
+	A.Core.Engine.SetCallbacks(engine.Callbacks{
+		HTTP: A.httpCallback,
+		TCP:  A.tcpCallback,
+		WS:   A.wsCallback,
+		UDP:  A.udpCallback,
+	})
 	return A
 }
 
@@ -76,10 +79,7 @@ func (g *AppMain) Start() {
 	}()
 	g.app.Start()
 	if runtime.GOOS == "windows" {
-		go func() {
-			Config.AppList["Main"].Show()
-			Welcome.Stop()
-		}()
+		go Welcome.Stop()
 	}
 	g.IsStart = g.app.Error == nil
 }
@@ -103,85 +103,7 @@ func (g *AppMain) CallTools(name string, open bool, args string) {
 			fmt.Println("CallTools panic:", err)
 		}
 	}()
-
-	lock.Lock()
-	defer lock.Unlock()
-
-	getOrCreateWindow := func(windowName string, createFunc func()) *Config.AppWindow {
-		obj := Config.AppList[windowName]
-		if obj == nil && open && createFunc != nil {
-			createFunc()
-			obj = Config.AppList[windowName]
-		}
-		return obj
-	}
-
-	var obj *Config.AppWindow
-
-	switch name {
-	case "Cert":
-		obj = getOrCreateWindow(name, CreateCertWindow)
-	case "ReplaceBody":
-		obj = getOrCreateWindow(name, CreateReplaceWindow)
-	case "主题调色":
-		obj = getOrCreateWindow(name, CreateThemeWindow)
-	case "调试工具":
-		obj = getOrCreateWindow(name, CreateDebugWindow)
-	case "证书安装", "脚本代码", "代码生成", "文本对比", "MCP能力描述":
-		// 特殊处理，复用 "其他窗口"
-		obj = getOrCreateWindow("其他窗口", CreateOtherWindow)
-	default:
-		obj = Config.AppList[name]
-		if obj == nil {
-			panic("未找到指定窗口名称: " + name)
-		}
-	}
-
-	if obj == nil {
-		fmt.Println("未找到窗口:", name)
-		return
-	}
-
-	if !open {
-		if host := lookupToolWindow(windowKey(name)); host != nil {
-			_ = host.Hide()
-		}
-		obj.Hide()
-		return
-	}
-
-	if url := toolWindowURL(windowKey(name)); url != "" && CreateToolWindow != nil {
-		host, err := ensureToolWindow(windowKey(name), url)
-		if err == nil && host != nil {
-			_ = host.Center()
-			_ = host.Show()
-			_ = host.SetAlwaysOnTop(true)
-			go func() {
-				time.Sleep(time.Second)
-				_ = host.SetAlwaysOnTop(false)
-			}()
-			if name == "代码生成" || name == "证书安装" || name == "脚本代码" || name == "文本对比" || name == "MCP能力描述" {
-				_ = host.SetTitle(name)
-				obj.EmitEvent("LoadUrl", name, args)
-			}
-			return
-		}
-	}
-
-	if !obj.IsVisible() {
-		obj.Hide()
-	}
-	obj.Center()
-	obj.Show()
-	obj.SetAlwaysOnTop(true)
-	go func() {
-		time.Sleep(time.Second)
-		obj.SetAlwaysOnTop(false)
-	}()
-	if name == "代码生成" || name == "证书安装" || name == "脚本代码" || name == "文本对比" || name == "MCP能力描述" {
-		obj.SetTitle(name)
-		obj.EmitEvent("LoadUrl", name, args)
-	}
+	Config.Publish("__tool", name, open, args)
 }
 
 func (g *AppMain) GoGetHex(data []byte) string {
@@ -200,7 +122,6 @@ func (g *AppMain) GetAllStream(Theology int) []Session.UpdateSocketStream {
 			panic(err)
 		}
 	}()
-	g.AppStartInsert()
 	var array []Session.UpdateSocketStream
 	{
 		stream := Session.GetAppSession(Theology)
@@ -236,71 +157,4 @@ func (g *AppMain) ProtobufToJson(aa []byte, skip int) string {
 		return ""
 	}
 	return Api.PbToJson(aa[skip:])
-}
-
-// AppGenerateCode 生成代码
-func (g *AppMain) AppGenerateCode(Theology int, Language, Module string) string {
-	obj := Session.GetAppSession(Theology)
-	if obj == nil {
-		return "没有找到这个请求"
-	}
-	e := Session.CreateRequestCode(obj, Language, Module)
-	if e != nil {
-		return e.Error()
-	}
-	return ""
-}
-
-// AppSaveGenerateCodeInterface 保存生成代码接口
-func (g *AppMain) AppSaveGenerateCodeInterface(code string) {
-	Config.Config.GenerateCodeInterface = code
-	Config.Config.InitCodeTemplate()
-	Config.AppList["Main"].EmitEvent("GenerateCodeInterface", Config.Config.GenerateCodeInterface)
-	Config.Config.Save()
-}
-
-// AppGetGenerateCodeInterface 保存生成代码接口
-func (g *AppMain) AppGetGenerateCodeInterface() string {
-	Config.Config.InitCodeTemplate()
-	return Config.Config.GenerateCodeInterface
-}
-
-// AppGenerateCodeInterface 生成代码接口
-func (g *AppMain) AppGenerateCodeInterface(Theology int) GenerateCodeInterface {
-	obj := Session.GetAppSession(Theology)
-	var e GenerateCodeInterface
-	if obj == nil {
-		return e
-	}
-	if obj.IsWebsocket() || obj.IsTCP() {
-		path, _ := Session.ExportMessage(obj)
-		e.Path = path
-	}
-	if obj.IsHTTP() {
-		H, OK := obj.(*Session.HttpSession)
-		if OK {
-			e.URL = H.Request.Url
-			e.Header = H.Request.Header
-			e.IP = H.Response.ServerIP
-			e.Method = H.Request.Method
-			e.Body = H.Request.Body
-		}
-	}
-	if obj.IsTCP() {
-		T, OK := obj.(*Session.TCPSession)
-		if OK {
-			e.IP = T.RemoteAddress
-			e.URL = T.Host
-		}
-	}
-	return e
-}
-
-type GenerateCodeInterface struct {
-	Path   string
-	URL    string
-	Header http.Header
-	IP     string
-	Method string
-	Body   []byte
 }

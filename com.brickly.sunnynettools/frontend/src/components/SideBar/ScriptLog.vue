@@ -2,9 +2,9 @@
 
 import {Config_MonacoEditorTheme, Config_SunnyNetIsStart} from "../config/Config";
 import * as monaco from "monaco-editor";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../brickly/runtime.js";
 import {ElNotification} from "element-plus";
-import {GetPort} from "../../../bindings/changeme/Service/appmain";
+import {GetPort} from "../../brickly/api.js";
 import {OpenTools} from "../CallbackEventsOn";
 import {addMonacoEditorFontSize, RemoveMonacoEditorMenu} from "../config/editorContextMenu";
 

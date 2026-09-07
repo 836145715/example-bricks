@@ -1,8 +1,7 @@
 package Service
 
 import (
-	"changeme/Service/Config"
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	"fmt"
 	"github.com/qtgolang/SunnyNet/SunnyNet"
 	"runtime"
@@ -165,14 +164,6 @@ func UpdateIco(Conn SunnyNet.ConnHTTP, _ContentType string) string {
 
 var insertLock int32
 
-func (g *AppMain) AppInsertDone() {
-	atomic.StoreInt32(&insertLock, 0)
-}
-func (g *AppMain) AppStartInsert() {
-	for !atomic.CompareAndSwapInt32(&insertLock, 0, 1) {
-		runtime.Gosched()
-	}
-}
 func parseTime(t string) (time.Time, error) {
 	// 将 "05-45-18:746" 转为 "05:45:18.746"
 	t = strings.Replace(t, ":", ".", 1)
@@ -219,15 +210,13 @@ func init() {
 				if len(updateSocketStreamList) > batchSize {
 					batch = updateSocketStreamList[:batchSize]
 					updateSocketStreamList = updateSocketStreamList[batchSize:]
-					Config.AppList["Main"].EmitEvent("updateSocketStreamList", batch, false)
 				} else {
 					updateSocketStreamList = make([]Session.UpdateSocketStream, 0)
-					Config.AppList["Main"].EmitEvent("updateSocketStreamList", batch, true)
 				}
+				captureBroadcast(map[string]any{"type": "socket_stream", "rows": batch})
 			}
 			lock.Unlock()
-			// 插入回压不再等 control-stream 的 AppInsertDone。
-			// 有 capture-stream 订阅时若卡住这把锁，列表会永远收不到后续批次。
+			// 插入回压不再等前端确认；有订阅时若卡住这把锁，列表会永远收不到后续批次。
 			atomic.StoreInt32(&insertLock, 0)
 		}
 	}()
@@ -251,7 +240,6 @@ func init() {
 					ids = append(ids, batch[i].Theology)
 				}
 				captureBroadcastRows("update", ids)
-				Config.AppList["Main"].EmitEvent("updateWebsocket_tcp_udp_List", batch)
 			}
 			for len(updateDoneList) > 0 {
 				batch := updateDoneList
@@ -267,7 +255,6 @@ func init() {
 					captureMergeBreakMode(batch[i].Theology, batch[i].BreakMode)
 				}
 				captureBroadcastRows("update", ids)
-				Config.AppList["Main"].EmitEvent("updateDoneHTTP", batch)
 			}
 
 			for len(updateSendList) > 0 {
@@ -284,7 +271,6 @@ func init() {
 					captureMergeBreakMode(batch[i].Theology, batch[i].BreakMode)
 				}
 				captureBroadcastRows("update", ids)
-				Config.AppList["Main"].EmitEvent("updateSendHTTP", batch)
 			}
 
 			for len(updateErrorList) > 0 {
@@ -300,7 +286,6 @@ func init() {
 					ids = append(ids, batch[i].Theology)
 				}
 				captureBroadcastRows("update", ids)
-				Config.AppList["Main"].EmitEvent("updateErrorHTTP", batch)
 			}
 			lock.Unlock()
 

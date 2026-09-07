@@ -1,5 +1,5 @@
 <script>
-import {GetProxyDns, SetProxyDns} from "../../../../bindings/changeme/Service/appmain";
+import {GetProxyDns, SetProxyDns} from "../../../brickly/api.js";
 import {Config_IsRest} from "../../config/Config";
 import {attachMcpSettingsReload} from "../../config/mcpSettingsSync.js";
 

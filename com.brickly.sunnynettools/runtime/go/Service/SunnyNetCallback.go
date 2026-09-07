@@ -2,7 +2,7 @@ package Service
 
 import (
 	. "changeme/Service/Config"
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	"fmt"
 	"os"
 	"strconv"
@@ -64,8 +64,7 @@ func (g *AppMain) AppExport(list []int, savePath string) string {
 	return ""
 }
 func (g *AppMain) progress(i int) {
-	//i=进度百分比
-	AppList["Main"].EmitEvent("ExportProgress", i)
+	notify("ExportProgress", i)
 }
 
 // AppImport 导入记录
@@ -83,7 +82,6 @@ func (g *AppMain) AppImport(filePath string) (err string, list []Session.Insert)
 	defer file.Close()
 	brReader := brotli.NewReader(file)
 	importUpdateSocketList = make([]updateSocket, 0)
-	g.AppStartInsert()
 	go func() {
 		time.Sleep(time.Millisecond * 200)
 		for _, v := range importUpdateSocketList {
@@ -346,9 +344,6 @@ func isBreakRece(req *Session.HttpSession) bool {
 }
 
 func (g *AppMain) httpCallback(Conn SunnyNet.ConnHTTP) {
-	if strings.Contains(Conn.URL(), "http://"+LocalServer) {
-		return
-	}
 	isBreak := Config.ReplaceHttp(Conn)
 	if Conn.Type() == public.HttpSendRequest {
 		{
@@ -560,6 +555,7 @@ func (g *AppMain) httpCallback(Conn SunnyNet.ConnHTTP) {
 			}
 			req.Lock()
 			req.State = public.HttpResponseOK
+			req.Error = ""
 			ResponseType := ""
 			ResponseHeader := Conn.GetResponseHeader()
 			bs := Conn.GetResponseBody()
@@ -665,72 +661,109 @@ func (g *AppMain) httpCallback(Conn SunnyNet.ConnHTTP) {
 		return
 	}
 	if Conn.Type() == public.HttpRequestFail {
-		{
-			_store := false
-			req := Session.GetHttpSession(Conn.Theology())
-			if req == nil {
-				req = Session.NewHttpSession()
-				_store = true
-				req.UserName = Conn.GetSocket5User()
-				req.Theology = Conn.Theology()
-				req.Request.Body = Conn.GetRequestBody()
-				req.Request.Url = Conn.URL()
-				req.Request.Proto = Conn.Proto()
-				req.Request.Method = Conn.Method()
-				req.Request.Time = getTime()
-				req.Request.ClientIP = Conn.ClientIP()
-				req.Request.ProcessName = fmt.Sprintf("(%d)", Conn.PID()) + Conn.GetProcessName()
-				req.Request.Header = Conn.GetRequestHeader()
-				req.ListFilter = Config.Filter.Clone()
-				req.Response.Body = []byte(Conn.Error())
-				Session.Session.Store(Conn.Theology(), req)
-			}
+		theology := Conn.Theology()
+		errStr := Conn.Error()
+		req := Session.GetHttpSession(theology)
+		if req != nil {
 			req.Lock()
-			defer req.Unlock()
-			req.State = public.HttpRequestFail
-			req.Error = Conn.Error()
-			if !_store {
-				req.ListFilter = Config.Filter.Clone()
+			alreadyOK := httpSessionAlreadySucceeded(req)
+			req.Unlock()
+			if alreadyOK {
+				// SunnyNet 会在拨号重试/HTTP2 降级时先 CallbackError 再 CallbackBeforeResponse。
+				// 已经有响应的会话不要被中间失败盖成红三角，否则列表闪错、详情还是上一条成功包。
+				return
 			}
-			req.Ico = "error"
-			lock.Lock()
-			defer lock.Unlock()
-			if _store {
-				insertObj := Session.Insert{IsHTTP: true, State: "错误"}
-				insertObj.Method = req.Request.Method
-				insertObj.URL = req.Request.Url
-				insertObj.ClientIP = req.Request.ClientIP
-				insertObj.ProcessName = req.Request.ProcessName
-				insertObj.Theology = Conn.Theology()
-				insertObj.Time = req.Request.Time
-				insertObj.Ico = req.Ico
-				insertObj.Method = "错误"
-				insertObj.UserName = req.UserName
-				insertObj.Filter = req.ListMatch()
-				insertObj.BreakMode = BreakNone
-				note := Conn.GetNote()
-				if note != "" {
-					insertObj.Note = note
-				}
-				InsertList = append(InsertList, insertObj)
-			} else {
-				obj := updateHTTPError{}
-				obj.Theology = Conn.Theology()
-				obj.Length = 0
-				obj.Code = "错误"
-				obj.Time = getTime()
-				obj.Ico = "error"
-				obj.Filter = req.ListMatch()
-				note := Conn.GetNote()
-				if note != "" {
-					obj.Note = note
-
-				}
-				updateErrorList = append(updateErrorList, obj)
-			}
+			go queueDelayedHTTPRequestFail(theology, errStr)
+			return
 		}
+		req = Session.NewHttpSession()
+		req.UserName = Conn.GetSocket5User()
+		req.Theology = theology
+		req.Request.Body = Conn.GetRequestBody()
+		req.Request.Url = Conn.URL()
+		req.Request.Proto = Conn.Proto()
+		req.Request.Method = Conn.Method()
+		req.Request.Time = getTime()
+		req.Request.ClientIP = Conn.ClientIP()
+		req.Request.ProcessName = fmt.Sprintf("(%d)", Conn.PID()) + Conn.GetProcessName()
+		req.Request.Header = Conn.GetRequestHeader()
+		req.ListFilter = Config.Filter.Clone()
+		req.Response.Body = []byte(errStr)
+		req.State = public.HttpRequestFail
+		req.Error = errStr
+		req.Ico = "error"
+		Session.Session.Store(theology, req)
+		lock.Lock()
+		insertObj := Session.Insert{IsHTTP: true, State: "错误"}
+		insertObj.Method = "错误"
+		insertObj.URL = req.Request.Url
+		insertObj.ClientIP = req.Request.ClientIP
+		insertObj.ProcessName = req.Request.ProcessName
+		insertObj.Theology = theology
+		insertObj.Time = req.Request.Time
+		insertObj.Ico = req.Ico
+		insertObj.UserName = req.UserName
+		insertObj.Filter = req.ListMatch()
+		insertObj.BreakMode = BreakNone
+		note := Conn.GetNote()
+		if note != "" {
+			insertObj.Note = note
+		}
+		InsertList = append(InsertList, insertObj)
+		lock.Unlock()
 		return
 	}
+}
+
+func httpSessionAlreadySucceeded(req *Session.HttpSession) bool {
+	if req == nil {
+		return false
+	}
+	if req.State == public.HttpResponseOK {
+		return true
+	}
+	code := strings.TrimSpace(req.Response.Code)
+	if code == "" || code == "错误" || code == "-" || code == "  -  " {
+		return false
+	}
+	if _, err := strconv.Atoi(code); err == nil {
+		return true
+	}
+	return false
+}
+
+func queueDelayedHTTPRequestFail(theology int, errStr string) {
+	time.Sleep(300 * time.Millisecond)
+	req := Session.GetHttpSession(theology)
+	if req == nil {
+		return
+	}
+	req.Lock()
+	defer req.Unlock()
+	if httpSessionAlreadySucceeded(req) {
+		return
+	}
+	req.State = public.HttpRequestFail
+	req.Error = errStr
+	req.ListFilter = Config.Filter.Clone()
+	req.Ico = "error"
+	obj := updateHTTPError{
+		Theology: theology,
+		Length:   0,
+		Code:     "错误",
+		Time:     getTime(),
+		Ico:      "error",
+		Filter:   req.ListMatch(),
+	}
+	lock.Lock()
+	defer lock.Unlock()
+	for i, v := range updateErrorList {
+		if v.Theology == theology {
+			updateErrorList[i] = obj
+			return
+		}
+	}
+	updateErrorList = append(updateErrorList, obj)
 }
 func (g *AppMain) wsCallback(Conn SunnyNet.ConnWebSocket) {
 	Config.ReplaceWebsocket(Conn)
@@ -834,9 +867,6 @@ func (g *AppMain) wsCallback(Conn SunnyNet.ConnWebSocket) {
 }
 func (g *AppMain) tcpCallback(Conn SunnyNet.ConnTCP) {
 	RemoteAddress := Conn.RemoteAddress()
-	if strings.Contains(RemoteAddress, LocalServer) {
-		return
-	}
 	Config.ReplaceTCP(Conn)
 	res := updateSocket{Code: "已连接"}
 	res.Theology = Conn.Theology()

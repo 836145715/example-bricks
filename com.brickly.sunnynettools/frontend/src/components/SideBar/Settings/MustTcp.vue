@@ -3,7 +3,7 @@ import Table from "../../Tools/table.vue";
 import {Config_IsRest, Config_MonacoEditorTheme} from "../../config/Config";
 import * as monaco from "monaco-editor";
 import {ElNotification} from "element-plus";
-import {GetMustTcpRoles, GetMustTcpType, SetMustTcpRoles} from "../../../../bindings/changeme/Service/appmain";
+import {GetMustTcpRoles, GetMustTcpType, SetMustTcpRoles} from "../../../brickly/api.js";
 import {addMonacoEditorFontSize, RemoveMonacoEditorMenu} from "../../config/editorContextMenu";
 import {attachMcpSettingsReload} from "../../config/mcpSettingsSync.js";
 

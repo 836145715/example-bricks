@@ -16,6 +16,7 @@ import (
 	"changeme/Service"
 	"changeme/Service/Config"
 	"changeme/Service/HookKeys"
+	"changeme/Service/mcp"
 	"github.com/sqweek/dialog"
 )
 
@@ -26,30 +27,18 @@ var (
 
 func init() {
 	plugin = brickly.New()
-	Config.ControlPushPublisher = Service.ControlPush
 	Config.EventPublisher = func(window, name string, args []any) {
-		// 平台事件规范：命名空间:主题。原 Wails 事件名作为主题，便于外部订阅。
 		payload := map[string]any{"window": window, "name": name, "args": args}
 		if err := plugin.Events.Publish("sunnynet:"+name, payload); err != nil {
 			plugin.Info("publish event failed: "+err.Error(), nil)
 		}
 		Service.BroadcastToolWindowEvent("sunnynet:"+name, payload)
 	}
+	Service.NotifyUI = Config.Publish
 }
 
-// invokeWithArgs 反射调用 AppMain 上的方法（含嵌入结构体提升方法）。
-func invokeWithArgs(methodName string, reqArgs []json.RawMessage) (any, error) {
-	return Server.InvokeMethod(methodName, reqArgs)
-}
-
-// registerCommand 供 Service 包注册命令的回调。
-func registerCommand(id string, fn func(input json.RawMessage) (any, error)) {
-	plugin.OnCommand(id, func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
-		if err := ctx.Context().Err(); err != nil {
-			return nil, err
-		}
-		return fn(input)
-	})
+func bindNamedHandler(id string, fn func(input json.RawMessage) (any, error)) {
+	commandHandlers[id] = fn
 }
 
 // captureStreamAdapter 把 brickly 的 CommandContext 适配为 Service 侧的最小接口。
@@ -62,17 +51,6 @@ func (a captureStreamAdapter) OnEvent(fn func(ev any)) error {
 }
 
 func (a captureStreamAdapter) Closed() <-chan struct{} { return a.ctx.Closed() }
-
-// controlStreamAdapter 控制会话适配器：RPC 走 HandleRequests，推送走 Send。
-type controlStreamAdapter struct{ ctx *brickly.CommandContext }
-
-func (a controlStreamAdapter) Send(ev any) error { return a.ctx.Send(ev) }
-
-func (a controlStreamAdapter) HandleRequests(fn func(req any, ctx context.Context) (any, error), concurrency ...int) error {
-	return a.ctx.HandleRequests(fn, concurrency...)
-}
-
-func (a controlStreamAdapter) Closed() <-chan struct{} { return a.ctx.Closed() }
 
 func openFileDialog(kind, title string, filters []string) (string, error) {
 	if kind == "open-dir" {
@@ -111,62 +89,6 @@ func handleDialogJSON(input json.RawMessage) (any, error) {
 	return map[string]any{"path": path}, nil
 }
 
-type sdkHostWindow struct{ h *brickly.WindowHandle }
-
-func (w sdkHostWindow) Show() error { return w.h.Show() }
-func (w sdkHostWindow) Hide() error { return w.h.Hide() }
-func (w sdkHostWindow) Close() error {
-	_, err := w.h.Close()
-	return err
-}
-func (w sdkHostWindow) Center() error { return w.h.Center() }
-func (w sdkHostWindow) SetTitle(title string) error {
-	return w.h.SetTitle(title)
-}
-func (w sdkHostWindow) SetAlwaysOnTop(flag bool) error {
-	return w.h.SetAlwaysOnTop(flag, "")
-}
-func (w sdkHostWindow) Send(name string, payload any) error {
-	return w.h.Send(name, payload)
-}
-
-func bindToolWindowExpose(win *brickly.WindowHandle) {
-	_ = win.Expose(map[string]brickly.WindowExposeHandler{
-		"control": func(payload any, _ brickly.WindowExposeSession) (any, error) {
-			op, args, err := Service.ParseControlRequest(payload)
-			if err != nil {
-				return nil, err
-			}
-			return Server.InvokeMethod(op, args)
-		},
-		"dialog": func(payload any, _ brickly.WindowExposeSession) (any, error) {
-			raw, err := json.Marshal(payload)
-			if err != nil {
-				return nil, err
-			}
-			return handleDialogJSON(raw)
-		},
-	})
-}
-
-func createSDKToolWindow(ctx *brickly.CommandContext, name, url string, opts map[string]any) (Service.HostWindow, error) {
-	if opts == nil {
-		opts = map[string]any{}
-	}
-	if _, ok := opts["lifetime"]; !ok {
-		opts["lifetime"] = "standalone"
-	}
-	win, err := ctx.UI().CreateBrowserWindow(url, brickly.WindowOptions(opts))
-	if err != nil {
-		return nil, err
-	}
-	bindToolWindowExpose(win.WindowHandle)
-	win.On("closed", func(_ map[string]any) {
-		Service.ForgetToolWindow(name)
-	})
-	return sdkHostWindow{h: win.WindowHandle}, nil
-}
-
 func debugLog(format string, args ...any) {
 	f, err := os.OpenFile(filepath.Join(".", "runtime-debug.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
@@ -185,29 +107,33 @@ func main() {
 	}()
 	debugLog("boot go=%s", runtime.Version())
 
-	// 先注册主窗口，再初始化 SunnyNet，避免初始化期间的 EmitEvent 空指针
-	Config.AppList["Main"] = Config.NewAppWindow("Main")
 	debugLog("service init begin")
 	Server = Service.NewAppServer()
 	debugLog("service init done")
 	Service.SetMCPServer(Server)
+	mcp.InitBridge(Service.MCPBridgeInvoke)
 	HookKeys.RegisterKeys(Config.Config.Keys, Server.CallKeys)
 
 	debugLog("commands registered, calling Start")
+
+	plugin.OnCommand("ui-rpc", func(ctx *brickly.CommandContext, _ json.RawMessage) (any, error) {
+		if err := ctx.Context().Err(); err != nil {
+			return nil, err
+		}
+		if err := ctx.HandleRequests(func(req any, _ context.Context) (any, error) {
+			return dispatchUiRpc(req)
+		}, 32); err != nil {
+			return nil, err
+		}
+		<-ctx.Closed()
+		return map[string]any{"ok": true}, nil
+	})
 
 	plugin.OnCommand("capture-stream", func(ctx *brickly.CommandContext, _ json.RawMessage) (any, error) {
 		if err := ctx.Context().Err(); err != nil {
 			return nil, err
 		}
 		Server.CaptureStream(captureStreamAdapter{ctx: ctx})
-		return map[string]any{"ok": true}, nil
-	})
-
-	plugin.OnCommand("control-stream", func(ctx *brickly.CommandContext, _ json.RawMessage) (any, error) {
-		if err := ctx.Context().Err(); err != nil {
-			return nil, err
-		}
-		Server.ControlStream(controlStreamAdapter{ctx: ctx})
 		return map[string]any{"ok": true}, nil
 	})
 
@@ -225,30 +151,14 @@ func main() {
 		if req.Open != nil {
 			open = *req.Open
 		}
-		prev := Service.CreateToolWindow
-		Service.CreateToolWindow = func(name, url string, opts map[string]any) (Service.HostWindow, error) {
-			return createSDKToolWindow(ctx, name, url, opts)
-		}
-		defer func() { Service.CreateToolWindow = prev }()
 		Server.CallTools(req.Name, open, req.Args)
 		return map[string]any{"ok": true}, nil
 	})
 
 	registerCommands()
 	Service.SetCaptureServer(Server)
-	Service.RegisterCaptureCommands(registerCommand)
-	if missing := verifyCommandTable(); len(missing) > 0 {
-		plugin.Info("command table missing methods: "+fmt.Sprint(missing), nil)
-		debugLog("MISSING: %v", missing)
-	}
-
-	// 原生前端文件对话框（前端 shim 的 Dialogs.OpenFile/SaveFile 走这里）
-	plugin.OnCommand("dialog", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
-		if err := ctx.Context().Err(); err != nil {
-			return nil, err
-		}
-		return handleDialogJSON(input)
-	})
+	Service.RegisterCaptureCommands(bindNamedHandler)
+	commandHandlers["dialog"] = handleDialogJSON
 
 	plugin.OnShutdown(func() error {
 		if Server != nil {

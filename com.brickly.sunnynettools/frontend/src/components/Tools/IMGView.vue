@@ -26,8 +26,8 @@
 import {base64ToBytes} from "../config/encoding.js";
 import {ElNotification} from "element-plus";
 import {Config_SelectedRow} from "../config/Config";
-import {AppSaveRequestImg} from "../../../bindings/changeme/Service/appmain";
-import {Dialogs} from "@wailsio/runtime";
+import {AppSaveRequestImg} from "../../brickly/api.js";
+import {Dialogs} from "../../brickly/runtime.js";
 
 export default {
   props: ['isRequest'],

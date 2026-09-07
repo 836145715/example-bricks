@@ -1,7 +1,7 @@
 package Service
 
 import (
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	"errors"
 	"io"
 	"os"
@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func bridgeRecordsImport(app *AppMain, m map[string]any) (any, error) {
+func bridgeRecordsImport(app MCPCore, m map[string]any) (any, error) {
 	filePath := strings.TrimSpace(argString(m, "filePath"))
 	if filePath == "" {
 		return nil, errors.New("filePath 必填（.sy4 记录文件绝对路径）")
@@ -28,7 +28,7 @@ func bridgeRecordsImport(app *AppMain, m map[string]any) (any, error) {
 	}, nil
 }
 
-func bridgeRecordsExport(app *AppMain, m map[string]any) (any, error) {
+func bridgeRecordsExport(app MCPCore, m map[string]any) (any, error) {
 	filePath := strings.TrimSpace(argString(m, "filePath"))
 	if filePath == "" {
 		return nil, errors.New("filePath 必填（.sy4 保存路径）")
@@ -57,7 +57,7 @@ func bridgeRecordsExport(app *AppMain, m map[string]any) (any, error) {
 	}, nil
 }
 
-func bridgeSessionPackExport(app *AppMain, m map[string]any) (any, error) {
+func bridgeSessionPackExport(app MCPCore, m map[string]any) (any, error) {
 	_ = app
 	filePath := strings.TrimSpace(argString(m, "filePath"))
 	if filePath == "" {
@@ -86,7 +86,7 @@ func bridgeSessionPackExport(app *AppMain, m map[string]any) (any, error) {
 		"ok":       true,
 		"path":     filePath,
 		"theology": th,
-		"rowId": strconv.Itoa(th),
+		"rowId":    strconv.Itoa(th),
 	}, nil
 }
 

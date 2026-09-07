@@ -1,6 +1,6 @@
 <script>
 import {ElNotification} from "element-plus";
-import {ReplaceBodyUpdate} from "../../../../bindings/changeme/Service/appmain";
+import {ReplaceBodyUpdate} from "../../../brickly/api.js";
 import {Config_agGrid_API, getThisObject} from "../../config/Config";
 
 export default {

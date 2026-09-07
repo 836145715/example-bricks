@@ -16,7 +16,7 @@ func emitMCPSettingsReload(scopes ...string) {
 	}
 }
 
-func proxyDnsSnapshot(app *AppMain) map[string]any {
+func proxyDnsSnapshot(app MCPCore) map[string]any {
 	raw := app.GetProxyDns()
 	mode := "remotes"
 	remoteServer := raw
@@ -47,7 +47,7 @@ func proxyDnsSnapshot(app *AppMain) map[string]any {
 	}
 }
 
-func bridgeProxyDnsSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeProxyDnsSet(app MCPCore, m map[string]any) (any, error) {
 	mode := strings.TrimSpace(strings.ToLower(argString(m, "mode")))
 	remote := strings.TrimSpace(argString(m, "remoteServer"))
 	if remote == "" {
@@ -84,7 +84,7 @@ func bridgeProxyDnsSet(app *AppMain, m map[string]any) (any, error) {
 	}), nil
 }
 
-func proxyWaySnapshot(app *AppMain) map[string]any {
+func proxyWaySnapshot(app MCPCore) map[string]any {
 	list := app.ProxyWayList()
 	proxies := make([]map[string]any, 0, len(list))
 	for _, p := range list {
@@ -128,7 +128,7 @@ func proxyWayItemFromInfo(p Config.ProxyWayInfo) map[string]any {
 	}
 }
 
-func bridgeProxyWayAdd(app *AppMain, m map[string]any) (any, error) {
+func bridgeProxyWayAdd(app MCPCore, m map[string]any) (any, error) {
 	proxyURL, _, err := resolveProxyWayURL(m)
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func bridgeProxyWayAdd(app *AppMain, m map[string]any) (any, error) {
 	return out, nil
 }
 
-func bridgeProxyWayUpdateNote(app *AppMain, m map[string]any) (any, error) {
+func bridgeProxyWayUpdateNote(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填")
@@ -174,7 +174,7 @@ func bridgeProxyWayUpdateNote(app *AppMain, m map[string]any) (any, error) {
 	}), nil
 }
 
-func bridgeProxyWayDelete(app *AppMain, m map[string]any) (any, error) {
+func bridgeProxyWayDelete(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填")
@@ -187,7 +187,7 @@ func bridgeProxyWayDelete(app *AppMain, m map[string]any) (any, error) {
 	return settingsApplyResult(app, map[string]any{"id": id}), nil
 }
 
-func bridgeProxyWaySetState(app *AppMain, m map[string]any) (any, error) {
+func bridgeProxyWaySetState(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填")
@@ -207,7 +207,7 @@ func bridgeProxyWaySetState(app *AppMain, m map[string]any) (any, error) {
 	return settingsApplyResult(app, map[string]any{"id": id, "state": state}), nil
 }
 
-func bridgeProxyWayUpdate(app *AppMain, m map[string]any) (any, error) {
+func bridgeProxyWayUpdate(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填")
@@ -261,17 +261,17 @@ func bridgeProxyWayUpdate(app *AppMain, m map[string]any) (any, error) {
 	}), nil
 }
 
-func bridgeProxyRolesGet(app *AppMain) (any, error) {
+func bridgeProxyRolesGet(app MCPCore) (any, error) {
 	return map[string]any{
 		"roles": app.GetProxyRoles(),
 		"convention": map[string]any{
-			"format": "换行或 ; 分号分割；// 开头为注释行",
+			"format":  "换行或 ; 分号分割；// 开头为注释行",
 			"example": "*.test.com;qqqqq.com;\ndome.com\n*.abc.mmm.cn",
 		},
 	}, nil
 }
 
-func bridgeProxyRolesSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeProxyRolesSet(app MCPCore, m map[string]any) (any, error) {
 	roles := argString(m, "roles")
 	if roles == "" {
 		roles = argString(m, "rolesJSON")
@@ -308,23 +308,23 @@ func mustTcpTypeFromUI(s string) (int, error) {
 	}
 }
 
-func bridgeMustTcpGet(app *AppMain) (any, error) {
+func bridgeMustTcpGet(app MCPCore) (any, error) {
 	return map[string]any{
-		"type":     app.GetMustTcpType(),
-		"typeUI":   mustTcpTypeToUI(app.GetMustTcpType()),
-		"roles":    app.GetMustTcpRoles(),
+		"type":   app.GetMustTcpType(),
+		"typeUI": mustTcpTypeToUI(app.GetMustTcpType()),
+		"roles":  app.GetMustTcpRoles(),
 		"convention": map[string]any{
 			"types": map[string]any{
-				"ALLMustTcp":  "全部走 TCP (0)",
-				"MustTcpLei":  "规则内走 TCP (1)",
-				"MustTcpWai":  "规则外走 TCP (2)",
+				"ALLMustTcp": "全部走 TCP (0)",
+				"MustTcpLei": "规则内走 TCP (1)",
+				"MustTcpWai": "规则外走 TCP (2)",
 			},
 			"rolesFormat": "多个规则用 ; 分号分割",
 		},
 	}, nil
 }
 
-func bridgeMustTcpSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeMustTcpSet(app MCPCore, m map[string]any) (any, error) {
 	tp := -1
 	if v := strings.TrimSpace(argString(m, "typeUI")); v != "" {
 		var err error
@@ -346,12 +346,12 @@ func bridgeMustTcpSet(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "type": tp, "typeUI": mustTcpTypeToUI(tp)}, nil
 }
 
-func engineDisableStatus(app *AppMain) map[string]any {
+func engineDisableStatus(app MCPCore) map[string]any {
 	tcp, udp, cache, _, limit := app.GetBaseSettingsValue()
 	return map[string]any{
-		"disableTCP":   tcp,
-		"disableUDP":   udp,
-		"disableCache": cache,
+		"disableTCP":       tcp,
+		"disableUDP":       udp,
+		"disableCache":     cache,
 		"limitRequestSize": limit,
 		"items": []map[string]any{
 			{"key": "disableTCP", "label": "禁用TCP", "disabled": tcp, "enabled": !tcp},
@@ -361,11 +361,11 @@ func engineDisableStatus(app *AppMain) map[string]any {
 	}
 }
 
-func bridgeEngineTogglesGet(app *AppMain) (any, error) {
+func bridgeEngineTogglesGet(app MCPCore) (any, error) {
 	return engineDisableStatus(app), nil
 }
 
-func bridgeDisableTCPGet(app *AppMain) (any, error) {
+func bridgeDisableTCPGet(app MCPCore) (any, error) {
 	tcp, _, _, _, _ := app.GetBaseSettingsValue()
 	return map[string]any{
 		"disableTCP": tcp,
@@ -375,7 +375,7 @@ func bridgeDisableTCPGet(app *AppMain) (any, error) {
 	}, nil
 }
 
-func bridgeDisableUDPGet(app *AppMain) (any, error) {
+func bridgeDisableUDPGet(app MCPCore) (any, error) {
 	_, udp, _, _, _ := app.GetBaseSettingsValue()
 	return map[string]any{
 		"disableUDP": udp,
@@ -385,7 +385,7 @@ func bridgeDisableUDPGet(app *AppMain) (any, error) {
 	}, nil
 }
 
-func bridgeDisableCacheGet(app *AppMain) (any, error) {
+func bridgeDisableCacheGet(app MCPCore) (any, error) {
 	_, _, cache, _, _ := app.GetBaseSettingsValue()
 	return map[string]any{
 		"disableCache": cache,
@@ -395,7 +395,7 @@ func bridgeDisableCacheGet(app *AppMain) (any, error) {
 	}, nil
 }
 
-func bridgeDisableTCPSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeDisableTCPSet(app MCPCore, m map[string]any) (any, error) {
 	v, ok := m["disableTCP"]
 	if !ok {
 		v = m["disabled"]
@@ -409,7 +409,7 @@ func bridgeDisableTCPSet(app *AppMain, m map[string]any) (any, error) {
 	return settingsApplyResult(app, map[string]any{"disableTCP": disabled}), nil
 }
 
-func bridgeDisableUDPSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeDisableUDPSet(app MCPCore, m map[string]any) (any, error) {
 	v, ok := m["disableUDP"]
 	if !ok {
 		v = m["disabled"]
@@ -423,7 +423,7 @@ func bridgeDisableUDPSet(app *AppMain, m map[string]any) (any, error) {
 	return settingsApplyResult(app, map[string]any{"disableUDP": disabled}), nil
 }
 
-func bridgeDisableCacheSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeDisableCacheSet(app MCPCore, m map[string]any) (any, error) {
 	v, ok := m["disableCache"]
 	if !ok {
 		v = m["disabled"]
@@ -437,7 +437,7 @@ func bridgeDisableCacheSet(app *AppMain, m map[string]any) (any, error) {
 	return settingsApplyResult(app, map[string]any{"disableCache": disabled}), nil
 }
 
-func bridgeLimitRequestSizeSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeLimitRequestSizeSet(app MCPCore, m map[string]any) (any, error) {
 	size := argInt(m, "limitRequestSize", 0)
 	if size <= 0 {
 		size = argInt(m, "size", 0)
@@ -450,12 +450,12 @@ func bridgeLimitRequestSizeSet(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "limitRequestSize": size}, nil
 }
 
-func bridgeHTTPSProtocolGet(app *AppMain) (any, error) {
+func bridgeHTTPSProtocolGet(app MCPCore) (any, error) {
 	return map[string]any{
-		"sendIsHTTP1":  app.GetSendIsHTTP1(),
-		"protocol":     ternaryStr(app.GetSendIsHTTP1(), "http/1.1", "h2"),
-		"label":        ternaryStr(app.GetSendIsHTTP1(), "仅使用 HTTP/1.1 发送", "HTTP/2.0 优先"),
-		"randomJa3":    app.GetRandomJa3(),
+		"sendIsHTTP1":      app.GetSendIsHTTP1(),
+		"protocol":         ternaryStr(app.GetSendIsHTTP1(), "http/1.1", "h2"),
+		"label":            ternaryStr(app.GetSendIsHTTP1(), "仅使用 HTTP/1.1 发送", "HTTP/2.0 优先"),
+		"randomJa3":        app.GetRandomJa3(),
 		"http2Fingerprint": app.GetHTTPSProto(),
 	}, nil
 }
@@ -467,7 +467,7 @@ func ternaryStr(cond bool, a, b string) string {
 	return b
 }
 
-func bridgeHTTPSProtocolSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeHTTPSProtocolSet(app MCPCore, m map[string]any) (any, error) {
 	var sendIsHTTP1 *bool
 	if v, ok := m["sendIsHTTP1"]; ok {
 		b := boolFromAny(v)
@@ -502,7 +502,7 @@ func bridgeHTTPSProtocolSet(app *AppMain, m map[string]any) (any, error) {
 		return nil, errors.New("请提供 protocol/sendIsHTTP1、http2Fingerprint 或 template、randomJa3 至少一项")
 	}
 
-	out, err := app.HTTPSProto.ApplyHTTPSProtocol(sendIsHTTP1, protoJSON, randomJa3)
+	out, err := app.ApplyHTTPSProtocol(sendIsHTTP1, protoJSON, randomJa3)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +512,7 @@ func bridgeHTTPSProtocolSet(app *AppMain, m map[string]any) (any, error) {
 	return out, nil
 }
 
-func bridgeRandomJa3Set(app *AppMain, m map[string]any) (any, error) {
+func bridgeRandomJa3Set(app MCPCore, m map[string]any) (any, error) {
 	v, ok := m["randomJa3"]
 	if !ok {
 		v = m["enabled"]
@@ -521,7 +521,7 @@ func bridgeRandomJa3Set(app *AppMain, m map[string]any) (any, error) {
 		return nil, errors.New("randomJa3 或 enabled 必填")
 	}
 	ja3 := boolFromAny(v)
-	out, err := app.HTTPSProto.ApplyHTTPSProtocol(nil, "", &ja3)
+	out, err := app.ApplyHTTPSProtocol(nil, "", &ja3)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +530,7 @@ func bridgeRandomJa3Set(app *AppMain, m map[string]any) (any, error) {
 	return out, nil
 }
 
-func bridgeHTTP2FingerprintSet(app *AppMain, m map[string]any) (any, error) {
+func bridgeHTTP2FingerprintSet(app MCPCore, m map[string]any) (any, error) {
 	proto := argString(m, "http2Fingerprint")
 	if proto == "" {
 		proto = argString(m, "fingerprint")
@@ -548,7 +548,7 @@ func bridgeHTTP2FingerprintSet(app *AppMain, m map[string]any) (any, error) {
 	if strings.TrimSpace(proto) == "" {
 		return nil, errors.New("http2Fingerprint 或 template 必填")
 	}
-	out, err := app.HTTPSProto.ApplyHTTPSProtocol(nil, proto, nil)
+	out, err := app.ApplyHTTPSProtocol(nil, proto, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +557,7 @@ func bridgeHTTP2FingerprintSet(app *AppMain, m map[string]any) (any, error) {
 	return out, nil
 }
 
-func bridgeHTTP2TemplateApply(app *AppMain, m map[string]any) (any, error) {
+func bridgeHTTP2TemplateApply(app MCPCore, m map[string]any) (any, error) {
 	name := strings.TrimSpace(argString(m, "name"))
 	if name == "" {
 		name = strings.TrimSpace(argString(m, "template"))
@@ -577,7 +577,7 @@ func bridgeHTTP2TemplateApply(app *AppMain, m map[string]any) (any, error) {
 	} else if p := strings.TrimSpace(argString(m, "protocol")); p != "" {
 		sendH1 = p == "http/1.1" || strings.EqualFold(p, "h1")
 	}
-	out, err := app.HTTPSProto.ApplyHTTPSProtocol(&sendH1, proto, nil)
+	out, err := app.ApplyHTTPSProtocol(&sendH1, proto, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -587,7 +587,7 @@ func bridgeHTTP2TemplateApply(app *AppMain, m map[string]any) (any, error) {
 	return out, nil
 }
 
-func bridgeReapplyEngine(app *AppMain) (any, error) {
+func bridgeReapplyEngine(app MCPCore) (any, error) {
 	return map[string]any{
 		"ok":      true,
 		"applied": true,

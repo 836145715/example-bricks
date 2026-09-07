@@ -2,6 +2,7 @@ package Service
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -18,4 +19,14 @@ func TestExitCleanupIdempotent(t *testing.T) {
 	var a *AppMain
 	a.ExitCleanup()
 	a.Shutdown()
+}
+
+func TestShutdownSourceNeverUnDrive(t *testing.T) {
+	raw, err := os.ReadFile("shutdown.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), ".UnDrive(") {
+		t.Fatal("shutdown must not call UnDrive")
+	}
 }

@@ -39,7 +39,7 @@ func (l *ScriptLog) init() {
 			for _, k := range keys {
 				array = append(array, scriptLog[k])
 			}
-			Config.AppList["Main"].EmitEvent("addScriptLog", array)
+			Config.Publish("addScriptLog", array)
 			scriptLog = make(map[int]LogInfo)
 			scriptLogId = 0
 		}

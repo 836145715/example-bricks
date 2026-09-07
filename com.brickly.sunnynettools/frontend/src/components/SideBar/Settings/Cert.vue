@@ -2,7 +2,7 @@
 import {AgGridVue} from "ag-grid-vue3";
 import {Config_agGrid_API, Config_IsDark, Config_Theme_agGrid} from "../../config/Config.js";
 import {AG_GRID_LOCALE_CN} from "../../config/AG_ZH_CN.js";
-import {Dialogs, Events} from "@wailsio/runtime";
+import {Dialogs, Events} from "../../../brickly/runtime.js";
 import RequestCertificateType from "./RequestCertificateType.vue";
 import {
   CreateRequestCert,
@@ -10,13 +10,16 @@ import {
   RequestCertRemove,
   RequestCertSetFile,
   RequestList
-} from "../../../../bindings/changeme/Service/appmain";
+} from "../../../brickly/api.js";
 import {ElMessage} from "element-plus";
 import TitleBar from "../../TitleBar/TitleBar.vue";
 import {attachMcpRequestCertReload} from "../../config/mcpCertSync.js";
 
 export default {
   components: {TitleBar, 'ag-grid-vue': AgGridVue, "requestCertificateType": RequestCertificateType},
+  props: {
+    embedded: {type: Boolean, default: false}
+  },
   data() {
     return {
       Stopped: null,
@@ -168,10 +171,21 @@ export default {
     agTheme() {
       return Config_Theme_agGrid.value
     },
+    rootClass() {
+      return this.embedded ? "sn-tool-embed" : "sn-tool-page"
+    },
+    gridStyle() {
+      if (this.embedded) {
+        return {height: "100%", width: "100%"}
+      }
+      return {height: "calc(100% - 29px)", width: "100%", marginTop: "-1px", marginLeft: "-1px"}
+    },
   },
   mounted() {
     this.agGridApi = this.$refs.agGrid.api;
-    Config_agGrid_API.value = this.agGridApi;
+    if (!this.embedded) {
+      Config_agGrid_API.value = this.agGridApi;
+    }
     attachMcpRequestCertReload(() => this.reloadCertsFromBackend());
     Events.On("SetIsDark", (obj) => {
       try {
@@ -418,12 +432,12 @@ export default {
 </script>
 
 <template>
-  <div class="fullscreen-div" style="display: block;">
-    <TitleBar Title="请求证书设置"></TitleBar>
+  <div :class="rootClass" style="display: block;">
+    <TitleBar v-if="!embedded" Title="请求证书设置"></TitleBar>
     <ag-grid-vue ref="agGrid"
                  :theme="agTheme"
                  :rowData="rowData"
-                 style="height: calc(100% - 29px);width:100%;margin-top: -1px;margin-left: -1px"
+                 :style="gridStyle"
                  :grid-options="gridOptions"
                  :loading="false"
                  :allowContextMenuWithControlKey="true"
@@ -437,19 +451,22 @@ export default {
 .white-svg path {
   stroke: white;
 }
-</style>
 
-<style>
-.fullscreen-div {
-  position: fixed; /* 让 div 相对于视口固定 */
+.sn-tool-embed {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+}
+
+.sn-tool-page {
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100vw; /* 100% 视口宽度 */
-  height: 100vh; /* 100% 视口高度 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: white;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  overflow: hidden;
 }
 </style>

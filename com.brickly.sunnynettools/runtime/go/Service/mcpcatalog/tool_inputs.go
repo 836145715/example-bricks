@@ -125,14 +125,6 @@ type EngineStartIn struct {
 	UseSystemProxy  bool `json:"useSystemProxy,omitempty"`
 }
 
-// GenerateBuiltinCodeIn 生成内置代码（单条）。
-type GenerateBuiltinCodeIn struct {
-	Theology int    `json:"theology,omitempty"`
-	RowID    string `json:"rowId,omitempty"`
-	Language string `json:"language"`
-	Module   string `json:"module"`
-}
-
 // EngineApplyAdvancedIn 下发高级设置。
 type EngineApplyAdvancedIn struct {
 	Payload string `json:"payload"`

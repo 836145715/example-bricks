@@ -3,8 +3,8 @@ package Service
 import (
 	"bytes"
 	"changeme/Service/Config"
-	"changeme/Service/Session"
 	"changeme/Service/mcp"
+	"changeme/internal/session"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +26,7 @@ func theologyIDsToRowIDs(ids []int) []string {
 	return out
 }
 
-func bridgeEngineApplyAdvanced(app *AppMain, m map[string]any) (any, error) {
+func bridgeEngineApplyAdvanced(app MCPCore, m map[string]any) (any, error) {
 	payload := strings.TrimSpace(argString(m, "payload"))
 	if payload == "" {
 		return nil, errors.New("payload 为空")
@@ -116,7 +116,7 @@ func intFromAny(v any) int {
 	}
 }
 
-func bridgeMainSearch(app *AppMain, m map[string]any) (any, error) {
+func bridgeMainSearch(app MCPCore, m map[string]any) (any, error) {
 	needle := strings.TrimSpace(argString(m, "needle"))
 	if needle == "" {
 		needle = strings.TrimSpace(argString(m, "queryText"))
@@ -347,7 +347,7 @@ func bridgeUiThemeSet(m map[string]any) (any, error) {
 	return outMap, nil
 }
 
-func bridgeHTTPGetPartMulti(app *AppMain, m map[string]any) (any, error) {
+func bridgeHTTPGetPartMulti(app MCPCore, m map[string]any) (any, error) {
 	ids, err := argTheologyList(m)
 	if err != nil {
 		return nil, err
@@ -404,7 +404,7 @@ func bridgeHTTPGetPartMulti(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"items": items}, nil
 }
 
-func httpPartBytes(_ *AppMain, th int, part string, maxLen int) ([]byte, string, error) {
+func httpPartBytes(_ MCPCore, th int, part string, maxLen int) ([]byte, string, error) {
 	getAll := maxLen <= 0
 	switch part {
 	case "requestBody":
@@ -450,7 +450,7 @@ func writeHeader(buf *bytes.Buffer, hdr http.Header) {
 	}
 }
 
-func bridgeStreamGetPartMulti(app *AppMain, m map[string]any, defaultType string) (any, error) {
+func bridgeStreamGetPartMulti(app MCPCore, m map[string]any, defaultType string) (any, error) {
 	ids, err := argTheologyList(m)
 	if err != nil {
 		return nil, err

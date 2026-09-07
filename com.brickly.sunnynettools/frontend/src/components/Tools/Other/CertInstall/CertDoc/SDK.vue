@@ -40,7 +40,7 @@
 
 <script>
 
-import {ClipboardWriteAll} from "../../../../../../bindings/changeme/Service/appmain";
+import {ClipboardWriteAll} from "../../../../../brickly/api.js";
 import {ElNotification} from "element-plus";
 
 export default {

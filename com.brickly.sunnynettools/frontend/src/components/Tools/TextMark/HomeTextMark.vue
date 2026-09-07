@@ -26,7 +26,7 @@ import {ExcelExportModule} from '@ag-grid-enterprise/excel-export';
 import ColorConfigRenderer from './ColorConfig.vue';
 import ColorConfigDarkRenderer from './ColorConfigDark.vue';
 import {Config_HomeTextMark, Config_IsDark, DefaultRowData, getThisObject} from "../../config/Config";
-import {SetHomeTextMark} from "../../../../bindings/changeme/Service/appmain";
+import {SetHomeTextMark} from "../../../brickly/api.js";
 
 export default {
   components: {

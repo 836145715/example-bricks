@@ -2,16 +2,11 @@ package Service
 
 import (
 	"encoding/json"
-
-	"changeme/Service/Config"
 )
 
 // emitMCPMain 向主窗口 WebView 发送 MCP 同步事件（page=main）。
 func emitMCPMain(tag, msg string) {
-	if Config.AppList["Main"] == nil {
-		return
-	}
-	Config.AppList["Main"].EmitEvent("mcp", map[string]any{
+	notify("mcp", map[string]any{
 		"page": "main",
 		"tag":  tag,
 		"msg":  msg,
@@ -50,16 +45,12 @@ func emitMCPRowRefresh(theology int) {
 	emitMCPMainJSON("rowrefresh", map[string]any{"theology": theology})
 }
 
-// emitMCPRequestCertReload 通知请求证书窗口刷新表格（Cert 独立 WebView）。
+// emitMCPRequestCertReload 通知请求证书窗口刷新表格。
 func emitMCPRequestCertReload() {
 	payload, _ := json.Marshal(map[string]any{"action": "reload"})
-	msg := string(payload)
-	ev := map[string]any{
+	notify("mcp", map[string]any{
 		"page": "cert",
 		"tag":  "requestcert",
-		"msg":  msg,
-	}
-	if win := Config.AppList["Cert"]; win != nil {
-		win.EmitEvent("mcp", ev)
-	}
+		"msg":  string(payload),
+	})
 }

@@ -2,9 +2,8 @@ package Config
 
 import (
 	"bytes"
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	Theme2 "changeme/Service/Theme"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -18,9 +17,6 @@ import (
 	"github.com/qtgolang/SunnyNet/src/Compress"
 	"github.com/qtgolang/SunnyNet/src/public"
 )
-
-//go:embed codeTemplate.txt
-var codeTemplate string
 
 const (
 	BreakNone = 0 //不拦截
@@ -49,7 +45,6 @@ type config struct {
 	AuthMap               map[int]*Auth
 	OutRouter             string `json:"-"`
 	HomeTextMark          string
-	GenerateCodeInterface string
 	EditorFontSize        int
 	Filter                *Session.Filter `json:"-"`
 	IsHideHook            uint32          `json:"-"` //检查是否隐藏捕获 0 = false, 1 = true
@@ -242,13 +237,7 @@ func (f *config) Load() {
 	f.initHTTPSProto()
 	f.initMustTcp()
 	f.initProxy()
-	f.InitCodeTemplate()
 	f.IEProxy = false
-}
-func (f *config) InitCodeTemplate() {
-	if len(f.GenerateCodeInterface) < 5 {
-		f.GenerateCodeInterface = codeTemplate
-	}
 }
 
 var decompressors = map[string]func([]byte) []byte{

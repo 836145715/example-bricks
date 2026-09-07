@@ -10,7 +10,7 @@
 <script>
 import {GetImage} from "../../Tools/image.js";
 import {Config_IsDark} from "../../config/Config.js";
-import {SetBreakMode} from "../../../../bindings/changeme/Service/appmain.js";
+import {SetBreakMode} from "../../../brickly/api.js";
 import {Tour_Add, Tour_Start} from "../Tour";
 
 export default {

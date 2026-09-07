@@ -3,7 +3,7 @@ import {AgGridVue} from "ag-grid-vue3";
 import {Config_IsDark, Config_Theme_agGrid, ObjString} from "../config/Config.js";
 import {AG_GRID_LOCALE_CN} from "../config/AG_ZH_CN.js";
 import {ElMessage} from "element-plus";
-import {URLQueryUnescape} from "../../../bindings/changeme/Service/appmain.js";
+import {URLQueryUnescape} from "../../brickly/api.js";
 import {base64ToBytes, bytesToBase64, StringToBytes, toGBK, toUTF8} from "../config/encoding.js";
 
 export default {

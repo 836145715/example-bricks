@@ -93,7 +93,7 @@ func normalizeHostRulesArray(arr []hostRuleMCP) []hostRuleMCP {
 	return out
 }
 
-func hostRulesSnapshot(app *AppMain) map[string]any {
+func hostRulesSnapshot(app MCPCore) map[string]any {
 	list := app.ReplaceHostList()
 	rules := make([]map[string]any, 0, len(list))
 	for _, h := range list {
@@ -105,15 +105,15 @@ func hostRulesSnapshot(app *AppMain) map[string]any {
 		"rules": rules,
 		"total": len(rules),
 		"convention": map[string]any{
-			"lod":  "旧 Host（匹配来源）",
-			"new":  "新 Host（替换目标，可含端口如 host:8443）",
-			"note": "注释",
+			"lod":      "旧 Host（匹配来源）",
+			"new":      "新 Host（替换目标，可含端口如 host:8443）",
+			"note":     "注释",
 			"deleteOp": "config_host_delete（勿用 config_rule_set_state，该 op 仅用于数据替换/拦截规则）",
 		},
 	}
 }
 
-func applyHostRulesFull(app *AppMain, rules []hostRuleMCP) error {
+func applyHostRulesFull(app MCPCore, rules []hostRuleMCP) error {
 	Config.Config.ReplaceHost = make(map[int]*Config.ReplaceHostInfo)
 	for _, r := range rules {
 		lod := hostRuleLod(r)
@@ -158,7 +158,7 @@ func findHostRuleIDByLod(lod string) (int, bool) {
 	return 0, false
 }
 
-func bridgeHostAdd(app *AppMain, m map[string]any) (any, error) {
+func bridgeHostAdd(app MCPCore, m map[string]any) (any, error) {
 	lod := strings.TrimSpace(argString(m, "lod"))
 	if lod == "" {
 		lod = strings.TrimSpace(argString(m, "old"))
@@ -184,7 +184,7 @@ func bridgeHostAdd(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "id": id, "lod": lod, "new": newH, "note": note}, nil
 }
 
-func bridgeHostDelete(app *AppMain, m map[string]any) (any, error) {
+func bridgeHostDelete(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		lod := strings.TrimSpace(argString(m, "lod"))
@@ -208,7 +208,7 @@ func bridgeHostDelete(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "id": id}, nil
 }
 
-func bridgeHostUpdate(app *AppMain, m map[string]any) (any, error) {
+func bridgeHostUpdate(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填")

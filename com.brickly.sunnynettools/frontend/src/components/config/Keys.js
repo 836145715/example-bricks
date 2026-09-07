@@ -1,6 +1,6 @@
 //内置常用工具
 import {ref, watch} from "vue";
-import {GetKeys, SetIsEditKeyDown, SetKeys} from "../../../bindings/changeme/Service/appmain";
+import {GetKeys, SetIsEditKeyDown, SetKeys} from "../../brickly/api.js";
 import {Config_GOOS_IsWindows} from "./Config";
 
 export const Keys_System_id_Boss = "Boss" //全部放行
@@ -9,13 +9,11 @@ export const Keys_System_id_Current_Release = "system_1"//当前请求放行
 export const Keys_System_id_Cancel_IE_Agent = "system_2"//设置/取消IE代理
 export const Keys_System_id_Keys_Clear_Al = "system_3"//清空全部记录
 export const Keys_System_id_ResendRequest = "system_4"//重发请求
-export const Keys_Tools_DebugTools = "tools_system_3"//调试工具
 export const Keys_Tools_Theme_Color = "tools_system_4"//主题调色
 export const Keys_Tools_Color_textMark = "tools_system_5"//主题调色
 export const Keys_Tools_Cert = "tools_system_7"//证书安装
 export const Keys_Tools_Export_Cert = "tools_system_10"//导出证书
-export const Keys_Tools_Code_Create = "tools_system_11"//代码生成
-export const Keys_Tools_Diff_Text = "tools_system_12"//代码生成
+export const Keys_Tools_Diff_Text = "tools_system_12"//文本对比
 
 const systemKeys = [
     {
@@ -86,11 +84,9 @@ const systemKeys = [
     },
 ];
 export const Config_Tools_SystemList = [
-    {Name: "调试工具", Windows: false, thisOpen: false, register: false, ID: Keys_Tools_DebugTools},
     {Name: "主题调色", Windows: false, thisOpen: false, register: false, ID: Keys_Tools_Theme_Color},
     {Name: "颜色标记", Windows: false, thisOpen: true, register: false, ID: Keys_Tools_Color_textMark},
     {Name: "导出证书", Windows: false, thisOpen: false, register: false, ID: Keys_Tools_Export_Cert, noKeys: true},
-    {Name: "代码生成", Windows: false, thisOpen: false, register: false, ID: Keys_Tools_Code_Create, noKeys: true},
     {Name: "证书安装", Windows: false, thisOpen: false, register: false, ID: Keys_Tools_Cert, noKeys: true},//noKeys 不设置快捷键
     {Name: "文本对比", Windows: false, thisOpen: false, register: false, ID: Keys_Tools_Diff_Text},
 ];

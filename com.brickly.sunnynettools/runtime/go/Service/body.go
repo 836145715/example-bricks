@@ -3,7 +3,7 @@ package Service
 import (
 	"strconv"
 
-	"changeme/Service/Session"
+	"changeme/internal/session"
 )
 
 // CreateBodyResource 由 main 注入：大包体走 SDK CreateResource，返回 ResourceRef。

@@ -11,9 +11,9 @@
 
 <script>
 import {GetImage} from "../../Tools/image.js";
-import {McpFuncRes, SetWorking} from "../../../../bindings/changeme/Service/appmain.js";
+import {McpFuncRes, SetWorking} from "../../../brickly/api.js";
 import {Tour_Add} from "../Tour";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 
 export default {
   props: ["isHideHook"],

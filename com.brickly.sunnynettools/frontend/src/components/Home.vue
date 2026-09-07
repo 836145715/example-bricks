@@ -24,7 +24,6 @@ import {
   AppDeleteSession,
   AppDisconnectTCPRequest,
   AppExport,
-  AppGenerateCode,
   AppImport,
   AppResendRequest,
   FreeAllRequest,
@@ -38,7 +37,7 @@ import {
   SetColumnState,
   SetRequestNextBreakMode,
   UpdateNote
-} from "../../bindings/changeme/Service/appmain.js";
+} from "../brickly/api.js";
 import {AG_GRID_LOCALE_CN} from "./config/AG_ZH_CN.js";
 import ListenOn from "./config/ListenOn.vue";
 import reqsPanel from './Home/reqsPanel.vue';
@@ -52,13 +51,12 @@ import ImageRenderer from "./Home/imageRenderer.vue";
 import FindWindow from "./Tools/Find/FindWindow.vue";
 import Filter from "./Tools/Filter/filter.vue";
 import {keydownEventListener, Keys_System_id_ResendRequest, registerHotkeyFunction} from "./config/Keys";
-import {GetGenerateCodeListMenu} from "./config/GenerateCode";
 import {ElLoading, ElMessageBox, ElNotification} from "element-plus";
 import {nextTick} from "vue";
 import TitleBar from "./TitleBar/TitleBar.vue";
 import VTitlebar from "./TitleBar/VUETitlebar/vueTitlebar.vue";
 import {OpenTools} from "./CallbackEventsOn";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../brickly/runtime.js";
 
 export default {
   components: {
@@ -1230,38 +1228,6 @@ export default {
         })
       })
     },
-    GenerateCode(Language, Type) {
-      if (this.agSelectedRowNodes.length < 1) {
-        ElNotification({
-          position: 'bottom-right',
-          showClose: true,
-          message: '代码生成失败\n\n没有选择请求',
-          type: 'warning',
-          customClass: 'multiline-message'
-        })
-        return
-      }
-      const id = parseInt(this.agSelectedRowNodes[0].data['Theology'])
-      AppGenerateCode(id, Language, Type).then(res => {
-        if (res === "") {
-          ElNotification({
-            position: 'bottom-right',
-            showClose: true,
-            message: '代码生成成功\n\n已复制到剪辑版',
-            type: 'success',
-            customClass: 'multiline-message'
-          })
-        } else {
-          ElNotification({
-            position: 'bottom-right',
-            showClose: true,
-            message: '代码生成失败\n\n' + res,
-            type: 'warning',
-            customClass: 'multiline-message'
-          })
-        }
-      })
-    },
     HomeListMenu(params) {
       const defaultMenuItems = params.defaultItems || [];
       const filteredMenuItems = defaultMenuItems.filter(item => {
@@ -1390,13 +1356,6 @@ export default {
                     action: this.OpenResendRequest,
                   },
                 ],
-              });
-            }
-            const ares = GetGenerateCodeListMenu(Method, this.GenerateCode, parseInt(this.agSelectedRowNodes[0].data['Theology']))
-            if (ares.length > 0) {
-              filteredMenuItems.push({
-                name: "代码生成",
-                subMenu: ares,
               });
             }
           }

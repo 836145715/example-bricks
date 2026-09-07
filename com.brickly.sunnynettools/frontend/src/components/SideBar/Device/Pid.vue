@@ -2,8 +2,8 @@
 import {AgGridVue} from "ag-grid-vue3";
 import {Config_Theme_agGrid} from "../../config/Config.js";
 import {AG_GRID_LOCALE_CN} from "../../config/AG_ZH_CN.js";
-import {Events} from "@wailsio/runtime";
-import {ProcessAddPid, ProcessDelPid} from "../../../../bindings/changeme/Service/appmain";
+import {Events} from "../../../brickly/runtime.js";
+import {ProcessAddPid, ProcessDelPid} from "../../../brickly/api.js";
 import {attachMcpDevicePid} from "../../config/mcpDeviceSync.js";
 import MustTcp from "../Settings/MustTcp.vue";
 import Host from "../Settings/Host.vue";

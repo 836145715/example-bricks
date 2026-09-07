@@ -29,7 +29,7 @@ import {
   SetIsDark,
   SetLimitRequestSize,
   SetPort
-} from "../../../../bindings/changeme/Service/appmain";
+} from "../../../brickly/api.js";
 
 export default {
   components: {Table},

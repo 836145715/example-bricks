@@ -75,7 +75,7 @@ func (g *AppMain) engineSettingsSnapshot() map[string]any {
 }
 
 // settingsApplyResult MCP 写设置后的统一返回（含 applied 与抓包工具快照）。
-func settingsApplyResult(app *AppMain, extra map[string]any) map[string]any {
+func settingsApplyResult(app MCPCore, extra map[string]any) map[string]any {
 	out := map[string]any{
 		"ok":      true,
 		"applied": true,

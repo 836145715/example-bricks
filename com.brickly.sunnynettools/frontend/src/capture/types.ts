@@ -59,6 +59,7 @@ export type StreamDelta =
   | { type: 'delete'; ids: number[] }
   | { type: 'clear' }
   | { type: 'filterApplied'; total: number }
+  | { type: 'socket_stream'; rows: unknown[] }
 
 /** capture-stream 上行控制。 */
 export type StreamControl =

@@ -37,7 +37,6 @@ func loadToolInputSchemas() {
 		"stream_count":           mustInputSchema[StreamCountIn](),
 		"stream_slice":           mustInputSchema[StreamSliceIn](),
 		"engine_start":           mustInputSchema[EngineStartIn](),
-		"generate_builtin_code":  mustInputSchema[GenerateBuiltinCodeIn](),
 		"engine_apply_advanced":  mustInputSchema[EngineApplyAdvancedIn](),
 		"config_set_replace":     mustInputSchema[ConfigSetRulesIn](),
 		"config_set_rewrite":     mustInputSchema[ConfigSetRulesIn](),

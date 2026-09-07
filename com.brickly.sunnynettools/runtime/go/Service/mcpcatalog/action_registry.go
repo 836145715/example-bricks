@@ -51,7 +51,7 @@ var domainDefinitions = []DomainDefinition{
 	{Name: "system", ToolName: "sunnynet_system", Title: "抓包工具与系统", Description: "抓包工具、运行状态、系统代理、捕获区与界面主题。"},
 	{Name: "traffic", ToolName: "sunnynet_traffic", Title: "流量主列表", Description: "主列表分页、搜索、单元格、标记、注释与删除。"},
 	{Name: "content", ToolName: "sunnynet_content", Title: "正文与流消息", Description: "HTTP Body、流消息、局部读取、分块读取与 Protobuf 转换。"},
-	{Name: "session", ToolName: "sunnynet_session", Title: "会话管理", Description: "会话结构、导入导出、行映射与内置请求代码生成。"},
+	{Name: "session", ToolName: "sunnynet_session", Title: "会话管理", Description: "会话结构、导入导出与行映射。"},
 	{Name: "breakpoint", ToolName: "sunnynet_breakpoint", Title: "断点与重放", Description: "HTTP 断点、放行、跳转、同步改包与重放。"},
 	{Name: "rules", ToolName: "sunnynet_rules", Title: "规则管理", Description: "替换、重写、拦截、屏蔽与 Host 规则。"},
 	{Name: "config", ToolName: "sunnynet_config", Title: "抓包工具设置", Description: "上游代理、DNS、强制 TCP、开关、HTTPS/JA3/HTTP2 与请求证书。"},
@@ -99,7 +99,6 @@ var actionMappings = []actionMapping{
 	{domain: "session", action: "session.packExport", legacyOp: "session_pack_export", risk: RiskWrite},
 	{domain: "session", action: "session.import", legacyOp: "records_import", risk: RiskWrite},
 	{domain: "session", action: "session.export", legacyOp: "records_export", risk: RiskDestructive},
-	{domain: "session", action: "code.generateBuiltin", legacyOp: "generate_builtin_code", risk: RiskWrite},
 
 	{domain: "breakpoint", action: "break.continue", legacyOp: "break_continue", risk: RiskWrite},
 	{domain: "breakpoint", action: "break.continueAll", legacyOp: "break_continue_all", risk: RiskWrite},

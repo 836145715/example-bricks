@@ -277,7 +277,7 @@
 import {GetDocImage} from "../../../image";
 import {ElNotification} from "element-plus";
 import {Config_GOOS_IsWindows} from "../../../../config/Config";
-import {ClipboardWriteAll, GetPort} from "../../../../../../bindings/changeme/Service/appmain";
+import {ClipboardWriteAll, GetPort} from "../../../../../brickly/api.js";
 import {h} from "vue";
 
 export default {

@@ -1,6 +1,15 @@
 package Service
 
-import "changeme/Service/mcp"
+import (
+	"changeme/Service/mcp"
+	"changeme/Service/mcpbridge"
+)
+
+func init() {
+	mcpbridge.EmitMCPBridgeChanged = func() {
+		notify("mcpBridgeChanged", mcp.StatusJSON())
+	}
+}
 
 // MCPStatusJSON 返回 MCP 桥状态（JSON 字符串）。
 func (g *AppMain) MCPStatusJSON() string {

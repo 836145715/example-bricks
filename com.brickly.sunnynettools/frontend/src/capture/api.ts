@@ -1,5 +1,5 @@
 /** 数据面命令调用封装（直接走平台具名命令）。 */
-import { invokeCommand } from "../../bindings/changeme/Service/bridge.js";
+import { invokeCommand } from "../brickly/core.js";
 import type { FilterModelItem, PeekRequest, PeekResult } from "./types";
 
 export async function captureCount(): Promise<number> {

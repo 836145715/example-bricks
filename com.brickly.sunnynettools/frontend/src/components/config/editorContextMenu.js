@@ -1,7 +1,7 @@
 import {nextTick} from 'vue';
 import {ElMessageBox} from "element-plus";
-import {AppGetEditorFontSize, AppSetEditorFontSize, ClipboardReadAll} from "../../../bindings/changeme/Service/appmain";
-import {Events} from "@wailsio/runtime";
+import {AppGetEditorFontSize, AppSetEditorFontSize, ClipboardReadAll} from "../../brickly/api.js";
+import {Events} from "../../brickly/runtime.js";
 import * as monaco from 'monaco-editor'
 import {Config_GOOS_IsWindows} from "./Config";
 

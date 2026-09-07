@@ -3,8 +3,8 @@ package Service
 import (
 	. "changeme/Service/Config"
 	"changeme/Service/IsInstallCert"
-	"changeme/Service/Session"
 	Theme2 "changeme/Service/Theme"
+	"changeme/internal/session"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -24,9 +24,9 @@ func getDev(theme string) string {
 }
 func (g *AppMain) AppGetTheme(isDark bool) {
 	if isDark {
-		AppList["Main"].EmitEvent("setTheme", Config.AgGridDarkTheme, isDark)
+		Publish("setTheme", Config.AgGridDarkTheme, isDark)
 	} else {
-		AppList["Main"].EmitEvent("setTheme", Config.AgGridLightTheme, isDark)
+		Publish("setTheme", Config.AgGridLightTheme, isDark)
 	}
 }
 
@@ -61,7 +61,7 @@ func (g *AppMain) Theme(isDark bool, _type, Theme string) string {
 			Config.AgGridLightTheme = Theme
 		}
 		Config.Save()
-		AppList["Main"].EmitEvent("setTheme", Theme, isDark)
+		Publish("setTheme", Theme, isDark)
 	}
 	return Theme
 }
@@ -150,12 +150,9 @@ func (g *AppMain) SetIsDark(IsDark bool) {
 	}()
 	Config.IsDark = IsDark
 	Config.Save()
-	//任意窗口发送一次,所有窗口都会收到该事件
-	AppList["Main"].EmitEvent("SetIsDark", IsDark)
+	Publish("SetIsDark", IsDark)
 
 	//Debug-SunnyNet
-
-	//AppList["主题设计"].EmitEvent("SetIsDark", IsDark)
 }
 
 // GetAgGridLightTheme 获取输入的亮色主题
@@ -192,7 +189,7 @@ func (g *AppMain) SetListColor(IsDark bool, ColorID string, Color string) {
 		Config.ListColor["l"+ColorID] = Color
 	}
 	lock.Unlock()
-	AppList["Main"].EmitEvent("ListColor", ColorID, Color)
+	Publish("ListColor", ColorID, Color)
 }
 func (g *AppMain) GetListColor(IsDark bool) map[string]string {
 	defer func() {
@@ -226,17 +223,17 @@ func (g *AppMain) DefaultColor(IsDark bool) {
 		if IsDark {
 			if strings.Contains(k, "d") {
 				Config.ListColor[k] = Color
-				AppList["Main"].EmitEvent("ListColor", ColorID, Color)
+				Publish("ListColor", ColorID, Color)
 			}
 		} else {
 			if !strings.Contains(k, "d") {
 				Config.ListColor[k] = Color
-				AppList["Main"].EmitEvent("ListColor", ColorID, Color)
+				Publish("ListColor", ColorID, Color)
 			}
 		}
 	}
 	lock.Unlock()
-	AppList["Main"].EmitEvent("RestColor", IsDark)
+	Publish("RestColor", IsDark)
 }
 
 // GetSendIsHTTP1 获取是否强制发送HTTP1.1请求

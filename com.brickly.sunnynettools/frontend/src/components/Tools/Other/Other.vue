@@ -1,15 +1,14 @@
 <script>
 
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 import TitleBar from "../../TitleBar/TitleBar.vue";
 import {Config_IsDark} from "../../config/Config";
 import CertInstall from "./CertInstall/CertInstall.vue";
-import {IsDark} from "../../../../bindings/changeme/Service/appmain";
-import CodeCreate from "./CodeCreate/CodeCreate.vue";
+import {IsDark} from "../../../brickly/api.js";
 import DiffText from "./DiffText/diffeditor.vue";
 
 export default {
-  components: {CodeCreate, CertInstall, TitleBar, DiffText},
+  components: {CertInstall, TitleBar, DiffText},
   data() {
     return {
       Title: "",
@@ -20,9 +19,6 @@ export default {
   computed: {
     isCertInstall() {
       return this.Title === '证书安装'
-    },
-    isCodeCreate() {
-      return this.Title === '代码生成'
     },
     isDiffText() {
       return this.Title === '文本对比'
@@ -94,7 +90,7 @@ export default {
     <div style="width: 100%;height: 100%;display: block">
       <TitleBar :Title="Title"></TitleBar>
       <div style="width: 100% ;height:100% ;position: relative;overflow:hidden">
-        <iframe id="myIframe" v-show="(!isCertInstall&&!isCodeCreate&&!isDiffText)||isMCP" :src="Url"
+        <iframe id="myIframe" v-show="(!isCertInstall&&!isDiffText)||isMCP" :src="Url"
                 style="width:  calc(100% - 5px);height:  calc(100% - 25px);">
         </iframe>
         <div v-show="isCertInstall"
@@ -106,11 +102,6 @@ export default {
              style="width:  100%;height:  calc(100% - 30px);position: relative;justify-content: center;align-content: center;text-align: center">
           <DiffText>
           </DiffText>
-        </div>
-        <div v-show="isCodeCreate"
-             style="width:  100%;height:  calc(100% - 30px);position: relative;justify-content: center;align-content: center;text-align: center">
-          <CodeCreate>
-          </CodeCreate>
         </div>
       </div>
     </div>

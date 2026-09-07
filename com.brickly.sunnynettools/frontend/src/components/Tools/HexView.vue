@@ -2,7 +2,7 @@
 import {ElMessage} from 'element-plus'
 import {bytesToBase64, bytesToString, StringToBytes} from "../config/encoding.js";
 import {Config_GOOS_IsWindows, Config_IsDark, Config_SelectedRow} from "../config/Config.js";
-import {ClipboardReadAll, ClipboardWriteAll, GetLocalServerPATH} from "../../../bindings/changeme/Service/appmain.js";
+import {ClipboardReadAll, ClipboardWriteAll} from "../../brickly/api.js";
 import {bytesToRequest, bytesToResponse} from "../config/SunnyNetInfoApi.js";
 import {h} from "vue";
 
@@ -670,12 +670,17 @@ export default {
       } else {
         return null;
       }
-      const path = await GetLocalServerPATH();
-      const formData = JSON.stringify(obj);
-      return await fetch(path + '/CopyRequest?Theology=' + this.SelectedRow.Theology + "&Name=" + this.Name + "&Range=" + option + "&Type=" + radio, {
-        method: 'POST',
-        body: formData
-      })
+      const bytes = obj instanceof Uint8Array ? obj : new Uint8Array(obj || []);
+      let text = "";
+      if (radio === "十六进制") {
+        text = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+      } else if (radio === "Ansi") {
+        text = bytesToString(bytes);
+      } else {
+        text = bytesToBase64(bytes);
+      }
+      const err = await ClipboardWriteAll(text);
+      return { text: async () => (err == null ? "" : String(err)) };
     },
     async menuItemClicked(option) {
       const obj = await this.copy(option, this.radio)

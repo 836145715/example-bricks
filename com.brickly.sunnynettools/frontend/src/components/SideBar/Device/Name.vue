@@ -2,8 +2,8 @@
 import {AgGridVue} from "ag-grid-vue3";
 import {Config_IsDark, Config_Theme_agGrid, ObjString} from "../../config/Config.js";
 import {AG_GRID_LOCALE_CN} from "../../config/AG_ZH_CN.js";
-import {Dialogs} from "@wailsio/runtime";
-import {ProcessAddName, ProcessDelName} from "../../../../bindings/changeme/Service/appmain";
+import {Dialogs} from "../../../brickly/runtime.js";
+import {ProcessAddName, ProcessDelName} from "../../../brickly/api.js";
 import {attachMcpDeviceName} from "../../config/mcpDeviceSync.js";
 import {ElMessage} from "element-plus";
 

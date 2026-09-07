@@ -1,7 +1,7 @@
 <script>
 import {Config_IsRest} from "../../config/Config";
 import {ElNotification} from "element-plus";
-import {SetKeys} from "../../../../bindings/changeme/Service/appmain";
+import {SetKeys} from "../../../brickly/api.js";
 import {Config_Keys, Config_Keys_ID, GetKeysArray, keydownEventToString, RestKeys} from "../../config/Keys";
 
 export default {

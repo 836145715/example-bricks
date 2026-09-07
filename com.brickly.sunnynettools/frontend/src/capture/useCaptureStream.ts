@@ -2,9 +2,23 @@
  * capture-stream（interact 会话）客户端。
  * 打开会话、接收轻量增量并转发给主列表；页面刷新自动重连。
  */
-import { invokeCommand, runtime } from "../../bindings/changeme/Service/bridge.js";
+import { invokeCommand, runtime } from "../brickly/core.js";
 import type { BricklyInteraction } from "./brickly-types";
 import type { FilterModelItem, StreamDelta } from "./types";
+
+const extraDeltaListeners = new Set<(delta: StreamDelta) => void>();
+
+/** 订阅 capture-stream 增量（主列表之外的面板，例如 WebSocket 消息流）。 */
+export function onCaptureDelta(fn: (delta: StreamDelta) => void): () => void {
+  extraDeltaListeners.add(fn);
+  return () => extraDeltaListeners.delete(fn);
+}
+
+export function onSocketStream(fn: (rows: unknown[]) => void): () => void {
+  return onCaptureDelta((delta) => {
+    if (delta.type === "socket_stream") fn(delta.rows || []);
+  });
+}
 
 export interface CaptureStreamHandle {
   close(): Promise<void>;
@@ -40,16 +54,25 @@ export async function openCaptureStream(
       const ev = unwrapStreamEvent(raw);
       if (!ev) return;
       const type = String(ev.type ?? ev.name ?? "");
+      let delta: StreamDelta | null = null;
       if (type === "insert" || type === "update") {
         const rows = Array.isArray(ev.rows) ? ev.rows : [];
-        onDelta({ type, rows } as StreamDelta);
+        delta = { type, rows } as StreamDelta;
       } else if (type === "delete") {
         const ids = Array.isArray(ev.ids) ? ev.ids.map(Number) : [];
-        onDelta({ type: "delete", ids } as StreamDelta);
+        delta = { type: "delete", ids };
       } else if (type === "clear") {
-        onDelta({ type: "clear" });
+        delta = { type: "clear" };
       } else if (type === "filterApplied") {
-        onDelta({ type: "filterApplied", total: Number(ev.total ?? 0) } as StreamDelta);
+        delta = { type: "filterApplied", total: Number(ev.total ?? 0) };
+      } else if (type === "socket_stream") {
+        const rows = Array.isArray(ev.rows) ? ev.rows : [];
+        delta = { type: "socket_stream", rows };
+      }
+      if (!delta) return;
+      onDelta(delta);
+      for (const fn of [...extraDeltaListeners]) {
+        try { fn(delta); } catch (e) { console.warn("[capture-stream] listener", e); }
       }
     },
   });

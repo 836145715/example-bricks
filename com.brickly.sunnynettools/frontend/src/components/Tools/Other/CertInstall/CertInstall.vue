@@ -70,8 +70,8 @@ import SDK from "./CertDoc/SDK.vue";
 import OpenSource from "./CertDoc/OpenSource.vue";
 import Android1 from "./CertDoc/Android.vue";
 import {GetDocImage} from "../../image";
-import {Dialogs} from "@wailsio/runtime";
-import {AppCheckSunnyNet, ExportCert} from "../../../../../bindings/changeme/Service/appmain";
+import {Dialogs} from "../../../../brickly/runtime.js";
+import {AppCheckSunnyNet, ExportCert} from "../../../../brickly/api.js";
 import {ElNotification} from "element-plus";
 
 export default {

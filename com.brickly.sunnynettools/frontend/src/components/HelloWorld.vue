@@ -1,22 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import {Events} from "@wailsio/runtime";
-import {GreetService} from "../../bindings/changeme";
+import {Events} from "../brickly/runtime.js";
 
 const name = ref('')
 const result = ref('Please enter your name below 👇')
 const time = ref('Listening for Time event...')
 
 const doGreet = () => {
-  let localName = name.value;
-  if (!localName) {
-    localName = 'anonymous';
-  }
-  GreetService.Greet(localName).then((resultValue) => {
-    result.value = resultValue;
-  }).catch((err) => {
-    console.log(err);
-  });
+  result.value = name.value ? `Hello ${name.value}` : 'Please enter your name below 👇'
 }
 
 onMounted(() => {
@@ -28,22 +19,16 @@ onMounted(() => {
 defineProps({
   msg: String,
 })
-
 </script>
 
 <template>
   <h1>{{ msg }}</h1>
-
   <div aria-label="result" class="result">{{ result }}</div>
   <div class="card">
     <div class="input-box">
       <input aria-label="input" class="input" v-model="name" type="text" autocomplete="off"/>
-      <button aria-label="greet-btn" class="btn" @click="doGreet">Greet</button>
+      <button class="btn" @click="doGreet">Greet</button>
     </div>
-  </div>
-
-  <div class="footer">
-    <div><p>Click on the Wails logo to learn more</p></div>
-    <div><p>{{ time }}</p></div>
+    <p>{{ time }}</p>
   </div>
 </template>

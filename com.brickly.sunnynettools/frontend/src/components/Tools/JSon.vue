@@ -16,8 +16,8 @@
 import VueJsonEditor from 'vue3-ts-jsoneditor';
 import {bytesToBase64, PbJsonConvert, StringToBytes, toGBK, toUTF8} from "../config/encoding.js";
 import {Config_IsDark} from "../config/Config.js";
-import {McpFuncRes, ProtobufToJson} from "../../../bindings/changeme/Service/appmain.js";
-import {Events} from "@wailsio/runtime";
+import {McpFuncRes, ProtobufToJson} from "../../brickly/api.js";
+import {Events} from "../../brickly/runtime.js";
 
 
 export default {

@@ -92,13 +92,13 @@
 
 <script>
 import {Config_IsDark} from "../../config/Config.js";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 import {Tour_Add} from "../Tour";
 import {
   MCPEnable,
   MCPDisable,
   MCPStatusJSON,
-} from "../../../../bindings/changeme/Service/appmain.js";
+} from "../../../brickly/api.js";
 
 const COPY_FEEDBACK_MS = 1200;
 

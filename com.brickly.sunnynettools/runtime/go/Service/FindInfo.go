@@ -2,8 +2,7 @@ package Service
 
 import (
 	"bytes"
-	"changeme/Service/Config"
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
@@ -341,9 +340,9 @@ func (info *FindInfo) IsProtoBufSearchType() bool {
 	return info.Type == "pb"
 }
 func (g *AppMain) FindSession(info *FindInfo) []int {
-	Config.AppList["Main"].EmitEvent("FindSearchProgress", 1)
+	notify("FindSearchProgress", 1)
 	res := g.find(info)
-	Config.AppList["Main"].EmitEvent("FindSearchProgress", 100)
+	notify("FindSearchProgress", 100)
 	return res
 }
 func (g *AppMain) find(i *FindInfo) []int {

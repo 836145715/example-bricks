@@ -3,6 +3,8 @@ package Service
 import (
 	"encoding/json"
 	"strings"
+
+	"changeme/internal/capture"
 )
 
 // 数据面（Phase 1）命令实现：capture-count / capture-peek / capture-filter / capture-stream。
@@ -15,12 +17,6 @@ type CaptureStreamContext interface {
 	Closed() <-chan struct{}
 }
 
-// invokeWithArgsServer 反射调用 AppMain 方法（控制会话 RPC 分发）。
-func invokeWithArgsServer(s *AppMain, methodName string, args []json.RawMessage) (any, error) {
-	return s.InvokeMethod(methodName, args)
-}
-
-// defaultServer 返回主 AppMain 实例（main.go 启动时注入）。
 var defaultServer = func() *AppMain { return mainServer }
 
 // mainServer 由 main.go 通过 SetCaptureServer 注入。
@@ -58,11 +54,7 @@ func RegisterCaptureCommands(register func(id string, fn func(input json.RawMess
 		return map[string]any{"total": total, "offset": req.Offset, "rows": rows}, nil
 	})
 	register("capture-ids", func(input json.RawMessage) (any, error) {
-		// 轻量全量行标识（MCP getcapturealllist 用）：{theology, method}
-		captureMu.RLock()
-		ids := make([]int, len(captureOrder))
-		copy(ids, captureOrder)
-		captureMu.RUnlock()
+		ids := capture.Order()
 		out := make([]map[string]any, 0, len(ids))
 		for _, t := range ids {
 			method := ""

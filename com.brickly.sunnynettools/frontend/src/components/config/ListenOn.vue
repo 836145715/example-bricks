@@ -1,6 +1,6 @@
 <script>
 import { openCaptureStream } from "../../capture/useCaptureStream";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../brickly/runtime.js";
 import {
   Config_agGrid_API,
   Config_AutoRoll,
@@ -17,7 +17,6 @@ import {
   setTheme
 } from "./Config.js";
 import {
-  AppInsertDone,
   AppIsSetPort,
   GetError,
   GetPort,
@@ -26,7 +25,7 @@ import {
   ProtobufToJson,
   SetPort,
   Start
-} from "../../../bindings/changeme/Service/appmain.js";
+} from "../../brickly/api.js";
 import {ElMessage} from "element-plus";
 import {ExternalKeydownEventListener} from "./Keys";
 import {PbJsonConvert} from "./encoding.js";
@@ -55,10 +54,12 @@ export default {
         const queued = this.pendingDeltas.splice(0);
         for (const item of queued) this.applyCaptureDelta(item);
       }
+      if (delta.type === "socket_stream") {
+        return;
+      }
       if (delta.type === "insert") {
         const rows = Array.isArray(delta.rows) ? delta.rows : [];
         if (rows.length === 0) {
-          AppInsertDone();
           return;
         }
         if (this.isWailsInsertRow(rows[0])) {
@@ -67,7 +68,20 @@ export default {
         }
         try {
           const normalized = this.normalizeStreamRows(rows);
-          const res = api.applyTransaction({ add: normalized });
+          const toAdd = [];
+          const toUpdate = [];
+          for (const row of normalized) {
+            if (api.getRowNode(String(row.Theology))) toUpdate.push(row);
+            else toAdd.push(row);
+          }
+          if (toUpdate.length > 0) {
+            const upd = api.applyTransaction({ update: toUpdate });
+            this.refreshCells(api, upd?.update);
+          }
+          let res = { add: [] };
+          if (toAdd.length > 0) {
+            res = api.applyTransaction({ add: toAdd });
+          }
           const guarantee = normalized.find((r) => r.GuaranteeDisplay);
           if (guarantee && this.setSelectedRow && res?.add) {
             this.setSelectedRow(res.add, guarantee.Theology);
@@ -76,10 +90,9 @@ export default {
             const last = res.add[res.add.length - 1];
             this.ensureNodeVisible(api, last.data.Theology);
           }
+          this.reloadSelectedIfTouched(normalized);
         } catch (e) {
           console.warn("[ListenOn] insert apply failed", e);
-        } finally {
-          AppInsertDone();
         }
         return;
       }
@@ -87,6 +100,7 @@ export default {
         const rows = this.normalizeStreamRows(delta.rows);
         const res = api.applyTransaction({ update: rows });
         this.refreshCells(api, res?.update);
+        this.reloadSelectedIfTouched(rows);
       } else if (delta.type === "delete") {
         const nodes = (delta.ids || [])
           .map((id) => api.getRowNode(String(id)))
@@ -108,6 +122,25 @@ export default {
       pumpPending();
       openCaptureStream((delta) => this.applyCaptureDelta(delta))
         .catch((e) => console.warn("[ListenOn] capture-stream failed", e));
+    },
+    reloadSelectedIfTouched(rows) {
+      const cur = Config_SelectedRow.value;
+      const selected = parseInt(cur?.Theology ?? "0", 10);
+      if (!selected || !Array.isArray(rows)) {
+        return;
+      }
+      const row = rows.find((r) => parseInt(r?.Theology ?? "0", 10) === selected);
+      if (!row) {
+        return;
+      }
+      if (row.ico === cur.ico && row["状态"] === cur["状态"]) {
+        return;
+      }
+      const api = Config_agGrid_API.value;
+      const node = api?.getRowNode(String(selected));
+      if (node?.data) {
+        this.alertUpdate(node.data);
+      }
     },
     normalizeStreamRows(rows) {
       return (rows || []).map((element) => {
@@ -344,16 +377,23 @@ export default {
         const api = Config_agGrid_API.value;
         if (!api) {
           this.pendingDeltas.push({ type: "insert", rows: array });
-          AppInsertDone();
           if (Func) Func([]);
           return;
         }
         const newArray = [];
+        const updateArray = [];
         let GuaranteeDisplay = "";
         array.forEach((element) => {
           const Theology = element["Theology"] + "";
           const rowNode = api.getRowNode(Theology);
           if (rowNode) {
+            if (element["IsHTTP"]) {
+              const row = this.applyHttpSendRowUpdate(element, rowNode);
+              if (element["State"]) {
+                row["状态"] = element["State"];
+              }
+              updateArray.push(row);
+            }
             return;
           }
           this.addFilter(element["Theology"] + "", element["Filter"]);
@@ -412,6 +452,15 @@ export default {
         newArray.forEach((element) => {
           GetTextColor(element)
         })
+        if (updateArray.length > 0) {
+          const upd = api.applyTransaction({ update: updateArray });
+          this.refreshCells(api, upd?.update);
+          this.reloadSelectedIfTouched(updateArray);
+        }
+        if (newArray.length === 0) {
+          if (Func) Func([]);
+          return;
+        }
         const res = api.applyTransaction({
           add: newArray,
         });
@@ -428,7 +477,6 @@ export default {
               this.ensureNodeVisible(api, node.data.Theology);
             }
             this.refreshCells(api, res.add)
-            AppInsertDone()
             if (Func) {
               Func(res.add)
             }
@@ -436,7 +484,6 @@ export default {
           return
         }
       }
-      AppInsertDone()
       if (Func) {
         Func([])
       }
@@ -444,17 +491,6 @@ export default {
   },
   mounted() {
     this.openStream()
-    Events.On("insert", (obj) => {
-      // 兼容仍走 EmitEvent("insert") 的旧 runtime：主列表不再订阅平台事件作主路径。
-      const data = obj?.data;
-      let array = data;
-      let isDone = true;
-      if (Array.isArray(data) && data.length >= 1 && Array.isArray(data[0])) {
-        array = data[0];
-        if (data.length > 1) isDone = data[1] !== false;
-      }
-      this.insertArray(array, isDone);
-    });
     registerThisObject("MCPApplyHttpSendRowUpdate", (body) => {
       if (body && body.theology != null) {
         this.applyHttpSendRowUpdates([{
@@ -579,106 +615,6 @@ export default {
           }
         }
       });
-      Events.On("updateSendHTTP", (obj) => {
-        const array = this.normalizeHttpUpdateBatch(obj?.data);
-        if (array.length > 0) {
-          this.applyHttpSendRowUpdates(array);
-        }
-      })
-      Events.On("updateDoneHTTP", (obj) => {
-        const array = obj.data;
-        if (Array.isArray(array) && array.length > 0) {
-          const api = Config_agGrid_API.value;
-          const newArray = [];
-          const _SelectedTheology = parseInt(Config_SelectedRow.value?.Theology ?? "0");
-          this.waitForRowRender(api, array, (element, rowNode) => {
-            {
-              this.addFilter(element["Theology"] + "", element["Filter"]);
-              rowNode.data["响应长度"] = element["Length"];
-              rowNode.data["响应类型"] = element["Type"];
-              rowNode.data["响应IP"] = element["IP"];
-              rowNode.data["状态"] = element["Code"];
-              rowNode.data["注释"] = element["Note"];
-              rowNode.data["响应时间"] = element["Time"];
-              rowNode.data["ico"] = element["Ico"];
-              rowNode.data["断点模式"] = element["BreakMode"];
-              GetTextColor(rowNode.data)
-              newArray.push(rowNode.data)
-              if (element["Theology"] === _SelectedTheology) {
-                this.alertUpdate(rowNode.data)
-              }
-            }
-            return rowNode.data;
-          }, newArray, () => {
-            const res = api.applyTransaction({update: newArray});
-            this.refreshCells(api, res.update)
-          })
-        }
-      })
-      Events.On("updateErrorHTTP", (obj) => {
-        const array = obj.data;
-        if (Array.isArray(array) && array.length > 0) {
-          const api = Config_agGrid_API.value;
-          const newArray = [];
-          const _SelectedTheology = parseInt(Config_SelectedRow.value?.Theology ?? "0");
-          this.waitForRowRender(api, array, (element, rowNode) => {
-            {
-              this.addFilter(element["Theology"] + "", element["Filter"]);
-              rowNode.data["状态"] = element["Code"];
-              rowNode.data["响应长度"] = element["Length"];
-              rowNode.data["响应时间"] = element["Time"];
-              rowNode.data["ico"] = element["Ico"];
-              rowNode.data["注释"] = element["Note"];
-              GetTextColor(rowNode.data)
-              newArray.push(rowNode.data)
-              if (element["Theology"] === _SelectedTheology) {
-                this.alertUpdate(rowNode.data)
-              }
-            }
-            return rowNode.data;
-          }, newArray, () => {
-            const res = api.applyTransaction({update: newArray});
-            this.refreshCells(api, res.update)
-          })
-        }
-      })
-      Events.On("updateWebsocket_tcp_udp_List", (obj) => {
-        const array = obj.data;
-        if (Array.isArray(array) && array.length > 0) {
-          const api = Config_agGrid_API.value;
-          const newArray = [];
-          this.waitForRowRender(api, array, (element, rowNode) => {
-            {
-
-              this.addFilter(element["Theology"] + "", element["Filter"]);
-              const icon = element["Ico"];
-              if (icon === "updateLen") {
-                rowNode.data["响应长度"] = element["SenLength"] + "/" + element["RecLength"];
-                return rowNode.data;
-              }
-              if (icon !== "") {
-                rowNode.data["ico"] = icon;
-              }
-              if (rowNode.data["状态"] + "" !== element["Code"] + "") {
-                rowNode.data["状态"] = element["Code"] + "";
-              }
-              rowNode.data["方式"] = element["Method"];
-              rowNode.data["响应类型"] = element["Method"];
-              rowNode.data["注释"] = element["Note"];
-              rowNode.data["响应长度"] = element["SenLength"] + "/" + element["RecLength"];
-            }
-            return rowNode.data;
-          }, newArray, () => {
-            newArray.forEach((element) => {
-              GetTextColor(element)
-            })
-            const res = api.applyTransaction({update: newArray});
-            this.refreshCells(api, res.update)
-          })
-
-        }
-      })
-
     }
     this.startConfig()
   }

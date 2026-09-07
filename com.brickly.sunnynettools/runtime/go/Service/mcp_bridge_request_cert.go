@@ -72,8 +72,8 @@ func certInfoToMCP(c Config.CertInfo) map[string]any {
 	}
 }
 
-func requestCertListForMCP(app *AppMain) map[string]any {
-	list := app.RequestCert.RequestList()
+func requestCertListForMCP(app MCPCore) map[string]any {
+	list := app.RequestList()
 	certs := make([]map[string]any, 0, len(list))
 	for _, c := range list {
 		certs = append(certs, certInfoToMCP(c))
@@ -82,7 +82,7 @@ func requestCertListForMCP(app *AppMain) map[string]any {
 		"certs": certs,
 		"total": len(certs),
 		"convention": map[string]any{
-			"roles":     []string{"解析及发送", "仅解析", "仅发送"},
+			"roles": []string{"解析及发送", "仅解析", "仅发送"},
 			"certTypes": map[string]any{
 				"P12/PKCS12": map[string]any{"extensions": []string{".p12", ".pkcs12"}, "passwordRequired": true},
 				"PEM/CER":    map[string]any{"extensions": []string{".pem", ".cer"}, "passwordRequired": false},
@@ -91,11 +91,11 @@ func requestCertListForMCP(app *AppMain) map[string]any {
 	}
 }
 
-func bridgeRequestCertList(app *AppMain) (any, error) {
+func bridgeRequestCertList(app MCPCore) (any, error) {
 	return requestCertListForMCP(app), nil
 }
 
-func bridgeRequestCertAdd(app *AppMain, m map[string]any) (any, error) {
+func bridgeRequestCertAdd(app MCPCore, m map[string]any) (any, error) {
 	path := strings.TrimSpace(argString(m, "certPath"))
 	if path == "" {
 		path = strings.TrimSpace(argString(m, "path"))
@@ -126,10 +126,10 @@ func bridgeRequestCertAdd(app *AppMain, m map[string]any) (any, error) {
 	}
 	note := strings.TrimSpace(argString(m, "note"))
 
-	id := app.RequestCert.CreateRequestCert()
-	res := app.RequestCert.RequestCertSetFile(id, role, domain, path, pass, note)
+	id := app.CreateRequestCert()
+	res := app.RequestCertSetFile(id, role, domain, path, pass, note)
 	if res != "ok" {
-		app.RequestCert.RequestCertRemove(id)
+		app.RequestCertRemove(id)
 		if res == "P12 载入失败" {
 			return nil, errors.New("P12 载入失败（请检查 password 与文件）")
 		}
@@ -139,7 +139,7 @@ func bridgeRequestCertAdd(app *AppMain, m map[string]any) (any, error) {
 	return map[string]any{"ok": true, "id": id, "status": "已载入", "cert": certInfoToMCP(*Config.Config.RequestCert[id])}, nil
 }
 
-func bridgeRequestCertDelete(app *AppMain, m map[string]any) (any, error) {
+func bridgeRequestCertDelete(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填")
@@ -148,13 +148,13 @@ func bridgeRequestCertDelete(app *AppMain, m map[string]any) (any, error) {
 	if obj == nil {
 		return nil, fmt.Errorf("证书 id %d 不存在", id)
 	}
-	app.RequestCert.RequestCertRemove(id)
+	app.RequestCertRemove(id)
 	Config.Config.Save()
 	emitMCPRequestCertReload()
 	return map[string]any{"ok": true, "id": id}, nil
 }
 
-func bridgeRequestCertUpdate(app *AppMain, m map[string]any) (any, error) {
+func bridgeRequestCertUpdate(app MCPCore, m map[string]any) (any, error) {
 	id := argInt(m, "id", 0)
 	if id <= 0 {
 		return nil, errors.New("id 必填")
@@ -220,7 +220,7 @@ func bridgeRequestCertUpdate(app *AppMain, m map[string]any) (any, error) {
 		return map[string]any{"ok": true, "id": id, "status": "未载入", "cert": certInfoToMCP(*obj)}, nil
 	}
 
-	res := app.RequestCert.RequestCertSetFile(id, role, domain, path, pass, note)
+	res := app.RequestCertSetFile(id, role, domain, path, pass, note)
 	status := "已载入"
 	if res != "ok" {
 		status = "载入失败"

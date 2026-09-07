@@ -2,7 +2,7 @@
 import {AgGridVue} from "ag-grid-vue3";
 import {Config_IsDark, Config_Theme_agGrid, deleteThisObject} from "../../config/Config.js";
 import {AG_GRID_LOCALE_CN} from "../../config/AG_ZH_CN.js";
-import {Events} from "@wailsio/runtime";
+import {Events} from "../../../brickly/runtime.js";
 import ReplaceType from "./ReplaceType.vue";
 import ReplaceSourceType from "./ReplaceSourceType.vue";
 
@@ -12,12 +12,15 @@ import {
   ReplaceBodyList,
   ReplaceBodyRemove,
   ReplaceBodyUpdate
-} from "../../../../bindings/changeme/Service/appmain";
+} from "../../../brickly/api.js";
 import TitleBar from "../../TitleBar/TitleBar.vue";
 import {attachMcpConfigReload} from "../../config/mcpRulesSync.js";
 
 export default {
   components: {TitleBar, 'ag-grid-vue': AgGridVue, "replaceType": ReplaceType, "replaceSourceType": ReplaceSourceType},
+  props: {
+    embedded: {type: Boolean, default: false}
+  },
   data() {
     return {
       Stopped: null,
@@ -161,6 +164,15 @@ export default {
   computed: {
     agTheme() {
       return Config_Theme_agGrid.value
+    },
+    rootClass() {
+      return this.embedded ? "sn-tool-embed" : "sn-tool-page"
+    },
+    gridStyle() {
+      if (this.embedded) {
+        return {height: "100%", width: "100%"}
+      }
+      return {height: "calc(100% - 29px)", width: "100%", marginTop: "-1px"}
     },
   },
   mounted() {
@@ -332,12 +344,12 @@ export default {
 </script>
 
 <template>
-  <div class="fullscreen-div" style="display: block;">
-    <TitleBar Title="请求拦截/数据替换设置"></TitleBar>
+  <div :class="rootClass" style="display: block;">
+    <TitleBar v-if="!embedded" Title="请求拦截/数据替换设置"></TitleBar>
     <ag-grid-vue ref="agGrid"
                  :theme="agTheme"
                  :rowData="rowData"
-                 style="height: calc(100% - 29px);width: 100%;margin-top: -1px"
+                 :style="gridStyle"
                  :grid-options="gridOptions"
                  :loading="false"
                  :allowContextMenuWithControlKey="true"
@@ -351,10 +363,16 @@ export default {
 .white-svg path {
   stroke: white;
 }
-</style>
 
-<style>
-.fullscreen-div {
+.sn-tool-embed {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+}
+
+.sn-tool-page {
   position: fixed;
   top: 0;
   left: 0;
@@ -362,7 +380,6 @@ export default {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   overflow: hidden;
 }
 </style>

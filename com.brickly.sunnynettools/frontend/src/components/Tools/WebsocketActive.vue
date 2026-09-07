@@ -38,7 +38,7 @@
 <script>
 import VueText from "../Home/Request/tool/Text.vue";
 import {Config_SelectedRow} from "../config/Config.js";
-import {GoGetHex, SessionActiveSend} from "../../../bindings/changeme/Service/appmain.js";
+import {GoGetHex, SessionActiveSend} from "../../brickly/api.js";
 import {ElMessage} from "element-plus";
 import {bytesToBase64, bytesToString, StringToBytes} from "../config/encoding.js";
 

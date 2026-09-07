@@ -113,7 +113,7 @@ import {
   getThisObject,
 } from "../config/Config.js";
 import {Plus} from "@element-plus/icons-vue";
-import {Dialogs, Events} from "@wailsio/runtime";
+import {Dialogs, Events} from "../../brickly/runtime.js";
 import {ElNotification} from "element-plus";
 import {
   CustomToolsAdd,
@@ -123,7 +123,7 @@ import {
   ExportCert,
   GetPort,
   SaveCustomTools,
-} from "../../../bindings/changeme/Service/appmain";
+} from "../../brickly/api.js";
 import {Config_Tools_CustomList, Config_Tools_SystemList, registerHotkeyFunction} from "../config/Keys";
 import HomeTextMark from "./TextMark/HomeTextMark.vue";
 
@@ -401,12 +401,6 @@ export default {
       // 导出证书
       if (Name === "导出证书") {
         this.exportCert();
-        return;
-      }
-
-      // 代码生成
-      if (Name === "代码生成") {
-        OpenTools("代码生成", true, "code");
         return;
       }
 

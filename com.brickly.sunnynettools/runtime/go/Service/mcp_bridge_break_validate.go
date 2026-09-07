@@ -1,7 +1,7 @@
 package Service
 
 import (
-	"changeme/Service/Session"
+	"changeme/internal/session"
 	"fmt"
 	"strings"
 

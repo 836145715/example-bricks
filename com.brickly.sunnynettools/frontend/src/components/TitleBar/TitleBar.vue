@@ -1,6 +1,6 @@
 <script>
 
-import {Window} from "@wailsio/runtime";
+import {Window} from "../../brickly/runtime.js";
 import {Config_GOOS_IsWindows, Config_IsDark} from "../config/Config";
 import VTitlebar from "./VUETitlebar/vueTitlebar.vue";
 

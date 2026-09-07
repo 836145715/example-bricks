@@ -10,7 +10,7 @@ import {
   SetHTTPSProto,
   SetRandomJa3,
   SetSendIsHTTP1
-} from "../../../../bindings/changeme/Service/appmain";
+} from "../../../brickly/api.js";
 import {addMonacoEditorFontSize, RemoveMonacoEditorMenu} from "../../config/editorContextMenu";
 import {attachMcpSettingsReload} from "../../config/mcpSettingsSync.js";
 

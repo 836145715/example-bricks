@@ -42,11 +42,12 @@ func (g *AppMain) releaseCaptureResources() {
 		return
 	}
 	g.SetDeviceStopUpdate(true)
-	g.ProcessAny(false, false)
-	g.ProcessCancelAll()
-	if g.app != nil {
+	if g.Core != nil && g.Core.Proxy != nil {
+		g.Core.Proxy.ReleaseCapture()
+	} else if g.app != nil {
+		g.app.ProcessALLName(false, false)
+		g.app.ProcessCancelAll()
 		g.app.Close()
-		// 配置位可能还没写上，进程退出时仍强制还原系统代理。
 		_ = g.app.CancelIEProxy()
 	}
 	g.CancelIEProxy()

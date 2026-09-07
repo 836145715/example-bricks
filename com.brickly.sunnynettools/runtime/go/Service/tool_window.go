@@ -7,6 +7,8 @@ import (
 
 var errNoToolWindowFactory = errors.New("tool window factory is not bound")
 
+// 工具 UI 已改为主界面页内弹层。下面只保留残留 OS 子窗的关闭/广播，不再新建。
+
 // HostWindow 是 SDK 子窗口句柄的最小操作面（避免 Service 依赖 brickly）。
 type HostWindow interface {
 	Show() error
@@ -31,7 +33,6 @@ var toolWindowPages = map[string]string{
 	"Cert":        "ui/Cert.html",
 	"ReplaceBody": "ui/ReplaceBody.html",
 	"主题调色":        "ui/Theme.html",
-	"调试工具":        "ui/debugTools.html",
 	"其他窗口":        "ui/Other.html",
 }
 
@@ -41,7 +42,7 @@ func toolWindowURL(name string) string {
 
 func windowKey(name string) string {
 	switch name {
-	case "证书安装", "脚本代码", "代码生成", "文本对比", "MCP能力描述":
+	case "证书安装", "脚本代码", "文本对比", "MCP能力描述":
 		return "其他窗口"
 	default:
 		return name

@@ -143,7 +143,7 @@
 
 import {ElMessage} from "element-plus";
 import {GetDocImage} from "../../../image";
-import {ClipboardWriteAll} from "../../../../../../bindings/changeme/Service/appmain";
+import {ClipboardWriteAll} from "../../../../../brickly/api.js";
 
 
 export default {
