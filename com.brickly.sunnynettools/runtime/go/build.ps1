@@ -1,0 +1,53 @@
+# Build SunnyNetTools Go runtime. Requires a working gcc (CGO / SunnyNet).
+# Usage: powershell -File build.ps1 [-Targets win-x64]
+# Do not pass -s to ldflags: mingw strip produces a PE that Windows will not launch
+# (CreateProcess 193 / Node spawn EFTYPE).
+
+param(
+  [string[]]$Targets = @()
+)
+
+$ErrorActionPreference = 'Stop'
+$brickRoot = Resolve-Path "$PSScriptRoot\..\.."
+$srcDir = "$PSScriptRoot"
+$runtimeRoot = "$brickRoot\runtime"
+$stamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+
+$matrix = @{
+  'win-x64' = @('windows', 'amd64', '.exe')
+}
+
+if ($Targets.Count -eq 0) {
+  $Targets = @('win-x64')
+}
+
+Push-Location $srcDir
+try {
+  foreach ($key in $Targets) {
+    if (-not $matrix.ContainsKey($key)) {
+      Write-Warning "Unknown target: $key. Skipped."
+      continue
+    }
+    $goos, $goarch, $suffix = $matrix[$key]
+    $outDir = Join-Path $runtimeRoot $key
+    if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
+    $outFile = Join-Path $outDir "brick$suffix"
+
+    Write-Host "Building $key -> $outFile" -ForegroundColor Cyan
+    $env:GOOS = $goos
+    $env:GOARCH = $goarch
+    $env:CGO_ENABLED = '1'
+    & go build -trimpath -ldflags "-w -X main.buildStamp=$stamp" -o $outFile .
+    if ($LASTEXITCODE -ne 0) {
+      throw "go build failed for $key (exit $LASTEXITCODE)"
+    }
+    $size = (Get-Item $outFile).Length
+    Write-Host ("  OK  {0:N0} bytes" -f $size) -ForegroundColor Green
+  }
+}
+finally {
+  Pop-Location
+  Remove-Item Env:GOOS, Env:GOARCH, Env:CGO_ENABLED -ErrorAction SilentlyContinue
+}
+
+Write-Host "Done." -ForegroundColor Green

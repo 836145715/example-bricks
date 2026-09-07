@@ -23,7 +23,7 @@ const GO_TARGETS = {
   'linux-arm64': { goos: 'linux', goarch: 'arm64', suffix: '' }
 }
 
-const CGO_BRICKS = new Set(['com.brickly.net-capture'])
+const CGO_BRICKS = new Set(['com.brickly.net-capture', 'com.brickly.sunnynettools'])
 
 function currentPlatform() {
   const { platform, arch } = process
@@ -349,10 +349,12 @@ function buildGo(brickRoot, brickId, locals) {
   const output = binaryOutput(brickRoot, platform)
   fs.mkdirSync(path.dirname(output), { recursive: true })
   const cgo = CGO_BRICKS.has(brickId) ? '1' : '0'
+  // CGO 走 mingw 外链：-s 会让 strip 打出 Windows 拒载的 PE（spawn EFTYPE / 193）。
+  const ldflags = cgo === '1' ? '-w' : '-s -w'
   for (const dir of dirs) {
     console.log(`Building ${brickId} ${platform} -> ${output}`)
     withLocalGoReplace(dir, locals?.sdkGo, () => {
-      run('go', ['build', '-trimpath', '-ldflags', '-s -w', '-o', output, '.'], {
+      run('go', ['build', '-trimpath', '-ldflags', ldflags, '-o', output, '.'], {
         cwd: dir,
         env: { ...process.env, GOOS: target.goos, GOARCH: target.goarch, CGO_ENABLED: cgo }
       })

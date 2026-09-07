@@ -1,0 +1,75 @@
+/* CaptureTable 主题：跟随原版深/浅配色（Go ListColor/主题参数的同源观感）。 */
+
+.capture-table .tabulator {
+  --tabulator-header-bg: #1b2026;
+  --tabulator-header-color: #cfd3dc;
+  --tabulator-bg: #14181d;
+  --tabulator-row-color: #cfd3dc;
+  --tabulator-row-hover-bg: #232a33;
+  --tabulator-row-selected-bg: #2b3a4b;
+  --tabulator-border: #2c333c;
+  --tabulator-placeholder-color: #6b7480;
+  border: none;
+  background: var(--tabulator-bg);
+  width: 100%;
+  height: 100%;
+}
+
+.capture-table .tabulator--light .tabulator,
+.capture-table .tabulator--light.tabulator {
+  --tabulator-header-bg: #f3f5f7;
+  --tabulator-header-color: #2c3e50;
+  --tabulator-bg: #ffffff;
+  --tabulator-row-color: #2c3e50;
+  --tabulator-row-hover-bg: #eef2f6;
+  --tabulator-row-selected-bg: #d7e4f1;
+  --tabulator-border: #dde3ea;
+  --tabulator-placeholder-color: #98a3ad;
+}
+
+.capture-table .tabulator .tabulator-headers {
+  background: var(--tabulator-header-bg);
+}
+.capture-table .tabulator .tabulator-col {
+  background: var(--tabulator-header-bg);
+  color: var(--tabulator-header-color);
+  border-color: var(--tabulator-border);
+}
+.capture-table .tabulator .tabulator-col-content {
+  color: var(--tabulator-header-color);
+}
+.capture-table .tabulator .tabulator-row {
+  background: var(--tabulator-bg);
+  color: var(--tabulator-row-color);
+  border-color: var(--tabulator-border);
+  min-height: 26px;
+}
+.capture-table .tabulator .tabulator-row:hover {
+  background: var(--tabulator-row-hover-bg);
+}
+.capture-table .tabulator .tabulator-row.tabulator-selected {
+  background: var(--tabulator-row-selected-bg) !important;
+  color: var(--tabulator-row-color);
+}
+.capture-table .tabulator .tabulator-tableholder .tabulator-table {
+  background: var(--tabulator-bg);
+}
+.capture-table .tabulator .tabulator-placeholder {
+  color: var(--tabulator-placeholder-color);
+}
+/* 单元格内输入编辑器与深色协调 */
+.capture-table .tabulator .tabulator-row textarea,
+.capture-table .tabulator .tabulator-row input {
+  background: var(--tabulator-bg);
+  color: var(--tabulator-row-color);
+  border: 1px solid var(--tabulator-border);
+}
+/* header filter 输入 */
+.capture-table .tabulator input.tabulator-header-filter-input,
+.capture-table .tabulator select.tabulator-header-filter-select {
+  background: var(--tabulator-bg);
+  color: var(--tabulator-header-color);
+  border: 1px solid var(--tabulator-border);
+  border-radius: 3px;
+  font-size: 12px;
+}

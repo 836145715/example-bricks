@@ -1,0 +1,13 @@
+{
+  "name": "com.brickly.sunnynettools",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "setup": "node ../scripts/setup-brick.cjs",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend install --no-audit --no-fund && npm --prefix frontend run build",
+    "preview": "vite preview",
+    "typecheck": "node -e \"console.log('n/a')\""
+  }
+}

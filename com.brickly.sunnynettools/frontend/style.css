@@ -1,0 +1,7 @@
+/* 原 Wails 模板默认样式的精简版：仅保留必要的 reset */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}

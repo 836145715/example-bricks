@@ -1,0 +1,44 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build:dev": "vite build --minify false --mode development",
+    "build": "vite build --mode production",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ag-grid-community/vue3": "^32.3.3",
+    "@ag-grid-enterprise/clipboard": "^32.3.3",
+    "@ag-grid-enterprise/excel-export": "^32.3.3",
+    "@ag-grid-enterprise/set-filter": "^32.3.3",
+    "@element-plus/icons-vue": "^2.3.1",
+    "@imengyu/vue3-context-menu": "^1.4.8",
+    "ag-charts-enterprise": "^11.1.1",
+    "ag-grid-community": "^33.1.1",
+    "ag-grid-enterprise": "^33.1.1",
+    "ag-grid-react": "^33.1.1",
+    "ag-grid-vue3": "^33.1.1",
+    "com.brickly.sunnynettools": "file:..",
+    "element-plus": "^2.9.5",
+    "monaco-editor": "^0.45.0",
+    "monaco-editor-nls": "^3.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tabulator-tables": "^6.5.2",
+    "vue": "^3.2.45",
+    "vue3-ts-jsoneditor": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/tabulator-tables": "^6.3.6",
+    "@vitejs/plugin-vue": "^4.0.0",
+    "sass-embedded": "^1.87.0",
+    "terser": "^5.46.0",
+    "typescript": "^7.0.2",
+    "vite": "^5.0.0",
+    "vite-plugin-compression": "^0.5.1",
+    "vue-tsc": "^3.3.11"
+  }
+}
