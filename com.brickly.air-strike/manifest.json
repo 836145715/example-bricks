@@ -1,0 +1,123 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "id": "com.brickly.air-strike",
+  "version": "0.1.0",
+  "apiVersion": "0.1.0",
+  "name": {
+    "zh-CN": "空袭准星",
+    "en": "Air Strike"
+  },
+  "description": {
+    "zh-CN": "按下热键把鼠标变成红色瞄准准星，点击锁定目标，片刻后一枚导弹落下：爆炸、闪光、震屏，纯属整蛊特效。",
+    "en": "Hotkey turns your cursor into a red targeting reticle; click to lock, then a missile drops with explosion, flash and screen shake. Purely for fun."
+  },
+  "author": "Brickly Demo",
+  "runtime": {
+    "type": "node",
+    "instance": "shared",
+    "entry": {
+      "win-x64": "runtime/win-x64/index.js",
+      "win-arm64": "runtime/win-arm64/index.js",
+      "mac-x64": "runtime/mac-x64/index.js",
+      "mac-arm64": "runtime/mac-arm64/index.js",
+      "linux-x64": "runtime/linux-x64/index.js",
+      "linux-arm64": "runtime/linux-arm64/index.js"
+    }
+  },
+  "hotkeys": [
+    {
+      "id": "strike",
+      "commandId": "strike",
+      "name": {
+        "zh-CN": "呼叫空袭",
+        "en": "Call Air Strike"
+      },
+      "description": {
+        "zh-CN": "进入瞄准模式：准星跟随鼠标，左键锁定目标，Esc/右键取消。",
+        "en": "Enter aiming mode: reticle follows the cursor, left click locks the target, Esc/right click cancels."
+      },
+      "defaultBinding": {
+        "win32": {
+          "kind": "accelerator",
+          "accelerator": "Control+Shift+B"
+        },
+        "darwin": {
+          "kind": "accelerator",
+          "accelerator": "Command+Shift+B"
+        },
+        "default": {
+          "kind": "accelerator",
+          "accelerator": "Control+Shift+B"
+        }
+      },
+      "enabledByDefault": true
+    }
+  ],
+  "keywords": [
+    "fun",
+    "missile",
+    "overlay",
+    "hotkey",
+    "demo"
+  ],
+  "commands": [
+    {
+      "id": "strike",
+      "mode": "invoke",
+      "name": {
+        "zh-CN": "呼叫空袭",
+        "en": "Call Air Strike"
+      },
+      "description": {
+        "zh-CN": "全屏覆盖层进入瞄准模式，左键锁定坐标后播放导弹下落 + 爆炸 + 震屏特效。",
+        "en": "Fullscreen overlay enters aiming mode; left click locks a point, then plays missile drop + explosion + screen shake."
+      },
+      "category": "fun",
+      "io": {
+        "inputs": [
+          {
+            "name": "lockDelayMs",
+            "label": "锁定到落地的间隔毫秒",
+            "type": "number",
+            "required": false,
+            "default": 800,
+            "min": 200,
+            "max": 5000,
+            "step": 100,
+            "control": "slider"
+          },
+          {
+            "name": "mute",
+            "label": "静音",
+            "type": "boolean",
+            "required": false,
+            "default": false
+          }
+        ],
+        "outputs": [
+          {
+            "name": "target",
+            "label": "命中点屏幕坐标",
+            "type": "json"
+          },
+          {
+            "name": "exploded",
+            "label": "是否起爆",
+            "type": "boolean"
+          },
+          {
+            "name": "cancelled",
+            "label": "是否被取消",
+            "type": "boolean"
+          }
+        ]
+      },
+      "ui": {
+        "submitLabel": "进入瞄准模式"
+      },
+      "timeoutMs": 90000,
+      "execution": "parallel"
+    }
+  ]
+}
