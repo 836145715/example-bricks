@@ -9,8 +9,8 @@
     "en": "Air Strike"
   },
   "description": {
-    "zh-CN": "按下热键把鼠标变成红色瞄准准星，点击锁定目标，片刻后一枚导弹落下：爆炸、闪光、震屏，纯属整蛊特效。",
-    "en": "Hotkey turns your cursor into a red targeting reticle; click to lock, then a missile drops with explosion, flash and screen shake. Purely for fun."
+    "zh-CN": "按下热键把鼠标变成红色瞄准准星，点击锁定目标，片刻后一枚导弹落下：爆炸、闪光，纯属整蛊特效。",
+    "en": "Hotkey turns your cursor into a red targeting reticle; click to lock, then a missile drops with explosion and flash. Purely for fun."
   },
   "author": "Brickly Demo",
   "runtime": {
@@ -70,8 +70,8 @@
         "en": "Call Air Strike"
       },
       "description": {
-        "zh-CN": "全屏覆盖层进入瞄准模式，左键锁定坐标后播放导弹下落 + 爆炸 + 震屏特效。",
-        "en": "Fullscreen overlay enters aiming mode; left click locks a point, then plays missile drop + explosion + screen shake."
+        "zh-CN": "全屏覆盖层进入瞄准模式，左键锁定坐标后播放导弹下落 + 爆炸特效。",
+        "en": "Fullscreen overlay enters aiming mode; left click locks a point, then plays missile drop + explosion."
       },
       "category": "fun",
       "io": {

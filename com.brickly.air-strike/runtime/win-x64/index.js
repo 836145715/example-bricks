@@ -17,26 +17,6 @@ function clampNumber(value, min, max, fallback) {
   return Math.max(min, Math.min(max, Math.round(n)))
 }
 
-// desktopCaptureSources 的 thumbnail 是整屏 dataURL，冻结下来当震屏底图；
-// 截不到也能跑，只是震屏时抖的是特效层而不是"屏幕"。
-async function captureBackdrop(ctx, display) {
-  try {
-    const scale = Number.isFinite(display.scaleFactor) && display.scaleFactor > 0 ? display.scaleFactor : 1
-    const width = Math.min(3200, Math.max(640, Math.round((display.size?.width || display.bounds.width) * scale)))
-    const height = Math.min(3200, Math.max(640, Math.round((display.size?.height || display.bounds.height) * scale)))
-    const sources = await ctx.platform.screen.desktopCaptureSources({
-      types: ['screen'],
-      thumbnailSize: { width, height }
-    })
-    const list = Array.isArray(sources) ? sources : []
-    const source = list.find((s) => String(s.displayId) === String(display.id)) || list[0]
-    return (source && source.thumbnail) || null
-  } catch (error) {
-    brick.log.warn('backdrop capture failed', { message: error && error.message })
-    return null
-  }
-}
-
 function closeRunWindow(run) {
   if (!run || !run.win || run.win.isClosed) return Promise.resolve()
   return run.win.close().catch(() => run.win.forceClose().catch(() => {}))
@@ -60,7 +40,6 @@ brick.onCommand('strike', async (ctx, input = {}) => {
   const point = await ctx.platform.screen.getCursorScreenPoint()
   const display = await ctx.platform.screen.getDisplayNearestPoint(point)
   const bounds = display.bounds
-  const backdrop = await captureBackdrop(ctx, display)
 
   const options = {
     lockDelayMs: clampNumber(input.lockDelayMs, 200, 5000, 800),
@@ -106,11 +85,9 @@ brick.onCommand('strike', async (ctx, input = {}) => {
     run.timeout = setTimeout(() => finish({ exploded: false, cancelled: true, reason: 'aim-timeout' }), AIM_TIMEOUT_MS)
 
     win.expose({
-      'strike:init': () => ({
-        backdrop,
-        bounds: { width: bounds.width, height: bounds.height },
-        options
-      }),
+      'strike:init': () => ({ options }),
+      // 锁定后立刻穿透鼠标：导弹动画期间桌面恢复可操作
+      'strike:locked': () => void win.setIgnoreMouseEvents(true),
       'strike:done': (payload) => {
         const local = payload && payload.target
         const target =

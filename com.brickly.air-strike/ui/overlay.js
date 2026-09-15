@@ -3,7 +3,6 @@
   'use strict'
 
   const scene = document.getElementById('scene')
-  const backdrop = document.getElementById('backdrop')
   const canvas = document.getElementById('fx')
   const crosshair = document.getElementById('crosshair')
   const marker = document.getElementById('marker')
@@ -40,6 +39,14 @@
     return Promise.resolve(undefined)
   }
 
+  function notify(name, payload) {
+    try {
+      if (window.brickly && typeof window.brickly.notify === 'function') {
+        window.brickly.notify(name, payload)
+      }
+    } catch {}
+  }
+
   // 页面加载早于 runtime 的 win.expose 注册也没关系：宿主会把请求排队到窗口
   // running，runtime 尚未 expose 时还会用同一 requestId 重试——一次请求即可。
   // catch 只兜底浏览器直接打开（preview）或宿主异常的情况。
@@ -54,17 +61,8 @@
 
   async function boot() {
     const init = await requestInit()
-    if (init && typeof init === 'object') {
-      if (typeof init.backdrop === 'string' && init.backdrop) {
-        backdrop.src = init.backdrop
-      } else {
-        backdrop.classList.add('empty')
-      }
-      if (init.options) {
-        options = { ...options, ...init.options }
-      }
-    } else {
-      backdrop.classList.add('empty')
+    if (init && init.options) {
+      options = { ...options, ...init.options }
     }
     state = 'aim'
     if (lastMouse) {
@@ -193,6 +191,7 @@
     crosshair.classList.add('hidden')
     marker.style.transform = `translate(${target.x}px, ${target.y}px)`
     marker.classList.remove('hidden')
+    notify('strike:locked')
     audio()
     for (let i = 0; i < 3; i++) beep((options.lockDelayMs / 1000) * (i / 3))
     setTimeout(launch, options.lockDelayMs)
@@ -281,7 +280,7 @@
   function impact(now) {
     state = 'boom'
     boomAt = now
-    scene.classList.add('shaking', 'boom')
+    scene.classList.add('boom')
     flash.classList.remove('on')
     void flash.offsetWidth
     flash.classList.add('on')

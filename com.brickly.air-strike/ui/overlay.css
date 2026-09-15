@@ -5,7 +5,6 @@ body {
   height: 100%;
   overflow: hidden;
   background: transparent;
-  cursor: none;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -18,38 +17,6 @@ body {
 
 #scene.fading {
   opacity: 0;
-}
-
-/* 只有底图所在层参与震屏；特效层不动，爆炸点才钉得住 */
-#shakeWrap {
-  position: absolute;
-  inset: 0;
-}
-
-#backdrop {
-  position: absolute;
-  left: -3%;
-  top: -3%;
-  width: 106%;
-  height: 106%;
-  object-fit: fill;
-}
-
-#backdrop.empty {
-  display: none;
-}
-
-#dim {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%),
-    rgba(20, 0, 0, 0.14);
-  transition: opacity 0.3s;
-}
-
-#scene.boom #dim {
-  opacity: 0.35;
 }
 
 #fx {
@@ -149,22 +116,6 @@ body {
   100% {
     opacity: 0;
   }
-}
-
-#scene.shaking #shakeWrap {
-  animation: screen-shake 0.55s linear;
-}
-
-@keyframes screen-shake {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  8% { transform: translate(-11px, 7px) rotate(-0.5deg); }
-  16% { transform: translate(10px, -8px) rotate(0.45deg); }
-  26% { transform: translate(-9px, -6px) rotate(-0.35deg); }
-  38% { transform: translate(8px, 6px) rotate(0.3deg); }
-  52% { transform: translate(-6px, 4px) rotate(-0.22deg); }
-  66% { transform: translate(5px, -3px) rotate(0.15deg); }
-  80% { transform: translate(-3px, 2px) rotate(-0.08deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
 }
 
 #scorch {
