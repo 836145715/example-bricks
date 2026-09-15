@@ -35,7 +35,7 @@ npm run setup -- --local
 # 等价：BRICKLY_LOCAL=1 npm run setup
 ```
 
-Windows 上需要本机已装 `go`、`uv`（走 `.cmd`）。找不到旁边的 `ai-bricks` 时会失败。
+Windows 上需要本机已装 `go`、`uv`（走 `.cmd`）。.NET Brick 需要 .NET 8 SDK 构建、ASP.NET Core 8 运行时启动（`com.brickly.dotnet-lab`）。找不到旁边的 `ai-bricks` 时会失败。
 
 装完已发布版本（不链本地）：
 
@@ -62,12 +62,20 @@ npm run sync-sdk -- --pins-only       # 只改 pin，不跑 lock
 npm run sync-sdk -- --dry-run         # 只打印将要改的文件
 ```
 
-`check-sdk` 对照 `sdk-pin.json` 检查各语言 pin 和 `protocolVersion`，并禁止 Go `replace`。
+`check-sdk` 对照 `sdk-pin.json` 检查各语言 pin 和 `protocolVersion`，并禁止 Go `replace` 与 .NET `ProjectReference`。
 
-当前 pin 是 **0.9.0**，协议是 `brickly.runtime.v1`。
+当前 pin 是 **0.11.0**，协议是 `brickly.runtime.v1`。
 
 C++ 示例 `com.brickly.cpp-sdk-lab` 走 native + `brickly-sdk-cpp`（Go `c-shared` 绑定）。C++ SDK 尚未发版，构建必须能找到旁边的 `ai-bricks`：
 
 ```bash
 node scripts/setup-brick.cjs --local com.brickly.cpp-sdk-lab
 ```
+
+.NET 示例 `com.brickly.dotnet-lab` 走原生 `Syllm.Brickly.Sdk`（NuGet）。`--local` 会临时把 `PackageReference` 换成对本地 `brickly-sdk-dotnet` 源码的 `ProjectReference`，跑完恢复、不改 pin：
+
+```bash
+npm run setup -- --local com.brickly.dotnet-lab
+```
+
+发布到 NuGet 后，`npm run sync-sdk` / `npm run check-sdk` 会一并升 `.csproj` 的 `Syllm.Brickly.Sdk` 版本。

@@ -37,7 +37,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--version') options.version = argv[++i]
     else if (arg === '-h' || arg === '--help') {
       console.log(`Usage:
-  node scripts/sync-sdk-version.cjs [--version 0.9.0] [--pins-only] [--dry-run]
+  node scripts/sync-sdk-version.cjs [--version <x.y.z>] [--pins-only] [--dry-run]
 
 默认版本来自旁边 ai-bricks 的 @syllm/brickly-sdk package.json。
 `)
@@ -163,6 +163,17 @@ function bumpPythonSpec(file, version, dryRun) {
   return writeText(file, next, dryRun)
 }
 
+function bumpDotnetProject(file, version, dryRun) {
+  const original = fs.readFileSync(file, 'utf8')
+  if (!original.includes('Syllm.Brickly.Sdk')) return false
+  const next = original.replace(
+    /(<PackageReference Include="Syllm\.Brickly\.Sdk" Version=")[^"]+(")/g,
+    `$1${version}$2`
+  )
+  if (next === original) return false
+  return writeText(file, next, dryRun)
+}
+
 function packageHasSdk(file) {
   try {
     const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -177,7 +188,7 @@ function main() {
   const options = parseArgs()
   const version = options.version || versionFromAiBricks()
   if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
-    throw new Error('请传 --version 0.9.0，或把 example-bricks 和 ai-bricks 放在同一父目录')
+    throw new Error('请传 --version <x.y.z>，或把 example-bricks 和 ai-bricks 放在同一父目录')
   }
 
   console.log(`pin SDK ${version}${options.dryRun ? ' (dry-run)' : ''}`)
@@ -187,6 +198,7 @@ function main() {
   const npmDirs = []
   const goDirs = []
   const pyDirs = []
+  const dotnetDirs = []
 
   walk(root, (file) => {
     const name = path.basename(file)
@@ -203,6 +215,11 @@ function main() {
     if (name === 'pyproject.toml' || name === 'requirements.txt') {
       bumpPythonSpec(file, version, options.dryRun)
       if (fs.readFileSync(file, 'utf8').includes('brickly-sdk==')) pyDirs.push(path.dirname(file))
+      return
+    }
+    if (name.endsWith('.csproj')) {
+      bumpDotnetProject(file, version, options.dryRun)
+      if (fs.readFileSync(file, 'utf8').includes('Syllm.Brickly.Sdk')) dotnetDirs.push(path.dirname(file))
     }
   })
 
@@ -228,6 +245,16 @@ function main() {
     } else {
       for (const dir of [...new Set(pyDirs)]) {
         run('uv', ['lock', '--upgrade-package', 'brickly-sdk'], dir)
+      }
+    }
+  }
+
+  if (dotnetDirs.length > 0) {
+    if (!commandExists('dotnet')) {
+      console.warn('skip dotnet restore (dotnet not found)')
+    } else {
+      for (const dir of [...new Set(dotnetDirs)]) {
+        run('dotnet', ['restore', '--nologo'], dir)
       }
     }
   }

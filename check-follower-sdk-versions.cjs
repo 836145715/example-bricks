@@ -22,9 +22,9 @@ function walk(dir) {
     }
 
     const inspectProtocol = /\.(go|cjs|js|ts|py)$/.test(name) && !/smoke/i.test(name)
-    const inspectSdkPin = ['go.mod', 'pyproject.toml', 'requirements.txt', 'manifest.json', 'package.json'].includes(
-      name
-    )
+    const inspectSdkPin =
+      ['go.mod', 'pyproject.toml', 'requirements.txt', 'manifest.json', 'package.json'].includes(name) ||
+      name.endsWith('.csproj')
     if (!inspectProtocol && !inspectSdkPin) continue
 
     const content = readFileSync(path, 'utf8')
@@ -86,6 +86,18 @@ function walk(dir) {
       const sdkSpecs = [...content.matchAll(/"(brickly-sdk==[^"]+)"/g)].map((match) => match[1])
       if (sdkSpecs.some((spec) => spec !== pythonRequirement)) {
         failures.push(`${displayPath} must only reference ${pythonRequirement}`)
+      }
+    }
+
+    if (name.endsWith('.csproj') && content.includes('Syllm.Brickly.Sdk')) {
+      const sdkSpecs = [...content.matchAll(/<PackageReference Include="Syllm\.Brickly\.Sdk" Version="([^"]+)"/g)].map(
+        (match) => match[1]
+      )
+      if (sdkSpecs.length !== 1 || sdkSpecs[0] !== pin.version) {
+        failures.push(`${displayPath} must reference Syllm.Brickly.Sdk ${pin.version}`)
+      }
+      if (/<ProjectReference[^>]*Syllm\.Brickly\.Sdk/.test(content)) {
+        failures.push(`${displayPath} must use the published .NET SDK without ProjectReference`)
       }
     }
   }

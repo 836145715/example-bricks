@@ -5,6 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const bricksRoot = __dirname
+const pin = JSON.parse(fs.readFileSync(path.join(bricksRoot, 'sdk-pin.json'), 'utf8'))
 const failures = []
 
 for (const brickId of fs.readdirSync(bricksRoot)) {
@@ -53,8 +54,8 @@ function inspectRuntime(runtimeDir) {
   }
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
   const version = packageJson.dependencies && packageJson.dependencies['@syllm/brickly-sdk']
-  if (version !== '^0.8.0') {
-    failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^0.8.0`)
+  if (version !== `^${pin.version}`) {
+    failures.push(`${relative(packageJsonPath)} must depend on @syllm/brickly-sdk@^${pin.version}`)
   }
 
   const installedPkg = path.join(runtimeDir, 'node_modules/@syllm/brickly-sdk/package.json')
@@ -63,8 +64,8 @@ function inspectRuntime(runtimeDir) {
     return
   }
   const installed = JSON.parse(fs.readFileSync(installedPkg, 'utf8')).version
-  if (installed !== '0.8.0') {
-    failures.push(`${relative(installedPkg)} must install 0.8.0, found ${installed}`)
+  if (installed !== pin.version) {
+    failures.push(`${relative(installedPkg)} must install ${pin.version}, found ${installed}`)
   }
 }
 

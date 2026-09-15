@@ -71,7 +71,8 @@ function resolveLocalPackages() {
     sdkUi: pick('brickly-ui'),
     sdkGo: pick('brickly-sdk-go'),
     sdkPy: pick('brickly-sdk-python'),
-    sdkCpp: pick('brickly-sdk-cpp')
+    sdkCpp: pick('brickly-sdk-cpp'),
+    sdkDotnet: pick('brickly-sdk-dotnet')
   }
 }
 
@@ -163,8 +164,11 @@ function installPublishedNpmDeps(dir) {
   const pkgFile = path.join(dir, 'package.json')
   const original = fs.readFileSync(pkgFile, 'utf8')
   const pkg = JSON.parse(original)
-  if (pkg.dependencies) delete pkg.dependencies['@syllm/brickly-sdk']
-  if (pkg.devDependencies) delete pkg.devDependencies['@syllm/brickly-sdk']
+  for (const field of ['dependencies', 'devDependencies']) {
+    if (!pkg[field]) continue
+    delete pkg[field]['@syllm/brickly-sdk']
+    delete pkg[field]['@syllm/brickly-ui']
+  }
   const names = []
   for (const [name, spec] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })) {
     names.push(`${name}@${spec}`)
@@ -362,6 +366,51 @@ function buildGo(brickRoot, brickId, locals) {
   }
 }
 
+function findDotnetProjects(brickRoot) {
+  const projects = []
+  walkFiles(path.join(brickRoot, 'runtime'), 3, (file) => {
+    if (path.basename(file).endsWith('.csproj')) projects.push(file)
+  })
+  return projects
+}
+
+/** --local：临时把 PackageReference 换成 ProjectReference，跑完恢复，不改 pin。 */
+function withLocalDotnetReplace(projectFile, sdkDotnet, fn) {
+  if (!sdkDotnet) return fn()
+  const sdkProject = path.join(sdkDotnet, 'src', 'Syllm.Brickly.Sdk', 'Syllm.Brickly.Sdk.csproj')
+  if (!fs.existsSync(sdkProject)) return fn()
+  const original = fs.readFileSync(projectFile, 'utf8')
+  const pattern = /<PackageReference Include="Syllm\.Brickly\.Sdk"[^/]*\/>/
+  if (!pattern.test(original)) return fn()
+  const posix = sdkProject.replace(/\\/g, '/')
+  fs.writeFileSync(projectFile, original.replace(pattern, `<ProjectReference Include="${posix}" />`))
+  try {
+    return fn()
+  } finally {
+    fs.writeFileSync(projectFile, original)
+  }
+}
+
+function buildDotnet(brickRoot, brickId, locals) {
+  const projects = findDotnetProjects(brickRoot)
+  if (projects.length === 0) {
+    console.log('skip dotnet build (no csproj)')
+    return
+  }
+  if (!commandExists('dotnet')) {
+    throw new Error(`.NET SDK is required to build ${brickId}`)
+  }
+  const platform = currentPlatform()
+  const output = path.join(brickRoot, 'runtime', platform)
+  fs.mkdirSync(output, { recursive: true })
+  for (const project of projects) {
+    console.log(`Building ${brickId} .NET ${platform} -> ${output}`)
+    withLocalDotnetReplace(project, locals?.sdkDotnet, () => {
+      run('dotnet', ['publish', '-c', 'Release', '-o', output, '--nologo'], { cwd: path.dirname(project) })
+    })
+  }
+}
+
 function findCppMain(brickRoot) {
   const main = path.join(brickRoot, 'runtime', 'cpp', 'main.cpp')
   return fs.existsSync(main) ? path.dirname(main) : null
@@ -423,6 +472,7 @@ function setupBrick(brickRoot, options = {}) {
   syncPython(brickRoot, locals)
   buildGo(brickRoot, brickId, locals)
   buildCpp(brickRoot, brickId, locals)
+  buildDotnet(brickRoot, brickId, locals)
   const uiSrc = path.join(brickRoot, 'ui-src')
   if (fs.existsSync(path.join(uiSrc, 'package.json'))) {
     npmInstall(uiSrc, Boolean(locals))
