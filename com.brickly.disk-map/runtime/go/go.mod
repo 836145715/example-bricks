@@ -3,7 +3,7 @@ module com.brickly.disk-map
 go 1.25.0
 
 require (
-	github.com/836145715/brickly-sdk-go v0.9.0
+	github.com/836145715/brickly-sdk-go v0.11.0
 	golang.org/x/sys v0.47.0
 )
 

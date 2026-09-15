@@ -3,19 +3,16 @@ module changeme
 go 1.25.0
 
 require (
-	github.com/836145715/brickly-sdk-go v0.10.0
+	github.com/836145715/brickly-sdk-go v0.11.0
 	github.com/andybalholm/brotli v1.1.1
 	github.com/atotto/clipboard v0.1.4
-	github.com/deatil/go-cryptobin v1.1.1013
 	github.com/google/jsonschema-go v0.4.3
 	github.com/modelcontextprotocol/go-sdk v1.6.0
 	github.com/orcastor/fico v0.0.0-20241117150408-e3bea0a75fd1
 	github.com/qtgolang/SunnyNet v1.4.9
-	github.com/rs/cors v1.11.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/sqweek/dialog v0.0.0-20260123140253-64c163d53aac
 	golang.design/x/clipboard v0.7.1
-	golang.org/x/crypto v0.47.0
 	golang.org/x/sys v0.41.0
 	golang.org/x/text v0.33.0
 )
@@ -45,6 +42,7 @@ require (
 	github.com/tmc/icns v0.0.0-20171229010138-5677fdfa7a3e // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp/shiny v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/image v0.28.0 // indirect
 	golang.org/x/mobile v0.0.0-20250606033058-a2a15c67f36f // indirect
