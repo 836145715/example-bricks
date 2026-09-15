@@ -103,10 +103,9 @@ const runtimeCommands = [
   },
   {
     id: "open-tool-window",
-    window: "standalone",
     hidden: true,
     name: { "zh-CN": "打开工具窗口", en: "Open Tool Window" },
-    description: "CreateBrowserWindow 打开证书/改包/主题等子工具窗。须 window=standalone。",
+    description: "CreateBrowserWindow 打开证书/改包/主题等子工具窗。会话窗 keepAlive 保活。",
     io: {
       inputs: [
         { name: "name", type: "string" },
@@ -127,8 +126,8 @@ if (commands.filter((c) => !c.hidden).some((c) => !publicIds.has(c.id))) {
   throw new Error("visible command missing from public surface");
 }
 const toolWin = commands.find((c) => c.id === "open-tool-window");
-if (!toolWin || toolWin.window !== "standalone" || !toolWin.hidden) {
-  throw new Error("open-tool-window must be hidden standalone");
+if (!toolWin || "window" in toolWin || !toolWin.hidden) {
+  throw new Error("open-tool-window must be hidden and must not declare window");
 }
 const uiRpc = commands.find((c) => c.id === "ui-rpc");
 if (!uiRpc || uiRpc.mode !== "interact" || !uiRpc.hidden) {

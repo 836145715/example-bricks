@@ -35,7 +35,7 @@ cd runtime/go && go build .       # 仅构建 Go runtime
 - **公开命令**（`runtime/go/commands.go` 的 `publicCommandTable`）：抓包启停、端口/系统代理、会话读写/导入导出、断点改包、证书、进程驱动、MCP。UI 私有方法只走 `control-stream` 的 `session.request`，不再注册为 OnCommand，也没有泛型 `call` 逃生舱。
 - **平台事件**：Go 侧所有事件以 `sunnynet:<原始事件名>` 发布（如 `sunnynet:updateDoneHTTP`），符合 `命名空间:主题` 规范，外部可订阅。shim 按需订阅并翻译回原事件名，原版组件零改动。
 - 核心命令（启停/端口/系统代理/会话读写）带类型化 io schema，其余为 `args` 数组透传。
-- **工具窗**：`open-tool-window` 声明 `command.window: standalone`，在命令内 `CreateBrowserWindow`；失败时前端回退 iframe 浮层。
+- **工具窗**：`open-tool-window` 在命令内经会话 facade `CreateBrowserWindow`（`binding: session + keepAlive`）打开子工具窗；失败时前端回退 iframe 浮层。
 
 ## 与原版的差异
 

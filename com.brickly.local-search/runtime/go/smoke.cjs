@@ -6,19 +6,22 @@ const assert = require('assert')
 
 const root = path.resolve(__dirname, '..', '..')
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))
-assert.equal(manifest.kind, 'brick')
+assert.ok(!manifest.kind || manifest.kind === 'brick')
 assert.equal(manifest.id, 'com.brickly.local-search')
 assert.ok(manifest.commands.some((c) => c.id === 'search'))
 assert.ok(manifest.commands.some((c) => c.id === 'health'))
 assert.ok(manifest.commands.some((c) => c.id === 'preview'))
 assert.equal(manifest.runtime.entry['win-x64'], 'runtime/win-x64/brick.exe')
 
+const pin = JSON.parse(
+  fs.readFileSync(path.join(root, '..', 'sdk-pin.json'), 'utf8')
+)
 const goMod = fs.readFileSync(path.join(root, 'runtime/go/go.mod'), 'utf8')
-assert.ok(goMod.includes('github.com/836145715/brickly-sdk-go v0.8.0'))
+assert.ok(goMod.includes(`github.com/836145715/brickly-sdk-go v${pin.version}`))
 assert.ok(!/^replace\s+github.com\/836145715\/brickly-sdk-go/m.test(goMod))
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
-assert.equal(pkg.devDependencies['@syllm/brickly-ui'], '^0.8.0')
+assert.equal(pkg.devDependencies['@syllm/brickly-ui'], `^${pin.version}`)
 
 const main = fs.readFileSync(path.join(root, 'runtime/go/main.go'), 'utf8')
 assert.ok(main.includes('plugin.OnCommand("search"'))

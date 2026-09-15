@@ -62,8 +62,8 @@ function bindLab(win, kind) {
   void win.send('hello', { kind, windowId: win.id }).catch(() => {})
 }
 
-async function openChild(ctx, kind, title, options = {}) {
-  const win = await ctx.ui.createBrowserWindow('ui/child.html', {
+async function openChild(ui, kind, title, options = {}) {
+  const win = await ui.createBrowserWindow('ui/child.html', {
     width: 540,
     height: 760,
     title,
@@ -74,7 +74,7 @@ async function openChild(ctx, kind, title, options = {}) {
 }
 
 brick.onCommand('open-attached', async (ctx) => {
-  const win = await openChild(ctx, 'attached', '子窗 RPC · attached')
+  const win = await openChild(ctx.ui, 'attached', '子窗 RPC · attached')
   await new Promise((resolve) => {
     win.on('closed', resolve)
   })
@@ -82,13 +82,14 @@ brick.onCommand('open-attached', async (ctx) => {
 })
 
 brick.onCommand('try-attach-return', async (ctx) => {
-  const win = await openChild(ctx, 'try-attach-return', '子窗 RPC · 试一下（立刻 return）')
+  const win = await openChild(ctx.ui, 'try-attach-return', '子窗 RPC · 试一下（立刻 return）')
   return { kind: 'try-attach-return', returned: true, windowId: win.id }
 })
 
-brick.onCommand('open-standalone', async (ctx) => {
-  const win = await openChild(ctx, 'standalone', '子窗 RPC · standalone', {
-    lifetime: 'standalone'
+brick.onCommand('open-standalone', async () => {
+  const win = await openChild(brick.ui, 'standalone', '子窗 RPC · standalone', {
+    show: true,
+    keepAlive: true
   })
   return { kind: 'standalone', windowId: win.id }
 })

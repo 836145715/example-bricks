@@ -226,7 +226,9 @@ json run_timer(brickly::CommandContext &ctx, std::string_view input) {
 	state.ctx = &ctx;
 	state.seconds = number_value(data, "seconds", 60);
 	state.remaining = state.seconds;
-	state.win = ctx.create_browser_window("ui/window.html", json{{"width", 360}, {"height", 280}, {"title", "倒计时"}}.dump());
+	state.win = ctx.create_browser_window(
+		"ui/window.html",
+		json{{"width", 360}, {"height", 280}, {"title", "倒计时"}, {"binding", json{{"kind", "call"}}}}.dump());
 	bind_countdown(state);
 	wait_until_done(state, ctx);
 	state.join();
@@ -234,7 +236,7 @@ json run_timer(brickly::CommandContext &ctx, std::string_view input) {
 	return json{{"remaining", state.remaining}};
 }
 
-json run_pin(brickly::CommandContext &ctx, std::string_view input) {
+json run_pin(brickly::Runtime &rt, brickly::CommandContext &ctx, std::string_view input) {
 	const auto data = parse_object(input);
 	stop_pin();
 
@@ -242,8 +244,14 @@ json run_pin(brickly::CommandContext &ctx, std::string_view input) {
 	state->ctx = &ctx;
 	state->seconds = number_value(data, "seconds", 60);
 	state->remaining = state->seconds;
-	state->win = ctx.create_browser_window(
-		"ui/window.html", json{{"width", 360}, {"height", 280}, {"title", "常驻倒计时"}, {"lifetime", "standalone"}}.dump());
+	state->win = rt.create_browser_window(
+		"ui/window.html",
+		json{{"width", 360},
+		     {"height", 280},
+		     {"title", "常驻倒计时"},
+		     {"show", true},
+		     {"binding", json{{"kind", "session"}, {"keepAlive", true}}}}
+			.dump());
 	bind_countdown(*state);
 	{
 		std::lock_guard<std::mutex> lock(pin_swap_mu);
@@ -275,8 +283,8 @@ int main() {
 			ctx.reply(run_timer(ctx, input).dump());
 		});
 
-		runtime.on_command("pin", [](brickly::CommandContext &ctx, std::string_view input) {
-			ctx.reply(run_pin(ctx, input).dump());
+		runtime.on_command("pin", [&runtime](brickly::CommandContext &ctx, std::string_view input) {
+			ctx.reply(run_pin(runtime, ctx, input).dump());
 		});
 
 		runtime.on_shutdown([] { stop_pin(); });

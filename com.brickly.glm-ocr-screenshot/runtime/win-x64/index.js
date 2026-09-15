@@ -12,7 +12,7 @@ const plugin = new BricklyRuntime()
 
 plugin.onCommand('capture-annotate', async (ctx, input) => {
   try {
-    return await captureAnnotate(ctx, withHotkeyDefaults(ctx, input))
+    return await captureAnnotate(ctx, withHotkeyDefaults(ctx, input), plugin.ui)
   } catch (error) {
     throw normalizeError(error)
   }

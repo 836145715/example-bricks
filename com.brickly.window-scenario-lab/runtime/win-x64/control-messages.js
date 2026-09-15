@@ -38,7 +38,7 @@ async function handleControlChannel(channel, body) {
   }
   if (channel === 'control:open-scenario') {
     try {
-      // 控制台 expose 不在命令里；直接 createWindow 会被拒，走自己的 standalone 命令。
+      // 控制台 expose 不在命令里；这里走自己的开窗命令，演示 invoke 路径。
       if (!pluginRef?.invoke) throw new Error('runtime 未绑定，不能 invoke')
       const result = await pluginRef.invoke('open-scenario', {
         scenario: body.scenario || 'standard',

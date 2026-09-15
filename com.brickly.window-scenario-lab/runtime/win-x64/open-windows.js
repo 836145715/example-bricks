@@ -69,7 +69,7 @@ async function openControlOnce() {
     title: 'Brickly · 窗口场景测试台',
     backgroundColor: '#0b1220',
     show: true,
-    lifetime: 'standalone',
+    keepAlive: true,
     resizable: true,
     minimizable: true,
     maximizable: true
@@ -129,7 +129,7 @@ async function openScenario(input = {}) {
   }
 
   const title = input.title ? String(input.title) : preset.options.title
-  const options = { ...preset.options, title, show: true, lifetime: 'standalone' }
+  const options = { ...preset.options, title, show: true, keepAlive: true }
   const handle = await pluginRef.ui.createBrowserWindow(CHILD_HTML, options)
   const winSession = bindWinSession(handle, {
     role: 'scenario',

@@ -12,7 +12,7 @@
 
 ## 怎么测
 
-体验窗先 `start()`，再开子窗。开窗只看命令上的 `window: attach` / `standalone`，`start()` 不再接收 `allowStandaloneWindows`：
+体验窗先 `start()`，再开子窗。开窗在代码里选绑定：`ctx.ui` 是 Call 绑定（≈旧 `attach`），`brick.ui` + `keepAlive` 是 Session 保活（≈旧 `standalone`）；`start()` 不再接收 `allowStandaloneWindows`：
 
 | 按钮 | 预期 |
 | --- | --- |

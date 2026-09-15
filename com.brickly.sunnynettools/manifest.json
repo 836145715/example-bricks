@@ -338,13 +338,12 @@
     },
     {
       "id": "open-tool-window",
-      "window": "standalone",
       "hidden": true,
       "name": {
         "zh-CN": "打开工具窗口",
         "en": "Open Tool Window"
       },
-      "description": "CreateBrowserWindow 打开证书/改包/主题等子工具窗。须 window=standalone。",
+      "description": "CreateBrowserWindow 打开证书/改包/主题等子工具窗。会话窗 keepAlive 保活。",
       "io": {
         "inputs": [
           {

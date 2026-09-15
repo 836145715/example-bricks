@@ -15,7 +15,7 @@ import (
 func main() {
 	runtime := brickly.New()
 	var windowsMu sync.Mutex
-	windows := map[int64]*brickly.ScopedWindowHandle{}
+	windows := map[int64]*brickly.WindowHandle{}
 
 	runtime.OnCommand("open-url", func(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
 		payload := map[string]any{}
@@ -27,7 +27,8 @@ func main() {
 		}
 
 		options := brickly.WindowOptions{
-			"lifetime": "standalone",
+			"show":    true,
+			"binding": map[string]any{"kind": "session", "keepAlive": true},
 		}
 		if w, ok := toFloat(payload["width"]); ok {
 			options["width"] = int(w)
@@ -36,7 +37,7 @@ func main() {
 			options["height"] = int(h)
 		}
 
-		win, err := ctx.UI().CreateBrowserWindow(url, options)
+		win, err := runtime.UI.CreateBrowserWindow(url, options)
 		if err != nil {
 			return nil, brickly.NewBppError("WINDOW_FAILED", err.Error())
 		}

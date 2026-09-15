@@ -20,7 +20,7 @@ type HostWindow interface {
 	Send(name string, payload any) error
 }
 
-// ToolWindowFactory 在当前 command 里创建子窗口（须 command.window=standalone）。
+// ToolWindowFactory 创建子窗口；调用方需走会话 facade（rt.UI）并显式带 keepAlive binding。
 type ToolWindowFactory func(name, url string, opts map[string]any) (HostWindow, error)
 
 var (
@@ -91,7 +91,7 @@ func ensureToolWindow(name, url string) (HostWindow, error) {
 		"height":    760,
 		"title":     name,
 		"resizable": true,
-		"lifetime":  "standalone",
+		"binding":   map[string]any{"kind": "session", "keepAlive": true},
 	})
 	if err != nil {
 		return nil, err

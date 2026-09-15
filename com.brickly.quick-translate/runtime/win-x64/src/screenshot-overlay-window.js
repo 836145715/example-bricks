@@ -8,10 +8,10 @@ const CLOSE_CHANNEL = 'quick-translate-overlay:close'
 
 let overlayWindow = null
 
-async function openScreenshotOverlayWindow(ctx, payload) {
+async function openScreenshotOverlayWindow(ui, payload) {
   await closeScreenshotOverlayWindow()
   const bounds = normalizeBounds(payload.bounds, payload.width, payload.height)
-  const win = await ctx.ui.createBrowserWindow(OVERLAY_URL, {
+  const win = await ui.createBrowserWindow(OVERLAY_URL, {
     ...bounds,
     title: 'Brickly · 截图翻译',
     frame: false,
@@ -23,7 +23,7 @@ async function openScreenshotOverlayWindow(ctx, payload) {
     skipTaskbar: true,
     backgroundColor: '#00000000',
     show: true,
-    lifetime: 'standalone',
+    keepAlive: true,
     resizable: false,
     movable: false,
     maximizable: false,

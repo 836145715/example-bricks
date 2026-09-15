@@ -190,7 +190,7 @@ async function ensurePanelWindow(ctx) {
     backgroundColor: '#00000000',
     opacity: 0,
     show: true,
-    lifetime: 'standalone',
+    keepAlive: true,
     resizable: false,
     maximizable: false,
     minimizable: false,

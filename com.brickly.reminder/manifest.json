@@ -92,7 +92,6 @@
   "commands": [
     {
       "id": "preview",
-      "window": "standalone",
       "name": {
         "zh-CN": "立即提醒",
         "en": "Remind now"

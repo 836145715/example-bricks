@@ -121,7 +121,7 @@ func openLabOnce() (map[string]any, error) {
 		"title":           "Brickly · Go Window API Lab",
 		"backgroundColor": "#0f172a",
 		"show":            true,
-		"lifetime":        "standalone",
+		"binding":         map[string]any{"kind": "session", "keepAlive": true},
 		"resizable":       true,
 		"minimizable":     true,
 		"maximizable":     true,

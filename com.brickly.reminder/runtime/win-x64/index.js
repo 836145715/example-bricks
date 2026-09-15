@@ -41,7 +41,7 @@ function clearTimer() {
   timer = null
 }
 
-/** 到期后必须 invoke 自己的 standalone 命令再开窗，不能在定时器里 createWindow。 */
+/** 到期后 invoke 自己的命令，在命令上下文里经会话 facade 开 keepAlive 窗。 */
 function arm(delayMs) {
   clearTimer()
   if (!cfg.enabled) return
@@ -93,7 +93,7 @@ async function showToast(ctx) {
     popup = null
   }
 
-  const win = await ctx.ui.createBrowserWindow(POPUP_URL, {
+  const win = await brick.ui.createBrowserWindow(POPUP_URL, {
     width: POPUP_WIDTH,
     height: POPUP_HEIGHT,
     frame: false,
@@ -104,7 +104,7 @@ async function showToast(ctx) {
     hasShadow: false,
     backgroundColor: '#00000000',
     show: true,
-    lifetime: 'standalone',
+    keepAlive: true,
     title: cfg.title,
     focusable: true
   })

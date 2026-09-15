@@ -108,8 +108,8 @@ func TestManifestDeclaresPublicSurfaceOnly(t *testing.T) {
 			t.Fatalf("%s must not be a catalog command; it goes through ui-rpc", id)
 		}
 	}
-	if ids["open-tool-window"].window != "standalone" || !ids["open-tool-window"].hidden {
-		t.Fatal("open-tool-window must be hidden standalone")
+	if ids["open-tool-window"].window != "" || !ids["open-tool-window"].hidden {
+		t.Fatal("open-tool-window must be hidden and must not declare window")
 	}
 	if _, ok := ids["capture-stream"]; !ok || !ids["capture-stream"].hidden {
 		t.Fatal("capture-stream must be hidden")

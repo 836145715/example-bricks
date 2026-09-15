@@ -22,7 +22,7 @@ async function sendProgress(ctx, progress, message) {
   await ctx.send({ type: 'progress', progress, message })
 }
 
-async function captureAnnotate(ctx, rawInput) {
+async function captureAnnotate(ctx, rawInput, sessionUi) {
   const input = normalizeCaptureInput(rawInput || {})
 
   await fs.mkdir(input.outputDir, { recursive: true })
@@ -58,7 +58,7 @@ async function captureAnnotate(ctx, rawInput) {
       languageType: input.languageType,
       probability: input.probability
     })
-    const resultWindow = await openResultWindow(ctx, renderPayload)
+    const resultWindow = await openResultWindow(sessionUi, renderPayload)
     ensureActive(ctx)
 
     return {

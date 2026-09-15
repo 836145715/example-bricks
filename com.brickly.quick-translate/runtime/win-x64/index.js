@@ -123,7 +123,7 @@ async function runTranslateScreenshotOverlay(ctx) {
     createdAt: Date.now()
   }
   debugLog('screenshot-overlay.window.request', overlayPayload)
-  const win = await openScreenshotOverlayWindow(ctx, overlayPayload)
+  const win = await openScreenshotOverlayWindow(plugin.ui, overlayPayload)
   debugLog('screenshot-overlay.window.response', {
     windowId: win.id,
     bounds,
@@ -219,7 +219,7 @@ async function ensureTranslateWindow(ctx) {
     backgroundColor: '#00000000',
     opacity: 0,
     show: true,
-    lifetime: 'standalone',
+    keepAlive: true,
     resizable: false,
     maximizable: false,
     minimizable: false,
