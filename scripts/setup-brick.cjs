@@ -155,8 +155,16 @@ function npmInstall(dir, local = false) {
     installPublishedNpmDeps(dir)
     return
   }
-  const args = fs.existsSync(path.join(dir, 'package-lock.json')) ? ['ci'] : ['install']
-  run('npm', args, { cwd: dir })
+  if (fs.existsSync(path.join(dir, 'package-lock.json'))) {
+    try {
+      run('npm', ['ci'], { cwd: dir })
+      return
+    } catch {
+      // 例：sync-sdk 升 pin 后 lock 未重生成 → ci 拒装，退回 install 并提醒
+      console.warn(`npm ci failed in ${dir}（lock 可能过期），退回 npm install`)
+    }
+  }
+  run('npm', ['install'], { cwd: dir })
 }
 
 /** --local 不从 npm 拉 brickly-sdk / brickly-ui，只装其余依赖，SDK 随后 symlink。 */
@@ -195,26 +203,40 @@ function walkFiles(root, depth, visit) {
   }
 }
 
-function findRuntimePackageDirs(brickRoot, local = false) {
-  const runtimeRoot = path.join(brickRoot, 'runtime')
-  if (local) {
-    const dirs = []
-    for (const name of ['node', currentPlatform()]) {
-      const pkg = path.join(runtimeRoot, name, 'package.json')
-      if (fs.existsSync(pkg)) dirs.push(path.dirname(pkg))
-    }
-    if (dirs.length > 0) return dirs
-  }
+// src/out 双根契约：作者树 src/，成品树 out/（Host 只加载 out/）
+function srcRuntime(brickRoot) {
+  return path.join(brickRoot, 'src', 'runtime')
+}
+
+function srcUi(brickRoot) {
+  return path.join(brickRoot, 'src', 'ui')
+}
+
+function srcPreload(brickRoot) {
+  return path.join(brickRoot, 'src', 'preload')
+}
+
+function outRuntimeSegment(brickRoot, platform) {
+  return path.join(brickRoot, 'out', 'runtime', platform)
+}
+
+/** src/runtime 下的 package.json 目录（根 + foreign 子目录，bin/ 除外） */
+function findRuntimePackageDirs(brickRoot) {
+  const root = srcRuntime(brickRoot)
   const dirs = []
-  walkFiles(runtimeRoot, 3, (file) => {
-    if (path.basename(file) === 'package.json') dirs.push(path.dirname(file))
-  })
+  if (fs.existsSync(path.join(root, 'package.json'))) dirs.push(root)
+  if (!fs.existsSync(root)) return dirs
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'bin') continue
+    if (fs.existsSync(path.join(root, entry.name, 'package.json')))
+      dirs.push(path.join(root, entry.name))
+  }
   return dirs
 }
 
 function findGoModDirs(brickRoot) {
   const dirs = []
-  walkFiles(path.join(brickRoot, 'runtime'), 3, (file) => {
+  walkFiles(srcRuntime(brickRoot), 2, (file) => {
     if (path.basename(file) === 'go.mod') dirs.push(path.dirname(file))
   })
   return dirs
@@ -229,30 +251,23 @@ function pythonExtraSpecs(dir) {
     .filter((spec) => !spec.startsWith('brickly-sdk'))
 }
 
-function findPyProjectDirs(brickRoot, local = false) {
-  const runtimeRoot = path.join(brickRoot, 'runtime')
-  if (local) {
-    for (const name of [currentPlatform(), 'win-x64']) {
-      const dir = path.join(runtimeRoot, name)
-      if (fs.existsSync(path.join(dir, 'pyproject.toml'))) return [dir]
-    }
-  }
+function findPyProjectDirs(brickRoot) {
+  const root = srcRuntime(brickRoot)
   const dirs = []
-  walkFiles(runtimeRoot, 3, (file) => {
-    if (path.basename(file) === 'pyproject.toml') dirs.push(path.dirname(file))
-  })
+  if (fs.existsSync(path.join(root, 'pyproject.toml'))) dirs.push(root)
+  if (!fs.existsSync(root)) return dirs
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'bin') continue
+    if (fs.existsSync(path.join(root, entry.name, 'pyproject.toml')))
+      dirs.push(path.join(root, entry.name))
+  }
   return dirs
 }
 
+/** 固定产物路径：out/runtime/<platform>/brick[.exe]（entry 已非作者可配） */
 function binaryOutput(brickRoot, platform) {
-  const manifestFile = path.join(brickRoot, 'manifest.json')
-  if (fs.existsSync(manifestFile)) {
-    const manifest = readJson(manifestFile)
-    const entry = manifest.runtime && manifest.runtime.entry && manifest.runtime.entry[platform]
-    if (entry) return path.join(brickRoot, entry)
-  }
   const target = GO_TARGETS[platform]
-  return path.join(brickRoot, 'runtime', platform, `brick${target.suffix}`)
+  return path.join(outRuntimeSegment(brickRoot, platform), `brick${target.suffix}`)
 }
 
 function installRoot(brickRoot, locals) {
@@ -267,39 +282,72 @@ function installRoot(brickRoot, locals) {
   return pkg
 }
 
+const RUNTIME_COPY_EXCLUDES = new Set(['node_modules', 'bin', 'obj', '.venv', '__pycache__', '.cache'])
+
+function copyTreeFiltered(from, to, excludeDirs) {
+  fs.rmSync(to, { recursive: true, force: true })
+  fs.cpSync(from, to, {
+    recursive: true,
+    filter: (srcPath) =>
+      !(fs.statSync(srcPath).isDirectory() && excludeDirs.has(path.basename(srcPath)))
+  })
+  return to
+}
+
+/** src/runtime → out/runtime/<platform> 源码复制（依赖目录不入 out，由装依赖步骤重建） */
+function stageRuntime(brickRoot, platform) {
+  return copyTreeFiltered(srcRuntime(brickRoot), outRuntimeSegment(brickRoot, platform), RUNTIME_COPY_EXCLUDES)
+}
+
+/**
+ * 含 package.json/pyproject.toml 的源码目录 → out 落点：
+ * src/runtime 根 → out/runtime/<platform>；foreign 子目录 → out/runtime/<name>（仅本机联调）。
+ */
+function stageRuntimeDir(brickRoot, dir, platform) {
+  if (dir === srcRuntime(brickRoot)) return stageRuntime(brickRoot, platform)
+  return copyTreeFiltered(dir, path.join(brickRoot, 'out', 'runtime', path.basename(dir)), RUNTIME_COPY_EXCLUDES)
+}
+
+/** node runtime：源码复制进 out/runtime/<platform>，依赖装在 out 段内（src/ 不污染） */
 function installRuntime(brickRoot, locals) {
-  const dirs = findRuntimePackageDirs(brickRoot, Boolean(locals))
+  const dirs = findRuntimePackageDirs(brickRoot)
   if (dirs.length === 0) {
-    console.log('skip runtime npm install (no runtime package.json)')
+    console.log('skip runtime npm install (no src/runtime package.json)')
     return
   }
+  const platform = currentPlatform()
   for (const dir of dirs) {
-    npmInstall(dir, Boolean(locals))
-    if (locals) applyLocalNpm(dir, locals)
+    const dest = stageRuntimeDir(brickRoot, dir, platform)
+    npmInstall(dest, Boolean(locals))
+    if (locals) applyLocalNpm(dest, locals)
   }
 }
 
+/** python runtime：源码复制进 out/runtime/<platform>，在 out 段内 uv sync 出 .venv */
 function syncPython(brickRoot, locals) {
-  const dirs = findPyProjectDirs(brickRoot, Boolean(locals))
+  const dirs = findPyProjectDirs(brickRoot)
   if (dirs.length === 0) {
-    console.log('skip python sync (no pyproject.toml)')
+    console.log('skip python sync (no src/runtime pyproject.toml)')
     return
   }
   if (!commandExists('uv')) {
     console.log('skip python sync (uv not found; host will prepare venv on first run)')
     return
   }
+  const platform = currentPlatform()
   for (const dir of dirs) {
     try {
       if (locals?.sdkPy) {
+        const dest = stageRuntimeDir(brickRoot, dir, platform)
         const extras = pythonExtraSpecs(dir)
-        run('uv', ['venv'], { cwd: dir })
-        run('uv', ['pip', 'install', '-e', locals.sdkPy, ...extras], { cwd: dir })
+        run('uv', ['venv'], { cwd: dest })
+        run('uv', ['pip', 'install', '-e', locals.sdkPy, ...extras], { cwd: dest })
         continue
       }
-      // Refresh brickly-sdk URLs/hashes after sync-sdk bumps the pin.
+      // 先在 src/ 里刷新 brickly-sdk pin，再带着新 lock 落盘到 out 段
       run('uv', ['lock', '--upgrade-package', 'brickly-sdk'], { cwd: dir })
-      run('uv', ['sync'], { cwd: dir })
+      const dest = stageRuntimeDir(brickRoot, dir, platform)
+      run('uv', ['sync', '--locked', '--no-build', '--no-sources', '--no-install-project'], { cwd: dest })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.warn(`python sync failed in ${dir}: ${message}`)
@@ -340,11 +388,15 @@ function buildGo(brickRoot, brickId, locals) {
   }
 
   const platform = currentPlatform()
+  const outSeg = outRuntimeSegment(brickRoot, platform)
   const builder = dirs.map((dir) => path.join(dir, 'build.mjs')).find((file) => fs.existsSync(file))
   if (builder) {
     const dir = path.dirname(builder)
     withLocalGoReplace(dir, locals?.sdkGo, () => {
-      run(process.execPath, [builder, platform], { cwd: dir })
+      run(process.execPath, [builder, platform], {
+        cwd: dir,
+        env: { ...process.env, BRICKLY_BUILD_OUT: outSeg }
+      })
     })
     return
   }
@@ -368,7 +420,7 @@ function buildGo(brickRoot, brickId, locals) {
 
 function findDotnetProjects(brickRoot) {
   const projects = []
-  walkFiles(path.join(brickRoot, 'runtime'), 3, (file) => {
+  walkFiles(srcRuntime(brickRoot), 2, (file) => {
     if (path.basename(file).endsWith('.csproj')) projects.push(file)
   })
   return projects
@@ -401,25 +453,38 @@ function buildDotnet(brickRoot, brickId, locals) {
     throw new Error(`.NET SDK is required to build ${brickId}`)
   }
   const platform = currentPlatform()
-  const output = path.join(brickRoot, 'runtime', platform)
+  const output = outRuntimeSegment(brickRoot, platform)
   fs.mkdirSync(output, { recursive: true })
   for (const project of projects) {
+    const dir = path.dirname(project)
+    const builder = path.join(dir, 'build.mjs')
     console.log(`Building ${brickId} .NET ${platform} -> ${output}`)
     withLocalDotnetReplace(project, locals?.sdkDotnet, () => {
-      run('dotnet', ['publish', '-c', 'Release', '-o', output, '--nologo'], { cwd: path.dirname(project) })
+      // 有契约构建脚本（build.mjs 认 BRICKLY_BUILD_OUT）就走脚本，否则直发 dotnet publish
+      if (fs.existsSync(builder)) {
+        run(process.execPath, [builder, platform], {
+          cwd: dir,
+          env: { ...process.env, BRICKLY_BUILD_OUT: output }
+        })
+      } else {
+        run('dotnet', ['publish', '-c', 'Release', '-o', output, '--nologo'], { cwd: dir })
+      }
     })
   }
 }
 
 function findCppMain(brickRoot) {
-  const main = path.join(brickRoot, 'runtime', 'cpp', 'main.cpp')
-  return fs.existsSync(main) ? path.dirname(main) : null
+  const dirs = []
+  walkFiles(srcRuntime(brickRoot), 2, (file) => {
+    if (path.basename(file) === 'main.cpp') dirs.push(path.dirname(file))
+  })
+  return dirs[0] || null
 }
 
 function buildCpp(brickRoot, brickId, locals) {
   const dir = findCppMain(brickRoot)
   if (!dir) {
-    console.log('skip cpp build (no runtime/cpp/main.cpp)')
+    console.log('skip cpp build (no src/runtime main.cpp)')
     return
   }
   const home = locals?.home || resolveBricklyHome()
@@ -436,23 +501,62 @@ function buildCpp(brickRoot, brickId, locals) {
   console.log(`Building ${brickId} C++ ${platform}`)
   run(process.execPath, [builder, platform], {
     cwd: dir,
-    env: { ...process.env, BRICKLY_HOME: home, CGO_ENABLED: '1' }
+    env: {
+      ...process.env,
+      BRICKLY_HOME: home,
+      CGO_ENABLED: '1',
+      BRICKLY_BUILD_OUT: outRuntimeSegment(brickRoot, platform)
+    }
   })
 }
 
-function buildUi(brickRoot, pkg) {
-  const build = pkg.scripts && pkg.scripts.build
-  if (!build || build.includes('setup-brick')) {
-    console.log('skip ui build (no build script)')
+/**
+ * UI 段：src/ui → out/ui。
+ * - 有 package.json（vite 工程）：装依赖在 src/ui，构建产物经 --outDir 落 out/ui
+ * - 无 package.json（静态页）：整目录复制进 out/ui（含 ui.type=none 的开窗资源）
+ */
+function buildUi(brickRoot, locals) {
+  const uiSrc = srcUi(brickRoot)
+  if (!fs.existsSync(uiSrc)) return
+  const outUi = path.join(brickRoot, 'out', 'ui')
+  const pkgFile = path.join(uiSrc, 'package.json')
+  if (!fs.existsSync(pkgFile)) {
+    copyTreeFiltered(uiSrc, outUi, new Set(['node_modules', '.cache']))
+    console.log('static ui copied -> out/ui')
     return
   }
-  run('npm', ['run', 'build'], { cwd: brickRoot })
+  const pkg = readJson(pkgFile)
+  if (hasNpmDeps(pkg)) {
+    npmInstall(uiSrc, Boolean(locals))
+    if (locals) applyLocalNpm(uiSrc, locals)
+  }
+  if (!pkg.scripts?.build) {
+    console.log('skip ui build (src/ui 有 package.json 但无 build 脚本)')
+    return
+  }
+  run('npm', ['run', 'build', '--', '--outDir', outUi, '--emptyOutDir'], { cwd: uiSrc })
+}
+
+/** src/preload → out/preload 纯拷贝（无依赖单文件） */
+function stagePreload(brickRoot) {
+  const src = srcPreload(brickRoot)
+  if (!fs.existsSync(src)) return
+  copyTreeFiltered(src, path.join(brickRoot, 'out', 'preload'), new Set(['node_modules', '.cache']))
+  console.log('preload copied -> out/preload')
 }
 
 function brickIdOf(brickRoot) {
   const manifestFile = path.join(brickRoot, 'manifest.json')
   if (fs.existsSync(manifestFile)) return readJson(manifestFile).id
   return path.basename(brickRoot)
+}
+
+/** manifest.runtime.platforms 不含当前平台 → 本机无需构建 runtime（如 disk-map 仅 macOS） */
+function platformSupported(brickRoot, platform) {
+  const manifestFile = path.join(brickRoot, 'manifest.json')
+  if (!fs.existsSync(manifestFile)) return true
+  const platforms = readJson(manifestFile).runtime?.platforms
+  return !Array.isArray(platforms) || platforms.length === 0 || platforms.includes(platform)
 }
 
 function setupBrick(brickRoot, options = {}) {
@@ -466,23 +570,18 @@ function setupBrick(brickRoot, options = {}) {
   }
   const brickId = brickIdOf(brickRoot)
   console.log(`\n== setup ${brickId} ==\n`)
-  const pkgFile = path.join(brickRoot, 'package.json')
-  const pkg = fs.existsSync(pkgFile) ? installRoot(brickRoot, locals) : {}
-  installRuntime(brickRoot, locals)
-  syncPython(brickRoot, locals)
-  buildGo(brickRoot, brickId, locals)
-  buildCpp(brickRoot, brickId, locals)
-  buildDotnet(brickRoot, brickId, locals)
-  const uiSrc = path.join(brickRoot, 'ui-src')
-  if (fs.existsSync(path.join(uiSrc, 'package.json'))) {
-    npmInstall(uiSrc, Boolean(locals))
-    if (locals) applyLocalNpm(uiSrc, locals)
-    if (readJson(path.join(uiSrc, 'package.json')).scripts?.build) {
-      run('npm', ['run', 'build'], { cwd: uiSrc })
-    }
+  if (fs.existsSync(path.join(brickRoot, 'package.json'))) installRoot(brickRoot, locals)
+  if (platformSupported(brickRoot, currentPlatform())) {
+    installRuntime(brickRoot, locals)
+    syncPython(brickRoot, locals)
+    buildGo(brickRoot, brickId, locals)
+    buildCpp(brickRoot, brickId, locals)
+    buildDotnet(brickRoot, brickId, locals)
   } else {
-    buildUi(brickRoot, pkg)
+    console.log(`skip runtime build（platforms 不含 ${currentPlatform()}）`)
   }
+  buildUi(brickRoot, locals)
+  stagePreload(brickRoot)
   console.log(`\n== setup ${brickId} done ==\n`)
 }
 

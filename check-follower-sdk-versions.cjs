@@ -13,7 +13,7 @@ const failures = []
 
 function walk(dir) {
   for (const name of readdirSync(dir)) {
-    if (name === '.git' || name === 'node_modules' || name === '.venv' || name === '.worktrees') continue
+    if (['.git', 'node_modules', '.venv', '.worktrees', 'out', '.brickly', 'obj', 'bin'].includes(name)) continue
 
     const path = join(dir, name)
     if (statSync(path).isDirectory()) {

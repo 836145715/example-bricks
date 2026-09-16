@@ -22,7 +22,7 @@ const { spawnSync } = require('node:child_process')
 const root = path.resolve(__dirname, '..')
 const pinFile = path.join(root, 'sdk-pin.json')
 const goModule = 'github.com/836145715/brickly-sdk-go'
-const skipDir = new Set(['.git', 'node_modules', '.venv', '.worktrees', 'dist'])
+const skipDir = new Set(['.git', 'node_modules', '.venv', '.worktrees', 'dist', 'out', '.brickly', 'obj', 'bin'])
 
 function parseArgs(argv = process.argv.slice(2)) {
   const options = {
@@ -259,9 +259,10 @@ function main() {
     }
   }
 
+  // 只重算锁文件不装依赖：src/ 是作者树，node_modules 属于构建期产物
   for (const dir of npmDirs) {
     if (!fs.existsSync(path.join(dir, 'package-lock.json'))) continue
-    run('npm', ['install'], dir)
+    run('npm', ['install', '--package-lock-only', '--no-audit', '--no-fund'], dir)
   }
 
   console.log(`done: example-bricks SDK pin is ${version}`)

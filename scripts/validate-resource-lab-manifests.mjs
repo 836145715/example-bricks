@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const uiPackage = join(repoRoot, 'com.brickly.resource-lab', 'package.json')
+const uiPackage = join(repoRoot, 'com.brickly.resource-lab', 'src', 'ui', 'package.json')
 const require = createRequire(pathToFileURL(uiPackage))
 const Ajv2020 = require('ajv/dist/2020').default
 const schema = JSON.parse(await readFile(join(repoRoot, 'specs', 'manifest.schema.json'), 'utf8'))
@@ -35,23 +35,11 @@ function validateRuntimeContract(manifest) {
   const runtime = manifest.runtime
   if (!runtime) return errors
 
-  const platforms = [...runtime.platforms].sort()
-  const entryPlatforms = Object.keys(runtime.entry).sort()
-  if (JSON.stringify(platforms) !== JSON.stringify(entryPlatforms)) {
-    errors.push('runtime.entry keys must exactly match runtime.platforms')
-  }
-  for (const [platform, entry] of Object.entries(runtime.entry)) {
-    if (!entry.startsWith(`runtime/${platform}/`)) {
-      errors.push(`runtime.entry[${platform}] must be inside runtime/${platform}/`)
-    }
-  }
-  for (const include of runtime.include ?? []) {
-    if (!runtime.platforms.includes(include.platform)) {
-      errors.push(`runtime.include platform is not declared: ${include.platform}`)
-    }
-    if (!include.path.startsWith(`runtime/${include.platform}/`)) {
-      errors.push(`runtime.include path must be inside runtime/${include.platform}/: ${include.path}`)
-    }
+  // src/out 契约：作者不写 entry/include；entry 由 type+platforms 归一化合成
+  if (runtime.entry) errors.push('runtime.entry 为制品字段，作者侧不应声明')
+  if (runtime.include) errors.push('runtime.include 已删除，不应声明')
+  if (!Array.isArray(runtime.platforms) || runtime.platforms.length === 0) {
+    errors.push('runtime.platforms 缺失或为空')
   }
   return errors
 }
@@ -70,12 +58,9 @@ for (const relativePath of manifests) {
 
   if (manifest.runtime?.type === 'python') {
     const manifestDir = dirname(join(repoRoot, relativePath))
-    for (const [platform, entry] of Object.entries(manifest.runtime.entry)) {
-      if (!(await pathExists(join(manifestDir, entry)))) continue
-      for (const dependencyFile of ['pyproject.toml', 'uv.lock']) {
-        if (!(await pathExists(join(manifestDir, `runtime/${platform}/${dependencyFile}`)))) {
-          errors.push(`${platform} runtime is missing ${dependencyFile}`)
-        }
+    for (const dependencyFile of ['pyproject.toml', 'uv.lock', 'main.py']) {
+      if (!(await pathExists(join(manifestDir, 'src', 'runtime', dependencyFile)))) {
+        errors.push(`src/runtime is missing ${dependencyFile}`)
       }
     }
   }

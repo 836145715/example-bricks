@@ -4,10 +4,11 @@ type: guide
 related_code:
   - scripts/setup-brick.cjs
   - scripts/setup-all.cjs
+  - scripts/migrate-src-out.cjs
   - scripts/sync-sdk-version.cjs
   - sdk-pin.json
   - check-follower-sdk-versions.cjs
-last_verified: 2026-09-02
+last_verified: 2026-09-16
 ---
 
 # example-bricks
@@ -15,6 +16,26 @@ last_verified: 2026-09-02
 Brickly 官方示例工具仓库。每个子目录是一个可导入开发工作台的 Brick。
 
 仓库里的 `package.json` / `go.mod` / `pyproject.toml` **只钉已发布的 SDK**（版本见根目录 `sdk-pin.json`），方便别人 clone 就能装。不要把 `file:`、`replace` 或本地路径提交进 pin。
+
+## 目录结构：src/out 双根
+
+每个 Brick 分为**作者树 `src/`**（手写源码，唯一维护对象）与**成品树 `out/`**（构建产物，gitignore，Host 只加载它）：
+
+```
+<brick>/
+  manifest.json          # 不声明 entry；runtime.type + platforms 决定产物路径
+  assets/
+  src/
+    ui/                  # 前端：有 package.json → vite 打包；无 → 静态整目录拷贝
+    runtime/             # 后端源码（go/node/python/dotnet/cpp 一种一份）
+      bin/<平台>/         # 可选：预构建二进制逃逸舱
+    preload/             # 纯 JS 单文件 .cjs
+  out/                   # 由构建产生：ui/ preload/ runtime/<platform>/ .brickly-build.json
+```
+
+约定：`runtime.type` 为 `native` 时产物固定 `runtime/<平台>/brick[.exe]`；`node` 固定 `index.js`；`python` 固定 `main.py`。自定义构建脚本（`src/runtime/build.ps1|sh|mjs`）从环境变量 `BRICKLY_BUILD_OUT` 拿输出目录，不要写死路径。
+
+从旧布局（`runtime/<平台>` 成品入库、`ui/` 与源码混放）批量迁移用 `scripts/migrate-src-out.cjs`：默认 dry-run 打印计划，`--apply` 落盘，`--verify-only` 校验，`--brick <id>` 只处理单个。
 
 旁边的 `ai-bricks` 默认路径是 `../ai-bricks`。不在同一父目录时设置 `BRICKLY_HOME`。
 

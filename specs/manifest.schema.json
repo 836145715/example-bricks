@@ -101,7 +101,7 @@
         {
           "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。崩溃退避（maxAttempts / backoffMs / healthyAfterMs）不在作者清单；写了会因 additionalProperties: false 失败。",
           "type": "object",
-          "required": ["type", "entry"],
+          "required": ["type", "platforms"],
           "additionalProperties": false,
           "allOf": [
             {
@@ -185,7 +185,7 @@
               "description": "仅 shared + resident：非主动停止时的异常重启策略。"
             },
             "platforms": {
-              "description": "可由 entry 的 key 推导；手写可省略。平台是否已经完成审核和发布由市场 package 独立决定。",
+              "description": "作者必填：声明支持的运行平台清单。归一化按 type+platforms 合成 entry；平台是否完成审核和发布由市场 package 独立决定。",
               "type": "array",
               "minItems": 1,
               "uniqueItems": true,
@@ -202,7 +202,7 @@
               }
             },
             "entry": {
-              "description": "按平台映射的入口点；key 必须与 platforms 完全一致。可写文件名（如 index.js / brick.exe），加载时解析到 runtime/<platform>/ 下；也可写完整相对路径 runtime/<platform>/xxx。",
+              "description": "制品字段：归一化按 type+platforms 合成的按平台入口映射，值为 runtime/<platform>/<约定文件>。作者不写；源码 manifest 中残留会被忽略并告警。",
               "type": "object",
               "minProperties": 1,
               "patternProperties": {
@@ -212,25 +212,6 @@
                 }
               },
               "additionalProperties": false
-            },
-            "include": {
-              "type": "array",
-              "uniqueItems": true,
-              "items": {
-                "type": "object",
-                "required": ["platform", "path"],
-                "additionalProperties": false,
-                "properties": {
-                  "platform": {
-                    "type": "string",
-                    "enum": ["win-x64", "win-arm64", "mac-x64", "mac-arm64", "linux-x64", "linux-arm64"]
-                  },
-                  "path": {
-                    "type": "string",
-                    "pattern": "^(?:runtime/(?:win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/)?[^/\\\\]+(?:/[^/\\\\]+)*$"
-                  }
-                }
-              }
             },
             "python": {
               "description": "type=python 专用：固定 minor 版本，例如 3.12.*。",
@@ -436,14 +417,14 @@
           "description": "Webview：基于 Electron BrowserWindow 承载自定义 UI。纯 UI 与带 runtime 的 Brick 体验窗均注入受限的 window.brickly（平台 preload/brick.js）。window.AIBricks 仅平台主窗口使用，不注入 Brick 体验窗。可选顶层 manifest.preload 指定附加 preload（相对 Brick 根目录），在平台 preload 之后链式 require；路径须位于 rootDir 内。",
           "type": "object",
           "additionalProperties": false,
-          "required": ["type", "entry"],
+          "required": ["type"],
           "properties": {
             "type": {
               "const": "webview"
             },
             "entry": {
               "type": "string",
-              "description": "前端入口 HTML 相对路径，如 ui/index.html。"
+              "description": "制品字段：归一化合成的体验窗入口，固定 ui/index.html。作者不写。"
             },
             "size": {
               "type": "object",
