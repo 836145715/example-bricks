@@ -5,6 +5,7 @@
     "setup:all": "node scripts/setup-all.cjs",
     "setup:all:local": "node scripts/setup-all.cjs --local",
     "sync-sdk": "node scripts/sync-sdk-version.cjs",
-    "check-sdk": "node check-follower-sdk-versions.cjs"
+    "check-sdk": "node check-follower-sdk-versions.cjs",
+    "validate:layout": "node scripts/validate-layout.mjs"
   }
 }
