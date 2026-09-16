@@ -3,6 +3,8 @@ node_modules/
 .brickly/
 dist/
 bin/
+!**/src/runtime/bin/
+!**/src/runtime/bin/**
 **/runtime/*/brick
 **/runtime/*/brick.exe
 **/runtime/*/brick.exe~
