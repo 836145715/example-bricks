@@ -22,20 +22,19 @@
     "debug"
   ],
   "author": "Brickly",
-  "preload": "preload.cjs",
+  "preload": "preload/preload.cjs",
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "entry": {
-      "win-x64": "runtime/win-x64/brick.exe",
-      "mac-x64": "runtime/mac-x64/brick",
-      "mac-arm64": "runtime/mac-arm64/brick"
-    }
+    "platforms": [
+      "win-x64",
+      "mac-x64",
+      "mac-arm64"
+    ]
   },
   "subscriptions": [],
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "size": {
       "width": 1280,
       "height": 800,

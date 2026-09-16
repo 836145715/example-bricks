@@ -6,3 +6,15 @@ runtime/mac-x64/
 runtime/mac-arm64/
 runtime/linux-x64/
 runtime/linux-arm64/
+
+# --- src/out 契约 ---
+out/
+.brickly/
+.brickly-build.json
+.brickly-installed.json
+node_modules/
+__pycache__/
+.venv/
+*.log
+.DS_Store
+mcp-adapter.local.json

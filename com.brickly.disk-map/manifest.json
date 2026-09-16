@@ -26,14 +26,13 @@
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "entry": {
-      "mac-arm64": "runtime/mac-arm64/brick",
-      "mac-x64": "runtime/mac-x64/brick"
-    }
+    "platforms": [
+      "mac-arm64",
+      "mac-x64"
+    ]
   },
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "titleBar": "custom",
     "windowPolicy": "single",
     "size": {

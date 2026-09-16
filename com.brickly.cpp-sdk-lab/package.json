@@ -3,8 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "setup": "node ../scripts/setup-brick.cjs",
-    "build:runtime": "node runtime/cpp/build.mjs",
+    "build:runtime": "node src/runtime/build.mjs",
     "smoke": "node smoke.cjs"
   }
 }

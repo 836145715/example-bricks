@@ -3,3 +3,14 @@ runtime/*/brick*
 runtime/*/libbrickly.*
 runtime/*/brickly.dll
 runtime/*/brickly.dll.a
+
+# --- src/out 契约 ---
+out/
+.brickly/
+.brickly-build.json
+.brickly-installed.json
+node_modules/
+__pycache__/
+*.log
+.DS_Store
+mcp-adapter.local.json

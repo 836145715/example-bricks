@@ -20,17 +20,16 @@
     "local"
   ],
   "author": "Brickly",
-  "preload": "preload.cjs",
+  "preload": "preload/preload.cjs",
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "entry": {
-      "win-x64": "runtime/win-x64/brick.exe"
-    }
+    "platforms": [
+      "win-x64"
+    ]
   },
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "titleBar": "custom",
     "windowPolicy": "single",
     "size": {

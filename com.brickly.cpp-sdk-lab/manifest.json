@@ -10,7 +10,6 @@
   "author": "Brickly Developer",
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "size": {
       "width": 420,
       "height": 400,
@@ -33,15 +32,7 @@
       "mac-arm64",
       "linux-x64",
       "linux-arm64"
-    ],
-    "entry": {
-      "win-x64": "runtime/win-x64/brick.exe",
-      "win-arm64": "runtime/win-arm64/brick.exe",
-      "mac-x64": "runtime/mac-x64/brick",
-      "mac-arm64": "runtime/mac-arm64/brick",
-      "linux-x64": "runtime/linux-x64/brick",
-      "linux-arm64": "runtime/linux-arm64/brick"
-    }
+    ]
   },
   "commands": [
     {

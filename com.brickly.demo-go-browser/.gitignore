@@ -1,2 +1,14 @@
 # 编译产物本地构建即可，不进版本库
 bin/
+
+# --- src/out 契约 ---
+out/
+.brickly/
+.brickly-build.json
+.brickly-installed.json
+node_modules/
+__pycache__/
+.venv/
+*.log
+.DS_Store
+mcp-adapter.local.json

@@ -21,18 +21,17 @@
     "server"
   ],
   "author": "Brickly Examples",
-  "preload": "preload.cjs",
+  "preload": "preload/preload.cjs",
   "runtime": {
     "type": "native",
     "instance": "owned",
-    "entry": {
-      "win-x64": "runtime/win-x64/brick.exe",
-      "mac-arm64": "runtime/mac-arm64/brick"
-    }
+    "platforms": [
+      "win-x64",
+      "mac-arm64"
+    ]
   },
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "titleBar": "custom",
     "windowPolicy": "single",
     "size": {
