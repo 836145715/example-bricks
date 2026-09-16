@@ -1,0 +1,1124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>hermit@corp: ~/projects/omni-app — zsh</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0e14;
+        --panel: #12161e;
+        --panel2: #171c26;
+        --border: #232a38;
+        --text: #c6cdd8;
+        --muted: #6b7484;
+        --green: #26d07c;
+        --green-dim: #1a8f57;
+        --cyan: #4cc9f0;
+        --yellow: #e8c15a;
+        --red: #f4695f;
+        --magenta: #b98cff;
+        --font: 'Cascadia Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 13px;
+      }
+
+      header {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0;
+        height: 38px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--border);
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+      .title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: 0.2px;
+        padding-left: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-family: var(--font);
+      }
+      .title em {
+        font-style: normal;
+        color: var(--muted);
+        font-weight: 400;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      .spacer {
+        flex: 1;
+      }
+      header .ctrl {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        -webkit-app-region: no-drag;
+        padding-right: 8px;
+      }
+      .chip {
+        font-size: 11px;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        background: var(--panel2);
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: var(--font);
+      }
+      .chip:hover {
+        color: var(--text);
+        border-color: var(--green-dim);
+      }
+      .chip.active {
+        color: var(--green);
+        border-color: var(--green-dim);
+      }
+      .chip.on {
+        color: #0b0e14;
+        background: var(--green);
+        border-color: var(--green);
+      }
+      .titlebar-ctrl {
+        display: flex;
+        align-items: stretch;
+        height: 100%;
+        -webkit-app-region: no-drag;
+        border-left: 1px solid var(--border);
+        margin-left: 4px;
+      }
+      .tb {
+        width: 46px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: default;
+        transition: background 0.12s, color 0.12s;
+        padding: 0;
+      }
+      .tb:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+      }
+      .tb.close:hover {
+        background: #e81123;
+        color: #fff;
+      }
+      .tb:disabled {
+        opacity: 0.35;
+      }
+      .tb svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.2;
+      }
+
+      #term {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 14px 16px 8px;
+        background:
+          linear-gradient(rgba(38, 208, 124, 0.025), rgba(38, 208, 124, 0.025)),
+          var(--bg);
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      #term::-webkit-scrollbar {
+        width: 8px;
+      }
+      #term::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 4px;
+      }
+      .ln {
+        white-space: pre-wrap;
+        word-break: break-all;
+        line-height: 1.55;
+        min-height: 1em;
+      }
+      .ln.dim {
+        color: var(--muted);
+      }
+      .ln.ok {
+        color: var(--green);
+      }
+      .ln.warn {
+        color: var(--yellow);
+      }
+      .ln.err {
+        color: var(--red);
+      }
+      .ln.info {
+        color: var(--cyan);
+      }
+      .ln.mag {
+        color: var(--magenta);
+      }
+      .ln.bold {
+        font-weight: 700;
+        color: var(--green);
+      }
+      .ln.wrap {
+        color: var(--green);
+        user-select: none;
+      }
+      .ln.sep {
+        border-top: 1px solid var(--border);
+        margin: 6px 0;
+      }
+      .ln .tag {
+        display: inline-block;
+        font-size: 10px;
+        line-height: 1;
+        padding: 2px 5px;
+        border-radius: 4px;
+        background: rgba(38, 208, 124, 0.12);
+        color: var(--green);
+        margin-right: 6px;
+        vertical-align: 1px;
+      }
+      .ln .prompt {
+        color: var(--green);
+        font-weight: 600;
+      }
+      .ln .cwd {
+        color: var(--cyan);
+      }
+      .ln .tick {
+        color: var(--green-dim);
+      }
+      .ln.blink {
+        animation: blink 1.1s steps(1) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .bar {
+        color: var(--green);
+      }
+      .bar .fill {
+        color: var(--green);
+        letter-spacing: 0;
+      }
+      .bar .pct {
+        color: var(--cyan);
+      }
+
+      .input-line {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px 10px;
+        background: var(--bg);
+      }
+      .input-line .p {
+        color: var(--green);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .input-line .p .cwdv {
+        color: var(--cyan);
+        font-weight: 400;
+      }
+      #cmd {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 13px;
+        caret-color: var(--green);
+        padding: 2px 0;
+      }
+      #cmd::placeholder {
+        color: var(--muted);
+        opacity: 0.5;
+      }
+
+      footer {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 5px 16px;
+        border-top: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 11px;
+        user-select: none;
+      }
+      footer .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 6px rgba(38, 208, 124, 0.7);
+        display: inline-block;
+        margin-right: 6px;
+        vertical-align: 1px;
+      }
+      footer .kbd {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0 5px;
+        background: var(--panel2);
+        font-size: 10px;
+      }
+      #actTxt {
+        color: var(--green);
+        font-size: 11px;
+      }
+      #actTxt:empty {
+        display: none;
+      }
+      .grow {
+        flex: 1;
+      }
+      @media (max-width: 640px) {
+        .traffic,
+        .hint {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="title">hermit@corp: ~/projects/omni-app <em>— zsh — 100x32</em></span>
+      <div class="spacer"></div>
+      <div class="ctrl">
+        <button id="autoBtn" class="chip on" title="空闲时自动模拟后台任务" onclick="toggleAuto()">后台任务</button>
+        <button class="chip" onclick="runHelp()">帮助</button>
+        <button class="chip" onclick="clearAll()">清屏</button>
+      </div>
+      <div class="titlebar-ctrl">
+        <button class="tb" id="winMin" title="最小化">
+          <svg viewBox="0 0 12 12"><path d="M2 6h8" /></svg>
+        </button>
+        <button class="tb" id="winMax" title="最大化">
+          <svg viewBox="0 0 12 12" id="icMax"><path d="M3 3h6v6H3z" /></svg>
+          <svg viewBox="0 0 12 12" id="icRestore" style="display:none"><path d="M4 4h6v6H4z M2 8V2h6" /></svg>
+        </button>
+        <button class="tb close" id="winClose" title="关闭">
+          <svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="term"></div>
+
+    <div class="input-line">
+      <span class="p">hermit@corp:<span class="cwdv" id="cwdv">~</span>$</span>
+      <input
+        id="cmd"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="输入 help 查看可用命令，↑/↓ 翻历史，Tab 补全"
+      />
+    </div>
+
+    <footer>
+      <span><span class="dot"></span><span id="stateTxt">已连接 · 开发环境正常</span></span>
+      <span id="actTxt"></span>
+      <span class="grownum" id="clock">--:--:--</span>
+      <span>会话时长 <b id="uptime">00:00:00</b></span>
+      <span class="grow"></span>
+      <span class="hint"><span class="kbd">Ctrl</span> C 中断</span>
+    </footer>
+
+    <script>
+      'use strict'
+
+      // ————— 基础工具 —————
+      const $ = (id) => document.getElementById(id)
+      const term = $('term')
+      const input = $('cmd')
+      const ri = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a
+      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
+      const hex = (n) => Array.from({ length: n }, () => '0123456789abcdef'[ri(0, 15)]).join('')
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const isIdle = () => !runner.busy && !runner.typing
+
+      // ————————————— 状态 —————————————
+      const state = {
+        start: Date.now(),
+        cwd: '~',
+        tasks: 0,
+        commits: 0,
+        deployed: 0,
+        meetings: 0,
+        coffees: 0,
+        buildFail: 0,
+        history: [],
+        histIdx: -1,
+        auto: true,
+        version: '1.2.4',
+      }
+
+      const VFS = {
+        '~': { dirs: ['src', 'api', 'docs', 'mock', 'scripts'], files: [['package.json', '4.2K'], ['README.md', '1.1K'], ['tsconfig.json', '612B'], ['.env.mock', 'static']] },
+        '~/src': { dirs: ['pages', 'components', 'hooks'], files: [['App.tsx', '18K'], ['main.tsx', '2.4K'], ['router.ts', '5.1K']] },
+        '~/api': { dirs: ['rpc'], files: [['server.ts', '26K'], ['types.ts', '7.8K']] },
+        '~/docs': { dirs: [], files: [['spec.md', '12K'], ['changelog.md', '3.2K']] },
+        '~/mock': { dirs: [], files: [['user.json', '840B'], ['order.json', '2.1K']] },
+        '~/scripts': { dirs: [], files: [['release.sh', '1.4K'], ['db-migrate.sh', '2.8K']] },
+      }
+
+      // ————————————— 输出渲染 —————————————
+      function line(text, cls) {
+        const div = document.createElement('div')
+        div.className = 'ln' + (cls ? ' ' + cls : '')
+        div.textContent = text
+        term.appendChild(div)
+        term.scrollTop = term.scrollHeight
+        return div
+      }
+      function blank() {
+        const div = document.createElement('div')
+        div.className = 'ln'
+        div.innerHTML = '&nbsp;'
+        term.appendChild(div)
+        return div
+      }
+
+      // 行类型：'l' 普通行、'w' 等待、'bar' 进度条、'wloop' 长驻循环、'none'
+      const Runner = {
+        busy: false,
+        typing: false,
+        _abort: false,
+        _watchStop: false,
+        _queue: [],
+        async push(rows) {
+          this._queue.push(...Array.isArray(rows) ? rows : [rows])
+          if (!this.busy) await this.drain()
+        },
+        async drain() {
+          this.busy = true
+          try {
+            while (this._queue.length) {
+              if (this._abort) {
+                this._abort = false
+                this._watchStop = false
+                this._queue = []
+                line('^C', 'warn')
+                break
+              }
+              const row = this._queue.shift()
+              if (row.t === 'w') {
+                await sleep(row.ms)
+              } else if (row.t === 'wloop') {
+                let i = 0
+                while (!this._abort && !this._watchStop) {
+                  const [txt, cls] = row.pool[i % row.pool.length]
+                  line((row.time ? `[${ts()}] ` : '') + txt, cls || 'dim')
+                  i++
+                  await sleep(ri(row.minMs || 1300, row.maxMs || 3200))
+                }
+                if (this._abort) {
+                  this._abort = false
+                  this._watchStop = false
+                  this._queue = []
+                  line('^C 前台进程已终止', 'warn')
+                  break
+                }
+                this._watchStop = false
+                line(row.stopLabel || '已停止', 'warn')
+              } else if (row.t === 'l') {
+                if (row.cls === 'cmd') {
+                  const div = document.createElement('div')
+                  div.className = 'ln wrap'
+                  div.innerHTML = ''
+                  const span = document.createElement('span')
+                  span.className = 'prompt'
+                  span.textContent = '➜'
+                  div.appendChild(span)
+                  const c = document.createElement('span')
+                  c.className = 'cwd'
+                  c.textContent = ' ' + state.cwd + ' '
+                  div.appendChild(c)
+                  const t = document.createElement('span')
+                  t.className = 'tick'
+                  t.textContent = '❯ '
+                  div.appendChild(t)
+                  const txt = document.createElement('span')
+                  txt.textContent = ''
+                  div.appendChild(txt)
+                  term.appendChild(div)
+                  this.typing = true
+                  for (let i = 0; i < row.text.length; i++) {
+                    if (this._abort) break
+                    txt.innerHTML += escapeHtml(row.text[i])
+                    await sleep(row.speed || 9)
+                  }
+                  this.typing = false
+                  term.scrollTop = term.scrollHeight
+                } else {
+                  line(row.text, row.cls)
+                  if (row.delay) await sleep(row.delay)
+                }
+              } else {
+                line(row.text, row.cls)
+              }
+            }
+          } finally {
+            this.busy = false
+          }
+        },
+        abort() {
+          this._abort = true
+        },
+        // 新命令输入时结束正在跑的 watch 进程
+        stopWatch() {
+          this._watchStop = true
+        },
+      }
+
+      const escapeHtml = (s) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+      // ————————————— 进度条 —————————————
+      function progressRow(label, total, stepMs) {
+        const rows = []
+        const done = (n) => {
+          const pct = Math.min(100, Math.round((n / total) * 100))
+          const blocks = Math.round((pct / 100) * 22)
+          return [
+            { t: 'l', text: `${label}  ${'█'.repeat(blocks)}${'░'.repeat(22 - blocks)}  ${String(pct).padStart(3)}%`, cls: 'bar' },
+            { t: 'w', ms: stepMs },
+          ]
+        }
+        for (let n = 1; n <= total; n++) rows.push(...done(n))
+        rows.push({ t: 'l', text: `${label}  完成  ${'█'.repeat(22)}  100%`, cls: 'ok', delay: 200 })
+        return rows
+      }
+
+      const ts = () => new Date().toLocaleTimeString('zh-CN', { hour12: false })
+
+      // watch 模式持续刷新的“心跳”日志
+      const WATCH_POOL = [
+        ['[hmr] 更新 /src/pages/Dashboard.tsx (' + (0.3 + Math.random() * 1.1).toFixed(1) + 's)', 'info'],
+        ['[hmr] 更新 /src/components/Chart.tsx (' + (0.2 + Math.random()).toFixed(1) + 's)', 'info'],
+        ['[esbuild] Build succeeded (' + (0.4 + Math.random() * 0.8).toFixed(1) + 's)', 'ok'],
+        ['[vite] page reload · ' + ri(1, 14) + ' diffs · ' + ri(2, 9) + 'ms', 'info'],
+        ['[worker] job #' + hex(4) + ' 完成 · 耗时 ' + ri(3, 48) + 'ms', ''],
+        ['[api] 200 GET /api/dashboard · 12ms', 'ok'],
+        ['[stream] ' + ri(14, 260) + ' msgs from queue/orders', ''],
+        ['[tsc] --noEmit: 0 errors (' + (1 + Math.random() * 2).toFixed(1) + 's)', 'ok'],
+        ['[tailwind] 处理 ' + ri(3, 8) + ' 个 class · +' + ri(2, 9) + 'kB', ''],
+        ['[compiler] watch: 5 modules created · 2 changed · 1 deleted', ''],
+        ['[git] 远端同步完成 · 3 个新 reference', ''],
+      ]
+
+      // 后台静默的“系统噪音”日志
+      const AMBIENT_POOL = [
+        '[cluster] node-0412 alive · replicas=3 · leader=api-0',
+        '[queue] 已完成 1,284 条消息 / 10s · 深度 47',
+        '[metrics] CPU 42% · MEM 3.2G/16G · DISK 62% · NET 84KB/s',
+        '[cron] 备份同步任务已跑 · 128GB · ok',
+        '[git] 分支 mock-branch · 与远端同步 +3 commits',
+        '[audit] 依赖扫描完成 · 0 critical · 2 moderate',
+        '[worker] 34 个容器预热完成 · 91ms',
+        '[otel] 已上报 281,412 traces · p95=42ms',
+        '[registry] pull omni-app:1.2.4 · 层完整 · 24.5MB',
+        '[log] 归档 old-logs 目录 · 释放 1.2GB',
+      ]
+
+      // ————————————— 命令表 —————————————
+      const CMDS = {
+        help: { hint: '本清单', run: (args) => helpRun(args) },
+        clear: { hint: '清屏', run: () => { term.innerHTML = ''; return [] } },
+        whoami: { hint: '当前用户', run: () => whoamiRun() },
+        neofetch: { hint: '系统信息', run: () => neofetchRun() },
+        date: { hint: '当前时间', run: () => [{ t: 'l', text: new Date().toLocaleString('zh-CN', { hour12: false }), cls: 'info', delay: 200 }] },
+        pwd: { hint: '当前目录', run: () => [{ t: 'l', text: state.cwd, cls: 'info' }] },
+        ls: { hint: '列出目录', run: (args) => lsRun() },
+        cd: { hint: '切换目录', run: (args) => cdRun(args) },
+        git: { hint: 'git 状态/提交/推送', run: (args) => gitRun(args) },
+        build: { hint: '构建项目', run: () => buildRun() },
+        test: { hint: '跑测试', run: () => testRun() },
+        deploy: { hint: '构建并发布', run: () => deployRun() },
+        docker: { hint: '容器列表', run: () => dockerRun() },
+        pods: { hint: 'k8s 服务状态', run: () => podsRun() },
+        curl: { hint: '请求接口', run: (args) => curlRun(args) },
+        ping: { hint: 'ping 主机', run: (args) => pingRun(args) },
+        meeting: { hint: '参与会议', run: () => meetingRun() },
+        standup: { hint: '站会播报', run: () => standupRun() },
+        coffee: { hint: '短暂离开', run: () => coffeeRun() },
+        code: { hint: '打开文件', run: (args) => codeRun(args) },
+        status: { hint: '会话状态', run: () => statusRun() },
+        ps: { hint: '进程列表', run: () => psRun() },
+        sleep: { hint: '挂起一会', run: (args) => sleepRun(args) },
+        jobs: { hint: '排队中的任务', run: () => jobRun() },
+        echo: { hint: '回显', run: (args) => [{ t: 'l', text: args.join(' '), cls: 'info' }] },
+        dev: { hint: '启动开发服务器(持续运行)', run: () => watchRun() },
+        watch: { hint: '同 dev', run: () => watchRun() },
+        install: { hint: '安装依赖', run: (args) => installRun(args) },
+        ci: { hint: '运行流水线', run: () => ciRun() },
+        exit: { hint: '退出终端', run: () => exitRun() },
+      }
+
+      // ————— 各命令实现 —————
+      const helpRun = (args) => {
+        const rows = [
+          { t: 'l', text: '可用命令', cls: 'bold' },
+          { t: 'l', text: '（仅本地模拟执行，不产生任何副作用）', cls: 'dim' },
+          { t: 'l', text: '' },
+          ...Object.entries(CMDS).map(([k, v]) => ({ t: 'l', text: `  ${k.padEnd(12)} ${v.hint}`, cls: '' })),
+          { t: 'l', text: '' },
+          { t: 'l', text: 'Tab 补全 · ↑/↓ 历史 · Ctrl+C 中断 · Ctrl+L 清屏', cls: 'dim' },
+        ]
+        return rows
+      }
+      const whoamiRun = () => [
+        { t: 'l', text: 'hermit', cls: 'bold' },
+        { t: 'l', text: 'uid=1000(hermit) gid=1000(hermit) groups=1000(hermit),27(sudo)', cls: '' },
+      ]
+      const neofetchRun = () => [
+        { t: 'l', text: '        /\\          hermit@corp', cls: '' },
+        { t: 'l', text: '       /  \\_        ----------------', cls: '' },
+        { t: 'l', text: '      /._.-\\"       OS: macOS 24.5 x86_64', cls: '' },
+        { t: 'l', text: '     /_/ \\_\\       Host: MacBook Pro (16-inch, 2023)', cls: '' },
+        { t: 'l', text: '                    Kernel: 23.5.0-alask', cls: '' },
+        { t: 'l', text: '                    Uptime: ' + fmtDur(Date.now() - state.start) + ' (本会话)', cls: '' },
+        { t: 'l', text: '                    Shell: zsh 5.9', cls: '' },
+        { t: 'l', text: '                    WM: aqua (dark)', cls: '' },
+      ]
+      const lsRun = () => {
+        const dir = VFS[state.cwd] || { dirs: [], files: [] }
+        const rows = []
+        dir.dirs.forEach((d) => rows.push({ t: 'l', text: `drwxr-xr-x   ${d}`, cls: 'info' }))
+        dir.files.forEach(([f, s]) => rows.push({ t: 'l', text: `-rw-r--r--   ${f.padEnd(22)} ${s}`, cls: '' }))
+        if (!rows.length) rows.push({ t: 'l', text: '（目录为空）', cls: 'dim' })
+        return rows
+      }
+      const cdRun = (args) => {
+        const target = args[0] || '~'
+        if (target === '~' || target === '/') { state.cwd = '~'; return [{ t: 'l', text: '回到项目根目录。', cls: 'dim' }] }
+        const next = target.startsWith('~/') ? target : (state.cwd === '~' ? '~/' + target : state.cwd + '/' + target)
+        const dir = VFS[next] || VFS[state.cwd + '/' + target]
+        if (dir) {
+          state.cwd = next
+          return [{ t: 'l', text: '', cls: 'dim' }]
+        }
+        return [
+          { t: 'l', text: `cd: 无法进入 '${target}': No such file or directory`, cls: 'err' },
+        ]
+      }
+      const gitRun = (args) => {
+        const sub = args[0] || 'status'
+        switch (sub) {
+          case 'status':
+            return [
+              { t: 'l', text: 'On branch mock-branch', cls: '' },
+              { t: 'l', text: 'Your branch is up to date with origin/mock-branch.', cls: 'dim' },
+              { t: 'l', text: '' },
+              { t: 'l', text: 'Changes not staged for commit:', cls: 'bold' },
+              { t: 'l', text: '        modified:   src/App.tsx', cls: '' },
+              { t: 'l', text: '        modified:   src/hooks/useData.ts', cls: '' },
+              { t: 'l', text: '', delay: 150 },
+              { t: 'l', text: 'Untracked files:', cls: 'bold' },
+              { t: 'l', text: '        draft_需求变更_v3_最终版_really.md', cls: '' },
+            ]
+          case 'log':
+            return [
+              { t: 'l', text: 'commit 列表：' + hex(7), cls: 'dim' },
+              ...Array.from({ length: ri(3, 6) }, (_, i) => ({
+                t: 'l',
+                text: (i === 0 ? '* ' : '| ') + hex(7) + '  ' + pick(['fix: 回收再会打不开', 'feat: 再改一版', 'refactor: 又重构', 'docs: 文档不存在']),
+                cls: i === 0 ? 'ok' : 'dim',
+              })),
+            ]
+          case 'commit':
+            state.commits++
+            return [{ t: 'l', text: '[mock-branch ' + hex(7) + '] 提交完成', cls: 'ok', delay: 250 }]
+          case 'push':
+            state.tasks++
+            return [
+              { t: 'l', text: 'Enumerating objects: 12, done.', cls: 'dim' },
+              { t: 'l', text: 'Writing objects: 100% (12/12), 3.21 KiB | 1.07 MiB/s', cls: 'dim', delay: 300 },
+              { t: 'l', text: 'To github.com:corp/omni-app.git', cls: '' },
+              { t: 'l', text: '   ab1cdef..' + hex(7) + '  mock-branch -> mock-branch', cls: 'ok' },
+            ]
+          case 'merge':
+            return [
+              ...Array.from({ length: ri(3, 8) }, () => ({ t: 'l', text: pick(['Auto-merging src/App.tsx', 'CONFLICT (content): Merge conflict in App.tsx', 'Removing stale/old-ok.ts', 'Merge made by the recursive apt strategy.']), cls: 'warn' })),
+              { t: 'w', ms: 350 },
+              { t: 'l', text: 'Merge made by the ' + pick(['ort', 'recursive']) + ' strategy.', cls: 'ok' },
+            ]
+          case 'diff':
+            return [
+              { t: 'l', text: '--- a/src/App.tsx', cls: '' },
+              { t: 'l', text: '+++ b/src/App.tsx', cls: '' },
+              { t: 'l', text: '@@ -41,3 +41,4 @@ export default function App()', cls: 'cyan' },
+              { t: 'l', text: '+  // TODO: 补充类型定义', cls: 'ok' },
+              { t: 'l', text: '+  console.log("debug")', cls: 'ok' },
+              { t: 'l', text: '-  console.log("wip")', cls: 'err' },
+            ]
+          default:
+            return [{ t: 'l', text: `usage: git <status|log|commit|push|merge|diff>`, cls: 'dim' }]
+        }
+      }
+      const buildRun = () => {
+        state.activity = '编译中'
+        if (Math.random() < 0.12) {
+          state.buildFail++
+          return [
+            { t: 'l', text: '$ vite build', cls: 'bold' },
+            ...progressRow('transforming', 9, 230),
+            { t: 'l', text: '✗ ERROR: 找不到模块 "@company/ui"', cls: 'err' },
+            { t: 'l', text: '建议：重新执行一次 build', cls: 'warn' },
+          ]
+        }
+        state.tasks++
+        return [
+          { t: 'l', text: '$ vite build', cls: '' },
+          ...progressRow('transforming', 10, 180),
+          { t: 'l', text: '✓ built in ' + (8 + Math.random() * 3).toFixed(2) + 's · 145 modules · 1.24 MB (gzip)', cls: 'ok' },
+          { t: 'l', text: '✓ dist/ 产物就绪', cls: 'dim' },
+        ]
+      }
+      const testRun = () => {
+        state.activity = '跑测试中'
+        const n = ri(48, 96)
+        return [
+          { t: 'l', text: '$ vitest run', cls: '' },
+          ...progressRow('running tests', 6, 190),
+          { t: 'l', text: ` ✓ Test Files  ${n} passed (${n})`, cls: 'ok' },
+          { t: 'l', text: `   Tests       ${n * 5} passed (${n * 5})`, cls: 'ok' },
+          { t: 'l', text: '   Duration     9.8s', cls: 'dim' },
+        ]
+      }
+      const deployRun = () => {
+        state.deployed++
+        state.activity = '构建发布中'
+        return [
+          { t: 'l', text: '$ docker build -t registry.corp/omni-app:' + state.version + ' .', cls: '' },
+          { t: 'l', text: '[+] Building 4.7s (27/27) FINISHED', cls: 'dim', delay: 250 },
+          { t: 'l', text: ' → pushing image  registry.corp/omni-app:' + state.version + ' (231 MB)', cls: '' },
+          ...progressRow('push', 8, 240),
+          { t: 'l', text: '→ 滚动发布 x-api · 副本 3/3 就绪', cls: '' },
+          { t: 'w', ms: 300 },
+          { t: 'l', text: '✓ 发布完成 v' + state.version + ' · 副本 3/3 就绪', cls: 'ok' },
+        ]
+      }
+      const dockerRun = () => [
+        { t: 'l', text: 'CONTAINER ID   IMAGE                STATUS      PORTS', cls: 'info' },
+        { t: 'l', text: hex(12) + '   omni-app:dev        Up 3 hours   :3000->80', cls: '' },
+        { t: 'l', text: hex(12) + '   redis:7.2-alpine    Up 3 hours   6379/tcp', cls: '' },
+        { t: 'l', text: hex(12) + '   postgres:16         Up 3 hours   5432/tcp', cls: '' },
+        { t: 'l', text: hex(12) + '   little-memo         Exited (0)   ', cls: 'dim' },
+      ]
+      const podsRun = () => [
+        { t: 'l', text: 'NAME                        READY   STATUS    RESTARTS   AGE', cls: 'info' },
+        { t: 'l', text: 'api-6f74bc6c5d-lk2xq       1/1     Running   3         22h', cls: '' },
+        { t: 'l', text: 'web-85fd8d9b6-2bqvn         1/1     Running   0         24h', cls: '' },
+        { t: 'l', text: 'worker-778f4645f-ckp9m      1/1     Running   14        22h', cls: '' },
+        { t: 'l', text: 'migration-01               0/1     Pending   0         25d', cls: 'warn' },
+      ]
+      const curlRun = (args) => {
+        const url = args[0] || 'http://registry.corp/api/health'
+        return [
+          { t: 'l', text: `$ curl -sS ${url}`, cls: 'dim' },
+          { t: 'w', ms: 420 },
+          { t: 'l', text: '{', cls: '' },
+          { t: 'l', text: '  "status": "ok",', cls: 'ok' },
+          { t: 'l', text: '  "service": "omni-api",', cls: '' },
+          { t: 'l', text: '  "latency": "' + (30 + Math.round(Math.random() * 70)) + 'ms",', cls: '' },
+          { t: 'l', text: '  "env": "mock",', cls: '' },
+          { t: 'l', text: '  "mock": true', cls: 'warn' },
+          { t: 'l', text: '}', cls: '' },
+          { t: 'l', text: '请求完成 · 11ms', cls: 'dim' },
+        ]
+      }
+      const pingRun = (args) => {
+        const host = args[0] || 'corp.internal'
+        const rows = [{ t: 'l', text: `PING ${host} (10.0.0.${ri(10, 99)}): 56 data bytes`, cls: 'dim' }]
+        for (let i = 0; i < 4; i++) {
+          rows.push({ t: 'l', text: `64 bytes from 10.0.0.1: icmp_seq=${i} ttl=59 time=${(0.4 + Math.random() * 1.4).toFixed(3)} ms`, cls: '' })
+          rows.push({ t: 'w', ms: 260 })
+        }
+        rows.push(
+          { t: 'l', text: '--- ' + host + ' ping statistics ---', cls: 'bold' },
+          { t: 'l', text: `4 packets transmitted, 4 received, 0% packet loss, time 1023ms`, cls: '' },
+        )
+        return rows
+      }
+      const meetingRun = () => {
+        state.meetings++
+        state.activity = '会议进行中'
+        const t0 = new Date()
+        const t = (i) => new Date(t0.getTime() + i * 45000).toLocaleTimeString('zh-CN', { hour12: false })
+        return [
+          { t: 'l', text: `（${t(0)}）连接会议…`, cls: 'dim' },
+          { t: 'w', ms: 700 },
+          { t: 'l', text: `✔ 已加入：项目周会 · 9 人在线`, cls: 'ok' },
+          { t: 'l', text: `（${t(1)}）阿强：本周目标按计划推进`, cls: '' },
+          { t: 'l', text: `（${t(2)}）你：好的，我这边同步：核心模块在收尾，预计下午 15:00 前 push`, cls: 'bold' },
+          { t: 'w', ms: 700 },
+          { t: 'l', text: `（${t(4)}）阿强：OK，没有阻塞，散会`, cls: '' },
+          { t: 'w', ms: 600 },
+          { t: 'l', text: `✔ 会议已结束 · 你发言 1 次`, cls: 'ok' },
+        ]
+      }
+      const standupRun = () => [
+        { t: 'l', text: '✔ 站会播报', cls: 'bold' },
+        { t: 'l', text: '昨天：处理 ' + ri(3, 9) + ' 个工单，合并 3 个 PR，跑了 ' + ri(2, 6) + ' 套用例', cls: '' },
+        { t: 'l', text: '今天：推进核心模块，下午同步进展', cls: '' },
+        { t: 'l', text: '风险：无', cls: 'warn' },
+      ]
+      const coffeeRun = () => {
+        state.coffees++
+        return [
+          { t: 'l', text: '暂时离开 · 屏幕保持当前状态', cls: 'dim' },
+          { t: 'w', ms: 900 },
+          { t: 'l', text: '✔ 已回归 · 继续 code review', cls: 'ok' },
+        ]
+      }
+      const codeRun = (args) => {
+        const file = args[0] || 'src/App.tsx'
+        return [
+          { t: 'l', text: `正在打开 ${file} …`, cls: 'dim' },
+          { t: 'w', ms: 300 },
+          { t: 'l', text: `✔ 已打开 (read/write)`, cls: 'ok' },
+        ]
+      }
+      const statusRun = () => {
+        const s = state
+        return [
+          { t: 'l', text: '会话状态', cls: 'bold' },
+          { t: 'l', text: `  启动时间   ${new Date(state.start).toLocaleTimeString('zh-CN', { hour12: false })}`, cls: '' },
+          { t: 'l', text: `  会话时长   ${fmtDur(Date.now() - state.start)}`, cls: '' },
+          { t: 'l', text: `  构建次数   ${s.tasks}`, cls: '' },
+          { t: 'l', text: `  提交次数   ${s.commits}`, cls: '' },
+          { t: 'l', text: `  发布次数   ${s.deployed}`, cls: '' },
+          { t: 'l', text: `  会议场次   ${s.meetings}`, cls: '' },
+          { t: 'l', text: `  构建失败   ${s.buildFail}`, cls: s.buildFail ? 'warn' : 'ok' },
+        ]
+      }
+      const psRun = () => {
+        const list = [
+          ['vite', '2', '3.1%'],
+          ['node --watch', '1', '2.2%'],
+          ['chromium', '8', 'UI 渲染'],
+          ['meeting_ghost', '1', '会议进程'],
+          ['coffee_counter', '1', '计时任务'],
+        ]
+        return [
+          { t: 'l', text: 'PID  名称          CPU   说明', cls: 'info' },
+          ...list.map(([n, p, m]) => ({ t: 'l', text: `123${pick([hex(2), 'ab'])}  ${n.padEnd(18)}${p}   ${m}`, cls: '' })),
+          { t: 'l', text: '共 51 个进程 · 状态正常', cls: 'dim' },
+        ]
+      }
+      const sleepRun = (args) => {
+        const sec = Math.min(10, Math.max(1, parseInt(args[0], 10) || 3))
+        const rows = [{ t: 'l', text: `挂起 ${sec}s …`, cls: 'dim' }]
+        for (let i = 1; i <= sec; i++) {
+          const pct = Math.round((i / sec) * 100)
+          const blocks = Math.round((pct / 100) * 22)
+          rows.push({ t: 'w', ms: 900 })
+          rows.push({ t: 'l', text: `[${'█'.repeat(blocks)}${'░'.repeat(22 - blocks)}] ${i}/${sec}s`, cls: 'bar' })
+        }
+        rows.push({ t: 'l', text: '完成', cls: 'ok' })
+        return rows
+      }
+      const jobRun = () => [
+        { t: 'l', text: 'JOB    STATUS      AGE', cls: 'info' },
+        { t: 'l', text: 'triage-#' + hex(4) + '   queued   3m', cls: '' },
+        { t: 'l', text: 'triage-#' + hex(4) + '   queued   3m', cls: '' },
+        { t: 'l', text: 'review-PR-1' + hex(3) + '   running   8s', cls: 'ok' },
+        { t: 'l', text: 'db-migration-0' + ri(1, 9) + '   blocked   pending', cls: 'warn' },
+      ]
+      const exitRun = () => {
+        const wapi = window.brickly?.window
+        if (!wapi) {
+          return [
+            { t: 'l', text: 'exit: 当前环境不支持关闭窗口', cls: 'warn' },
+            { t: 'l', text: '提示：exit 会退出当前会话', cls: 'dim' },
+          ]
+        }
+        setTimeout(() => wapi.close(), 900)
+        return [
+          { t: 'l', text: '正在退出 …', cls: 'dim' },
+          { t: 'w', ms: 800 },
+        ]
+      }
+      // dev/watch：长驻前台进程，持续输出编译/HMR/worker 心跳
+      const watchRun = () => {
+        state.activity = 'vite watch 运行中'
+        return [
+          { t: 'l', text: '$ npm run dev -- --watch', cls: '' },
+          { t: 'l', text: '', delay: 260 },
+          { t: 'l', text: '  VITE v5.4.11  ready in 312 ms', cls: 'ok' },
+          { t: 'l', text: '  Local:   http://localhost:5173/', cls: 'info' },
+          { t: 'l', text: '  Network: http://192.168.31.42:5173/', cls: 'dim' },
+          { t: 'l', text: '', delay: 500 },
+          { t: 'wloop', pool: WATCH_POOL, minMs: 1100, maxMs: 3000, time: true, stopLabel: '  watch 已停止' },
+        ]
+      }
+      const installRun = (args) => {
+        const pkg = (args[0] || 'scheduler').split('@')[0]
+        state.activity = '安装依赖中'
+        const rows = [
+          { t: 'l', text: '$ npm install ' + pkg, cls: '' },
+          { t: 'l', text: '', delay: 150 },
+          { t: 'l', text: 'npm http fetch GET 200 https://registry.corp/npm/' + pkg + ' (230ms)', cls: 'dim' },
+          { t: 'w', ms: 400 },
+          ...progressRow('resolve · fetch · link', 8, 190),
+          { t: 'l', text: 'added ' + ri(150, 340) + ' packages, and audited ' + ri(400, 700) + ' packages in ' + (3 + Math.random() * 2).toFixed(1) + 's', cls: 'ok' },
+          { t: 'l', text: ri(0, 3) + ' vulnerabilities (' + pick(['2 moderate', '1 low', 'none high']) + ')', cls: 'ok' },
+          { t: 'l', text: 'node_modules +' + Math.round(30 + Math.random() * 40) + 'MB', cls: 'dim' },
+        ]
+        state.tasks++
+        return rows
+      }
+      const ciRun = () => {
+        state.activity = '流水线运行中'
+        return [
+          { t: 'l', text: 'Pipeline #' + ri(4000, 4999) + ' · trigger: push to mock-branch', cls: 'bold' },
+          { t: 'l', text: '', delay: 300 },
+          { t: 'l', text: '[1/5] lint', cls: 'dim' },
+          { t: 'w', ms: 700 },
+          { t: 'l', text: '      ✓ 0 errors · 23 warnings', cls: 'ok' },
+          { t: 'l', text: '[2/5] unit tests', cls: 'dim' },
+          ...progressRow('      vitest', 3, 220),
+          { t: 'l', text: '      ✓ 217 passed · 1,021 tests', cls: 'ok' },
+          { t: 'l', text: '[3/5] build & artifact', cls: 'dim' },
+          ...progressRow('      tsc + vite', 4, 200),
+          { t: 'l', text: '      ✓ artifact: omni-app-' + state.version + '.tar.gz (48MB)', cls: 'ok' },
+          { t: 'l', text: '[4/5] container scan', cls: 'dim' },
+          { t: 'w', ms: 600 },
+          { t: 'l', text: '      ✓ 0 critical · 2 medium', cls: 'ok' },
+          { t: 'l', text: '[5/5] canary deploy', cls: 'dim' },
+          { t: 'w', ms: 500 },
+          { t: 'l', text: '      ✓ 10% canary 已就绪', cls: 'ok' },
+          { t: 'l', text: '✓ Pipeline finished in ' + ri(2, 4) + 'min ' + ri(10, 59) + 's', cls: 'bold' },
+        ]
+      }
+
+      // ————————————— 后台任务 / 环境噪音 —————————————
+      let lastInput = Date.now()
+
+      async function autoTick() {
+        if (!state.auto || Runner.busy || Runner.typing) return
+        if (Date.now() - lastInput < 3000) return
+        const cmd = pick(autoCmdsPool())
+        const { rows } = await exec(cmd)
+        if (rows.length) {
+          Runner.push({ t: 'l', text: '… (后台静默执行)', cls: 'dim' })
+          Runner.push(rows)
+        }
+      }
+      function autoCmdsPool() {
+        return ['git status', 'git log', 'build', 'test', 'deploy', 'pods', 'ps', 'status', 'ls', 'git push', 'coffee', 'standup', 'date'].filter(() => Math.random() > 0.3)
+      }
+
+      setInterval(() => {
+        if (!state.auto || Runner.busy) return
+        if (Date.now() - lastInput < 4000) return
+        const r = Math.random()
+        if (r < 0.45) {
+          autoTick()
+        } else if (r < 0.75) {
+          Runner.push({ t: 'l', text: `[${ts()}] ${pick(AMBIENT_POOL)}`, cls: 'dim' })
+        }
+      }, 8000)
+
+      // ————————————— 命令输入 —————————————
+      async function exec(raw) {
+        const text = raw.trim()
+        const parts = text.split(/\s+/)
+        const cmd = parts.shift()
+        const args = parts
+        if (!cmd) {
+          return { rows: [] }
+        }
+        const C = CMDS[cmd]
+        if (C) {
+          const rows = await C.run(args)
+          return { rows: rows || [] }
+        }
+        return {
+          rows: [
+            { t: 'l', text: `bash: ${cmd}: command not found`, cls: 'err' },
+            { t: 'l', text: 'Try \'help\' for a list of available commands.', cls: 'dim' },
+          ],
+        }
+      }
+
+      async function onSubmit() {
+        Runner.stopWatch()
+        const text = input.value
+        state.history.push(text)
+        state.histIdx = state.history.length
+        lastInput = Date.now()
+        input.value = ''
+        const { rows } = await exec(text)
+        Runner.push({ t: 'l', text: text, cls: 'cmd', speed: 8 })
+        Runner.push(rows.length ? rows : [{ t: 'w', ms: 120 }])
+      }
+
+      function onKey(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onSubmit()
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          if (state.histIdx > 0) {
+            state.histIdx--
+            input.value = state.history[state.histIdx] || ''
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          if (state.histIdx < state.history.length) {
+            state.histIdx++
+            input.value = state.history[state.histIdx] || ''
+          }
+        } else if (e.key === 'Tab') {
+          e.preventDefault()
+          const v = input.value
+          const parts = v.split(' ')
+          const head = parts.pop()
+          const names = Object.keys(CMDS)
+          const matched = names.filter((n) => n.startsWith(head))
+          if (matched.length === 1) {
+            parts.push(matched[0])
+            input.value = parts.join(' ')
+          } else if (matched.length > 1) {
+            line(`候选: ${matched.join('  ')}`, 'dim')
+          } else if (v.startsWith('git ')) {
+            const subs = ['status', 'log', 'commit', 'push', 'merge', 'diff']
+            const m = subs.filter((s) => s.startsWith(head))
+            if (m.length === 1) input.value = 'git ' + m[0]
+            else if (m.length) line(`git 子命令: ${m.join('  ')}`, 'dim')
+          }
+        } else if (e.key === 'c' && (e.ctrlKey || e.metaKey)) {
+          Runner.abort()
+        } else if (e.key === 'l' && (e.ctrlKey || e.metaKey)) {
+          term.innerHTML = ''
+        }
+      }
+
+      function clearAll() {
+        term.innerHTML = ''
+      }
+      function runHelp() {
+        onSubmitText('help')
+      }
+      const onSubmitText = (text) => {
+        input.value = text
+        onSubmit()
+      }
+      function toggleAuto() {
+        state.auto = !state.auto
+        const b = $('autoBtn')
+        b.classList.toggle('on', state.auto)
+        b.textContent = state.auto ? '后台任务' : '后台任务(关)'
+        line(state.auto ? '后台任务已开启：空闲时自动模拟构建/监控等例行任务' : '后台任务已关闭', 'dim')
+      }
+
+      // ————————————— 时钟 / 时长 —————————————
+      const fmtDur = (ms) => {
+        const s = Math.floor(ms / 1000)
+        const h = String(Math.floor(s / 3600)).padStart(2, '0')
+        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
+        const ss = String(s % 60).padStart(2, '0')
+        return `${h}:${m}:${ss}`
+      }
+      setInterval(() => {
+        $('clock').textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+        $('uptime').textContent = fmtDur(Date.now() - state.start)
+        $('cwdv').textContent = state.cwd
+      }, 1000)
+
+      // ————————————— 自绘标题栏（titleBar: custom） —————————————
+      const wapi = window.brickly?.window
+      const winMax = $('winMax')
+      const icMax = $('icMax')
+      const icRestore = $('icRestore')
+      function setMaxUi(maxed) {
+        icMax.style.display = maxed ? 'none' : ''
+        icRestore.style.display = maxed ? '' : 'none'
+        winMax.title = maxed ? '还原' : '最大化'
+      }
+      $('winMin').addEventListener('click', () => wapi?.minimize())
+      $('winMax').addEventListener('click', () => wapi?.toggleMaximize())
+      $('winClose').addEventListener('click', () => wapi?.close())
+      if (wapi) {
+        wapi.isMaximized?.().then(setMaxUi).catch(() => {})
+        wapi.onMaximizeChange?.(setMaxUi)
+      } else {
+        $('winMin').disabled = true
+        $('winMax').disabled = true
+        $('winClose').disabled = true
+      }
+
+      // ————————————— 底部活动指示 —————————————
+      const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+      let sp = 0
+      setInterval(() => {
+        const el = $('actTxt')
+        if (Runner.busy || Runner.typing) {
+          sp = (sp + 1) % SPIN.length
+          el.textContent = `${SPIN[sp]} ${state.activity || '运行中'}`
+        } else {
+          el.textContent = ''
+        }
+      }, 300)
+
+      // ————————————— 启动 —————————————
+      async function boot() {
+        const last = new Date(state.start - ri(3600_000, 8 * 3600_000)).toLocaleString('zh-CN', { hour12: false })
+        line(`Last login: ${last} from 10.0.2.15`, 'dim')
+        line('Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-45-generic x86_64)', 'dim')
+        line('', '')
+        line('  * Documentation:  https://help.ubuntu.com', 'dim')
+        line('', '')
+        line('  project: omni-app · cwd: ~/projects/omni-app', 'bold')
+        line('  输入 help 查看可用命令 · Tab 补全 · Ctrl+C 中断', 'dim')
+        line('────────────────────────────────────────────────────', 'dim')
+        Runner.push([{ t: 'w', ms: 350 }])
+        setTimeout(() => input.focus(), 400)
+      }
+      boot()
+      Runner.push([{ t: 'l', text: '后台任务已开启：空闲时自动模拟构建 / 监控等例行任务', cls: 'dim' }])
+      input.addEventListener('keydown', onKey)
+    </script>
+  </body>
+</html>

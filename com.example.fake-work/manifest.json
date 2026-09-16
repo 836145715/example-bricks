@@ -22,7 +22,6 @@
   "author": "Brickly Demo",
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "titleBar": "custom",
     "size": {
       "width": 1000,

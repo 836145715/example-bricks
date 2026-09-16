@@ -20,11 +20,10 @@
     "exposeApi"
   ],
   "author": "Brickly Dev",
-  "preload": "preload.cjs",
+  "preload": "preload/preload.cjs",
   "apiVersion": ">=0.1.0 <1.0.0",
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "size": {
       "width": 1080,
       "height": 820,

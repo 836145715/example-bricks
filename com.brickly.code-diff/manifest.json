@@ -23,7 +23,6 @@
   "author": "Brickly",
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "size": {
       "width": 1120,
       "height": 740,

@@ -1,8 +1,0 @@
-{
-  "name": "com.brickly.preload-api-probe",
-  "private": true,
-  "version": "0.1.0",
-  "scripts": {
-    "setup": "node ../scripts/setup-brick.cjs"
-  }
-}

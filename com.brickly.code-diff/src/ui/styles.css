@@ -1,0 +1,424 @@
+:root {
+  color-scheme: dark;
+  --bg: #1f2023;
+  --panel: #252629;
+  --panel-2: #2d2f33;
+  --bar: #33353a;
+  --line: #45474d;
+  --soft-line: #35373c;
+  --text: #f3f4f6;
+  --muted: #a4a7ae;
+  --muted-2: #757982;
+  --accent: #7c8cff;
+  --add: #4ade80;
+  --remove: #fb7185;
+  --modify: #fbbf24;
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.shell {
+  display: grid;
+  grid-template-rows: 48px 42px minmax(0, 1fr) 40px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid #4b4d54;
+}
+
+.shell-light {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --panel-2: #f1f3f6;
+  --bar: #e5e7eb;
+  --line: #cfd3dc;
+  --soft-line: #dfe3ea;
+  --text: #20242a;
+  --muted: #5f6673;
+  --muted-2: #858d9a;
+  --accent: #4259ff;
+}
+
+.topbar,
+.statsbar,
+.toolbar {
+  min-width: 0;
+  background: var(--bar);
+  border-bottom: 1px solid var(--soft-line);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand svg {
+  color: var(--accent);
+}
+
+.brand div {
+  display: grid;
+  min-width: 0;
+}
+
+.brand strong {
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.brand span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+select {
+  height: 30px;
+  min-width: 126px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  outline: 0;
+  background: var(--panel);
+  color: var(--text);
+  padding: 0 8px;
+}
+
+.segmented {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.segmented button {
+  min-width: 48px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.segmented-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.statsbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.metric strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.metric-add strong {
+  color: var(--add);
+}
+
+.metric-remove strong {
+  color: var(--remove);
+}
+
+.metric-modify strong {
+  color: var(--modify);
+}
+
+.notice {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.notice-ok {
+  color: var(--add);
+}
+
+.notice-warn {
+  color: var(--modify);
+}
+
+.notice-error {
+  color: var(--remove);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  min-height: 0;
+  min-width: 0;
+  background: var(--panel);
+}
+
+.diff-shell {
+  display: grid;
+  grid-template-rows: 28px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 1px solid var(--soft-line);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pane-labels span {
+  min-width: 0;
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pane-labels span + span {
+  border-left: 1px solid var(--soft-line);
+}
+
+.monaco-editor,
+.monaco-editor-background,
+.monaco-editor .margin {
+  background-color: var(--panel) !important;
+}
+
+.history {
+  display: grid;
+  grid-template-rows: 36px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--soft-line);
+  background: var(--panel-2);
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--soft-line);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.history-header small {
+  color: var(--muted);
+}
+
+.empty-records {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  color: var(--muted-2);
+  font-size: 12px;
+  text-align: center;
+}
+
+.record {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--soft-line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.record:hover,
+.record-active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.record strong,
+.record span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.record strong {
+  font-size: 12px;
+}
+
+.record span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  border-top: 1px solid var(--soft-line);
+  border-bottom: 0;
+  overflow: hidden;
+}
+
+.tool-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 38px;
+  min-width: 38px;
+  height: 39px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+}
+
+.tool-button span {
+  font-size: 12px;
+}
+
+.tool-button:has(span) {
+  width: 58px;
+  min-width: 58px;
+}
+
+.tool-button:hover:not(:disabled),
+.tool-button-active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: #fff;
+}
+
+.shell-light .tool-button:hover:not(:disabled),
+.shell-light .tool-button-active {
+  color: var(--accent);
+}
+
+.tool-button:disabled {
+  color: var(--muted-2);
+  cursor: default;
+}
+
+.shortcut-text {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0 12px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .history {
+    display: none;
+  }
+
+  .shortcut-text {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    grid-template-rows: 86px 72px minmax(0, 1fr) 78px;
+  }
+
+  .topbar,
+  .statsbar,
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .controls {
+    width: 100%;
+  }
+
+  select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .notice {
+    width: 100%;
+    margin-left: 0;
+  }
+}
