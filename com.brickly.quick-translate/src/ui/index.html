@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>快速翻译</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="anchor"></div>
+      <header class="header">
+        <span class="drag-grip" aria-hidden="true"></span>
+        <p id="status">等待选中文本</p>
+        <div class="actions">
+          <button id="copy" class="icon-button" type="button" disabled aria-label="复制译文" title="复制译文">
+            复制
+          </button>
+          <button id="close" class="icon-button" type="button" aria-label="关闭" title="关闭">×</button>
+        </div>
+      </header>
+
+      <div id="source" class="source">暂无内容</div>
+      <div id="result" class="result">翻译结果会显示在这里</div>
+
+      <div id="error" class="error" hidden></div>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

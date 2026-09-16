@@ -1,0 +1,147 @@
+export type ActionId =
+  | 'compress'
+  | 'convert'
+  | 'resize'
+  | 'watermark'
+  | 'roundedCorners'
+  | 'padding'
+  | 'crop'
+  | 'rotate'
+  | 'flip'
+  | 'stripMeta'
+  | 'join'
+  | 'pdf'
+  | 'gif'
+
+export type ToolGroup = 'single' | 'multi'
+
+export type CropMode = 'numeric' | 'drag'
+
+export type OutputMode = 'sidecar' | 'dir'
+
+export interface OutputStrategy {
+  mode: OutputMode
+  dir?: string
+  overwrite?: boolean
+}
+
+export interface CommonOptions {
+  autoOrient: boolean
+  stripMetadata: boolean
+}
+
+export interface ProcessImageInput {
+  action: ActionId
+  files: string[]
+  options: Record<string, unknown>
+  output?: {
+    mode?: OutputMode
+    dir?: string
+    overwrite?: boolean
+  }
+  common?: {
+    autoOrient?: boolean
+    stripMetadata?: boolean
+  }
+  /** In-memory only: process without writing output files */
+  previewOnly?: boolean
+}
+
+export interface ProcessItemError {
+  code: string
+  message: string
+}
+
+export interface ProcessItem {
+  input: string
+  ok: boolean
+  outputPath?: string
+  sizeBytes?: number
+  sizeKb?: number
+  inputSizeBytes?: number
+  inputSizeKb?: number
+  width?: number | null
+  height?: number | null
+  format?: string | null
+  /** data-URL of processed image for UI preview (optional) */
+  previewDataUrl?: string | null
+  /** True when result was produced without writing to disk */
+  previewOnly?: boolean
+  error?: ProcessItemError
+}
+
+/** Which image is shown in the main workspace panel */
+export type PreviewMode = 'input' | 'result'
+
+export interface ProcessImageResult {
+  items: ProcessItem[]
+  summary: {
+    total: number
+    succeeded: number
+    failed: number
+    previewOnly?: boolean
+  }
+}
+
+export interface LocalFile {
+  id: string
+  file: File
+  absPath: string
+  name: string
+  size: number
+  previewUrl: string
+}
+
+export interface CropRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface ToastState {
+  id: number
+  message: string
+  kind: 'success' | 'error' | 'info'
+}
+
+export interface ImageToolkitPreload {
+  getPathForFile: (file: File) => string
+  openFolder: (filePath: string) => Promise<{ ok: boolean; error?: string }>
+  joinPaths?: (...args: string[]) => string
+  getDirname?: (filePath: string) => string
+  getBasename?: (filePath: string, ext?: string) => string
+}
+
+export interface BricklyWindowControls {
+  minimize(): Promise<void>
+  toggleMaximize(): Promise<boolean>
+  close(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onMaximizeChange(callback: (maximized: boolean) => void): () => void
+}
+
+export interface BricklyHost {
+  brickId?: string
+  instanceId?: string
+  call?(
+    commandId: string,
+    input: ProcessImageInput,
+    options: { onEvent: (event: unknown) => void },
+  ): Promise<unknown>
+  invoke?: (commandId: string, input: unknown) => Promise<unknown>
+  closeWindow?(): void
+  window?: BricklyWindowControls
+  fs?: {
+    pickDirectory?: () => Promise<string | undefined>
+  }
+}
+
+declare global {
+  interface Window {
+    brickly?: BricklyHost
+    imageToolkitPreload?: ImageToolkitPreload
+  }
+}
+
+export {}

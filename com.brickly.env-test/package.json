@@ -1,8 +1,0 @@
-{
-  "name": "com.brickly.env-test",
-  "private": true,
-  "version": "0.2.0",
-  "scripts": {
-    "setup": "node ../scripts/setup-brick.cjs"
-  }
-}

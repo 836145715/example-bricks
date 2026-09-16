@@ -23,20 +23,19 @@
     "toolkit"
   ],
   "author": "Brickly Team",
-  "preload": "preload.cjs",
+  "preload": "preload/preload.cjs",
   "runtime": {
     "type": "node",
     "instance": "per-call",
-    "entry": {
-      "win-x64": "runtime/win-x64/index.js",
-      "mac-x64": "runtime/mac-x64/index.js",
-      "mac-arm64": "runtime/mac-arm64/index.js",
-      "linux-x64": "runtime/linux-x64/index.js"
-    }
+    "platforms": [
+      "win-x64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64"
+    ]
   },
   "ui": {
     "type": "webview",
-    "entry": "ui/index.html",
     "titleBar": "custom",
     "size": {
       "width": 1200,

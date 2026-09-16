@@ -1,3 +1,14 @@
 node_modules/
 ui/assets/
 ui/index.html
+
+# --- src/out 契约 ---
+out/
+.brickly/
+.brickly-build.json
+.brickly-installed.json
+__pycache__/
+.venv/
+*.log
+.DS_Store
+mcp-adapter.local.json

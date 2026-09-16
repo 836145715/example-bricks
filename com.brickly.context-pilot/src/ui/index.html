@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ContextPilot</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="anchor"></div>
+      <header class="header">
+        <div class="title">
+          <span class="drag-grip" aria-hidden="true"></span>
+          <div>
+            <strong>ContextPilot</strong>
+            <p id="status"><span id="status-dot" class="status-dot idle"></span>等待选中英文</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="copy" class="icon-button" type="button" disabled aria-label="复制解构结果" title="复制解构结果">
+            复制
+          </button>
+          <button id="close" class="icon-button" type="button" aria-label="关闭" title="关闭">×</button>
+        </div>
+      </header>
+
+      <div class="source-card">
+        <span>原文</span>
+        <div id="source" class="source">暂无内容</div>
+      </div>
+      <section id="sections" class="sections" aria-live="polite">
+        <article class="section primary" data-section="natural_translation" data-state="pending">
+          <header class="section-head">
+            <h2>自然翻译</h2>
+            <span class="section-state">pending</span>
+          </header>
+          <div class="section-body muted">等待分析</div>
+        </article>
+        <article class="section" data-section="literal_translation" data-state="pending">
+          <header class="section-head">
+            <h2>结构直译</h2>
+            <span class="section-state">pending</span>
+          </header>
+          <div class="section-body muted">等待分析</div>
+        </article>
+        <article class="section" data-section="skeleton" data-state="pending">
+          <header class="section-head">
+            <h2>句子主干</h2>
+            <span class="section-state">pending</span>
+          </header>
+          <div class="section-body muted">等待分析</div>
+        </article>
+        <article class="section" data-section="chunks" data-state="pending">
+          <header class="section-head">
+            <h2>短语拆解</h2>
+            <span class="section-state">pending</span>
+          </header>
+          <div class="section-body muted">等待分析</div>
+        </article>
+        <article class="section" data-section="patterns" data-state="pending">
+          <header class="section-head">
+            <h2>表达公式</h2>
+            <span class="section-state">pending</span>
+          </header>
+          <div class="section-body muted">等待分析</div>
+        </article>
+      </section>
+
+      <div id="fallback" class="fallback" hidden></div>
+      <div id="error" class="error" hidden></div>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

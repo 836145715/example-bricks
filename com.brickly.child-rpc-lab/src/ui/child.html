@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>子窗 RPC</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="page page--child">
+      <div class="page-scroll">
+      <header>
+        <h1>子窗侧</h1>
+        <p class="lede">这里没有 invoke / start。只跟创建它的 runtime 说话。</p>
+        <div class="meta">
+          <span id="kind" class="chip">kind ?</span>
+          <span id="identity" class="chip">window ?</span>
+          <span id="surface" class="chip">api ?</span>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>1. request('echo') 拿返回值</h2>
+        <input id="echoText" type="text" value="hello from child" />
+        <div class="row">
+          <button id="echo" type="button">request('echo')</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2. notify 没有返回值</h2>
+        <div class="row">
+          <button id="ping" class="ghost" type="button">notify('ping')</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3. request + onEvent 进度</h2>
+        <p id="importStatus" class="status">还没跑。应先看到 5 条 onEvent，再出结果。</p>
+        <div class="row">
+          <button id="importBtn" type="button">request('import')</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>4. 不填 timeout，只能取消</h2>
+        <div class="row">
+          <button id="hang" type="button">request('hang')</button>
+          <button id="cancelHang" class="danger" type="button" disabled>取消</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>5. 显式 timeoutMs = 2000</h2>
+        <div class="row">
+          <button id="timeout" class="ghost" type="button">2 秒超时的 hang</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>6. 未 expose 的名字</h2>
+        <div class="row">
+          <button id="missing" class="ghost" type="button">request('noSuch')</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>runtime.send('tick')</h2>
+        <p id="tick" class="status">还没收到 tick</p>
+        <div class="row">
+          <button id="close" class="ghost" type="button">window.close()</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>7. 自检</h2>
+        <p class="lede">按顺序跑 hello / tick / echo / import / hang 取消 / 2 秒超时 / noSuch。</p>
+        <ul id="checks" class="checks">
+          <li data-check="hello">hello 推送</li>
+          <li data-check="tick">tick 至少 1 次</li>
+          <li data-check="echo">echo 有返回值</li>
+          <li data-check="import">import 恰好 5 条 onEvent</li>
+          <li data-check="hang">hang 点取消得到 CANCELLED</li>
+          <li data-check="timeout">2 秒 hang 得到 REQUEST_TIMEOUT</li>
+          <li data-check="missing">noSuch 得到 NOT_EXPOSED</li>
+        </ul>
+        <div class="row">
+          <button id="selfCheck" type="button">跑自检</button>
+        </div>
+      </section>
+
+      </div>
+      <section class="card log-dock">
+        <h2>子窗日志</h2>
+        <pre id="log" class="log"></pre>
+      </section>
+    </main>
+    <script src="./child.js"></script>
+  </body>
+</html>

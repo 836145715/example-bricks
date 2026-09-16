@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Window API Lab</title>
+    <link rel="stylesheet" href="./lab.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="title">
+        <span class="dot"></span>
+        <h1>Brickly · Window API Lab</h1>
+        <span class="badge" id="winInfo">window?/?</span>
+      </div>
+      <div class="actions">
+        <button class="refresh" data-action="query">⟳ 刷新状态</button>
+        <button class="danger" data-op="destroy">destroy()</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- 左：分组操作 -->
+      <section class="panel ops">
+        <!-- 每个 .group 内放一组按钮；data-op="methodName" 表示无参，data-args 可附 JSON 数组 -->
+
+        <div class="group">
+          <h2>几何 / 位置</h2>
+          <button data-op="setBounds" data-args='[{"x":100,"y":100,"width":900,"height":640}]'>
+            setBounds(100,100,900x640)
+          </button>
+          <button data-op="setPosition" data-args="[200,150]">setPosition(200,150)</button>
+          <button data-op="setSize" data-args="[1000,700]">setSize(1000,700)</button>
+          <button data-op="setContentSize" data-args="[900,650]">setContentSize(900,650)</button>
+          <button data-op="setMinimumSize" data-args="[400,300]">setMinimumSize(400,300)</button>
+          <button data-op="setMaximumSize" data-args="[1600,1000]">setMaximumSize(1600,1000)</button>
+          <button data-op="setAspectRatio" data-args="[1.7778]">setAspectRatio(16:9)</button>
+          <button data-op="setAspectRatio" data-args="[0]">clear aspect</button>
+          <button data-op="center">center()</button>
+        </div>
+
+        <div class="group">
+          <h2>状态切换</h2>
+          <button data-op="minimize">minimize()</button>
+          <button data-op="maximize">maximize()</button>
+          <button data-op="unmaximize">unmaximize()</button>
+          <button data-op="restore">restore()</button>
+          <button data-op="hide">hide() · 3 秒后自动 show</button>
+          <button data-op="show">show()</button>
+          <button data-op="showInactive">showInactive()</button>
+          <button data-op="focus">focus()</button>
+          <button data-op="blur">blur()</button>
+          <button data-op="setFullScreen" data-args="[true]">setFullScreen(true)</button>
+          <button data-op="setFullScreen" data-args="[false]">setFullScreen(false)</button>
+          <button data-op="moveTop">moveTop()</button>
+          <button data-op="flashFrame" data-args="[true]">flashFrame(true)</button>
+          <button data-op="flashFrame" data-args="[false]">flashFrame(false)</button>
+        </div>
+
+        <div class="group">
+          <h2>视觉属性</h2>
+          <button data-op="setOpacity" data-args="[0.6]">setOpacity(0.6)</button>
+          <button data-op="setOpacity" data-args="[1]">setOpacity(1)</button>
+          <button data-op="setBackgroundColor" data-args='["#1e293b"]'>bg #1e293b</button>
+          <button data-op="setBackgroundColor" data-args='["#0f172a"]'>bg #0f172a</button>
+          <button data-op="setTitle" data-args='["★ Window API Lab"]'>setTitle(★)</button>
+          <button data-op="setTitle" data-args='["Brickly · Window API Lab"]'>setTitle(reset)</button>
+          <button data-op="setHasShadow" data-args="[true]">setHasShadow(true)</button>
+          <button data-op="setHasShadow" data-args="[false]">setHasShadow(false)</button>
+          <button data-op="invalidateShadow">invalidateShadow()</button>
+        </div>
+
+        <div class="group">
+          <h2>层叠 / 鼠标 / 任务栏</h2>
+          <button data-op="setAlwaysOnTop" data-args="[true]">alwaysOnTop=true</button>
+          <button data-op="setAlwaysOnTop" data-args="[false]">alwaysOnTop=false</button>
+          <button data-op="setSkipTaskbar" data-args="[true]">skipTaskbar=true</button>
+          <button data-op="setSkipTaskbar" data-args="[false]">skipTaskbar=false</button>
+          <button data-op="setVisibleOnAllWorkspaces" data-args="[true]">allWorkspaces=true</button>
+          <button data-op="setVisibleOnAllWorkspaces" data-args="[false]">allWorkspaces=false</button>
+          <button data-op="setProgressBar" data-args="[0.4]">progressBar(0.4)</button>
+          <button data-op="setProgressBar" data-args='[0.8,{"mode":"indeterminate"}]'>indeterminate</button>
+          <button data-op="setProgressBar" data-args="[-1]">progressBar off</button>
+        </div>
+
+        <div class="group">
+          <h2>能力开关</h2>
+          <button data-op="setResizable" data-args="[false]">resizable=false</button>
+          <button data-op="setResizable" data-args="[true]">resizable=true</button>
+          <button data-op="setMovable" data-args="[false]">movable=false</button>
+          <button data-op="setMovable" data-args="[true]">movable=true</button>
+          <button data-op="setMinimizable" data-args="[false]">minimizable=false</button>
+          <button data-op="setMinimizable" data-args="[true]">minimizable=true</button>
+          <button data-op="setMaximizable" data-args="[false]">maximizable=false</button>
+          <button data-op="setMaximizable" data-args="[true]">maximizable=true</button>
+          <button data-op="setClosable" data-args="[false]">closable=false</button>
+          <button data-op="setClosable" data-args="[true]">closable=true</button>
+          <button data-op="setFullScreenable" data-args="[false]">fullScreenable=false</button>
+          <button data-op="setFullScreenable" data-args="[true]">fullScreenable=true</button>
+          <button data-op="setEnabled" data-args="[false]">enabled=false · 3s 后自动 true</button>
+          <button data-op="setEnabled" data-args="[true]">enabled=true</button>
+          <button data-op="setKiosk" data-args="[true]">kiosk=true</button>
+          <button data-op="setKiosk" data-args="[false]">kiosk=false</button>
+        </div>
+
+        <div class="group">
+          <h2>菜单栏</h2>
+          <button data-op="setMenuBarVisibility" data-args="[false]">menuBar hide</button>
+          <button data-op="setMenuBarVisibility" data-args="[true]">menuBar show</button>
+          <button data-op="setAutoHideMenuBar" data-args="[true]">autoHide menuBar</button>
+          <button data-op="setAutoHideMenuBar" data-args="[false]">no autoHide</button>
+          <button data-op="removeMenu">removeMenu()</button>
+        </div>
+
+        <div class="group">
+          <h2>WebContents · DevTools / 编辑 / 缩放</h2>
+          <button data-op="webContents.openDevTools" data-args='[{"mode":"detach"}]'>openDevTools(detach)</button>
+          <button data-op="webContents.openDevTools" data-args='[{"mode":"bottom"}]'>openDevTools(bottom)</button>
+          <button data-op="webContents.toggleDevTools">toggleDevTools()</button>
+          <button data-op="webContents.closeDevTools">closeDevTools()</button>
+          <button data-op="webContents.setZoomFactor" data-args="[1.25]">zoom 125%</button>
+          <button data-op="webContents.setZoomFactor" data-args="[1]">zoom 100%</button>
+          <button data-op="webContents.setZoomLevel" data-args="[1]">zoomLevel +1</button>
+          <button data-op="webContents.setZoomLevel" data-args="[0]">zoomLevel 0</button>
+          <button data-op="webContents.selectAll">selectAll</button>
+          <button data-op="webContents.copy">copy</button>
+          <button data-op="webContents.paste">paste</button>
+          <button data-op="webContents.executeJavaScript" data-args='["document.title"]'>execJS(document.title)</button>
+        </div>
+
+        <div class="group">
+          <h2>macOS 文档窗口</h2>
+          <button data-op="setRepresentedFilename" data-args='["/tmp/demo.txt"]'>setRepresentedFilename</button>
+          <button data-op="setDocumentEdited" data-args="[true]">documentEdited=true</button>
+          <button data-op="setDocumentEdited" data-args="[false]">documentEdited=false</button>
+        </div>
+      </section>
+
+      <!-- 右：实时状态 + 日志 -->
+      <aside class="panel side">
+        <div class="state-card">
+          <h2>窗口实时状态 <small id="stateAt"></small></h2>
+          <table id="stateTable">
+            <tbody><tr><td colspan="2" class="hint">点击右上角 ⟳ 刷新状态</td></tr></tbody>
+          </table>
+        </div>
+
+        <div class="log-card">
+          <h2>操作日志 <button class="clear" id="clearLog">清空</button></h2>
+          <ol id="log"></ol>
+        </div>
+      </aside>
+    </main>
+
+    <script src="./lab.js"></script>
+  </body>
+</html>

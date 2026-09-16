@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scenario Child</title>
+    <link rel="stylesheet" href="./child.css" />
+  </head>
+  <body>
+    <div class="card">
+      <div class="drag">拖动区域（无边框窗可用）</div>
+      <h1 id="title">Scenario Child</h1>
+      <div class="meta" id="meta">waiting…</div>
+      <div class="row no-drag">
+        <button class="btn primary" id="btnPingParent" type="button">通知控制台</button>
+        <button class="btn" id="btnHello" type="button">ready 再 hello</button>
+        <button class="btn danger" id="btnClose" type="button">关闭自己</button>
+      </div>
+      <div class="log no-drag" id="log"></div>
+    </div>
+    <script src="./child.js"></script>
+  </body>
+</html>
