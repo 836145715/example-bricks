@@ -327,22 +327,17 @@
       }
     },
     "hotkeys": {
-      "description": "Brick 声明的全局热键意图。底座负责注册系统级热键；可直接触发 commandId，也可兼容发布 hotkey:* 事件。用户配置可禁用或改绑，manifest 仅提供默认值。",
+      "description": "Brick 声明的全局热键意图。底座负责注册系统级热键；触发后按 commandId 直调砖命令（冷启动自动拉起 runtime）。用户配置可禁用或改绑，manifest 仅提供默认值。",
       "type": "array",
       "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name"],
-        "anyOf": [{ "required": ["commandId"] }, { "required": ["event"] }],
+        "required": ["id", "name", "commandId"],
         "properties": {
           "id": {
             "type": "string",
             "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
-          },
-          "event": {
-            "type": "string",
-            "pattern": "^hotkey:[A-Za-z0-9_.:-]+$"
           },
           "commandId": {
             "type": "string",
@@ -551,17 +546,39 @@
       "additionalProperties": false
     },
     "quickSearch": {
-      "description": "声明当前 Brick 向宿主快速搜索贡献的 provider。工具只返回结构化搜索结果；宿主负责聚合、排序、超时、激活和 UI 展示。",
+      "description": "快速搜索消费方声明：当前 Brick 申请使用宿主搜索服务聚合 Provider 结果。Provider 本体改为 commands[] 上的 provider 标记，不再在此声明。",
       "type": "object",
       "additionalProperties": false,
-      "required": ["providers"],
+      "required": ["consumer"],
       "properties": {
-        "providers": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 12,
-          "items": {
-            "$ref": "#/$defs/quickSearchProvider"
+        "consumer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["providers"],
+          "properties": {
+            "providers": {
+              "description": "watch 的 Provider 完整标识 <brickId>/<commandId> 列表，或 \"*\" 表示全部已开启 Provider。声明的是消费意图，不构成授权；可用性由消费方开关决定。",
+              "oneOf": [
+                {
+                  "const": "*"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 64,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}/[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+                  }
+                }
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "可选。管理页向用户解释该 Brick 为何需要搜索服务。"
+            }
           }
         }
       }
@@ -577,72 +594,62 @@
     }
   },
   "$defs": {
-    "quickSearchProvider": {
+    "commandProvider": {
+      "description": "把命令标记为搜索 Provider 端点：输入固定 {providerId,query,sequence,limit,caller}，输出固定 {results:[...]}。true 等价 \"search\"；对象形态携带可选调节项。被标记命令禁止 io/mode/execution/category/hidden，且不可被普通入口（命令面板、LLM tools、热键、工作流、bridge.invoke）调用。",
+      "oneOf": [
+        {
+          "const": true
+        },
+        {
+          "const": "search"
+        },
+        {
+          "$ref": "#/$defs/searchProviderTuning"
+        }
+      ]
+    },
+    "searchProviderTuning": {
       "type": "object",
-      "required": [
-        "id",
-        "title",
-        "category",
-        "searchCommand",
-        "activateCommand"
-      ],
+      "required": ["type"],
       "additionalProperties": false,
       "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
-          "description": "Provider 在当前 Brick 内的唯一标识。"
+        "type": {
+          "const": "search"
         },
-        "title": {
-          "description": "Provider 展示名称，显示在快速搜索结果来源和状态中。",
+        "desc": {
+          "description": "Provider 来源展示说明（管理页），缺省回落 command.description / name。支持本地化对象。",
           "oneOf": [
             {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 60
+              "maxLength": 240
             },
             {
               "type": "object",
               "patternProperties": {
                 "^[a-z]{2}(-[A-Z]{2})?$": {
                   "type": "string",
-                  "minLength": 1,
-                  "maxLength": 60
+                  "maxLength": 240
                 }
               },
-              "required": ["en"],
               "additionalProperties": false
             }
           ]
         },
-        "category": {
-          "$ref": "#/$defs/quickSearchResultCategory"
-        },
-        "searchCommand": {
-          "type": "string",
-          "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
-        },
-        "activateCommand": {
-          "type": "string",
-          "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
-        },
-        "actions": {
-          "type": "array",
-          "maxItems": 12,
-          "items": {
-            "$ref": "#/$defs/quickSearchProviderAction"
-          },
-          "default": []
-        },
-        "enabledByDefault": {
-          "type": "boolean",
-          "default": true
-        },
-        "priority": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 100,
-          "default": 50
+        "match": {
+          "description": "输入匹配规则：宿主调用前零成本评估，不命中则不调用该 Provider（providerStates 记 skipped）。数组为 OR 语义；缺省等价 { \"kind\": \"text\" }。只管\"什么 query 该找我\"，不管\"谁可以问我\"。",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/searchMatchRule"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/searchMatchRule"
+              }
+            }
+          ]
         },
         "timeoutMs": {
           "type": "integer",
@@ -656,71 +663,62 @@
           "maximum": 20,
           "default": 5
         },
-        "minQueryLength": {
+        "priority": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 120,
-          "default": 1
+          "maximum": 100,
+          "default": 50,
+          "description": "并入结果排序分。"
         }
       }
     },
-    "quickSearchProviderAction": {
+    "searchMatchRule": {
       "type": "object",
-      "required": ["id", "title", "command"],
+      "required": ["kind"],
       "additionalProperties": false,
       "properties": {
-        "id": {
+        "kind": {
           "type": "string",
-          "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+          "enum": ["text", "regex"],
+          "description": "text=任意文本（可带长度界）；regex=对 trim 后的 query 全串做正则匹配。"
         },
-        "title": {
-          "description": "Action 展示名称。",
-          "oneOf": [
-            {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 60
-            },
-            {
-              "type": "object",
-              "patternProperties": {
-                "^[a-z]{2}(-[A-Z]{2})?$": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 60
-                }
-              },
-              "required": ["en"],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "command": {
+        "pattern": {
           "type": "string",
-          "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "仅 kind=regex 必填。/pattern/flags 字面量，flags 限 i/m/s/u。等价全匹配的懒惰正则（如 /.*/）按 text 降级并告警。"
         },
-        "icon": {
-          "type": "string",
-          "maxLength": 1000
+        "minLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 1,
+          "description": "按 trim 后 query 长度计算；空/全空白查询不发起任何调用，不允许 0。"
         },
-        "destructive": {
-          "type": "boolean",
-          "default": false
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
         }
-      }
-    },
-    "quickSearchResultCategory": {
-      "type": "string",
-      "enum": [
-        "app",
-        "tool",
-        "command",
-        "file",
-        "shortcut",
-        "quick-launch",
-        "clipboard",
-        "history",
-        "other"
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "regex"
+              }
+            }
+          },
+          "then": {
+            "required": ["pattern"]
+          },
+          "else": {
+            "not": {
+              "required": ["pattern"]
+            }
+          }
+        }
       ]
     },
     "hotkeyBinding": {
@@ -768,8 +766,29 @@
     "command": {
       "description": "Brick 暴露的单个命令定义。",
       "type": "object",
-      "required": ["id", "name", "io"],
+      "required": ["id", "name"],
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": ["provider"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["io"] },
+                { "required": ["mode"] },
+                { "required": ["execution"] },
+                { "required": ["category"] },
+                { "required": ["hidden"] }
+              ]
+            }
+          },
+          "else": {
+            "required": ["io"]
+          }
+        }
+      ],
       "properties": {
         "id": {
           "description": "命令在 Brick 内部的唯一标识，仅小写字母数字与连字符/下划线。完整调用 ID = <brickId>.<commandId>。",
@@ -790,6 +809,9 @@
           "default": "invoke"
         },
         "window": false,
+        "provider": {
+          "$ref": "#/$defs/commandProvider"
+        },
         "name": {
           "description": "命令展示名称，支持本地化对象。",
           "oneOf": [

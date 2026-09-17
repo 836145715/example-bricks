@@ -118,7 +118,7 @@ func handleQuickSearch(_ *brickly.CommandContext, input json.RawMessage) (any, e
 }
 
 func handleQuickSearchOpen(_ *brickly.CommandContext, input json.RawMessage) (any, error) {
-	params, err := quicksearch.ParseActivateInput(input)
+	params, err := quicksearch.ParseOpenInput(input)
 	if err != nil {
 		return nil, brickly.NewBppError("INVALID_INPUT", err.Error())
 	}

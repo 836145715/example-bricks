@@ -15,19 +15,45 @@ const DEMO_ITEMS = [
     category: 'quick-launch',
     score: 94,
     keywords: ['demo', 'provider', 'quick', 'dashboard', '演示', '快速搜索'],
-    actionIds: ['open-dashboard', 'copy-dashboard-link'],
-    activationData: { action: 'open-demo-dashboard' }
+    activate: {
+      command: 'activate-demo',
+      input: { action: 'open-demo-dashboard', title: '打开演示 Dashboard' }
+    },
+    actions: [
+      {
+        id: 'open-dashboard',
+        title: '打开 Dashboard',
+        command: 'action-demo',
+        input: { actionId: 'open-dashboard', title: '打开演示 Dashboard' }
+      },
+      {
+        id: 'copy-dashboard-link',
+        title: '复制 Dashboard 链接',
+        command: 'action-demo',
+        input: { actionId: 'copy-dashboard-link', title: '打开演示 Dashboard' }
+      }
+    ]
   },
   {
     id: 'provider-docs',
     title: '查看 Provider 契约',
-    subtitle: 'manifest.quickSearch.providers 示例',
+    subtitle: 'commands[].provider 标记示例',
     accessory: 'Docs',
     category: 'command',
     score: 88,
     keywords: ['provider', 'quick-search', 'manifest', 'docs', '契约'],
-    actionIds: ['open-provider-contract'],
-    activationData: { action: 'open-provider-docs' }
+    activate: {
+      command: 'activate-demo',
+      input: { action: 'open-provider-docs', title: '查看 Provider 契约' }
+    },
+    actions: [
+      {
+        id: 'open-provider-contract',
+        title: '查看 Provider 契约',
+        command: 'action-demo',
+        input: { actionId: 'open-provider-contract', title: '查看 Provider 契约' }
+      }
+    ]
   },
   {
     id: 'sample-file-result',
@@ -38,8 +64,36 @@ const DEMO_ITEMS = [
     score: 76,
     keywords: ['file', 'demo', 'txt', '文件', 'provider'],
     dedupeKey: 'file:D:/ai-bricks/examples/quick-search-demo.txt',
-    actionIds: ['reveal-demo-file', 'copy-demo-path'],
-    activationData: { path: 'D:/ai-bricks/examples/quick-search-demo.txt' }
+    activate: {
+      command: 'activate-demo',
+      input: {
+        action: 'open-demo-file',
+        path: 'D:/ai-bricks/examples/quick-search-demo.txt',
+        title: 'quick-search-demo.txt'
+      }
+    },
+    actions: [
+      {
+        id: 'reveal-demo-file',
+        title: '在文件夹中显示',
+        command: 'action-demo',
+        input: {
+          actionId: 'reveal-demo-file',
+          path: 'D:/ai-bricks/examples/quick-search-demo.txt',
+          title: 'quick-search-demo.txt'
+        }
+      },
+      {
+        id: 'copy-demo-path',
+        title: '复制文件路径',
+        command: 'action-demo',
+        input: {
+          actionId: 'copy-demo-path',
+          path: 'D:/ai-bricks/examples/quick-search-demo.txt',
+          title: 'quick-search-demo.txt'
+        }
+      }
+    ]
   }
 ]
 
@@ -71,22 +125,20 @@ function searchDemo(input) {
   return { results }
 }
 
+// activate / actions[] 路由的 input 是 provider 自填载荷，宿主直传给目标命令。
 function activateDemo(input) {
-  const result = input && input.result && typeof input.result === 'object' ? input.result : {}
-  return {
-    message: `已激活演示结果：${result.title || result.id || 'unknown'}`,
-    receivedActivationData: result.activationData
-  }
+  const title = input && typeof input.title === 'string' ? input.title : ''
+  const action = input && typeof input.action === 'string' ? input.action : ''
+  return { message: `已激活演示结果：${title || action || 'unknown'}` }
 }
 
 function actionDemo(input) {
-  const result = input && input.result && typeof input.result === 'object' ? input.result : {}
   const actionId = String(input && input.actionId ? input.actionId : '')
+  const title = input && typeof input.title === 'string' ? input.title : ''
   return {
     message: `已执行演示动作：${ACTION_TITLES[actionId] || actionId || 'unknown'} · ${
-      result.title || result.id || 'unknown'
-    }`,
-    receivedActivationData: result.activationData
+      title || 'unknown'
+    }`
   }
 }
 

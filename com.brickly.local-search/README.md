@@ -8,7 +8,7 @@ last_verified: 2026-08-24
 
 # 本地搜索 Brick
 
-`com.brickly.local-search` 是 Windows x64 本地文件搜索 Brick，使用 Go native runtime 直接动态加载 Everything SDK 的 `Everything64.dll`，并通过自定义 Webview 提供分类、分页、排序、文件操作和受限文件预览界面。同时它通过 `manifest.quickSearch.providers` 贡献 `files` provider，可在宿主 Quick Search 搜索条里返回轻量文件结果。
+`com.brickly.local-search` 是 Windows x64 本地文件搜索 Brick，使用 Go native runtime 直接动态加载 Everything SDK 的 `Everything64.dll`，并通过自定义 Webview 提供分类、分页、排序、文件操作和受限文件预览界面。同时它通过 `commands[].provider` 标记贡献本地文件搜索来源（providerId `com.brickly.local-search/quick-search`），可在宿主 Quick Search 搜索条里返回轻量文件结果。
 
 ## 运行依赖
 
@@ -38,10 +38,10 @@ npm run build
 - `health`：检查捆绑 SDK / Everything，必要时后台拉起 `-instance Brickly`。`reason` 为 `ready` / `not_installed` / `not_running` / `indexing` / `ipc_unavailable` / `missing_sdk` / `unsupported`。
 - `search`：按关键词、分类、分页和排序查询 Everything 索引；索引未就绪时直接拒绝。
 - `preview`：按受限大小读取文件预览信息，支持文本/代码、图片、PDF、音视频、ZIP/JAR/EPUB 目录、DOCX/DOCM 渲染、RTF 文本和 XLSX 表格前几行。
-- `quick-search`：隐藏命令，供宿主快速搜索调用；输入 `{ providerId, query, sequence, limit }`，输出 `{ results }`，结果只包含标题、路径、类别、去重键和主进程激活缓存所需的 `activationData.path`。索引未就绪时返回空结果。
-- `quick-search-open`：隐藏命令，供宿主激活快速搜索结果；只接受缓存结果中的本地绝对路径，并通过 Windows Shell 打开文件或文件夹。
+- `quick-search`：搜索 Provider 端点（`provider: { type: "search", ... }`）；宿主按固定协议传入 `{ providerId, query, sequence, limit, caller }`，输出 `{ results }`。每条结果自带 `activate` 路由（`command: "quick-search-open"`，input 为 `{ path, title, kind }`），路由载荷只存在宿主会话级路由表。索引未就绪时返回空结果。
+- `quick-search-open`：隐藏的普通命令，被结果的 `activate` 路由回调；输入为路由载荷 `{ path, title?, kind? }`，只接受本地绝对路径，并通过 Windows Shell 打开文件或文件夹。
 
-修改 Go runtime 后必须重新运行 `runtime/go/build.ps1`，否则 `runtime/win-x64/brick.exe` 仍不会包含新的快速搜索命令。
+修改 Go runtime 后必须重新运行 `src/runtime/build.ps1`（或经根目录 `setup-brick` 构建），否则 `out/runtime/win-x64/brick.exe` 仍是旧产物。
 
 ## 预览边界
 

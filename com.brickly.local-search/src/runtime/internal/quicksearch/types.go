@@ -29,26 +29,32 @@ type SearchOutput struct {
 }
 
 type ProviderItem struct {
-	ID             string         `json:"id"`
-	Title          string         `json:"title"`
-	Subtitle       string         `json:"subtitle,omitempty"`
-	Accessory      string         `json:"accessory,omitempty"`
-	Category       string         `json:"category,omitempty"`
-	Score          int            `json:"score,omitempty"`
-	DedupeKey      string         `json:"dedupeKey,omitempty"`
-	ActivationData ActivationData `json:"activationData"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Subtitle  string    `json:"subtitle,omitempty"`
+	Accessory string    `json:"accessory,omitempty"`
+	Category  string    `json:"category,omitempty"`
+	Score     int       `json:"score,omitempty"`
+	DedupeKey string    `json:"dedupeKey,omitempty"`
+	Activate  *RouteRef `json:"activate,omitempty"`
 }
 
-type ActivationData struct {
-	Path string `json:"path"`
-	Kind string `json:"kind,omitempty"`
+// RouteInput 是 activate 路由载荷：宿主按 input 直调目标命令，业务字段不进消费方快照。
+type RouteInput struct {
+	Path  string `json:"path"`
+	Title string `json:"title,omitempty"`
+	Kind  string `json:"kind,omitempty"`
 }
 
-type ActivateParams struct {
-	ProviderID string
-	Query      string
-	Title      string
-	Path       string
+type RouteRef struct {
+	Command string     `json:"command"`
+	Input   RouteInput `json:"input"`
+}
+
+type OpenParams struct {
+	Title string
+	Path  string
+	Kind  string
 }
 
 type rawSearchInput struct {
@@ -144,45 +150,41 @@ func MapItem(item everything.Item, index int) (ProviderItem, bool) {
 		Category:  "file",
 		Score:     scoreForIndex(index),
 		DedupeKey: "file:" + canonicalPath(fullPath),
-		ActivationData: ActivationData{
-			Path: fullPath,
-			Kind: kind,
+		Activate: &RouteRef{
+			Command: "quick-search-open",
+			Input: RouteInput{
+				Path:  fullPath,
+				Title: title,
+				Kind:  kind,
+			},
 		},
 	}, true
 }
 
-func ParseActivateInput(input json.RawMessage) (ActivateParams, error) {
-	var raw struct {
-		ProviderID string `json:"providerId"`
-		Query      string `json:"query"`
-		Result     struct {
-			Title          string         `json:"title"`
-			ActivationData ActivationData `json:"activationData"`
-		} `json:"result"`
-	}
+func ParseOpenInput(input json.RawMessage) (OpenParams, error) {
+	var raw RouteInput
 	if len(input) > 0 {
 		if err := json.Unmarshal(input, &raw); err != nil {
-			return ActivateParams{}, fmt.Errorf("解析快速搜索激活参数失败: %w", err)
+			return OpenParams{}, fmt.Errorf("解析快速搜索打开参数失败: %w", err)
 		}
 	}
 
-	path := NormalizePath(raw.Result.ActivationData.Path)
+	path := NormalizePath(raw.Path)
 	if path == "" {
-		return ActivateParams{}, errors.New("快速搜索结果缺少 activationData.path")
+		return OpenParams{}, errors.New("快速搜索路由输入缺少 path")
 	}
 	if !LooksLikeLocalPath(path) {
-		return ActivateParams{}, fmt.Errorf("拒绝打开非本地绝对路径: %s", path)
+		return OpenParams{}, fmt.Errorf("拒绝打开非本地绝对路径: %s", path)
 	}
 
-	return ActivateParams{
-		ProviderID: strings.TrimSpace(raw.ProviderID),
-		Query:      strings.TrimSpace(raw.Query),
-		Title:      strings.TrimSpace(raw.Result.Title),
-		Path:       path,
+	return OpenParams{
+		Title: strings.TrimSpace(raw.Title),
+		Path:  path,
+		Kind:  strings.TrimSpace(raw.Kind),
 	}, nil
 }
 
-func OpenedMessage(params ActivateParams) string {
+func OpenedMessage(params OpenParams) string {
 	title := strings.TrimSpace(params.Title)
 	if title == "" {
 		title = baseName(params.Path)

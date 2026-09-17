@@ -72,16 +72,22 @@ func TestBuildOutputMapsEverythingItems(t *testing.T) {
 	if file.DedupeKey != `file:c:\users\ada\documents\report.docx` {
 		t.Fatalf("file dedupeKey = %q", file.DedupeKey)
 	}
-	if file.ActivationData.Path != `C:\Users\Ada\Documents\Report.docx` {
-		t.Fatalf("file activation path = %q", file.ActivationData.Path)
+	if file.Activate == nil {
+		t.Fatal("file result missing activate route")
+	}
+	if file.Activate.Command != "quick-search-open" {
+		t.Fatalf("file activate command = %q", file.Activate.Command)
+	}
+	if file.Activate.Input.Path != `C:\Users\Ada\Documents\Report.docx` {
+		t.Fatalf("file route path = %q", file.Activate.Input.Path)
 	}
 
 	folder := output.Results[1]
 	if folder.Accessory != "文件夹" {
 		t.Fatalf("folder accessory = %q", folder.Accessory)
 	}
-	if folder.ActivationData.Kind != "folder" {
-		t.Fatalf("folder activation kind = %q", folder.ActivationData.Kind)
+	if folder.Activate == nil || folder.Activate.Input.Kind != "folder" {
+		t.Fatalf("folder route kind = %+v", folder.Activate)
 	}
 }
 
@@ -100,16 +106,11 @@ func TestBuildOutputSkipsItemsWithoutPathAndHonorsLimit(t *testing.T) {
 	}
 }
 
-func TestParseActivateInputRequiresCachedLocalPath(t *testing.T) {
-	params, err := ParseActivateInput(json.RawMessage(`{
-		"providerId": "files",
-		"query": "report",
-		"result": {
-			"title": "Report.docx",
-			"activationData": {
-				"path": "C:\\Users\\Ada\\Documents\\Report.docx"
-			}
-		}
+func TestParseOpenInputRequiresLocalPath(t *testing.T) {
+	params, err := ParseOpenInput(json.RawMessage(`{
+		"path": "C:\\Users\\Ada\\Documents\\Report.docx",
+		"title": "Report.docx",
+		"kind": "file"
 	}`))
 	if err != nil {
 		t.Fatal(err)
@@ -121,10 +122,10 @@ func TestParseActivateInputRequiresCachedLocalPath(t *testing.T) {
 		t.Fatalf("OpenedMessage = %q", OpenedMessage(params))
 	}
 
-	if _, err := ParseActivateInput(json.RawMessage(`{"result":{"activationData":{"path":"relative.txt"}}}`)); err == nil {
+	if _, err := ParseOpenInput(json.RawMessage(`{"path":"relative.txt"}`)); err == nil {
 		t.Fatal("expected relative path rejection")
 	}
-	if _, err := ParseActivateInput(json.RawMessage(`{"result":{"activationData":{}}}`)); err == nil {
+	if _, err := ParseOpenInput(json.RawMessage(`{}`)); err == nil {
 		t.Fatal("expected missing path rejection")
 	}
 }
