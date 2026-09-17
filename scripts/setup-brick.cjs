@@ -320,6 +320,15 @@ function installRuntime(brickRoot, locals) {
     const dest = stageRuntimeDir(brickRoot, dir, platform)
     npmInstall(dest, Boolean(locals))
     if (locals) applyLocalNpm(dest, locals)
+    // 契约构建脚本（README：build.ps1|sh|mjs 认 BRICKLY_BUILD_OUT）——node 砖同样生效，
+    // 与宿主 node-runtime-strategy 的脚本优先行为一致；在 out 段内跑，依赖已就绪。
+    const builder = path.join(dest, 'build.mjs')
+    if (fs.existsSync(builder)) {
+      run(process.execPath, [builder], {
+        cwd: dest,
+        env: { ...process.env, BRICKLY_BUILD_OUT: dest }
+      })
+    }
   }
 }
 

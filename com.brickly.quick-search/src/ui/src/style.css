@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+/*
+ * 浮窗深色主题：与宿主 theme.css 的 dark token 对齐（页面独立于宿主设计系统，
+ * 这里只取浮窗需要的最小色板）。透明窗口体——根容器全透明，卡片自带背景。
+ */
+:root {
+  --background: #18181b;
+  --foreground: #f4f4f5;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --primary: #e4e4e7;
+  --border: rgba(255, 255, 255, 0.08);
+  --destructive: #f87171;
+  --warning: #fbbf24;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  font-family:
+    'Outfit Variable',
+    'PingFang SC',
+    'Microsoft YaHei',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+}
+
+/* 结果滚动条细化 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

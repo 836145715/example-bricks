@@ -1,0 +1,81 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.quick-search",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "快速搜索",
+    "en": "Quick Search"
+  },
+  "description": {
+    "zh-CN": "全局搜索浮窗：聚合全部已开启的搜索 Provider，热键唤起、失焦隐藏、原生拖拽移动。",
+    "en": "Global search palette aggregating all enabled search providers. Hotkey to toggle, blur to hide, native drag to move."
+  },
+  "author": "Brickly",
+  "keywords": ["search", "launcher", "palette"],
+  "runtime": {
+    "type": "node",
+    "instance": "shared",
+    "resident": true,
+    "autoStart": true,
+    "restart": "on-failure",
+    "platforms": ["win-x64"]
+  },
+  "subscriptions": [
+    {
+      "event": "search:snapshot",
+      "from": "system",
+      "wake": false
+    }
+  ],
+  "quickSearch": {
+    "consumer": {
+      "providers": "*",
+      "reason": "浮窗聚合全部已开启的搜索 Provider，把宿主搜索能力以全局热键入口呈现给用户。"
+    }
+  },
+  "ui": {
+    "type": "none"
+  },
+  "commands": [
+    {
+      "id": "toggle",
+      "name": {
+        "zh-CN": "切换快速搜索",
+        "en": "Toggle Quick Search"
+      },
+      "description": {
+        "zh-CN": "显示并聚焦搜索浮窗；已显示时隐藏。",
+        "en": "Show and focus the search palette; hide it when already visible."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": []
+      },
+      "execution": "queue"
+    }
+  ],
+  "hotkeys": [
+    {
+      "id": "toggle",
+      "commandId": "toggle",
+      "name": {
+        "zh-CN": "快速搜索",
+        "en": "Quick Search"
+      },
+      "description": {
+        "zh-CN": "唤起或隐藏快速搜索浮窗。",
+        "en": "Summon or hide the quick search palette."
+      },
+      "defaultBinding": {
+        "default": {
+          "kind": "accelerator",
+          "accelerator": "Control+Space"
+        }
+      },
+      "enabledByDefault": true
+    }
+  ]
+}
