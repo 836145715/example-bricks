@@ -3,7 +3,7 @@ module changeme
 go 1.25.0
 
 require (
-	github.com/836145715/brickly-sdk-go v0.11.0
+	github.com/836145715/brickly-sdk-go v0.12.0
 	github.com/andybalholm/brotli v1.1.1
 	github.com/atotto/clipboard v0.1.4
 	github.com/google/jsonschema-go v0.4.3
