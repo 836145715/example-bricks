@@ -23,7 +23,7 @@ const GO_TARGETS = {
   'linux-arm64': { goos: 'linux', goarch: 'arm64', suffix: '' }
 }
 
-const CGO_BRICKS = new Set(['com.brickly.net-capture'])
+const CGO_BRICKS = new Set(['com.brickly.net-capture', 'com.brickly.flash-find'])
 
 function currentPlatform() {
   const { platform, arch } = process

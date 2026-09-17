@@ -18,3 +18,6 @@ __pycache__/
 
 *.log
 .DS_Store
+
+# flash-find C++ 中间产物
+**/runtime/go/build/
