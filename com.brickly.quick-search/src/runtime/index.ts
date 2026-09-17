@@ -3,7 +3,8 @@
  *
  * 职责：
  * - 持有唯一的常驻搜索浮窗（Session keepAlive 绑定，随实例存活）；
- * - `toggle` 命令（热键直调入口）：隐藏创建，按可见性切换；
+ * - `toggle` 命令（热键直调入口）：首次创建即展示（keepAlive 窗创建时必须
+ *   展示——契约约束），再次触发按可见性切换；
  * - 页面请求中转：`search.*` 经 expose 调到 `brick.platform.search.*`；
  * - 渐进快照：`search:snapshot` 定向事件 → `win.send('snapshot')` 推给页面；
  * - 拖拽：`drag.start`/`drag.end` 经 expose 调到通用 `win.startDrag()/endDrag()`；
@@ -102,11 +103,35 @@ function ensureWindow(): Promise<WindowHandle> {
   return creating
 }
 
+/** 建窗前的目标位置：优先沿用拖动后的位置，否则光标所在屏居中偏上。 */
+async function desiredPalettePosition(): Promise<{ x: number; y: number } | undefined> {
+  if (userPosition) return userPosition
+  try {
+    const point = await brick.platform.screen.getCursorScreenPoint()
+    const display = await brick.platform.screen.getDisplayNearestPoint(point)
+    const area = display.workArea
+    return {
+      x: Math.round(area.x + (area.width - WINDOW_SIZE.width) / 2),
+      y: Math.round(area.y + Math.max(72, area.height * 0.18))
+    }
+  } catch (error) {
+    // 取不到屏幕信息时交给宿主默认位置，不阻断创建。
+    brick.log.warn('浮窗定位失败，使用默认位置', {
+      error: error instanceof Error ? error.message : error
+    })
+    return undefined
+  }
+}
+
 async function createWindow(): Promise<WindowHandle> {
+  // keepAlive 窗口创建时必须展示（宿主契约）：位置在建前算好随 options 传入，
+  // 避免"先建后移"的闪动；拖动过的位置经 userPosition 复用。
+  const position = await desiredPalettePosition()
   const created = await brick.ui.createBrowserWindow('ui/index.html', {
     // Session + keepAlive：窗口随常驻实例存活，不随 toggle 这次调用结束而关。
     keepAlive: true,
-    show: false,
+    show: true,
+    ...(position ?? {}),
     frame: false,
     transparent: true,
     resizable: false,
@@ -162,28 +187,11 @@ async function createWindow(): Promise<WindowHandle> {
   return created
 }
 
-/** 显示时把浮窗摆到光标所在屏的水平居中、垂直约 18% 位置（与原宿主实现一致）。 */
-async function centerOnCursorDisplay(window: WindowHandle): Promise<void> {
-  try {
-    const point = await brick.platform.screen.getCursorScreenPoint()
-    const display = await brick.platform.screen.getDisplayNearestPoint(point)
-    const area = display.workArea
-    const x = Math.round(area.x + (area.width - WINDOW_SIZE.width) / 2)
-    const y = Math.round(area.y + Math.max(72, area.height * 0.18))
-    await window.setPosition(x, y)
-  } catch (error) {
-    // 取不到屏幕信息时保持默认位置，不阻断显示。
-    brick.log.warn('浮窗居中定位失败，保持默认位置', {
-      error: error instanceof Error ? error.message : error
-    })
-  }
-}
-
-async function showPalette(): Promise<void> {
-  const window = await ensureWindow()
+/** 已存在窗口的再展示：摆位置 → show → focus → 通知页面复位。 */
+async function showPalette(window: WindowHandle): Promise<void> {
   if (await window.isMinimized()) await window.restore()
-  if (userPosition) await window.setPosition(userPosition.x, userPosition.y)
-  else await centerOnCursorDisplay(window)
+  const position = await desiredPalettePosition()
+  if (position) await window.setPosition(position.x, position.y)
   await window.show()
   await window.focus()
   // 页面复位输入框并聚焦（页面侧 brickly.on('shown')）。
@@ -191,12 +199,19 @@ async function showPalette(): Promise<void> {
 }
 
 brick.onCommand('toggle', async () => {
+  const existed = Boolean(win && !win.isClosed)
   const window = await ensureWindow()
-  if (await window.isVisible()) {
+  if (existed && (await window.isVisible())) {
     await window.hide()
     return { visible: false }
   }
-  await showPalette()
+  if (existed) {
+    await showPalette(window)
+  } else {
+    // 新建窗已随创建展示：聚焦 + 通知页面复位输入框。
+    await window.focus()
+    await window.send('shown')
+  }
   return { visible: true }
 })
 
