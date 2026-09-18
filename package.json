@@ -7,6 +7,7 @@
     "sync-sdk": "node scripts/sync-sdk-version.cjs",
     "check-sdk": "node check-follower-sdk-versions.cjs",
     "validate:layout": "node scripts/validate-layout.mjs",
-    "test:quick-search": "node scripts/run-host-test.cjs scripts/quick-search-runtime-smoke.test.ts"
+    "test:quick-search": "node scripts/run-host-test.cjs scripts/quick-search-runtime-smoke.test.ts",
+    "test:starter": "node scripts/run-host-test.cjs scripts/starter-runtime-smoke.test.ts"
   }
 }

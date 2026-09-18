@@ -1,0 +1,1096 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-bricks.dev/schemas/manifest.schema.json",
+  "title": "Brick Manifest",
+  "description": "Brickly 统一 Brick 产物的 manifest.json JSON Schema。",
+  "type": "object",
+  "required": ["manifestVersion", "id", "version", "name"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "可选。指向本 Schema 文件，便于编辑器实时校验。",
+      "type": "string"
+    },
+    "manifestVersion": {
+      "description": "manifest 文件本身的格式版本，用于平台向后兼容解析。当前固定为 1。",
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "description": "Brick 全局唯一 ID，反向域名风格。仅允许小写字母、数字、点、连字符。建议格式：<tld>.<author>.<brick>",
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$",
+      "examples": ["com.acme.image-resizer", "io.github.alice.pdf-tools"]
+    },
+    "version": {
+      "description": "Brick 语义化版本号（SemVer 2.0）。同一 id 不允许重复发布相同 version。",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+      "examples": ["1.0.0", "2.3.1-beta.1"]
+    },
+    "apiVersion": {
+      "description": "Brick 依赖的平台 API 版本，使用 SemVer range。平台启动时用此字段判断是否兼容。",
+      "type": "string",
+      "examples": [">=1.1.0 <2.0.0", "^1.1.0"]
+    },
+    "name": {
+      "description": "Brick 展示名称（用户可见）。建议 30 字以内，可使用本地化对象。",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        {
+          "type": "object",
+          "patternProperties": {
+            "^[a-z]{2}(-[A-Z]{2})?$": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            }
+          },
+          "required": ["en"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "description": {
+      "description": "Brick 简短描述，用于市场列表展示。建议 120 字以内。支持本地化对象。",
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 240
+        },
+        {
+          "type": "object",
+          "patternProperties": {
+            "^[a-z]{2}(-[A-Z]{2})?$": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "icon": {
+      "description": "Brick 图标相对路径（推荐 PNG/SVG，不超过 256x256）。",
+      "type": "string",
+      "examples": ["icon.png", "assets/icon.svg"]
+    },
+    "author": {
+      "description": "作者展示名。旧稿若写成对象，加载时取 name。",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "keywords": {
+      "description": "搜索关键词，用于市场检索。",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 30
+      },
+      "maxItems": 10,
+      "uniqueItems": true
+    },
+    "runtime": {
+      "oneOf": [
+        {
+          "description": "Brick 运行时配置。type 决定平台如何启动该 Brick。崩溃退避（maxAttempts / backoffMs / healthyAfterMs）不在作者清单；写了会因 additionalProperties: false 失败。",
+          "type": "object",
+          "required": ["type", "platforms"],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "const": "python"
+                  }
+                },
+                "required": ["type"]
+              },
+              "then": {
+                "required": ["python"]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "instance": {
+                    "enum": ["per-call", "owned"]
+                  }
+                },
+                "required": ["instance"]
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    { "required": ["resident"] },
+                    { "required": ["autoStart"] },
+                    { "required": ["restart"] }
+                  ]
+                }
+              }
+            },
+            {
+              "if": {
+                "not": {
+                  "properties": {
+                    "resident": {
+                      "const": true
+                    }
+                  },
+                  "required": ["resident"]
+                }
+              },
+              "then": {
+                "not": {
+                  "anyOf": [
+                    { "required": ["autoStart"] },
+                    { "required": ["restart"] }
+                  ]
+                }
+              }
+            }
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["python", "node", "native"],
+              "description": "python: 源码 + uv venv；node: 使用 Electron 自带 Node 以子进程方式启动；native: 预编译二进制（Go/Rust/.NET 等）。"
+            },
+            "instance": {
+              "type": "string",
+              "enum": ["per-call", "owned", "shared"],
+              "description": "作者实例策略。缺省 shared。per-call：每次调用独立实例且不允许 start()；owned：每个 ToolLifetime 独占实例；shared：同一 Brick+Profile 共享且可空闲回收。常驻不是第四种 instance，而是 shared 上的 resident。旧值 scoped / service 已废弃。"
+            },
+            "resident": {
+              "type": "boolean",
+              "default": false,
+              "description": "仅 shared：允许进入常驻占用，并由宿主按 (砖, Profile) 钉住。"
+            },
+            "autoStart": {
+              "type": "boolean",
+              "default": false,
+              "description": "仅 shared + resident：开机恢复用户已钉的 Profile。"
+            },
+            "restart": {
+              "type": "string",
+              "enum": ["none", "on-failure"],
+              "default": "on-failure",
+              "description": "仅 shared + resident：非主动停止时的异常重启策略。"
+            },
+            "platforms": {
+              "description": "作者必填：声明支持的运行平台清单。归一化按 type+platforms 合成 entry；平台是否完成审核和发布由市场 package 独立决定。",
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "win-x64",
+                  "win-arm64",
+                  "mac-x64",
+                  "mac-arm64",
+                  "linux-x64",
+                  "linux-arm64"
+                ]
+              }
+            },
+            "entry": {
+              "description": "制品字段：归一化按 type+platforms 合成的按平台入口映射，值为 runtime/<platform>/<约定文件>。作者不写；源码 manifest 中残留会被忽略并告警。",
+              "type": "object",
+              "minProperties": 1,
+              "patternProperties": {
+                "^(win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)$": {
+                  "type": "string",
+                  "pattern": "^(?:runtime/(?:win-x64|win-arm64|mac-x64|mac-arm64|linux-x64|linux-arm64)/)?[^/\\\\]+(?:/[^/\\\\]+)*$"
+                }
+              },
+              "additionalProperties": false
+            },
+            "python": {
+              "description": "type=python 专用：固定 minor 版本，例如 3.12.*。",
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\*$"
+            },
+            "args": {
+              "description": "启动子进程时附加的命令行参数。",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "env": {
+              "description": "启动子进程时注入的环境变量（受权限网关审计）。",
+              "type": "object",
+              "patternProperties": {
+                "^[A-Z_][A-Z0-9_]*$": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "storage": {
+      "description": "Brick 本机持久存储声明。quotaMB 是工具声称的需求上限，生效配额由宿主计算。公开 API 是 ctx.storage / window.brickly.storage，不是文件路径。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quotaMB": {
+          "type": "number",
+          "minimum": 1,
+          "description": "声明的本机存储需求上限（MB）。缺省按 50MB 生效，宿主再与 1024MB 封顶取小。"
+        },
+        "schema": {
+          "type": "string",
+          "description": "可选。文档集合的描述性 schema 提示，一期不作为运行期校验。"
+        }
+      }
+    },
+    "config": {
+      "description": "Brick 多环境 Profile 配置声明。只写 fields。平台把选中 Profile 注入 ctx.config；字段声明了 env 时同时写入进程环境变量。runtime.env 是作者静态启动环境，不是 Profile。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields"],
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "true 时必须选择 Profile 才能启动或调用 Brick。"
+        },
+        "fields": {
+          "$ref": "#/$defs/socketList"
+        }
+      }
+    },
+    "subscriptions": {
+      "description": "Brick 订阅的宿主中转事件。投递不读本字段；wake=true 或 runtime.resident 才允许宿主为其申请 Lease。payload 应保持轻量，大内容通过 resourceId 按需拉取。",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event"],
+        "properties": {
+          "event": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+:[A-Za-z0-9_.:-]+$"
+          },
+          "wake": {
+            "type": "boolean",
+            "default": false,
+            "description": "true 时允许宿主为该事件申请 Lease / 列为可唤醒订阅者。开机恢复只认占用表里已钉且 autoStart 的 Profile。"
+          },
+          "from": {
+            "oneOf": [
+              {
+                "type": "string",
+                "anyOf": [
+                  {
+                    "const": "system"
+                  },
+                  {
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$"
+                  }
+                ]
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "anyOf": [
+                    {
+                      "const": "system"
+                    },
+                    {
+                      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "hotkeys": {
+      "description": "Brick 声明的全局热键意图。底座负责注册系统级热键；触发后按 commandId 直调砖命令（冷启动自动拉起 runtime）。用户配置可禁用或改绑，manifest 仅提供默认值。",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "commandId"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+          },
+          "commandId": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+          },
+          "defaultInput": {},
+          "name": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              {
+                "type": "object",
+                "patternProperties": {
+                  "^[a-z]{2}(-[A-Z]{2})?$": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "required": ["en"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "description": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "object",
+                "patternProperties": {
+                  "^[a-z]{2}(-[A-Z]{2})?$": {
+                    "type": "string",
+                    "maxLength": 240
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "defaultBinding": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "win32": {
+                "$ref": "#/$defs/hotkeyBinding"
+              },
+              "darwin": {
+                "$ref": "#/$defs/hotkeyBinding"
+              },
+              "default": {
+                "$ref": "#/$defs/hotkeyBinding"
+              }
+            }
+          },
+          "enabledByDefault": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      }
+    },
+    "ui": {
+      "description": "用户交互界面承载方式。当前实现使用 Electron BrowserWindow 承载 webview；无界面时用 none。",
+      "oneOf": [
+        {
+          "description": "Webview：基于 Electron BrowserWindow 承载自定义 UI。纯 UI 与带 runtime 的 Brick 体验窗均注入受限的 window.brickly（平台 preload/brick.js）。window.AIBricks 仅平台主窗口使用，不注入 Brick 体验窗。可选顶层 manifest.preload 指定附加 preload（相对 Brick 根目录），在平台 preload 之后链式 require；路径须位于 rootDir 内。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "webview"
+            },
+            "entry": {
+              "type": "string",
+              "description": "制品字段：归一化合成的体验窗入口，固定 ui/index.html。作者不写。"
+            },
+            "size": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "width": {
+                  "type": "integer",
+                  "minimum": 200
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 200
+                },
+                "minWidth": {
+                  "type": "integer",
+                  "minimum": 200,
+                  "description": "体验窗最小宽度；缺省由平台兜底（如 480）。"
+                },
+                "minHeight": {
+                  "type": "integer",
+                  "minimum": 200,
+                  "description": "体验窗最小高度；缺省由平台兜底（如 320）。"
+                },
+                "resizable": {
+                  "type": "boolean",
+                  "default": true
+                }
+              }
+            },
+            "titleBar": {
+              "type": "string",
+              "enum": ["system", "custom"],
+              "default": "system",
+              "description": "system：系统标题栏（默认）。custom：Brick 自绘标题栏；平台内部使用无边框窗口，并注入 window.brickly.window 控制 API。"
+            },
+            "windowPolicy": {
+              "type": "string",
+              "enum": ["single", "multi"],
+              "default": "single",
+              "description": "体验窗开窗策略。single（默认）：同一 Brick 再开时聚焦已有窗；multi：每次打开新建窗口（适合 JSON 格式化等需要并列对比的工具）。"
+            },
+            "devTools": {
+              "type": "string",
+              "enum": ["always", "debug-only", "never"],
+              "default": "debug-only",
+              "description": "DevTools 开启策略。debug-only 仅在平台开发模式下可打开。"
+            }
+          }
+        },
+        {
+          "description": "纯后台 Brick，无 UI。仅供 LLM Agent / DAG 画布 / 其他 Brick 以 commands 形式调用。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "none"
+            }
+          }
+        }
+      ]
+    },
+    "commands": {
+      "description": "Brick 暴露的命令集合。每个命令是一个可独立调用的功能单元，拥有自己的 IO、UI、权限。LLM Agent 把每个命令视作一个 tool；DAG 画布把每个命令视作一个节点类型。",
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "dependencies": {
+      "description": "声明当前 Brick 的依赖别名绑定，也是跨 Brick 调用的授权来源。key 为调用代码使用的稳定别名，target 必须是精确 BrickRef。commands 支持具体命令 id，也支持 * 表示允许调用目标 Brick 的全部可见命令；省略或为空不授权命令调用。",
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["brickId", "origin", "version"],
+              "properties": {
+                "brickId": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$"
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": ["installed", "development", "review"]
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "commands": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "anyOf": [
+                  {
+                    "const": "*"
+                  },
+                  {
+                    "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+                  }
+                ]
+              }
+            },
+            "optional": {
+              "type": "boolean",
+              "default": false
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "quickSearch": {
+      "description": "快速搜索消费方声明：当前 Brick 申请使用宿主搜索服务聚合 Provider 结果。Provider 本体改为 commands[] 上的 provider 标记，不再在此声明。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer"],
+      "properties": {
+        "consumer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["providers"],
+          "properties": {
+            "providers": {
+              "description": "watch 的 Provider 完整标识 <brickId>/<commandId> 列表，或 \"*\" 表示全部已开启 Provider。声明的是消费意图，不构成授权；可用性由消费方开关决定。",
+              "oneOf": [
+                {
+                  "const": "*"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 64,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}/[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+                  }
+                }
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "可选。管理页向用户解释该 Brick 为何需要搜索服务。"
+            }
+          }
+        }
+      }
+    },
+    "kind": {
+      "description": "产物类型。当前统一固定为 brick。",
+      "type": "string",
+      "const": "brick"
+    },
+    "preload": {
+      "type": "string",
+      "description": "可选的附加 preload 脚本，相对 Brick 根目录（如 preload.cjs）。纯 UI 与带 runtime 的 webview 均可声明。平台先加载 brick.js 注入 window.brickly，再通过 --brickly-brick-preload 链式 require 本脚本；校验路径必须位于 rootDir 内且文件存在。自定义 preload 可 exposeInMainWorld 自有 API，或封装 ipcRenderer 调用平台 channel，不应假设存在 window.AIBricks。"
+    }
+  },
+  "$defs": {
+    "commandProvider": {
+      "description": "把命令标记为搜索 Provider 端点：输入固定 {providerId,query,sequence,limit,caller}，输出固定 {results:[...]}。true 等价 \"search\"；对象形态携带可选调节项。被标记命令禁止 io/mode/execution/category/hidden，且不可被普通入口（命令面板、LLM tools、热键、工作流、bridge.invoke）调用。",
+      "oneOf": [
+        {
+          "const": true
+        },
+        {
+          "const": "search"
+        },
+        {
+          "$ref": "#/$defs/searchProviderTuning"
+        }
+      ]
+    },
+    "searchProviderTuning": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "search"
+        },
+        "desc": {
+          "description": "Provider 来源展示说明（管理页），缺省回落 command.description / name。支持本地化对象。",
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 240
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z]{2}(-[A-Z]{2})?$": {
+                  "type": "string",
+                  "maxLength": 240
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "match": {
+          "description": "输入匹配规则：宿主调用前零成本评估，不命中则不调用该 Provider（providerStates 记 skipped）。数组为 OR 语义；缺省等价 { \"kind\": \"text\" }。只管\"什么 query 该找我\"，不管\"谁可以问我\"。",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/searchMatchRule"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/searchMatchRule"
+              }
+            }
+          ]
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 3000,
+          "default": 600
+        },
+        "maxResults": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 50,
+          "description": "并入结果排序分。"
+        }
+      }
+    },
+    "searchMatchRule": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["text", "regex"],
+          "description": "text=任意文本（可带长度界）；regex=对 trim 后的 query 全串做正则匹配。"
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "仅 kind=regex 必填。/pattern/flags 字面量，flags 限 i/m/s/u。等价全匹配的懒惰正则（如 /.*/）按 text 降级并告警。"
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 1,
+          "description": "按 trim 后 query 长度计算；空/全空白查询不发起任何调用，不允许 0。"
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "regex"
+              }
+            }
+          },
+          "then": {
+            "required": ["pattern"]
+          },
+          "else": {
+            "not": {
+              "required": ["pattern"]
+            }
+          }
+        }
+      ]
+    },
+    "hotkeyBinding": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "accelerator"],
+          "properties": {
+            "kind": {
+              "const": "accelerator"
+            },
+            "accelerator": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "examples": ["Control+Shift+K", "Command+Shift+K"]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "key", "gesture"],
+          "properties": {
+            "kind": {
+              "const": "key-gesture"
+            },
+            "key": {
+              "type": "string",
+              "enum": ["Control", "Shift", "Alt", "Meta", "CapsLock"]
+            },
+            "gesture": {
+              "const": "double-tap"
+            },
+            "maxIntervalMs": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 300
+            }
+          }
+        }
+      ]
+    },
+    "command": {
+      "description": "Brick 暴露的单个命令定义。",
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": ["provider"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["io"] },
+                { "required": ["mode"] },
+                { "required": ["execution"] },
+                { "required": ["category"] },
+                { "required": ["hidden"] }
+              ]
+            }
+          },
+          "else": {
+            "required": ["io"]
+          }
+        }
+      ],
+      "properties": {
+        "id": {
+          "description": "命令在 Brick 内部的唯一标识，仅小写字母数字与连字符/下划线。完整调用 ID = <brickId>.<commandId>。",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
+          "examples": ["extract-text", "merge", "ocr", "format"]
+        },
+        "execution": {
+          "description": "同一实例内该命令的并发策略（不属于 lifecycle）。只认 queue / parallel，默认 queue。reject / replace 已删除。",
+          "type": "string",
+          "enum": ["queue", "parallel"],
+          "default": "queue"
+        },
+        "mode": {
+          "description": "命令执行原语，必须与调用方法同名。缺省 invoke。不得用通道或 ui 字段推断。",
+          "type": "string",
+          "enum": ["invoke", "call", "interact"],
+          "default": "invoke"
+        },
+        "window": false,
+        "provider": {
+          "$ref": "#/$defs/commandProvider"
+        },
+        "name": {
+          "description": "命令展示名称，支持本地化对象。",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z]{2}(-[A-Z]{2})?$": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "required": ["en"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "description": {
+          "description": "命令简短说明。也会作为 LLM Agent 选择该 tool 的依据，建议写清楚 \"什么时候用\"。",
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 500
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z]{2}(-[A-Z]{2})?$": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "description": "命令图标相对路径。"
+        },
+        "category": {
+          "type": "string",
+          "description": "命令分类，用于在多命令 Brick UI 中分组（如 \"基础\" / \"高级\"）。",
+          "maxLength": 30
+        },
+        "hidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "true 表示该命令不在主界面/画布暴露，仅供其他命令或 LLM Agent 内部调用。"
+        },
+        "io": {
+          "description": "命令的输入输出 socket 声明。",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "inputs": {
+              "$ref": "#/$defs/socketList"
+            },
+            "inputEvents": {
+              "description": "仅 interact：调用方开场之后 session.send 的每种事件。name = 线上对象的 type。不用则省略。",
+              "$ref": "#/$defs/socketList"
+            },
+            "outputEvents": {
+              "description": "call / interact：Brick ctx.send 的每种事件。name = 线上对象的 type。不用则省略。",
+              "$ref": "#/$defs/socketList"
+            },
+            "outputs": {
+              "description": "命令输出 socket 列表。\n - 单输出场景：runtime 通过 command.result 一次返回最终值。\n - 多输出场景（length>=2）：runtime 应通过 command.output / command.chunk 携带 name 字段，按 socket.name 分别投递；UI 会按声明顺序生成多 Tab，每个 Tab 显示对应输出的累积值与状态（pending/streaming/ready）。\n - command.chunk 不带 name 时退化为旧的匿名流。\n - command.result 仍是流终结符，多输出场景下 result 可省略或仅作汇总。",
+              "$ref": "#/$defs/socketList"
+            },
+            "constraints": {
+              "type": "array",
+              "description": "input 之间的关系约束，host 在调用 Brick 前校验，违反会报 CONSTRAINT_VIOLATION 错误。",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["rule", "members"],
+                "properties": {
+                  "rule": {
+                    "type": "string",
+                    "enum": ["oneOf", "anyOf"],
+                    "description": "oneOf=恰好一个，anyOf=至少一个。配对字段（要么全填要么全不填）请直接合并成 object 字段，不在此处建模。"
+                  },
+                  "members": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "受约束的 input.name 列表。"
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "可选：违反时展示给用户的提示，默认按规则自动生成。"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ui": {
+          "description": "可选。命令级别的 UI 覆盖（不写则继承顶层 ui，并按 io.inputs 自动生成表单）。",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "submitLabel": {
+              "type": "string",
+              "default": "执行",
+              "description": "执行按钮的文案。"
+            }
+          }
+        },
+        "timeoutMs": {
+          "description": "命令执行超时（毫秒）。",
+          "type": "integer",
+          "minimum": 1000
+        },
+        "examples": {
+          "description": "调用示例，展示在市场详情页，并辅助 LLM Agent few-shot 选择正确参数。",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["input"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "input": {
+                "type": "object"
+              },
+              "output": {}
+            }
+          }
+        }
+      }
+    },
+    "socketList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "json",
+              "image",
+              "audio",
+              "video",
+              "file",
+              "binary",
+              "stream",
+              "any"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "text",
+              "markdown",
+              "json",
+              "code",
+              "table",
+              "image",
+              "file",
+              "audio",
+              "video",
+              "resource"
+            ],
+            "description": "UI 渲染提示，主要用于 string/any 输出。markdown=按 GFM Markdown 渲染，text=纯文本/日志，json=按 JSON 解析展示，code=代码块，image/file/audio/video/resource=媒体或资源卡片。"
+          },
+          "language": {
+            "type": "string",
+            "description": "UI 渲染提示：format=code 时的语言名，例如 javascript、typescript、python、sql、json、bash。Markdown fenced code 可由围栏语言自动提供。"
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          },
+          "default": {
+            "description": "默认值（仅适用于标量类型）。"
+          },
+          "multi": {
+            "type": "boolean",
+            "default": false,
+            "description": "是否允许接收/输出多值。"
+          },
+          "enum": {
+            "description": "UI 提示：限定可选值集合，渲染为下拉/单选。元素可以是标量或 {value, label} 对。",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "oneOf": [
+                {
+                  "type": ["string", "number"]
+                },
+                {
+                  "type": "object",
+                  "required": ["value"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "value": {
+                      "type": ["string", "number"]
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "min": {
+            "type": "number",
+            "description": "UI 提示：number 类型的最小值，与 max 一起出现时渲染为滑块。"
+          },
+          "max": {
+            "type": "number",
+            "description": "UI 提示：number 类型的最大值。"
+          },
+          "step": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "UI 提示：number 步进。"
+          },
+          "control": {
+            "type": "string",
+            "enum": ["input", "slider"],
+            "description": "UI 提示：number 字段的控件形态。精确值如端口建议使用 input。"
+          },
+          "multiline": {
+            "type": "boolean",
+            "description": "UI 提示：string 类型按多行文本渲染。"
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "UI 提示：占位符文案。"
+          },
+          "secret": {
+            "type": "boolean",
+            "default": false,
+            "description": "UI 提示：用于 Profile 配置中的敏感字段，MVP 仅渲染为密码输入，落盘仍为明文。"
+          },
+          "env": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "description": "启动 runtime 时把该字段值写入指定环境变量。未写 env 只进 ctx.config；写了默认两边都进。推荐 MYSQL_HOST、OPENAI_API_KEY。"
+          },
+          "inject": {
+            "type": "string",
+            "enum": ["config", "env", "both"],
+            "description": "注入目标。日常可省略：无 env 等于 config，有 env 等于 both。inject=env 仅给 MCP 等密钥不要进 ctx.config 的场景。"
+          },
+          "accept": {
+            "type": "string",
+            "description": "UI 提示：file/image/audio/video 类型的 MIME accept。"
+          }
+        }
+      }
+    }
+  }
+}

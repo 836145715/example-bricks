@@ -1,0 +1,9 @@
+{
+  "name": "com.brickly.starter",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "vendor": "node scripts/vendor-create-brickly.mjs",
+    "setup": "node ../scripts/setup-brick.cjs"
+  }
+}

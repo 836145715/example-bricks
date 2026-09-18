@@ -1,0 +1,107 @@
+{
+  "$schema": "../specs/manifest.schema.json",
+  "manifestVersion": 1,
+  "kind": "brick",
+  "id": "com.brickly.starter",
+  "version": "0.1.0",
+  "apiVersion": ">=0.1.0 <1.0.0",
+  "name": {
+    "zh-CN": "脚手架",
+    "en": "Starter"
+  },
+  "description": {
+    "zh-CN": "图形化创建新 Brick 工程的向导：选择运行时、UI 栈与依赖工具，基于 create-brickly 内核生成工程骨架并写入开发目录。",
+    "en": "Wizard that scaffolds new Brick projects: pick runtime, UI stack and dependency bricks, generate the project skeleton via the create-brickly core into the dev catalog."
+  },
+  "icon": "assets/icon.svg",
+  "author": "Brickly",
+  "keywords": ["starter", "scaffold", "create", "wizard", "template"],
+  "runtime": {
+    "type": "node",
+    "instance": "per-call",
+    "platforms": [
+      "win-x64",
+      "win-arm64",
+      "mac-x64",
+      "mac-arm64",
+      "linux-x64",
+      "linux-arm64"
+    ]
+  },
+  "ui": {
+    "type": "webview",
+    "size": {
+      "width": 1080,
+      "height": 760,
+      "resizable": true
+    },
+    "devTools": "debug-only"
+  },
+  "commands": [
+    {
+      "id": "list-templates",
+      "name": { "zh-CN": "模板选项", "en": "Template Options" },
+      "description": {
+        "zh-CN": "返回 create-brickly 的运行时、UI 栈、功能预设枚举与默认值。",
+        "en": "Return create-brickly runtime / UI stack / feature preset enums and defaults."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "list-bricks",
+      "name": { "zh-CN": "开发目录工具列表", "en": "List Dev Bricks" },
+      "description": {
+        "zh-CN": "列出开发目录与已安装工具的轻量条目，用于依赖选择器。",
+        "en": "List lightweight entries of development and installed bricks for the dependency picker."
+      },
+      "io": {
+        "inputs": [],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "get-brick-detail",
+      "name": { "zh-CN": "工具详情", "en": "Brick Detail" },
+      "description": {
+        "zh-CN": "按完整 BrickRef 查询工具的 manifest 作者字段子集（命令、配置字段等）。",
+        "en": "Fetch the manifest author-field subset of a brick by full BrickRef."
+      },
+      "io": {
+        "inputs": [{ "name": "ref", "type": "json", "required": true }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "preview",
+      "name": { "zh-CN": "生成预览", "en": "Preview" },
+      "description": {
+        "zh-CN": "按向导草稿生成文件清单、manifest 与告警，不落盘。",
+        "en": "Generate file list, manifest and warnings from the wizard draft without writing to disk."
+      },
+      "io": {
+        "inputs": [{ "name": "draft", "type": "json", "required": true }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    },
+    {
+      "id": "create",
+      "name": { "zh-CN": "创建工程", "en": "Create Project" },
+      "description": {
+        "zh-CN": "将草稿生成物写入开发目录，校验依赖引用后触发目录重扫。",
+        "en": "Write the draft's generated files into the dev catalog, verify dependency refs, then rescan."
+      },
+      "io": {
+        "inputs": [{ "name": "draft", "type": "json", "required": true }],
+        "outputs": [{ "name": "result", "type": "json" }]
+      },
+      "execution": "queue"
+    }
+  ]
+}
