@@ -466,6 +466,13 @@
               "enum": ["always", "debug-only", "never"],
               "default": "debug-only",
               "description": "DevTools 开启策略。debug-only 仅在平台开发模式下可打开。"
+            },
+            "entries": {
+              "description": "对外公开的 UI 场景入口声明：跨 Brick openUi 唤起的非空 entry 必须命中此清单；未声明则仅允许空 entry 开默认页。自身唤起与宿主来源的 entry 透传不受此约束。inputs 第一版只做契约文档与审核展示，Host 不强校验 params。",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/uiEntry"
+              }
             }
           }
         },
@@ -951,6 +958,62 @@
               "output": {}
             }
           }
+        }
+      }
+    },
+    "uiEntry": {
+      "description": "UI 场景入口：跨 Brick openUi 唤起的公开面单元。entry 是 UI 命名空间，不绑定 runtime command；页面拿到 entry + params 后自行编排。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
+          "maxLength": 64,
+          "description": "入口标识，砖内唯一，风格同 commandId。"
+        },
+        "name": {
+          "description": "入口展示名（审核页/市场展示用），支持本地化对象。",
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 60
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z]{2}(-[A-Z]{2})?$": {
+                  "type": "string",
+                  "maxLength": 60
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "description": {
+          "description": "入口说明：让别的 Brick 作者理解这个场景入口做什么、收什么参数。",
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 240
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z]{2}(-[A-Z]{2})?$": {
+                  "type": "string",
+                  "maxLength": 240
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "inputs": {
+          "description": "入口参数契约：两块砖作者之间唯一成文的 params 约定，兼作审核展示。第一版 Host 不按它校验 params。",
+          "$ref": "#/$defs/socketList"
         }
       }
     },
