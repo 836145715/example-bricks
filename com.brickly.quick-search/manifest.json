@@ -23,13 +23,6 @@
     "restart": "on-failure",
     "platforms": ["win-x64"]
   },
-  "subscriptions": [
-    {
-      "event": "search:snapshot",
-      "from": "system",
-      "wake": false
-    }
-  ],
   "quickSearch": {
     "consumer": {
       "providers": "*",

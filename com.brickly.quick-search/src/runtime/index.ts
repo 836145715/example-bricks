@@ -6,7 +6,8 @@
  * - `toggle` 命令（热键直调入口）：首次创建即展示（keepAlive 窗创建时必须
  *   展示——契约约束），再次触发按可见性切换；
  * - 页面请求中转：`search.*` 经 expose 调到 `brick.platform.search.*`；
- * - 渐进快照：`search:snapshot` 定向事件 → `win.send('snapshot')` 推给页面；
+ * - 渐进快照：`platform.search.query` 的 CallStream 逐帧 → `win.send('snapshot')` 推页面；
+ *   新查询 abort 旧流（流取消即宿主侧 abort 搜索会话）；
  * - 拖拽：`drag.start`/`drag.end` 经 expose 调到通用 `win.startDrag()/endDrag()`；
  * - blur 自动隐藏；拖动后保留位置，不再强制居中。
  *
@@ -35,6 +36,8 @@ let creating: Promise<WindowHandle> | undefined
 let userPosition: { x: number; y: number } | undefined
 /** 单调递增的查询序号：页面每次输入变更发起新 query，用于快照/结果对齐。 */
 let sequence = 0
+/** 在途搜索流的取消句柄：新查询/激活动作 abort 它，流取消即宿主侧终止会话。 */
+let currentQuery: AbortController | undefined
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -59,7 +62,7 @@ function forwardSnapshot(snapshot: unknown): void {
   void win.send('snapshot', snapshot).catch(() => undefined)
 }
 
-/** 发起一轮搜索：渐进快照走 search:snapshot 事件，blocking 终帧作兜底补发。 */
+/** 发起一轮搜索：CallStream 逐帧推页面；新查询 abort 旧流取代旧会话。 */
 function runQuery(payload: unknown): void {
   const query =
     typeof (isRecord(payload) ? payload.query : undefined) === 'string'
@@ -67,14 +70,22 @@ function runQuery(payload: unknown): void {
       : ''
   sequence += 1
   const mine = sequence
-  void brick.platform.search
-    .query({ query, sequence: mine, limit: 24 })
-    .then((final) => {
-      // 事件通道丢帧时页面也能收终帧；重复推送对页面是幂等覆盖。
-      if (mine === sequence && final) forwardSnapshot(final)
-    })
-    .catch((error) => {
-      brick.log.warn('search.query 调用失败', {
+  currentQuery?.abort()
+  const abort = new AbortController()
+  currentQuery = abort
+  void (async () => {
+    try {
+      for await (const snapshot of brick.platform.search.query(
+        { query, sequence: mine, limit: 10 },
+        { signal: abort.signal }
+      )) {
+        // 晚于本轮的流帧已被更新的查询取代——丢弃。
+        if (mine !== sequence) return
+        forwardSnapshot(snapshot)
+      }
+    } catch (error) {
+      if (abort.signal.aborted) return
+      brick.log.warn('search.query 流式调用失败', {
         sequence: mine,
         error: error instanceof Error ? error.message : error
       })
@@ -87,12 +98,17 @@ function runQuery(payload: unknown): void {
         generatedAt: Date.now(),
         error: error instanceof Error ? error.message : String(error)
       })
-    })
+    } finally {
+      if (currentQuery === abort) currentQuery = undefined
+    }
+  })()
 }
 
-/** 激活/执行动作后作废旧轮快照：防止已清空的列表被晚到的渐进帧闪回。 */
+/** 激活/执行动作后终止在途搜索并作废旧轮快照：防止已清空的列表被晚到帧闪回。 */
 function expireSnapshots(): void {
   sequence += 1
+  currentQuery?.abort()
+  currentQuery = undefined
 }
 
 function ensureWindow(): Promise<WindowHandle> {
@@ -214,8 +230,5 @@ brick.onCommand('toggle', async () => {
   }
   return { visible: true }
 })
-
-// 宿主把该实例发起查询的渐进快照定向推回本实例；过期轮次在 forwardSnapshot 里滤掉。
-brick.events.on('search:snapshot', forwardSnapshot)
 
 brick.start()
