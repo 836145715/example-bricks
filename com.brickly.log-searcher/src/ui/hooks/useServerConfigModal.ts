@@ -39,9 +39,8 @@ export function useServerConfigModal({
     setConfigPanelOpen(true)
   }, [])
 
-  const openCreateModal = useCallback(() => {
+  const openCreateModal = useCallback((prefill?: Partial<ServerConfig>) => {
     const newServer: ServerConfig = {
-      id: 'srv_' + Date.now(),
       name: '未命名服务器',
       host: '',
       port: 22,
@@ -50,7 +49,9 @@ export function useServerConfigModal({
       password: '',
       keyPath: '',
       keyText: '',
-      logs: [{ path: '', enabled: true }]
+      logs: [{ path: '', enabled: true }],
+      ...prefill,
+      id: 'srv_' + Date.now()
     }
     setEditingServer(newServer)
     setConnectionTest({ status: 'idle', message: '' })

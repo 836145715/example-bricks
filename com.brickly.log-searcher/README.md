@@ -87,6 +87,10 @@ UI 结果区默认使用自动换行虚拟列表，通过动态行高测量展�
 
 修改 Go runtime 后需要重新编译 `runtime/win-x64/brick.exe`，否则体验窗仍是旧二进制。
 
+## 跨 Brick 启动场景
+
+体验窗经 `window.brickly.onLaunchContext` 消费启动上下文（`src/ui/hooks/useLaunchContext.ts`）。目前识别 `{ kind: 'ssh-session', ssh, pattern?, files? }`（ssh-manager 底栏「日志」按钮经 `openUi` 传入）：按 `host+port+user` 匹配已保存服务器则直接选中并预填检索草稿；匹配不到则打开新建服务器弹窗预填连接信息。params 是不可信输入，先校验形状再使用；凭据不跨砖，未命中时由用户补全一次后随配置保存。
+
 ## test_connection 能力
 
 输入：

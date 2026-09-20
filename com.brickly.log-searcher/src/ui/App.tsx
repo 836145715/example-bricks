@@ -18,6 +18,7 @@ import { workspaceReducer } from './state/workspaceReducer'
 import { createInitialWorkspaceState, makeScopeKey } from './state/workspaceHelpers'
 import { usePreferences } from './hooks/usePreferences'
 import { useServerConfigModal } from './hooks/useServerConfigModal'
+import { useLaunchContext } from './hooks/useLaunchContext'
 import { useSearchController } from './controllers/useSearchController'
 import { isDateFilterActive, pathsMatchingDateFilter } from './domain/paths'
 import { buildStatusHighlightRules } from './domain/highlight'
@@ -80,6 +81,16 @@ export function App() {
     servers: state.servers,
     onSave: controller.saveAppConfig,
     invokeSelf: controller.invokeSelf
+  })
+
+  // 5.1 跨 Brick 启动场景（ssh-manager 等经 openUi 带入的主机上下文）
+  const [configReady, setConfigReady] = useState(false)
+  useLaunchContext({
+    configReady,
+    servers: state.servers,
+    dispatch,
+    openCreateModal: configModal.openCreateModal,
+    showToast
   })
 
   // 6. 虚拟列表与容器引用
@@ -181,6 +192,7 @@ export function App() {
         }
         runtimeRef.current = started
         await controller.loadAppConfig()
+        if (!cancelled) setConfigReady(true)
       } catch (err: any) {
         if (!cancelled) {
           showStatus(`Runtime 启动失败: ${err?.message || err}`, 'error')
