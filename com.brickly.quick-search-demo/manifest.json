@@ -16,7 +16,7 @@
   "author": "Brickly",
   "runtime": {
     "type": "node",
-    "instance": "per-call",
+    "instance": "shared",
     "platforms": [
       "win-x64",
       "win-arm64",
