@@ -82,12 +82,27 @@ func TestBuildOutputMapsEverythingItems(t *testing.T) {
 		t.Fatalf("file route path = %q", file.Activate.Input.Path)
 	}
 
+	// 右键菜单：文件 4 项（含复制文件），文件夹 3 项（无复制文件）
+	fileActions := actionIDs(file.Actions)
+	if strings.Join(fileActions, ",") != "open,reveal,copy-path,copy-file" {
+		t.Fatalf("file actions = %v", fileActions)
+	}
+	if file.Actions[1].Command != "quick-search-action" ||
+		file.Actions[1].Input.Action != "reveal" ||
+		file.Actions[1].Input.Path != `C:\Users\Ada\Documents\Report.docx` {
+		t.Fatalf("reveal action route = %+v", file.Actions[1])
+	}
+
 	folder := output.Results[1]
 	if folder.Accessory != "文件夹" {
 		t.Fatalf("folder accessory = %q", folder.Accessory)
 	}
 	if folder.Activate == nil || folder.Activate.Input.Kind != "folder" {
 		t.Fatalf("folder route kind = %+v", folder.Activate)
+	}
+	folderActions := actionIDs(folder.Actions)
+	if strings.Join(folderActions, ",") != "open,reveal,copy-path" {
+		t.Fatalf("folder actions = %v", folderActions)
 	}
 }
 
@@ -127,5 +142,41 @@ func TestParseOpenInputRequiresLocalPath(t *testing.T) {
 	}
 	if _, err := ParseOpenInput(json.RawMessage(`{}`)); err == nil {
 		t.Fatal("expected missing path rejection")
+	}
+}
+
+func actionIDs(actions []ItemAction) []string {
+	ids := make([]string, 0, len(actions))
+	for _, action := range actions {
+		ids = append(ids, action.ID)
+	}
+	return ids
+}
+
+func TestParseActionInputValidatesActionAndPath(t *testing.T) {
+	params, err := ParseActionInput(json.RawMessage(`{
+		"action": "reveal",
+		"path": "C:\\Users\\Ada\\Documents\\Report.docx",
+		"title": "Report.docx",
+		"kind": "file"
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if params.Action != "reveal" || params.Path != `C:\Users\Ada\Documents\Report.docx` {
+		t.Fatalf("params = %+v", params)
+	}
+	if ActionMessage("reveal", params) != "已在文件夹中显示 Report.docx" {
+		t.Fatalf("ActionMessage = %q", ActionMessage("reveal", params))
+	}
+
+	if _, err := ParseActionInput(json.RawMessage(`{"path":"C:\\a.txt"}`)); err == nil {
+		t.Fatal("expected missing action rejection")
+	}
+	if _, err := ParseActionInput(json.RawMessage(`{"action":"reveal"}`)); err == nil {
+		t.Fatal("expected missing path rejection")
+	}
+	if _, err := ParseActionInput(json.RawMessage(`{"action":"reveal","path":"a\\b.txt"}`)); err == nil {
+		t.Fatal("expected relative path rejection")
 	}
 }

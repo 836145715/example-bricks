@@ -128,6 +128,38 @@ func handleQuickSearchOpen(_ *brickly.CommandContext, input json.RawMessage) (an
 	return map[string]string{"message": quicksearch.OpenedMessage(params)}, nil
 }
 
+// 快速搜索结果的右键菜单动作（actions[] 路由目标）：动作差异走 input.action 分发。
+func handleQuickSearchAction(ctx *brickly.CommandContext, input json.RawMessage) (any, error) {
+	params, err := quicksearch.ParseActionInput(input)
+	if err != nil {
+		return nil, brickly.NewBppError("INVALID_INPUT", err.Error())
+	}
+
+	switch params.Action {
+	case "reveal":
+		if err := revealLocalPath(params.Path); err != nil {
+			return nil, brickly.NewBppError("OPEN_FAILED", err.Error())
+		}
+	case "copy-path":
+		if _, err := ctx.Platform().Clipboard.SetContent(brickly.ClipboardContent{
+			"kind": "text",
+			"text": params.Path,
+		}); err != nil {
+			return nil, brickly.NewBppError("CLIPBOARD_ERROR", err.Error())
+		}
+	case "copy-file":
+		if _, err := ctx.Platform().Clipboard.SetContent(brickly.ClipboardContent{
+			"kind":  "file",
+			"paths": []string{params.Path},
+		}); err != nil {
+			return nil, brickly.NewBppError("CLIPBOARD_ERROR", err.Error())
+		}
+	default:
+		return nil, brickly.NewBppError("INVALID_INPUT", "未知快速搜索动作: "+params.Action)
+	}
+	return map[string]string{"message": quicksearch.ActionMessage(params.Action, params)}, nil
+}
+
 func requireIndexReady() error {
 	health := client.Health(buildStamp)
 	if health.OK {
@@ -182,6 +214,7 @@ func main() {
 	plugin.OnCommand("preview", handlePreview)
 	plugin.OnCommand("quick-search", handleQuickSearch)
 	plugin.OnCommand("quick-search-open", handleQuickSearchOpen)
+	plugin.OnCommand("quick-search-action", handleQuickSearchAction)
 
 	plugin.Start()
 }

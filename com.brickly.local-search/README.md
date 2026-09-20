@@ -38,8 +38,9 @@ npm run build
 - `health`：检查捆绑 SDK / Everything，必要时后台拉起 `-instance Brickly`。`reason` 为 `ready` / `not_installed` / `not_running` / `indexing` / `ipc_unavailable` / `missing_sdk` / `unsupported`。
 - `search`：按关键词、分类、分页和排序查询 Everything 索引；索引未就绪时直接拒绝。
 - `preview`：按受限大小读取文件预览信息，支持文本/代码、图片、PDF、音视频、ZIP/JAR/EPUB 目录、DOCX/DOCM 渲染、RTF 文本和 XLSX 表格前几行。
-- `quick-search`：搜索 Provider 端点（`provider: { type: "search", ... }`）；宿主按固定协议传入 `{ providerId, query, sequence, limit, caller }`，输出 `{ results }`。每条结果自带 `activate` 路由（`command: "quick-search-open"`，input 为 `{ path, title, kind }`），路由载荷只存在宿主会话级路由表。索引未就绪时返回空结果。
-- `quick-search-open`：隐藏的普通命令，被结果的 `activate` 路由回调；输入为路由载荷 `{ path, title?, kind? }`，只接受本地绝对路径，并通过 Windows Shell 打开文件或文件夹。
+- `quick-search`：搜索 Provider 端点（`provider: { type: "search", ... }`）；宿主按固定协议传入 `{ providerId, query, sequence, limit, caller }`，输出 `{ results }`。每条结果自带 `activate` 路由（`command: "quick-search-open"`，input 为 `{ path, title, kind }`）和 `actions[]` 右键菜单（打开 → `quick-search-open`；在文件夹中显示 / 复制路径 / 复制文件 → `quick-search-action`，input 为 `{ action, path, title, kind }`），路由载荷只存在宿主会话级路由表。索引未就绪时返回空结果。
+- `quick-search-open`：隐藏的普通命令，被结果的 `activate` 路由和 `open` 菜单项回调；输入为路由载荷 `{ path, title?, kind? }`，只接受本地绝对路径，并通过 Windows Shell 打开文件或文件夹。
+- `quick-search-action`：隐藏的普通命令，被结果的 `actions[]` 菜单项回调；输入为 `{ action, path, title?, kind? }`。`reveal` 经 `explorer /select` 定位，`copy-path`/`copy-file` 经宿主 `clipboard.setContent` 写系统剪贴板。
 
 修改 Go runtime 后必须重新运行 `src/runtime/build.ps1`（或经根目录 `setup-brick` 构建），否则 `out/runtime/win-x64/brick.exe` 仍是旧产物。
 

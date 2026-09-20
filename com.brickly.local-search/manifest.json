@@ -236,6 +236,46 @@
       },
       "timeoutMs": 3000,
       "execution": "queue"
+    },
+    {
+      "id": "quick-search-action",
+      "name": {
+        "zh-CN": "快速搜索文件动作",
+        "en": "Quick Search File Action"
+      },
+      "description": "执行宿主快速搜索结果右键菜单动作（在文件夹中显示、复制路径、复制文件）。",
+      "hidden": true,
+      "category": "quick-search",
+      "io": {
+        "inputs": [
+          {
+            "name": "action",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "path",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "kind",
+            "type": "string"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      },
+      "timeoutMs": 3000,
+      "execution": "queue"
     }
   ]
 }

@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"syscall"
 	"unsafe"
 )
@@ -36,4 +37,15 @@ func openLocalPath(path string) error {
 		return fmt.Errorf("ShellExecuteW 失败，返回码 %d", ret)
 	}
 	return nil
+}
+
+// revealLocalPath 在资源管理器中定位路径。explorer 的 /select, 参数要求
+// “/select,<路径>”整串且路径带引号；explorer 成功时也常返回非零退出码，
+// 只能 Start 后不等待结果。
+func revealLocalPath(path string) error {
+	cmd := exec.Command("explorer.exe", `/select,"`+path+`"`)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
 }

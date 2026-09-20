@@ -29,14 +29,15 @@ type SearchOutput struct {
 }
 
 type ProviderItem struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Subtitle  string    `json:"subtitle,omitempty"`
-	Accessory string    `json:"accessory,omitempty"`
-	Category  string    `json:"category,omitempty"`
-	Score     int       `json:"score,omitempty"`
-	DedupeKey string    `json:"dedupeKey,omitempty"`
-	Activate  *RouteRef `json:"activate,omitempty"`
+	ID        string       `json:"id"`
+	Title     string       `json:"title"`
+	Subtitle  string       `json:"subtitle,omitempty"`
+	Accessory string       `json:"accessory,omitempty"`
+	Category  string       `json:"category,omitempty"`
+	Score     int          `json:"score,omitempty"`
+	DedupeKey string       `json:"dedupeKey,omitempty"`
+	Activate  *RouteRef    `json:"activate,omitempty"`
+	Actions   []ItemAction `json:"actions,omitempty"`
 }
 
 // RouteInput 是 activate 路由载荷：宿主按 input 直调目标命令，业务字段不进消费方快照。
@@ -49,6 +50,22 @@ type RouteInput struct {
 type RouteRef struct {
 	Command string     `json:"command"`
 	Input   RouteInput `json:"input"`
+}
+
+// ActionInput 是右键菜单动作路由载荷：action 区分动作，其余字段与 activate 相同。
+type ActionInput struct {
+	Action string `json:"action"`
+	Path   string `json:"path"`
+	Title  string `json:"title,omitempty"`
+	Kind   string `json:"kind,omitempty"`
+}
+
+// ItemAction 对应契约 QuickSearchProviderItemAction：右键菜单项，路由到同砖普通命令。
+type ItemAction struct {
+	ID      string      `json:"id"`
+	Title   string      `json:"title"`
+	Command string      `json:"command"`
+	Input   ActionInput `json:"input"`
 }
 
 type OpenParams struct {
@@ -142,6 +159,21 @@ func MapItem(item everything.Item, index int) (ProviderItem, bool) {
 		accessory = strings.ToUpper(strings.TrimPrefix(extension, "."))
 	}
 
+	actions := []ItemAction{
+		{ID: "open", Title: "打开", Command: "quick-search-open",
+			Input: ActionInput{Path: fullPath, Title: title, Kind: kind}},
+		{ID: "reveal", Title: "在文件夹中显示", Command: "quick-search-action",
+			Input: ActionInput{Action: "reveal", Path: fullPath, Title: title, Kind: kind}},
+		{ID: "copy-path", Title: "复制路径", Command: "quick-search-action",
+			Input: ActionInput{Action: "copy-path", Path: fullPath, Title: title, Kind: kind}},
+	}
+	// “复制文件”只对文件有意义（写系统剪贴板文件对象，可在资源管理器粘贴）。
+	if kind == "file" {
+		actions = append(actions, ItemAction{ID: "copy-file", Title: "复制文件",
+			Command: "quick-search-action",
+			Input:   ActionInput{Action: "copy-file", Path: fullPath, Title: title, Kind: kind}})
+	}
+
 	return ProviderItem{
 		ID:        kind + "-" + pathHash(fullPath),
 		Title:     title,
@@ -158,6 +190,7 @@ func MapItem(item everything.Item, index int) (ProviderItem, bool) {
 				Kind:  kind,
 			},
 		},
+		Actions: actions,
 	}, true
 }
 
@@ -182,6 +215,58 @@ func ParseOpenInput(input json.RawMessage) (OpenParams, error) {
 		Path:  path,
 		Kind:  strings.TrimSpace(raw.Kind),
 	}, nil
+}
+
+type ActionParams struct {
+	Action string
+	Path   string
+	Title  string
+	Kind   string
+}
+
+func ParseActionInput(input json.RawMessage) (ActionParams, error) {
+	var raw ActionInput
+	if len(input) > 0 {
+		if err := json.Unmarshal(input, &raw); err != nil {
+			return ActionParams{}, fmt.Errorf("解析快速搜索动作参数失败: %w", err)
+		}
+	}
+
+	action := strings.TrimSpace(raw.Action)
+	if action == "" {
+		return ActionParams{}, errors.New("快速搜索动作输入缺少 action")
+	}
+	path := NormalizePath(raw.Path)
+	if path == "" {
+		return ActionParams{}, errors.New("快速搜索动作输入缺少 path")
+	}
+	if !LooksLikeLocalPath(path) {
+		return ActionParams{}, fmt.Errorf("拒绝操作非本地绝对路径: %s", path)
+	}
+
+	return ActionParams{
+		Action: action,
+		Path:   path,
+		Title:  strings.TrimSpace(raw.Title),
+		Kind:   strings.TrimSpace(raw.Kind),
+	}, nil
+}
+
+func ActionMessage(action string, params ActionParams) string {
+	title := strings.TrimSpace(params.Title)
+	if title == "" {
+		title = baseName(params.Path)
+	}
+	switch action {
+	case "reveal":
+		return "已在文件夹中显示 " + title
+	case "copy-path":
+		return "已复制路径 " + title
+	case "copy-file":
+		return "已复制文件 " + title
+	default:
+		return "已执行动作 " + title
+	}
 }
 
 func OpenedMessage(params OpenParams) string {
