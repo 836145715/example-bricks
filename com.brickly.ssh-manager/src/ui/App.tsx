@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useReducer, useRef } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { BricklyStartedHandle } from '@syllm/brickly-ui'
-import { bindRuntime, errorMessage, listHosts, newSessionId, newTabId } from './brickly'
+import { bindRuntime, errorMessage, listHosts, newSessionId, newTabId, openLogSearcher } from './brickly'
 import { Chrome } from './components/Chrome'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { HostEditor } from './components/HostEditor'
@@ -33,6 +33,8 @@ export function App() {
 
   const session = activeSession(state)
   const profile = activeProfile(state)
+  // 「日志」唤起飞行中禁用，防连击按 log-searcher multi 策略开出多个窗
+  const [logsOpening, setLogsOpening] = useState(false)
   const profiles = useMemo(() => filterProfiles(state.profiles, state.query), [state.profiles, state.query])
   const remoteDir = (state.trackCwd && session?.cwd) || session?.sftpDir || ''
   const downloadDir = session?.downloadDir || (profile ? sftp.current.rememberedDownloadDir(profile.id) : '')
@@ -186,6 +188,16 @@ export function App() {
         statusText={state.statusText}
         onToggleSidebar={() => dispatch({ type: 'sidebar-toggled' })}
         onTab={(tab) => dispatch({ type: 'sidebar-tab', tab })}
+        canOpenLogs={!!profile && !logsOpening}
+        onOpenLogs={() => {
+          if (!profile || logsOpening) return
+          setLogsOpening(true)
+          void openLogSearcher(profile)
+            .catch((error) => {
+              dispatch({ type: 'status', statusText: `唤起日志查询失败: ${errorMessage(error)}` })
+            })
+            .finally(() => setLogsOpening(false))
+        }}
       />
       {state.editor ? (
         <HostEditor

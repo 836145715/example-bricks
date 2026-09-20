@@ -459,5 +459,16 @@
         ]
       }
     }
-  ]
+  ],
+  "dependencies": {
+    "log-searcher": {
+      "target": {
+        "brickId": "com.brickly.log-searcher",
+        "origin": "development",
+        "version": "0.3.0"
+      },
+      "optional": true,
+      "note": "唤起日志查询体验窗并带入当前主机上下文；未声明 commands，不授权命令调用。"
+    }
+  }
 }

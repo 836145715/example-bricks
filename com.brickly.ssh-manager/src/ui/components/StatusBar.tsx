@@ -1,4 +1,4 @@
-import { Folder, PanelLeft, Server, TerminalSquare } from 'lucide-react'
+import { FileSearch, Folder, PanelLeft, Server, TerminalSquare } from 'lucide-react'
 import { profileTarget, statusLabel } from '../state/manager-state'
 import type { Host, SessionTab, SidebarTab } from '../types'
 
@@ -9,7 +9,9 @@ export function StatusBar({
   sidebarTab,
   statusText,
   onToggleSidebar,
-  onTab
+  onTab,
+  canOpenLogs,
+  onOpenLogs
 }: {
   session?: SessionTab
   profile?: Host
@@ -18,6 +20,8 @@ export function StatusBar({
   statusText: string
   onToggleSidebar: () => void
   onTab: (tab: SidebarTab) => void
+  canOpenLogs?: boolean
+  onOpenLogs?: () => void
 }) {
   return (
     <footer className="statusbar">
@@ -66,6 +70,18 @@ export function StatusBar({
         <TerminalSquare size={13} />
         命令
       </button>
+      {onOpenLogs ? (
+        <button
+          type="button"
+          className="status-btn"
+          disabled={!canOpenLogs}
+          title="唤起日志查询工具并带入当前主机"
+          onClick={onOpenLogs}
+        >
+          <FileSearch size={13} />
+          日志
+        </button>
+      ) : null}
     </footer>
   )
 }

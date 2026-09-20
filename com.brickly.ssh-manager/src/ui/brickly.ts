@@ -1,5 +1,6 @@
 import type { BricklyInteraction, BricklyStartedHandle } from '@syllm/brickly-ui'
 import type {
+  AuthType,
   ExecResult,
   Host,
   HostDraft,
@@ -65,7 +66,7 @@ export function openSession(
   return requireRuntime().interact<SessionEvent, { sessionId?: string; exitCode?: number }>(
     'open-session',
     input,
-    { onEvent }
+    { onEvent: (event) => onEvent(event as SessionEvent) }
   )
 }
 
@@ -88,7 +89,10 @@ export function callSftpUpload(
   onEvent: (event: SftpProgressEvent) => void,
   signal?: AbortSignal
 ): Promise<SftpTransferResult> {
-  return requireRuntime().call<SftpTransferResult>('sftp-upload', input, { onEvent, signal })
+  return requireRuntime().call<SftpTransferResult>('sftp-upload', input, {
+    onEvent: (event) => onEvent(event as SftpProgressEvent),
+    signal
+  })
 }
 
 export function callSftpDownload(
@@ -102,11 +106,44 @@ export function callSftpDownload(
   onEvent: (event: SftpProgressEvent) => void,
   signal?: AbortSignal
 ): Promise<SftpTransferResult> {
-  return requireRuntime().call<SftpTransferResult>('sftp-download', input, { onEvent, signal })
+  return requireRuntime().call<SftpTransferResult>('sftp-download', input, {
+    onEvent: (event) => onEvent(event as SftpProgressEvent),
+    signal
+  })
 }
 
 export async function pickDirectory(defaultPath?: string): Promise<string | undefined> {
   return window.brickly?.fs?.pickDirectory(defaultPath ? { defaultPath } : undefined)
+}
+
+/** 传给 log-searcher 体验窗的启动场景（launchContext.params）。凭据不跨砖，只带连接身份。 */
+export interface SshSessionLaunchParams {
+  kind: 'ssh-session'
+  ssh: {
+    hostId: string
+    name: string
+    host: string
+    port: number
+    user: string
+    authType: AuthType
+  }
+}
+
+export async function openLogSearcher(host: Host): Promise<void> {
+  const deps = window.brickly?.dependencies
+  if (!deps) throw new Error('当前不在 Brickly 宿主中，无法唤起日志查询')
+  const params: SshSessionLaunchParams = {
+    kind: 'ssh-session',
+    ssh: {
+      hostId: host.id,
+      name: host.name || host.host,
+      host: host.host,
+      port: host.port || 22,
+      user: host.user,
+      authType: host.authType
+    }
+  }
+  await deps.require('log-searcher').openUi({ params })
 }
 
 export function asSftpProgress(chunk: unknown): SftpProgress | null {

@@ -57,6 +57,10 @@ cd example-bricks/com.brickly.ssh-manager/runtime/go
 - `sftp-upload`：上传本机文件或目录，通过 interact 事件输出 `progress`。传输期间即使关掉终端 Tab，也不会拆掉这条 SSH 连接。
 - `sftp-download`：下载远端文件或目录，通过 interact 事件输出 `progress`。
 
+## 跨 Brick 唤起
+
+底栏「日志」按钮演示 `dependencies` + `openUi` + `launchContext`：manifest 声明 `log-searcher` 别名（target 精确 BrickRef，未声明 `commands`，不授权命令调用），点击后 `window.brickly.dependencies.require('log-searcher').openUi({ params })` 唤起其体验窗并带入当前主机上下文 `{ kind: 'ssh-session', ssh: { hostId, name, host, port, user, authType } }`。凭据不跨砖：密码/私钥留在各自 Brick 的配置里，对端按 `host+port+user` 匹配自己已保存的服务器，匹配不到则预填新建表单由用户补全一次。
+
 ## 一期边界
 
 - SFTP 只做列目录、上传、下载和上传进度。不做新建、重命名、删除、chmod、远程编辑。
