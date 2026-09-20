@@ -11,10 +11,11 @@ GUI 衍生品，可在市场安装/卸载；未安装时开发者仍可用 `npx 
     │  window.brickly.invoke('<command>', input)
     ▼
 runtime（node, src/runtime/index.ts）—— 五个 command 薄壳
-    │  ├─ ctx.platform.dev.*        宿主开发目录原语（listBricks/getBrickDetail/bricksDir/rescan）
+    │  ├─ ctx.platform.dev.*        宿主开发目录原语（listBricks/getBrickDetail/rescan）
+    │  ├─ brick.getPath('devBricks') 开发目录路径
     │  └─ vendor/create-brickly     create-brickly 库产物（生成逻辑唯一事实来源）
     ▼
-开发目录（bricksDir）→ 生成落盘 → platform.dev.rescan()
+开发目录（brick.getPath('devBricks')）→ 生成落盘 → platform.dev.rescan()
 ```
 
 ## 命令
@@ -25,7 +26,7 @@ runtime（node, src/runtime/index.ts）—— 五个 command 薄壳
 | `list-bricks` | 开发+已安装工具轻量列表（依赖选择器数据源） |
 | `get-brick-detail` | 按完整 BrickRef 取 manifest 作者字段子集 |
 | `preview` | 草稿 → 文件清单/manifest/告警，不落盘 |
-| `create` | 依赖终校验 → 写入 `bricksDir/<brickId>` → `dev.rescan()` |
+| `create` | 依赖终校验 → 写入 `brick.getPath('devBricks')/<brickId>` → `dev.rescan()` |
 
 ## vendor：create-brickly 怎么进来的
 
@@ -45,11 +46,11 @@ src/ui/vendor/manifest.schema.json ← Monaco JSON 诊断用同一份
 ## 开发
 
 ```bash
-# 本仓根目录，联调本地 SDK（含未发布的 platform.dev.*）
+# 本仓根目录，联调本地 SDK（含未发布的 platform.dev.* / getPath('devBricks')）
 npm run setup -- --local --brick com.brickly.starter
 # 或直接跑砖内脚本
 node ../scripts/setup-brick.cjs --local
 ```
 
-注意：`platform.dev.*` 在 SDK 0.12.0 中尚不存在，必须 `--local` 联调源码版 SDK，
+注意：`platform.dev.*` 与 `getPath('devBricks')` 在 SDK 0.12.0 中尚不存在，必须 `--local` 联调源码版 SDK，
 或等 SDK 发布后 bump `src/runtime/package.json` 的 pin。

@@ -2,7 +2,8 @@
  * com.brickly.starter runtime：create-brickly 内核的 GUI 薄壳。
  * 生成逻辑全部来自 vendored api.js（CLI 构建产物），本层只做三件事：
  *   1. 把向导输入转成 CreateStarterDraft 并做边界校验；
- *   2. 通过 ctx.platform.dev.* 取宿主开发目录原语（列表 / 详情 / bricksDir / rescan）；
+ *   2. 通过 ctx.platform.dev.* + brick.getPath('devBricks') 取宿主开发目录原语
+ *      （列表 / 详情 / 目录路径 / rescan）；
  *   3. create 前对依赖引用做终校验（快照可能已过期）。
  */
 import { join } from 'node:path'
@@ -94,7 +95,7 @@ brick.onCommand('create', async (ctx, input) => {
     throw new BppError('BRICK_NOT_FOUND', `依赖工具已不存在，请重新选择：${missing.join(', ')}`)
   }
 
-  const { path: bricksDir } = await ctx.platform.dev.bricksDir()
+  const bricksDir = await brick.getPath('devBricks')
   const destDir = join(bricksDir, draft.brickId)
   const result = createStarterProject({
     draft,
