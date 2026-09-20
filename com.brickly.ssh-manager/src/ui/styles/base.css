@@ -1,0 +1,195 @@
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    overflow: hidden;
+    background-color: var(--background);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-kerning: normal;
+    font-synthesis: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /*
+   * 主题切换不要给半个文档树挂 color/background transition。
+   * 切换 .dark 时 CSS 变量瞬间换值，若上千节点同时对 color/bg 做 300ms 插值，
+   * 会在主线程叠大量 paint/composite，体感就是「卡、不丝滑」。
+   * 丝滑改走 View Transitions（见 use-app-theme）或瞬时切换。
+   */
+
+  input,
+  textarea,
+  [contenteditable='true'],
+  pre,
+  code,
+  .selectable,
+  .allow-select {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* 选中文本的高亮 */
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+
+  /* ---- 可交互元素统一手型光标 ---- */
+  button:not(:disabled),
+  a,
+  label:has(input[type='checkbox']:not(:disabled)),
+  label:has(input[type='radio']:not(:disabled)),
+  summary,
+  [role='tab']:not([aria-disabled='true']),
+  [role='button']:not([aria-disabled='true']),
+  [role='menuitem']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  [role='switch']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role='button'][aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
+  /* ---- 全局交互过渡（不含 transform：列表行/树节点点选时 scale 显廉价） ---- */
+  button,
+  a,
+  [role='tab'],
+  [role='button'] {
+    transition:
+      color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ---- 动画 keyframes - 更柔和 ---- */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes card-enter-soft {
+    from {
+      opacity: 0;
+      transform: scale(0.992);
+      filter: saturate(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+      filter: saturate(1);
+    }
+  }
+
+  @keyframes gentle-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 250ms ease-out both;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 300ms ease-out both;
+  }
+
+  .animate-card-enter-soft {
+    animation: card-enter-soft 180ms ease-out both;
+  }
+
+  .animate-gentle-pulse {
+    animation: gentle-pulse 2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-slide-up,
+    .animate-card-enter-soft,
+    .animate-gentle-pulse {
+      animation: none;
+    }
+  }
+
+  /* View Transitions：主题切换时整页一次交叉淡化，时长短、成本低于逐节点 color 插值 */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+    }
+  }
+
+  /* ---- 更简洁的滚动条 ---- */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--muted-foreground) 20%, transparent);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
+  }
+
+  /* ---- 滚动条占位稳定：避免滚动条出现/消失导致内容左右抖动 ----
+     不要给 html/body 设置 scrollbar-gutter：Electron frameless 窗口下会在视口最右侧
+     留出一条非内容 gutter，Dialog overlay 可能盖不到，表现为右侧"漏底"。只给显式
+     可滚动容器预留滚动条位。 */
+  [class*='overflow-auto'],
+  [class*='overflow-y-auto'],
+  [class*='overflow-scroll'],
+  [class*='overflow-y-scroll'] {
+    scrollbar-gutter: stable;
+  }
+}

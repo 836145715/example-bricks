@@ -1,0 +1,135 @@
+@layer components {
+  /* Shared surfaces */
+  .surface-canvas {
+    background: var(--surface-canvas);
+  }
+
+  .surface-soft {
+    background: var(--surface-soft);
+  }
+
+  .surface-raised {
+    background: var(--surface-raised);
+    border-color: var(--border);
+  }
+
+  .surface-overlay {
+    background: var(--surface-overlay);
+    border-color: var(--border);
+  }
+
+  .surface-sunken {
+    background: var(--surface-sunken);
+  }
+
+  .quiet-card {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+  }
+
+  .hairline {
+    border-color: color-mix(in oklch, var(--border) 78%, transparent);
+  }
+
+  .semantic-id {
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .status-dot {
+    box-shadow: none;
+  }
+
+  /* 工具卡片：统一 Surface，身份色只落在图标上。 */
+  .brick-icon {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .brick-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    transition: border-color 160ms ease, background-color 160ms ease;
+  }
+
+  .brick-card:hover {
+    border-color: color-mix(in oklch, var(--foreground) 18%, var(--border));
+  }
+
+  .brick-card-icon {
+    background: var(--brick-icon-bg, var(--muted));
+    color: var(--brick-icon-fg, var(--foreground));
+  }
+
+  .dark .brick-card-icon {
+    background: var(--brick-icon-bg-dark, var(--muted));
+    color: var(--brick-icon-fg-dark, var(--foreground));
+  }
+
+  .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* 卡片网格：auto-fill 自适应密度，窄窗口下用 min(100%, …) 兜底避免横向溢出。 */
+  .brick-card-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  }
+
+  .manifest-json-active-range {
+    background: color-mix(in srgb, #007acc 22%, transparent);
+    outline: 1px solid color-mix(in srgb, #4fc3f7 58%, transparent);
+    outline-offset: -1px;
+  }
+
+  /**
+   * 诊断中心可复制文本区（配合 readonly textarea）：
+   * - I 形光标 + 可闪烁 caret（普通 pre 只有选区、无插入光标）
+   * - 编辑器风格蓝选中，覆盖全局绿色 ::selection
+   */
+  .selectable-code {
+    cursor: text;
+    caret-color: var(--foreground);
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  textarea.selectable-code {
+    /* 随内容增高，避免固定行数裁切长日志 */
+    field-sizing: content;
+    min-height: 1.75rem;
+  }
+
+  .selectable-code::selection,
+  .selectable-code *::selection {
+    /* 接近 VS Code / 系统编辑器的蓝选中，而非主题绿 */
+    background: color-mix(in srgb, #0078d4 55%, transparent);
+    color: inherit;
+  }
+
+  .dark .selectable-code::selection,
+  .dark .selectable-code *::selection {
+    background: color-mix(in srgb, #264f78 88%, transparent);
+    color: inherit;
+  }
+
+  /* Legacy card hover affordance */
+  .bg-card {
+    transition:
+      box-shadow 250ms ease,
+      border-color 250ms ease,
+      transform 250ms ease;
+  }
+
+  article.bg-card:hover,
+  section.bg-card:hover {
+    border-color: color-mix(in oklch, var(--foreground) 16%, var(--border));
+  }
+}

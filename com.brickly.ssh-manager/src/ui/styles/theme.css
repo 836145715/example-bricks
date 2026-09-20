@@ -1,0 +1,171 @@
+@custom-variant dark (&:is(.dark *));
+
+/* ===== Brickly Quiet Workstation 设计 token ===== */
+/* 浅色画布跟官网同系 hue 170。主色只服务焦点、当前项和主操作。 */
+/* 页面发丝线 (--border) 保持弱；开关/勾选/输入用 --control-*，避免整页加粗。 */
+
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.992 0.004 170);
+  --foreground: oklch(0.18 0.012 255);
+
+  --card: oklch(0.997 0.002 170);
+  --card-foreground: oklch(0.18 0.012 255);
+
+  --popover: oklch(0.997 0.002 170);
+  --popover-foreground: oklch(0.18 0.012 255);
+
+  --primary: oklch(0.55 0.14 170);
+  --primary-foreground: oklch(0.985 0.003 170);
+  --primary-light: oklch(0.955 0.022 170);
+  --primary-soft: oklch(0.91 0.036 170);
+
+  --secondary: oklch(0.965 0.008 170);
+  --secondary-foreground: oklch(0.28 0.012 255);
+
+  --muted: oklch(0.965 0.008 170);
+  --muted-foreground: oklch(0.42 0.016 255);
+
+  --accent: oklch(0.935 0.016 170);
+  --accent-foreground: oklch(0.23 0.014 255);
+
+  --destructive: oklch(0.57 0.18 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.55 0.13 148);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.68 0.13 78);
+  --warning-foreground: oklch(0.19 0.035 78);
+  --info: oklch(0.56 0.13 235);
+  --info-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.86 0.01 170 / 68%);
+  --input: oklch(0.962 0.007 170);
+  --ring: oklch(0.55 0.14 170 / 35%);
+  --control-track: oklch(0.90 0.014 170);
+  --control-rim: oklch(0.74 0.02 170);
+  --switch-thumb: oklch(0.995 0.002 170);
+
+  --sidebar: oklch(0.978 0.005 170);
+  --sidebar-foreground: oklch(0.28 0.012 255);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.945 0.01 170);
+  --sidebar-accent-foreground: oklch(0.18 0.012 255);
+  --sidebar-border: oklch(0.86 0.01 170 / 68%);
+  --sidebar-ring: oklch(0.55 0.14 170 / 28%);
+
+  --surface-canvas: oklch(0.992 0.004 170);
+  --surface-soft: oklch(0.965 0.008 170);
+  --surface-raised: oklch(0.997 0.002 170);
+  --surface-overlay: oklch(0.997 0.002 170);
+  --surface-sunken: oklch(0.965 0.008 170);
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.04);
+  --shadow-raised: 0 1px 2px rgb(15 23 42 / 0.06);
+}
+
+.dark {
+  /* 暗色纸面贴近画布，靠发丝线分层，避免海军蓝浮块。 */
+  --background: oklch(0.12 0.004 255);
+  --foreground: oklch(0.91 0.005 255);
+
+  --card: oklch(0.152 0.004 255);
+  --card-foreground: oklch(0.91 0.005 255);
+
+  --popover: oklch(0.205 0.005 255);
+  --popover-foreground: oklch(0.93 0.005 255);
+
+  --primary: oklch(0.62 0.15 170);
+  --primary-foreground: oklch(0.08 0.01 170);
+  --primary-light: oklch(0.22 0.03 170);
+  --primary-soft: oklch(0.18 0.024 170);
+
+  --secondary: oklch(0.168 0.004 255);
+  --secondary-foreground: oklch(0.82 0.006 255);
+
+  --muted: oklch(0.168 0.004 255);
+  --muted-foreground: oklch(0.74 0.008 255);
+
+  --accent: oklch(0.188 0.005 255);
+  --accent-foreground: oklch(0.93 0.005 255);
+
+  --destructive: oklch(0.62 0.16 25);
+  --success: oklch(0.7 0.08 148);
+  --warning: oklch(0.76 0.1 78);
+  --info: oklch(0.74 0.03 255);
+
+  --border: oklch(0.44 0.006 255 / 46%);
+  --input: oklch(0.195 0.005 255);
+  --ring: oklch(0.62 0.15 170 / 36%);
+  --control-track: oklch(0.28 0.01 255);
+  --control-rim: oklch(0.50 0.012 255);
+  --switch-thumb: oklch(0.96 0.004 255);
+
+  --sidebar: oklch(0.11 0.004 255);
+  --sidebar-foreground: oklch(0.82 0.006 255);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.16 0.004 255);
+  --sidebar-accent-foreground: oklch(0.91 0.005 255);
+  --sidebar-border: oklch(0.40 0.005 255 / 50%);
+  --sidebar-ring: oklch(0.62 0.15 170 / 32%);
+
+  --surface-canvas: oklch(0.12 0.004 255);
+  --surface-soft: oklch(0.14 0.004 255);
+  --surface-raised: oklch(0.152 0.004 255);
+  --surface-overlay: oklch(0.205 0.005 255);
+  --surface-sunken: oklch(0.11 0.004 255);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.2);
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.26);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-strong: var(--primary-strong);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-control-track: var(--control-track);
+  --color-control-rim: var(--control-rim);
+  --color-switch-thumb: var(--switch-thumb);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-canvas: var(--surface-canvas);
+  --color-surface-sunken: var(--surface-sunken);
+
+  --font-sans: 'Outfit Variable', 'Outfit', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}

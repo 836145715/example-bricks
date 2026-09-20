@@ -1,6 +1,36 @@
-import { Loader2, PlugZap, Save, Trash2, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
+import { profileLabel, profileTarget } from '../state/manager-state'
 import type { AuthType, HostDraft } from '../types'
+
+function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
+  return (
+    <div className={cn('grid gap-1.5', wide && 'col-span-2')}>
+      <Label>{label}</Label>
+      {children}
+    </div>
+  )
+}
 
 export function HostEditor({
   draft,
@@ -8,157 +38,169 @@ export function HostEditor({
   busy,
   testMessage,
   onChange,
-  onSave,
-  onTest,
+  onClose,
   onDelete,
-  onClose
+  onTest,
+  onSave
 }: {
   draft: HostDraft
   mode: 'create' | 'edit'
   busy: string | null
   testMessage: string
   onChange: (patch: Partial<HostDraft>) => void
-  onSave: () => void
-  onTest: () => void
-  onDelete?: () => void
   onClose: () => void
+  onDelete?: () => void
+  onTest: () => void
+  onSave: () => void
 }) {
+  const saving = busy === 'save'
+  const testing = busy === 'test'
   return (
-    <div className="overlay" role="presentation" onClick={onClose}>
-      <section className="editor-card" role="dialog" aria-labelledby="editor-title" onClick={(event) => event.stopPropagation()}>
-        <header className="editor-head">
-          <div>
-            <h2 id="editor-title">{mode === 'edit' ? draft.name || draft.host || '编辑 Profile' : '新建 Profile'}</h2>
-            <p>密码和私钥只保存在本机，不会写入日志。</p>
-          </div>
-          <button type="button" className="icon-btn" title="关闭" onClick={onClose}>
-            <X size={14} />
-          </button>
-        </header>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{mode === 'edit' ? '编辑 Profile' : '新建 Profile'}</DialogTitle>
+          <DialogDescription className="font-mono">
+            {profileLabel(draft) || '新主机'} · {profileTarget(draft)}
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="form-grid">
+        <div className="grid grid-cols-2 gap-4">
           <Field label="名称">
-            <input value={draft.name} onChange={(event) => onChange({ name: event.target.value })} placeholder="支付核心" />
+            <Input
+              value={draft.name || ''}
+              onChange={(e) => onChange({ name: e.target.value })}
+              placeholder="可选"
+            />
           </Field>
           <Field label="分组">
-            <input value={draft.group} onChange={(event) => onChange({ group: event.target.value })} placeholder="生产" />
+            <Input
+              value={draft.group || ''}
+              onChange={(e) => onChange({ group: e.target.value })}
+              placeholder="生产 / 测试 / 跳板"
+            />
           </Field>
-          <Field label="主机">
-            <input value={draft.host} onChange={(event) => onChange({ host: event.target.value })} placeholder="10.0.0.8" />
+          <Field label="主机地址">
+            <Input
+              value={draft.host}
+              onChange={(e) => onChange({ host: e.target.value })}
+              placeholder="host.example.com"
+            />
           </Field>
           <Field label="端口">
-            <input
+            <Input
               type="number"
               min={1}
               max={65535}
-              value={draft.port}
-              onChange={(event) => onChange({ port: Number(event.target.value) || 22 })}
+              value={draft.port || 22}
+              onChange={(e) => onChange({ port: Number(e.target.value) || 22 })}
             />
           </Field>
-          <Field label="用户">
-            <input value={draft.user} onChange={(event) => onChange({ user: event.target.value })} placeholder="deploy" />
+          <Field label="用户名">
+            <Input value={draft.user} onChange={(e) => onChange({ user: e.target.value })} />
           </Field>
-          <Field label="鉴权">
-            <select value={draft.authType} onChange={(event) => onChange({ authType: event.target.value as AuthType })}>
-              <option value="password">密码</option>
-              <option value="key">私钥</option>
-            </select>
+          <Field label="认证方式">
+            <Select
+              value={draft.authType}
+              onValueChange={(value) => onChange({ authType: value as AuthType })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="password">密码</SelectItem>
+                <SelectItem value="key">私钥</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           {draft.authType === 'password' ? (
             <Field label="密码" wide>
-              <input
+              <Input
                 type="password"
                 autoComplete="off"
-                value={draft.password ?? ''}
-                onChange={(event) => onChange({ password: event.target.value })}
-                placeholder={mode === 'edit' ? '已保存，留空则保持不变' : undefined}
+                value={draft.password || ''}
+                onChange={(e) => onChange({ password: e.target.value })}
+                placeholder={draft.id ? '留空保留已保存密码' : '输入密码'}
               />
             </Field>
           ) : (
             <>
-              <Field label="私钥路径">
-                <input
-                  value={draft.keyPath ?? ''}
-                  onChange={(event) => onChange({ keyPath: event.target.value })}
-                  placeholder={mode === 'edit' ? '已保存，留空则保持不变' : 'C:\\Users\\admin\\.ssh\\id_ed25519'}
+              <Field label="私钥文件" wide>
+                <Input
+                  className="font-mono text-xs"
+                  value={draft.keyPath || ''}
+                  onChange={(e) => onChange({ keyPath: e.target.value })}
+                  placeholder="~/.ssh/id_ed25519"
                 />
               </Field>
-              <Field label="Passphrase">
-                <input
+              <Field label="私钥内容" wide>
+                <Textarea
+                  rows={4}
+                  className="font-mono text-xs"
+                  value={draft.keyText || ''}
+                  onChange={(e) => onChange({ keyText: e.target.value })}
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                />
+              </Field>
+              <Field label="Passphrase" wide>
+                <Input
                   type="password"
                   autoComplete="off"
-                  value={draft.passphrase ?? ''}
-                  onChange={(event) => onChange({ passphrase: event.target.value })}
-                  placeholder={mode === 'edit' ? '已保存，留空则保持不变' : undefined}
-                />
-              </Field>
-              <Field label="私钥文本" wide>
-                <textarea
-                  rows={5}
-                  value={draft.keyText ?? ''}
-                  onChange={(event) => onChange({ keyText: event.target.value })}
-                  placeholder={mode === 'edit' ? '已保存，留空则保持不变' : '也可直接粘贴私钥内容'}
+                  value={draft.passphrase || ''}
+                  onChange={(e) => onChange({ passphrase: e.target.value })}
                 />
               </Field>
             </>
           )}
           <Field label="标签" wide>
-            <input
-              value={(draft.tags ?? []).join(', ')}
-              onChange={(event) =>
+            <Input
+              value={(draft.tags || []).join(', ')}
+              onChange={(e) =>
                 onChange({
-                  tags: event.target.value
-                    .split(',')
-                    .map((item) => item.trim())
+                  tags: e.target.value
+                    .split(/[,，]/)
+                    .map((tag) => tag.trim())
                     .filter(Boolean)
                 })
               }
-              placeholder="prod, linux"
+              placeholder="逗号分隔，如：生产, 新加坡"
             />
           </Field>
           <Field label="备注" wide>
-            <textarea rows={2} value={draft.note ?? ''} onChange={(event) => onChange({ note: event.target.value })} />
+            <Textarea
+              rows={2}
+              value={draft.note || ''}
+              onChange={(e) => onChange({ note: e.target.value })}
+            />
           </Field>
         </div>
 
-        {testMessage ? <p className="editor-message">{testMessage}</p> : null}
+        {testMessage ? (
+          <p className="text-muted-foreground font-mono text-xs">{testMessage}</p>
+        ) : null}
 
-        <footer className="editor-actions">
-          {mode === 'edit' ? (
-            <button type="button" className="ghost-btn danger" disabled={Boolean(busy)} onClick={onDelete}>
-              <Trash2 size={14} />
+        <DialogFooter>
+          {onDelete ? (
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive mr-auto"
+              disabled={Boolean(busy)}
+              onClick={onDelete}
+            >
+              {busy === 'delete' ? <Loader2 className="animate-spin" /> : null}
               删除
-            </button>
-          ) : (
-            <span />
-          )}
-          <button type="button" className="ghost-btn" disabled={Boolean(busy)} onClick={onTest}>
-            {busy === 'test' ? <Loader2 size={14} className="spin" /> : <PlugZap size={14} />}
-            测试
-          </button>
-          <button type="button" className="primary-btn" disabled={Boolean(busy)} onClick={onSave}>
-            {busy === 'save' ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+            </Button>
+          ) : null}
+          <Button variant="outline" disabled={Boolean(busy)} onClick={onTest}>
+            {testing ? <Loader2 className="animate-spin" /> : null}
+            测试连接
+          </Button>
+          <Button disabled={Boolean(busy)} onClick={onSave}>
+            {saving ? <Loader2 className="animate-spin" /> : null}
             保存
-          </button>
-        </footer>
-      </section>
-    </div>
-  )
-}
-
-function Field({
-  label,
-  children,
-  wide
-}: {
-  label: string
-  children: ReactNode
-  wide?: boolean
-}) {
-  return (
-    <label className={wide ? 'field field-wide' : 'field'}>
-      <span>{label}</span>
-      {children}
-    </label>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

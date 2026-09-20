@@ -5,6 +5,7 @@ import { Chrome } from './components/Chrome'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { HostEditor } from './components/HostEditor'
 import { StatusBar } from './components/StatusBar'
+import { Toaster } from './components/ui/sonner'
 import { Workspace } from './components/Workspace'
 import { useFileTransfer } from './hooks/useFileTransfer'
 import { useHostEditor } from './hooks/useHostEditor'
@@ -219,6 +220,7 @@ export function App() {
           onConfirm={() => void transfer.resolveConfirm(state.confirm!, true)}
         />
       ) : null}
+      <Toaster />
     </div>
   )
 }

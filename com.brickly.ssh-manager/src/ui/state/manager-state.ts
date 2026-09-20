@@ -197,7 +197,7 @@ export function statusLabel(status: SessionStatus): string {
   return '已断开'
 }
 
-export function profileLabel(host: Host): string {
+export function profileLabel(host: Pick<Host, 'name' | 'host'>): string {
   return host.name || host.host
 }
 
