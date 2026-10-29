@@ -63,8 +63,11 @@ export function DepsStep({ draft, bricks, onChange }: Props) {
 
   return (
     <div className="step">
-      <h2>依赖工具</h2>
-      <p className="hint">勾选后会在 manifest.dependencies 里声明，新砖 runtime 可通过依赖调用其命令。</p>
+      <header className="step-head">
+        <span className="kicker">STEP 03 · DEPENDENCIES</span>
+        <h2>依赖工具</h2>
+        <p>勾选后写进 manifest.dependencies，新砖 runtime 可按别名调用其命令。</p>
+      </header>
       {usable.length === 0 && <p className="hint">开发目录中暂无可依赖的工具。</p>}
       <ul className="dep-list">
         {usable.map((b) => {
@@ -74,6 +77,9 @@ export function DepsStep({ draft, bricks, onChange }: Props) {
             (d) => d.brickId === b.brickId && d.origin === b.origin && d.version === b.version
           )
           const det = detail[key]
+          const commands = Array.isArray(det?.manifest.commands)
+            ? (det.manifest.commands as Array<{ id: string }>)
+            : null
           return (
             <li key={key} className={`dep-item ${selected ? 'selected' : ''}`}>
               <label className="dep-head">
@@ -85,14 +91,18 @@ export function DepsStep({ draft, bricks, onChange }: Props) {
               {selected && dep && (
                 <div className="dep-body">
                   <label className="field inline">
-                    <span>别名（dependencies key）</span>
+                    <span>别名（DEPENDENCIES KEY）</span>
                     <input value={dep.alias} onChange={(e) => setAlias(dep, e.target.value)} />
                   </label>
-                  {det && Array.isArray(det.manifest.commands) && (
-                    <p className="hint">
-                      可调用命令：
-                      {(det.manifest.commands as Array<{ id: string }>).map((c) => c.id).join(', ')}
-                    </p>
+                  {commands && commands.length > 0 && (
+                    <div className="dep-cmds">
+                      <span>可调用命令</span>
+                      {commands.map((c) => (
+                        <code key={c.id} className="cmd-chip">
+                          {c.id}
+                        </code>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}

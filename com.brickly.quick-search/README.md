@@ -5,14 +5,15 @@ related_code:
   - src/runtime/index.ts
   - src/ui/src/QuickSearchPage.tsx
   - scripts/quick-search-runtime-smoke.test.ts
-last_verified: 2026-09-17
+last_verified: 2026-09-20
 ---
 
 # com.brickly.quick-search
 
-快速搜索浮窗砖：聚合全部已开启的搜索 Provider，`Ctrl+Space` 唤起/隐藏，失焦自动隐藏，原生拖拽移动并记忆位置。宿主侧只提供搜索平台服务（Provider 注册、消费方校验、搜索编排），窗口与页面是本砖私产。
+快速搜索浮窗砖：聚合全部已开启的搜索 Provider，`Ctrl+Space` 唤起/收起，失焦自动收起，原生拖拽移动并记忆位置。宿主侧只提供搜索平台服务（Provider 注册、消费方校验、搜索编排），窗口与页面是本砖私产。
 
 - `src/runtime/index.ts`（TS）：常驻 shared 实例，`toggle` 命令显隐，`search.*` expose 中转 + `search:snapshot` 渐进快照转发，`drag.start/end` 原生拖拽。
+- 显隐实现：Windows 对透明无边框窗的 hidden→shown 强制播 ~300ms DWM 淡入（无法关闭）。窗口创建后**永不 hide()/show()**——`onReady` 预热建窗停屏外 `(-32000,-32000)` 播掉唯一一次淡入，之后显隐纯靠 `setPosition` 屏内/屏外位移（零动画），逻辑可见性由 `paletteVisible` 记账。
 - `src/runtime/build.mjs`：esbuild 把 `index.ts` + SDK bundle 成单文件 `out/runtime/<平台>/index.js`。
 - `src/ui/`：React 19 + Vite + Tailwind 浮窗页面（manifest `ui.type=none`，窗口由 runtime 程序化创建）。
 

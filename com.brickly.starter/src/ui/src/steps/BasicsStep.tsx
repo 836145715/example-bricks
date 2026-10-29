@@ -11,32 +11,47 @@ export function BasicsStep({ draft, onChange }: Props) {
   const idValid = !draft.brickId || BRICK_ID_PATTERN.test(draft.brickId)
   return (
     <div className="step">
-      <h2>基本信息</h2>
+      <header className="step-head">
+        <span className="kicker">STEP 01 · BASICS</span>
+        <h2>基本信息</h2>
+        <p>给新砖定身份：反向域名 ID、名称与作者会写进 manifest.json。</p>
+      </header>
       <label className="field">
-        <span>Brick ID *</span>
+        <span>
+          BRICK ID <i className="req">*</i>
+        </span>
         <input
+          className={idValid ? '' : 'invalid'}
           value={draft.brickId}
           placeholder="com.example.my-tool"
           onChange={(e) => onChange({ brickId: e.target.value.trim() })}
         />
-        {!idValid && <em className="error">反向域名格式：小写字母/数字/点/连字符，至少一段点</em>}
+        {!idValid && (
+          <em className="error">反向域名格式：小写字母/数字/点/连字符，至少一段点</em>
+        )}
       </label>
-      <label className="field">
-        <span>名称 *</span>
-        <input
-          value={draft.name}
-          placeholder="我的工具"
-          onChange={(e) => onChange({ name: e.target.value })}
-        />
-      </label>
-      <label className="field">
-        <span>作者 *</span>
-        <input
-          value={draft.authorName}
-          placeholder="你的名字或团队"
-          onChange={(e) => onChange({ authorName: e.target.value })}
-        />
-      </label>
+      <div className="field-row">
+        <label className="field">
+          <span>
+            名称 <i className="req">*</i>
+          </span>
+          <input
+            value={draft.name}
+            placeholder="我的工具"
+            onChange={(e) => onChange({ name: e.target.value })}
+          />
+        </label>
+        <label className="field">
+          <span>
+            作者 <i className="req">*</i>
+          </span>
+          <input
+            value={draft.authorName}
+            placeholder="你的名字或团队"
+            onChange={(e) => onChange({ authorName: e.target.value })}
+          />
+        </label>
+      </div>
       <label className="field">
         <span>描述</span>
         <textarea

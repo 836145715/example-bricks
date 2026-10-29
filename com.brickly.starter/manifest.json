@@ -18,7 +18,7 @@
   "keywords": ["starter", "scaffold", "create", "wizard", "template"],
   "runtime": {
     "type": "node",
-    "instance": "per-call",
+    "instance": "shared",
     "platforms": [
       "win-x64",
       "win-arm64",
@@ -33,8 +33,11 @@
     "size": {
       "width": 1080,
       "height": 760,
-      "resizable": true
+      "resizable": true,
+      "minWidth": 520,
+      "minHeight": 560
     },
+    "titleBar": "custom",
     "devTools": "debug-only"
   },
   "commands": [
